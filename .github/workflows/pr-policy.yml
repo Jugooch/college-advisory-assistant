@@ -1,0 +1,47 @@
+# Pull request policy: file ownership and PR title format. Both are required status checks on main.
+name: PR policy
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-policy-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  ownership:
+    name: Ownership
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - name: Check every changed file belongs to the branch owner
+        run: node scripts/check-ownership.mjs
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          BASE_REF: ${{ github.base_ref }}
+          OWNERSHIP_OVERRIDE: ${{ contains(github.event.pull_request.labels.*.name, 'ownership-override') }}
+
+  pr-title:
+    name: PR title
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Check the title is a Conventional Commit
+        run: printf '%s\n' "$PR_TITLE" | pnpm commitlint
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}

@@ -1,0 +1,25 @@
+{
+  "name": "@caa/api",
+  "version": "0.0.0",
+  "private": true,
+  "description": "HTTP API. Routes, controllers, and services; all business rules live in services and the engine.",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsup",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@caa/api-contract": "workspace:*",
+    "@caa/db": "workspace:*",
+    "@caa/domain": "workspace:*",
+    "@caa/engine": "workspace:*",
+    "fastify": "^5.12.5",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.1",
+    "tsx": "^4.23.15"
+  }
+}

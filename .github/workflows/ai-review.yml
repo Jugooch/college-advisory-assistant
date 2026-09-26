@@ -1,0 +1,106 @@
+# AI review panel: each required reviewer agent (.claude/agents) reviews the PR and posts a verdict comment.
+# The "AI review gate" job is a required status check on main.
+# Setup: run `claude setup-token` and store the result as the CLAUDE_CODE_OAUTH_TOKEN repository secret.
+name: AI review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  select:
+    name: Select reviewers
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    outputs:
+      reviewers: ${{ steps.select.outputs.reviewers }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - id: select
+        run: node scripts/select-reviewers.mjs "$BASE_REF"
+        env:
+          BASE_REF: ${{ github.base_ref }}
+
+  review:
+    name: Review (${{ matrix.reviewer }})
+    needs: select
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        reviewer: ${{ fromJSON(needs.select.outputs.reviewers) }}
+    steps:
+      - name: Require Claude credentials
+        env:
+          TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::error::Missing CLAUDE_CODE_OAUTH_TOKEN secret. Run 'claude setup-token' and add it under Settings > Secrets > Actions."
+            exit 1
+          fi
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: anthropics/claude-code-action@v1
+        env:
+          GH_TOKEN: ${{ github.token }}
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          prompt: |
+            Review pull request #${{ github.event.pull_request.number }} in ${{ github.repository }} as the ${{ matrix.reviewer }}.
+            Base branch: origin/${{ github.base_ref }}. Head commit SHA: ${{ github.event.pull_request.head.sha }}.
+            Follow your agent instructions exactly and use sha:${{ github.event.pull_request.head.sha }} in the marker line.
+            When the review is complete, post it as exactly one PR comment and then stop:
+            gh pr comment ${{ github.event.pull_request.number }} --body-file - <<'REVIEW'
+            <your complete review>
+            REVIEW
+          claude_args: >-
+            --agent ${{ matrix.reviewer }}
+            --max-turns 60
+            --allowedTools "Read,Grep,Glob,Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git rev-parse:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(pnpm vitest run:*)"
+
+  gate:
+    name: AI review gate
+    needs: [select, review]
+    if: always() && github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - name: Require an APPROVE verdict from every required reviewer on the head commit
+        run: node scripts/check-ai-reviews.mjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}

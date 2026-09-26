@@ -1,0 +1,72 @@
+/**
+ * @file Loads the ownership map and answers "may this owner change this path?".
+ * @module scripts/lib/ownership
+ */
+import { readFileSync } from 'node:fs';
+import { dirname, join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+/** Absolute path of the repository root. */
+export const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+
+/**
+ * Reads .github/ownership.json.
+ *
+ * @returns {{ sharedPaths: string[], owners: Record<string, string[]>, reviewers: string[] }} The ownership map.
+ */
+export function loadOwnership() {
+  return JSON.parse(readFileSync(join(REPO_ROOT, '.github', 'ownership.json'), 'utf8'));
+}
+
+/**
+ * Converts a glob with `*` and `**` into an anchored regular expression.
+ *
+ * @param {string} glob - Pattern relative to the repository root.
+ * @returns {RegExp} Matcher for repository-relative POSIX paths.
+ */
+export function globToRegExp(glob) {
+  const escaped = glob.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+  const pattern = escaped
+    .replace(/\*\*\/?/g, '@@GLOBSTAR@@')
+    .replace(/\*/g, '[^/]*')
+    .replace(/@@GLOBSTAR@@/g, '.*');
+  return new RegExp(`^${pattern}$`);
+}
+
+/**
+ * Normalizes an absolute or relative path to a repository-relative POSIX path.
+ *
+ * @param {string} filePath - Path to normalize.
+ * @returns {string} Repository-relative path using forward slashes.
+ */
+export function toRepoPath(filePath) {
+  const relativePath = filePath.startsWith('/') ? relative(REPO_ROOT, filePath) : filePath;
+  return relativePath.split('\\').join('/');
+}
+
+/**
+ * Decides whether an owner may change a path.
+ *
+ * @param {ReturnType<typeof loadOwnership>} ownership - The ownership map.
+ * @param {string} owner - Agent name, for example `api-engineer`.
+ * @param {string} repoPath - Repository-relative path.
+ * @returns {boolean} True when the path is shared or inside the owner's area.
+ */
+export function mayChange(ownership, owner, repoPath) {
+  const globs = [...ownership.sharedPaths, ...(ownership.owners[owner] ?? [])];
+  return globs.some((glob) => globToRegExp(glob).test(repoPath));
+}
+
+/**
+ * Finds which owner a path belongs to.
+ *
+ * @param {ReturnType<typeof loadOwnership>} ownership - The ownership map.
+ * @param {string} repoPath - Repository-relative path.
+ * @returns {string | null} The owning agent, or null when the path is unowned.
+ */
+export function ownerOf(ownership, repoPath) {
+  const match = Object.entries(ownership.owners).find(([, globs]) =>
+    globs.some((glob) => globToRegExp(glob).test(repoPath)),
+  );
+  return match ? match[0] : null;
+}

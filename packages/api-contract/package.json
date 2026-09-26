@@ -1,0 +1,17 @@
+{
+  "name": "@caa/api-contract",
+  "version": "0.0.0",
+  "private": true,
+  "description": "HTTP contract between the web app and the API: endpoints, request/response schemas, and the typed client.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@caa/domain": "workspace:*",
+    "zod": "^4.6.5"
+  }
+}

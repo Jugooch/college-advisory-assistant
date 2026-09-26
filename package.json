@@ -1,0 +1,43 @@
+{
+  "name": "college-advisory-assistant",
+  "private": true,
+  "description": "Verified Advising Runtime: AI-assisted, deterministically verified academic planning.",
+  "type": "module",
+  "packageManager": "pnpm@10.15.0",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "build": "pnpm --filter \"./apps/*\" build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "eslint . --max-warnings=0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "check:ownership": "node scripts/check-ownership.mjs",
+    "check:conventions": "node scripts/check-conventions.mjs",
+    "verify": "pnpm format:check && pnpm lint && pnpm check:conventions && pnpm typecheck && pnpm test:coverage && pnpm build",
+    "prepare": "lefthook install"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.3",
+    "@commitlint/config-conventional": "^21.2.3",
+    "@eslint/js": "^9.39.5",
+    "@next/eslint-plugin-next": "^16.3.6",
+    "@types/node": "^24.0.0",
+    "@vitest/coverage-v8": "^5.0.2",
+    "eslint": "^9.39.5",
+    "eslint-plugin-check-file": "^3.3.2",
+    "eslint-plugin-jsdoc": "^64.5.4",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.12.0",
+    "lefthook": "^2.1.14",
+    "prettier": "^3.9.9",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.70.1",
+    "vitest": "^5.0.2"
+  }
+}

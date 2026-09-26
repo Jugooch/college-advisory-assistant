@@ -1,0 +1,23 @@
+{
+  "name": "@caa/worker",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Background jobs: source imports, validation runs, and the schedule solver.",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "tsup",
+    "start": "node dist/main.js",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@caa/db": "workspace:*",
+    "@caa/domain": "workspace:*",
+    "@caa/engine": "workspace:*",
+    "pino": "^10.3.1"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.1",
+    "tsx": "^4.23.15"
+  }
+}

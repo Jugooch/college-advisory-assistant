@@ -1,0 +1,52 @@
+name: Task
+description: A unit of work for one owner agent.
+title: '<type>(<scope>): <short description>'
+labels: [task]
+body:
+  - type: dropdown
+    id: owner
+    attributes:
+      label: Owner agent
+      options:
+        - tech-lead
+        - devops-engineer
+        - domain-engineer
+        - engine-engineer
+        - data-engineer
+        - api-engineer
+        - ai-engineer
+        - frontend-engineer
+        - qa-engineer
+    validations:
+      required: true
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What should be true when this is done, and why.
+    validations:
+      required: true
+  - type: input
+    id: requirements
+    attributes:
+      label: Requirement IDs
+      placeholder: FR-09, NFR-01, AC05
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance examples
+      description: Concrete inputs and expected results, including failure and UNKNOWN states.
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Depends on / blocks
+      description: Other owners' issues that must merge first, or that wait on this one.
+  - type: input
+    id: sources
+    attributes:
+      label: Planning references
+      placeholder: docs/planning/08 (Eligibility semantics)
