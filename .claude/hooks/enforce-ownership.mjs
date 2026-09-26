@@ -3,6 +3,7 @@
  *
  * Claude Code passes `agent_type` when a subagent makes the call. The main session and
  * non-team agents are not restricted here; CI still enforces ownership per branch.
+ * @module .claude/hooks/enforce-ownership
  * @see docs/team/README.md
  */
 import { loadOwnership, mayChange, ownerOf, toRepoPath } from '../../scripts/lib/ownership.mjs';

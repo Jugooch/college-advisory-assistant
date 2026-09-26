@@ -5,6 +5,7 @@
 import js from '@eslint/js';
 import checkFile from 'eslint-plugin-check-file';
 import jsdoc from 'eslint-plugin-jsdoc';
+import simpleImportSort from 'eslint-plugin-simple-import-sort';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
@@ -38,7 +39,7 @@ export default tseslint.config(
       globals: { ...globals.node },
     },
     linterOptions: { reportUnusedDisableDirectives: 'error' },
-    plugins: { 'check-file': checkFile, jsdoc },
+    plugins: { 'check-file': checkFile, jsdoc, 'simple-import-sort': simpleImportSort },
     rules: {
       // Size: short, readable files and functions (standards/01).
       'max-lines': ['error', { max: 250, skipBlankLines: true, skipComments: true }],
@@ -48,6 +49,12 @@ export default tseslint.config(
       complexity: ['error', 10],
 
       // Language rules (standards/02).
+      // Import groups: node, external, @caa workspace, @/ app alias, relative (standards/02).
+      'simple-import-sort/imports': [
+        'error',
+        { groups: [['^node:'], ['^@?\\w'], ['^@caa/'], ['^@/'], ['^\\.'], ['^.+\\.css$']] },
+      ],
+      'simple-import-sort/exports': 'error',
       eqeqeq: ['error', 'always'],
       'no-console': 'error',
       'no-restricted-syntax': [

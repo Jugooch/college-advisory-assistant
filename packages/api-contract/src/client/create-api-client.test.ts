@@ -1,8 +1,9 @@
 /**
  * @file Tests for the typed API client.
  */
-import { ErrorCode } from '@caa/domain';
 import { describe, expect, it } from 'vitest';
+
+import { ErrorCode } from '@caa/domain';
 
 import { getHealthEndpoint } from '../contracts/health.contract';
 import { ApiError } from './api-error';

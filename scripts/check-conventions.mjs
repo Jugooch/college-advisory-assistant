@@ -1,5 +1,6 @@
 /**
  * @file Enforces the conventions ESLint cannot express: file roles per folder and comment tags.
+ * @module scripts/check-conventions
  * @see docs/standards/01-repository-structure.md
  * @see docs/standards/03-comments.md
  */

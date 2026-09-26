@@ -2,8 +2,9 @@
  * @file Data access for institutions.
  * @module @caa/db/repositories/institution
  */
-import type { Institution, InstitutionId } from '@caa/domain';
 import { eq } from 'drizzle-orm';
+
+import type { Institution, InstitutionId } from '@caa/domain';
 
 import type { Database } from '../client';
 import { toInstitution } from '../mappers/institution.mapper';

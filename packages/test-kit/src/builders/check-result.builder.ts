@@ -4,10 +4,10 @@
  */
 import {
   CheckKind,
-  CheckState,
-  createCheckResult,
   type CheckResult,
   type CheckResultInput,
+  CheckState,
+  createCheckResult,
 } from '@caa/domain';
 
 /**

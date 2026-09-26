@@ -2,8 +2,9 @@
  * @file HTTP handlers for the health module. Translates between HTTP and the service.
  * @module @caa/api/modules/health/health.controller
  */
-import { HealthResponseSchema } from '@caa/api-contract';
 import type { FastifyReply, FastifyRequest } from 'fastify';
+
+import { HealthResponseSchema } from '@caa/api-contract';
 
 import { sendData } from '../../shared/send-data';
 import type { HealthService } from './health.service';

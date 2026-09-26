@@ -1,8 +1,9 @@
 /**
  * @file Tests for aggregate check state precedence.
  */
-import { AggregateState, CheckState } from '@caa/domain';
 import { describe, expect, it } from 'vitest';
+
+import { AggregateState, CheckState } from '@caa/domain';
 
 import { aggregateCheckStates } from './aggregate-check-states';
 

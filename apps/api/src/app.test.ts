@@ -1,8 +1,9 @@
 /**
  * @file HTTP-level tests for the assembled app.
  */
-import { ErrorCode } from '@caa/domain';
 import { describe, expect, it } from 'vitest';
+
+import { ErrorCode } from '@caa/domain';
 
 import { buildApp } from './app';
 import { createControllers } from './container';

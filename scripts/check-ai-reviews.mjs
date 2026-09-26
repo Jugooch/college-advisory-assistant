@@ -5,6 +5,7 @@
  * `<!-- ai-review reviewer:<name> sha:<sha> verdict:<APPROVE|REQUEST_CHANGES> -->`
  * from PR comments written by trusted authors (the Actions bot and the repository owner).
  * Required env: PR_NUMBER, HEAD_SHA, GITHUB_REPOSITORY. Optional: TRUSTED_REVIEW_AUTHORS (comma-separated).
+ * @module scripts/check-ai-reviews
  * @see docs/standards/08-git-and-pull-requests.md
  */
 import { execFileSync } from 'node:child_process';

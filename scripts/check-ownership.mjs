@@ -3,6 +3,7 @@
  *
  * The owner is the first segment of the branch name: `api-engineer/42-plan-requests`.
  * CI passes OWNERSHIP_OVERRIDE=true when the PR carries the `ownership-override` label.
+ * @module scripts/check-ownership
  * @see docs/standards/08-git-and-pull-requests.md
  */
 import { execFileSync } from 'node:child_process';

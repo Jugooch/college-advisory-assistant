@@ -39,7 +39,7 @@ Use full words. `revision`, not `rev`; `request`, not `req` (except Fastify's pa
 
 ## Imports
 
-Order (Prettier keeps them readable; reviewers enforce the grouping):
+Order (enforced and auto-fixed by `simple-import-sort`; run `pnpm lint --fix`):
 
 1. Node built-ins (`node:fs`)
 2. External packages (`zod`, `fastify`)

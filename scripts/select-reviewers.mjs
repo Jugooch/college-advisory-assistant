@@ -3,6 +3,7 @@
  *
  * Usage: `node scripts/select-reviewers.mjs [base-ref]` (default base `main`).
  * In GitHub Actions it also writes `reviewers=<json>` to $GITHUB_OUTPUT.
+ * @module scripts/select-reviewers
  */
 import { execFileSync } from 'node:child_process';
 import { appendFileSync } from 'node:fs';

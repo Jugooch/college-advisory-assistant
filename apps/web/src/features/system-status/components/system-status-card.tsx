@@ -2,8 +2,9 @@
  * @file Shows whether the API is reachable.
  * @module @caa/web/features/system-status/components/system-status-card
  */
-import type { HealthResponse } from '@caa/api-contract';
 import type { ReactElement } from 'react';
+
+import type { HealthResponse } from '@caa/api-contract';
 
 import { StatusBadge } from '@/components/ui/status-badge';
 

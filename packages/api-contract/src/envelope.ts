@@ -3,8 +3,9 @@
  * @module @caa/api-contract/envelope
  * @see docs/standards/05-api-design.md
  */
-import { ErrorCodeSchema } from '@caa/domain';
 import { z } from 'zod';
+
+import { ErrorCodeSchema } from '@caa/domain';
 
 /** Schema for the body of every failed response. */
 export const ErrorEnvelopeSchema = z.object({

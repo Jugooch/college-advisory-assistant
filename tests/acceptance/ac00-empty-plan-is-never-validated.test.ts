@@ -3,10 +3,11 @@
  * @requirement FR-09
  * @see docs/planning/13-test-and-evaluation-strategy.md
  */
+import { describe, expect, it } from 'vitest';
+
 import { AggregateState } from '@caa/domain';
 import { aggregateCheckStates } from '@caa/engine';
 import { buildCheckResult } from '@caa/test-kit';
-import { describe, expect, it } from 'vitest';
 
 describe('AC00 empty plans are never validated', () => {
   it('reports NEEDS_VERIFICATION for zero checks', () => {

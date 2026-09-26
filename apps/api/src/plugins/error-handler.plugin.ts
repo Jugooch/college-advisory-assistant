@@ -3,9 +3,10 @@
  * @module @caa/api/plugins/error-handler
  * @requirement FR-14
  */
-import { ErrorCode } from '@caa/domain';
 import type { FastifyInstance } from 'fastify';
 import { ZodError } from 'zod';
+
+import { ErrorCode } from '@caa/domain';
 
 /**
  * Checks whether a thrown value carries a numeric HTTP status.
@@ -13,7 +14,7 @@ import { ZodError } from 'zod';
  * @param error - Anything that was thrown.
  * @returns True when `error.statusCode` is a number.
  */
-function hasStatusCode(error: unknown): error is { statusCode: number } {
+function isErrorWithStatusCode(error: unknown): error is { statusCode: number } {
   return (
     typeof error === 'object' &&
     error !== null &&
@@ -49,7 +50,7 @@ export function registerErrorHandler(app: FastifyInstance): void {
   app.setErrorHandler((error, request, reply) => {
     // SECURITY: never echo internals or student data to the client.
     request.log.error(describeError(error), 'request failed');
-    const status = hasStatusCode(error) ? error.statusCode : 500;
+    const status = isErrorWithStatusCode(error) ? error.statusCode : 500;
     const isClientError = status < 500;
     const code = isClientError ? ErrorCode.InvalidRequest : ErrorCode.InternalError;
     const message = isClientError ? 'The request was invalid' : 'An unexpected error occurred';
