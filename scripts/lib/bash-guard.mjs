@@ -35,7 +35,6 @@ const BUILDER_COMMANDS = {
 const REVIEWER_COMMANDS = {
   git: /^(status|diff|log|show|rev-parse|ls-files|grep)\b/,
   gh: /^(pr (view|diff|checks|comment|list)|run (view|list))\b/,
-  pnpm: /^vitest run\b/,
   ls: null,
   cat: null,
   head: null,
@@ -45,7 +44,7 @@ const REVIEWER_COMMANDS = {
 };
 
 const FORBIDDEN_PATTERNS = [
-  { pattern: /\$\(|`/, reason: 'command substitution is not allowed' },
+  { pattern: /\$\(|`|\$\{|<\(|>\(/, reason: 'command or process substitution is not allowed' },
   {
     pattern: /(^|[^0-9&])>{1,2}(?!&1|\s*\/dev\/null)/,
     reason: 'output redirection is not allowed; use the Write/Edit tools',
@@ -59,16 +58,28 @@ const FORBIDDEN_PATTERNS = [
 ];
 
 /**
- * Removes heredoc bodies and quoted strings so their text isn't mistaken for shell syntax.
+ * Blanks out text that bash never expands: single-quoted strings and heredocs with a quoted delimiter.
+ *
+ * Double-quoted strings and unquoted heredocs are left in place because bash still runs `$(...)`,
+ * backticks, and parameter expansion inside them.
  *
  * @param {string} command - Raw command.
- * @returns {string} Command with literals blanked out.
+ * @returns {string} Command with only inert literals removed.
  */
-function stripLiterals(command) {
+function stripInertLiterals(command) {
   return command
-    .replace(/<<-?\s*'?(\w+)'?[^\n]*\n[\s\S]*?\n\s*\1\s*(\n|$)/g, ' HEREDOC ')
-    .replace(/'[^']*'/g, "''")
-    .replace(/"(\\.|[^"\\])*"/g, '""');
+    .replace(/<<-?\s*(['"])(\w+)\1[^\n]*\n[\s\S]*?\n\s*\2\s*(\n|$)/g, ' HEREDOC ')
+    .replace(/'[^']*'/g, "''");
+}
+
+/**
+ * Blanks out double-quoted strings. Only safe after the forbidden-pattern scan has passed.
+ *
+ * @param {string} command - Command already passed through {@link stripInertLiterals}.
+ * @returns {string} Command whose double-quoted words are empty.
+ */
+function stripDoubleQuoted(command) {
+  return command.replace(/"(\\.|[^"\\])*"/g, '""');
 }
 
 /**
@@ -79,13 +90,14 @@ function stripLiterals(command) {
  * @returns {string | null} Reason for denial, or null when the command is allowed.
  */
 export function checkCommand(command, role) {
-  const code = stripLiterals(command);
-  const forbidden = FORBIDDEN_PATTERNS.find(({ pattern }) => pattern.test(code));
+  // SECURITY: scan everything bash could expand, including double-quoted text.
+  const expandable = stripInertLiterals(command);
+  const forbidden = FORBIDDEN_PATTERNS.find(({ pattern }) => pattern.test(expandable));
   if (forbidden) {
     return forbidden.reason;
   }
   const allowed = role === 'reviewer' ? REVIEWER_COMMANDS : BUILDER_COMMANDS;
-  for (const segment of code.split(/&&|\|\||;|\||\n/)) {
+  for (const segment of stripDoubleQuoted(expandable).split(/&&|\|\||;|\||\n/)) {
     const [program = '', ...rest] = segment
       .trim()
       .replace(/^(\w+=\S*\s+)+/, '')

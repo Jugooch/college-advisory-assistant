@@ -22,7 +22,7 @@ Follow every step. Stop and report if any step fails; don't skip ahead.
 1. **Check the branch.** `git branch --show-current` must match `<owner>/<issue>-<slug>`, where `<owner>` is your agent name. If you're on `main`, stop.
 2. **Check ownership.** `pnpm check:ownership`. If it fails, move the out-of-area change into a handoff request instead of committing it.
 3. **Verify.** `pnpm verify`. Every step must pass. Fix the code; never disable rules or lower thresholds.
-4. **Commit.** Stage only intended files (`git add <paths>`; never `git add -A` without reviewing `git status`). Use a Conventional Commit with an allowed scope, for example `feat(engine): evaluate and/or prerequisite expressions`.
+4. **Commit.** Stage only intended files (`git add <paths>`; never `git add -A` without reviewing `git status`). Use a Conventional Commit with an allowed scope, passing the message on stdin: `git commit -F - <<'MSG'` … `MSG`. For example `feat(engine): evaluate and/or prerequisite expressions`.
 5. **Push.** `git push -u origin HEAD`.
 6. **Create the PR.** The title is a Conventional Commit (it becomes the squash commit). Fill in every section of `.github/pull_request_template.md`:
 
