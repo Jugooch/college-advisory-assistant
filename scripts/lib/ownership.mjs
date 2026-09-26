@@ -2,8 +2,8 @@
  * @file Loads the ownership map and answers "may this owner change this path?".
  * @module scripts/lib/ownership
  */
-import { readFileSync } from 'node:fs';
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /** Absolute path of the repository root. */
@@ -34,14 +34,33 @@ export function globToRegExp(glob) {
 }
 
 /**
- * Resolves an absolute or relative path (including `..` segments) to a repository-relative POSIX path.
+ * Resolves a path (including `..` segments and symlinks) to a repository-relative POSIX path.
  *
  * @param {string} filePath - Path to normalize.
  * @returns {string} Repository-relative path using forward slashes.
  */
 export function toRepoPath(filePath) {
-  const relativePath = relative(REPO_ROOT, resolve(REPO_ROOT, filePath));
+  const relativePath = relative(
+    realpathSync(REPO_ROOT),
+    resolveRealPath(resolve(REPO_ROOT, filePath)),
+  );
   return relativePath.split('\\').join('/');
+}
+
+/**
+ * Resolves symlinks in the deepest existing ancestor of a path, so a link can't hide an outside target.
+ *
+ * @param {string} absolutePath - Absolute path that may not exist yet.
+ * @returns {string} The path with every existing symlink resolved.
+ */
+function resolveRealPath(absolutePath) {
+  if (existsSync(absolutePath)) {
+    return realpathSync(absolutePath);
+  }
+  const parent = dirname(absolutePath);
+  return parent === absolutePath
+    ? absolutePath
+    : join(resolveRealPath(parent), basename(absolutePath));
 }
 
 /**

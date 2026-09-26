@@ -27,7 +27,7 @@ Follow every step. Stop and report if any step fails; don't skip ahead.
 6. **Create the PR.** The title is a Conventional Commit (it becomes the squash commit). Fill in every section of `.github/pull_request_template.md`:
 
 ```bash
-gh pr create --base main --title "<type>(<scope>): <subject>" --body "$(cat <<'BODY'
+gh pr create --base main --title "<type>(<scope>): <subject>" --body-file - <<'BODY'
 ## Summary
 <what changed and why, 1-3 sentences>
 
@@ -53,7 +53,8 @@ gh pr create --base main --title "<type>(<scope>): <subject>" --body "$(cat <<'B
 ## Handoffs
 <none, or blocked-by / follow-up issues for other owners>
 BODY
-)"
 ```
+
+Pass the body on stdin with a heredoc as shown. Command substitution (`$(...)`) is blocked for team agents.
 
 7. **Report** the PR URL. CI and the AI review panel start automatically.
