@@ -14,7 +14,7 @@ Agents run Bash with the user's permissions. The foundation PR first tried a Pre
 Enable Claude Code's OS-level sandbox for Bash in the checked-in `.claude/settings.json`. The operating system enforces it (bubblewrap on Linux and WSL2, Seatbelt on macOS), and it applies to every subagent.
 
 - **Writes:** only the repository and the per-user temp directory. Claude Code also protects `.claude/` and `.git/hooks` from sandboxed writes.
-- **Reads:** credential stores are denied: `~/.ssh`, `~/.aws`, `~/.gnupg`, `~/.azure`, `~/.kube`, `~/.docker`, `~/.config/gcloud`, `~/.npmrc`, `~/.netrc`, `~/.git-credentials`, and Claude's own `~/.claude/.credentials.json`. The `Read(...)` deny rules for `.env` files, at the root and at any depth, also apply inside the sandbox.
+- **Reads:** `.env` files (`.env`, `.env.local`, `.env.*.local`, `.env.development`, `.env.production`, `.env.test`) are denied at any depth through `Read(...)` rules, which also apply inside the sandbox. The committed `.env.example` stays readable. Credential stores in the home directory are denied in each developer's **user** settings, not here (see Amendment 1).
 - **Network:** only `github.com`, `api.github.com`, and `registry.npmjs.org`. Add a host only through a reviewed change to this file.
 - **No escape hatch:** `allowUnsandboxedCommands: false`, so a command that fails in the sandbox can't be retried outside it.
 - **Prompts:** `autoAllowBashIfSandboxed: true`, so sandboxed commands run without a prompt. The `permissions.deny` rules (for example force-push) still apply.
@@ -27,6 +27,12 @@ Enable Claude Code's OS-level sandbox for Bash in the checked-in `.claude/settin
 - Each developer machine needs `bubblewrap` and `socat` (Linux/WSL2). If they're missing, Claude Code warns and runs Bash **unsandboxed**. To refuse to start instead, set `failIfUnavailable` in user settings (it can't be set from project settings). Setup is in `docs/team/README.md`.
 - Commands that need other hosts or system services (for example `docker compose`) must be run by a human outside Claude Code, or their domains added here through a reviewed change.
 - The AI review workflow in GitHub Actions doesn't use the sandbox. Those reviewers are limited instead by `--allowedTools` to read-only `git` and `gh` commands, and they never post: a trusted step posts their verdicts.
+
+## Amendment 1 (2026-09-26, issue #4): per-machine credential denies
+
+The first version listed home-directory credential paths in the project settings. On a WSL2 machine this broke every Bash command: `~/.aws` and `~/.azure` were symlinks into the Windows home, and bubblewrap can't mount over a symlinked path (`bwrap: Can't mount tmpfs on /newroot/home/.../.aws`). Missing paths are harmless; resolved targets work. Because which paths exist, and whether they are symlinks, varies per machine, the credential deny list moved to user settings. Each developer lists their own resolved paths, following `docs/team/README.md`. Project settings now contain nothing machine-specific.
+
+Also recorded: on WSL2 with the repository on a Windows-mounted drive (`/mnt/c`), sandboxed commands can be very slow. A developer may disable the sandbox for their machine in `.claude/settings.local.json`. Agent shells are then unsandboxed, and isolation relies on the edit hook, the pre-push check, and CI.
 
 ## Revisit when
 

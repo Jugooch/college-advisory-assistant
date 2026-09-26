@@ -28,7 +28,7 @@ Four layers keep agents in their lane. The operating system contains the machine
 
 1. **Shell sandbox** (`sandbox` in `.claude/settings.json`, see ADR-0003): every Bash command, including subagents', runs in Claude Code's OS sandbox.
    - **Writes:** only the repository and the temp directory.
-   - **Reads:** `.env` files (at any depth) and credential stores in your home directory (SSH, cloud CLIs, Docker, npm, git credentials, Claude's own login) are unreadable. The GitHub CLI login stays readable so agents can open PRs; see ADR-0003.
+   - **Reads:** `.env` files at any depth are unreadable (`.env.example` is allowed). Credential stores in your home directory are denied through your **user** settings, because their paths differ per machine (see setup step 3). The GitHub CLI login stays readable so agents can open PRs; see ADR-0003.
    - **Network:** only `github.com`, `api.github.com`, and `registry.npmjs.org`.
    - **No escape hatch:** commands can't fall back to running unsandboxed.
 2. **Edit hook** (`.claude/hooks/enforce-ownership.mjs`): denies a team agent's Write/Edit outside its area, and any write that resolves outside the repository (after resolving `..` and symlinks), except to the session scratchpad. Reviewers are denied every edit.
@@ -54,6 +54,32 @@ Then, in Claude Code:
    ```json
    { "sandbox": { "failIfUnavailable": true } }
    ```
+3. Deny your credential stores, also in **user** settings. List the ones that exist on your machine, resolved to their real location:
+   ```bash
+   for p in .ssh .aws .gnupg .azure .kube .docker .config/gcloud .npmrc .netrc .git-credentials .claude/.credentials.json; do
+     [ -e ~/$p ] && readlink -f ~/$p
+   done
+   ```
+   Add each printed path to `sandbox.filesystem.denyRead`. Write paths inside your home as `~/...`, and anything outside it (such as a WSL symlink target on `/mnt/c`) as an absolute path with a leading `//`:
+   ```json
+   {
+     "sandbox": {
+       "failIfUnavailable": true,
+       "filesystem": {
+         "denyRead": [
+           "~/.ssh",
+           "~/.docker",
+           "~/.claude/.credentials.json",
+           "//mnt/c/Users/you/.aws"
+         ]
+       }
+     }
+   }
+   ```
+   Always use the resolved path: bubblewrap can't mount over a symlink (`bwrap: Can't mount tmpfs ...`), and a single bad entry stops every Bash command. Missing paths are harmless, but there's no reason to list them.
+4. Run `/sandbox` again and check the **Config** tab. Your deny paths should be listed, and a quick command such as `ls ~/.ssh` should fail while `pnpm lint` works.
+
+**Performance on a Windows-mounted drive.** If the repository lives on `/mnt/c` under WSL2, every file access crosses to Windows, and the sandbox adds setup cost to each command. That combination can make agent work very slow. The fast option is to clone into the Linux filesystem (for example `~/code`). If you stay on `/mnt/c`, you can turn the sandbox off for your machine with `/sandbox` (saved to your uncommitted `.claude/settings.local.json`). Agent shells then run unsandboxed, and isolation relies on layers 2–4 below. Choose this knowingly.
 
 Commands that need other hosts or system services (for example `docker compose -f infra/docker-compose.yml up -d`) are run by you in your own terminal, not by agents.
 

@@ -4,21 +4,6 @@
     "enabled": true,
     "autoAllowBashIfSandboxed": true,
     "allowUnsandboxedCommands": false,
-    "filesystem": {
-      "denyRead": [
-        "~/.ssh",
-        "~/.aws",
-        "~/.gnupg",
-        "~/.azure",
-        "~/.kube",
-        "~/.docker",
-        "~/.config/gcloud",
-        "~/.npmrc",
-        "~/.netrc",
-        "~/.git-credentials",
-        "~/.claude/.credentials.json"
-      ]
-    },
     "network": {
       "allowedDomains": ["github.com", "api.github.com", "registry.npmjs.org"]
     }
@@ -56,9 +41,17 @@
       "Bash(git push --force:*)",
       "Bash(git push -f:*)",
       "Read(./.env)",
-      "Read(./.env.*)",
+      "Read(./.env.local)",
+      "Read(./.env.*.local)",
+      "Read(./.env.development)",
+      "Read(./.env.production)",
+      "Read(./.env.test)",
       "Read(./**/.env)",
-      "Read(./**/.env.*)"
+      "Read(./**/.env.local)",
+      "Read(./**/.env.*.local)",
+      "Read(./**/.env.development)",
+      "Read(./**/.env.production)",
+      "Read(./**/.env.test)"
     ]
   }
 }
