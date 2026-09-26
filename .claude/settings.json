@@ -1,5 +1,28 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true,
+    "allowUnsandboxedCommands": false,
+    "filesystem": {
+      "denyRead": [
+        "~/.ssh",
+        "~/.aws",
+        "~/.gnupg",
+        "~/.azure",
+        "~/.kube",
+        "~/.docker",
+        "~/.config/gcloud",
+        "~/.npmrc",
+        "~/.netrc",
+        "~/.git-credentials",
+        "~/.claude/.credentials.json"
+      ]
+    },
+    "network": {
+      "allowedDomains": ["github.com", "api.github.com", "registry.npmjs.org"]
+    }
+  },
   "hooks": {
     "PreToolUse": [
       {
@@ -29,6 +52,13 @@
       "Bash(gh pr view:*)",
       "Bash(gh pr diff:*)"
     ],
-    "deny": ["Bash(git push --force:*)", "Bash(git push -f:*)", "Read(./.env)", "Read(./.env.*)"]
+    "deny": [
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./**/.env)",
+      "Read(./**/.env.*)"
+    ]
   }
 }

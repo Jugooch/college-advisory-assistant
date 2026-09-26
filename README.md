@@ -4,6 +4,8 @@ Verified Advising Runtime: an institution-sponsored web app that helps students 
 
 ## Quick start
 
+Prerequisite for working with the agent team: the Claude Code sandbox (bubblewrap and socat on Linux/WSL2). See [Sandbox setup](docs/team/README.md#sandbox-setup-once-per-machine).
+
 ```bash
 nvm use                                   # Node 22
 pnpm install
