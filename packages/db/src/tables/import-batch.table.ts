@@ -2,7 +2,6 @@
  * @file Table definition for import batch envelopes and their outcome.
  * @module @caa/db/tables/import-batch
  * @requirement FR-03
- * @requirement NFR-04
  * @see docs/planning/09-data-model-and-integration-contracts.md
  */
 import { sql } from 'drizzle-orm';

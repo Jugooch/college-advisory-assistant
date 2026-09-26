@@ -2,7 +2,6 @@
  * @file Atomic publication of roster import batches: batch record, students, and quarantine.
  * @module @caa/db/repositories/roster
  * @requirement FR-03
- * @requirement NFR-04
  * @see docs/planning/09-data-model-and-integration-contracts.md
  */
 import { sql } from 'drizzle-orm';
@@ -75,15 +74,11 @@ export interface RosterRepository {
   quarantineRoster(tenantId: InstitutionId, rejection: RosterRejection): Promise<void>;
 }
 
-/**
- * Upsert condition: true when the incoming row may replace the stored one.
- *
- * SAFETY: a late, older batch must not replace newer truth (docs/planning/09, Adapter envelope;
- * NFR-04). The later `source_effective_at` wins. At an equal effective time, `record_version`
- * breaks the tie when both sides have one, so a lower version can't undo a tombstone. When
- * either version is null the source gave no order, so the arrival order decides; the importer
- * already refuses batches older than the latest published one.
- */
+/** Upsert condition: true when the incoming student row may replace the stored one. */
+// SAFETY: a late, older batch must not replace newer truth (docs/planning/09, Adapter envelope).
+// The later `source_effective_at` wins. At an equal time, `record_version` breaks the tie when
+// both sides have one, so a lower version can't undo a tombstone. When either version is null
+// the source gave no order, so arrival order decides; the importer refuses older batches.
 const INCOMING_SUPERSEDES_STORED = sql`${studentTable.sourceEffectiveAt} < excluded.source_effective_at
   OR (${studentTable.sourceEffectiveAt} = excluded.source_effective_at
     AND (${studentTable.recordVersion} IS NULL
@@ -229,8 +224,9 @@ function assertUniqueSourceStudentIds(rows: readonly RosterRow[]): void {
   rows.forEach((row, index) => {
     const firstIndex = firstIndexById.get(row.sourceStudentId);
     // SAFETY: otherwise the outcome would depend on chunk boundaries (an error inside one chunk,
-    // silent last-write-wins across chunks). SECURITY: positions only; no student identifier.
+    // silent last-write-wins across chunks).
     if (firstIndex !== undefined) {
+      // SECURITY: the message names row positions only, never a student identifier.
       throw new Error(
         `Roster rows ${String(firstIndex)} and ${String(index)} have the same sourceStudentId`,
       );

@@ -2,7 +2,6 @@
  * @file Read-only data access for recorded import batches.
  * @module @caa/db/repositories/import-batch
  * @requirement FR-03
- * @requirement NFR-04
  * @see docs/planning/09-data-model-and-integration-contracts.md
  */
 import { and, desc, eq } from 'drizzle-orm';
