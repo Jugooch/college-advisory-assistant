@@ -25,8 +25,8 @@ export type RosterBatchOptions = Partial<Omit<ImportBatchInput, 'checksum' | 're
 
 /** An import batch envelope together with the rows it describes. */
 export interface RosterBatch {
-  batch: ImportBatch;
-  rows: readonly RosterRow[];
+  readonly batch: ImportBatch;
+  readonly rows: readonly RosterRow[];
 }
 
 /**

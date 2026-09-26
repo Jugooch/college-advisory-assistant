@@ -1,4 +1,10 @@
 /**
+ * @file Canonical serialization and SHA-256 checksum of the rows in a roster import batch.
+ * @module @caa/test-kit/serialization/roster-checksum
+ * @requirement FR-03
+ * @requirement NFR-04
+ * @see docs/planning/09-data-model-and-integration-contracts.md
+ *
  * Canonical serialization, which the importer (#15) must reproduce exactly:
  *
  * 1. Keep the rows in batch order. Rows are not sorted.
@@ -13,12 +19,6 @@
  * deleted) serialize to
  * `{"sourceStudentId":"SYN-000001","recordVersion":1,"isDeleted":false}\n{"sourceStudentId":"SYN-000002","recordVersion":null,"isDeleted":true}`
  * with checksum `6342c62a60b40b247a04af936f4e3a380e5465400adaf7897934c3a5e0302a3e`.
- *
- * @file Canonical serialization and SHA-256 checksum of the rows in a roster import batch.
- * @module @caa/test-kit/serialization/roster-checksum
- * @requirement FR-03
- * @requirement NFR-04
- * @see docs/planning/09-data-model-and-integration-contracts.md
  */
 import { createHash } from 'node:crypto';
 
