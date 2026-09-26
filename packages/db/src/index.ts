@@ -3,4 +3,9 @@
  * @module @caa/db
  */
 export * from './client';
+export * from './repositories/advisor-assignment.repository';
+export * from './repositories/import-batch.repository';
 export * from './repositories/institution.repository';
+export * from './repositories/roster.repository';
+export * from './repositories/student.repository';
+export * from './repositories/user-identity.repository';
