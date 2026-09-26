@@ -29,8 +29,7 @@
       ".editorconfig",
       ".gitattributes",
       ".gitignore",
-      ".nvmrc",
-      ".env.example"
+      ".nvmrc"
     ],
     "domain-engineer": ["packages/domain/**", "packages/api-contract/**"],
     "engine-engineer": ["packages/engine/**"],

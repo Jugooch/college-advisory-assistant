@@ -27,7 +27,6 @@ You own these paths (from `.github/ownership.json`) and nothing else:
 - `.gitattributes`
 - `.gitignore`
 - `.nvmrc`
-- `.env.example`
 
 You may also change `pnpm-lock.yaml` as a side effect of dependency changes in your own `package.json`. A hook denies edits outside your area. Do not work around it with shell redirection, `sed -i`, or scripts that write elsewhere.
 

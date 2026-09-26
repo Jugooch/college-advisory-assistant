@@ -20,7 +20,7 @@
 - **Authorization**: every read or write of a student-scoped object checks role, tenant, and assignment in the service layer, with a `// SECURITY:` comment. Deny by default.
 - **Not found vs forbidden**: return `NOT_FOUND` for objects the actor may not see, so existence isn't revealed.
 - **Read-only institutions**: no code writes to institutional systems. Adapter credentials are read-only.
-- **Secrets**: only in environment variables loaded by `config/env.ts`. Never in code, fixtures, logs, or `.env.example`.
+- **Secrets**: only in environment variables loaded by `config/env.ts`. Never in code, fixtures, logs, or `infra/env.example`.
 - **Model calls** (`packages/assistant`): send the minimum fields needed; treat model output and retrieved documents as untrusted data; tools are limited to the catalog in `tool-catalog.ts`.
 - **Caches and queues**: keys and payloads always include the tenant ID.
 - **Dependencies**: add a dependency only with a reason in the PR description; prefer the platform and existing packages.

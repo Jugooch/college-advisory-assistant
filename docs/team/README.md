@@ -28,7 +28,7 @@ Four layers keep agents in their lane. The operating system contains the machine
 
 1. **Shell sandbox** (`sandbox` in `.claude/settings.json`, see ADR-0003): every Bash command, including subagents', runs in Claude Code's OS sandbox.
    - **Writes:** only the repository and the temp directory.
-   - **Reads:** `.env` files at any depth are unreadable (`.env.example` is allowed). Credential stores in your home directory are denied through your **user** settings, because their paths differ per machine (see setup step 3). The GitHub CLI login stays readable so agents can open PRs; see ADR-0003.
+   - **Reads:** `.env` and every `.env.*` file at any depth are unreadable. The example config lives at `infra/env.example` so agents can maintain it. Credential stores in your home directory are denied through your **user** settings, because their paths differ per machine (see setup step 3). The GitHub CLI login stays readable so agents can open PRs; see ADR-0003.
    - **Network:** only `github.com`, `api.github.com`, and `registry.npmjs.org`.
    - **No escape hatch:** commands can't fall back to running unsandboxed.
 2. **Edit hook** (`.claude/hooks/enforce-ownership.mjs`): denies a team agent's Write/Edit outside its area, and any write that resolves outside the repository (after resolving `..` and symlinks), except to the session scratchpad. Reviewers are denied every edit.
@@ -79,7 +79,18 @@ Then, in Claude Code:
    Always use the resolved path: bubblewrap can't mount over a symlink (`bwrap: Can't mount tmpfs ...`), and a single bad entry stops every Bash command. Missing paths are harmless, but there's no reason to list them.
 4. Run `/sandbox` again and check the **Config** tab. Your deny paths should be listed, and a quick command such as `ls ~/.ssh` should fail while `pnpm lint` works.
 
-**Performance on a Windows-mounted drive.** If the repository lives on `/mnt/c` under WSL2, every file access crosses to Windows, and the sandbox adds setup cost to each command. That combination can make agent work very slow. The fast option is to clone into the Linux filesystem (for example `~/code`). If you stay on `/mnt/c`, you can turn the sandbox off for your machine with `/sandbox` (saved to your uncommitted `.claude/settings.local.json`). Agent shells then run unsandboxed, and isolation relies on layers 2–4 below. Choose this knowingly.
+A `SessionStart` hook (`.claude/hooks/check-local-safety.mjs`) warns at the start of every session if the sandbox is off on your machine or step 3 is missing.
+
+**Performance on a Windows-mounted drive.** If the repository lives on `/mnt/c` under WSL2, every file access crosses to Windows, and the sandbox adds setup cost to each command. That combination can make agent work very slow. The supported fix is to clone into the Linux filesystem (for example `~/code`).
+
+If you stay on `/mnt/c`, you can turn the sandbox off for your machine with `/sandbox` (saved to your uncommitted `.claude/settings.local.json`). You then lose all machine-level containment:
+
+- agent Bash can read every credential in your home directory;
+- it can reach any network host;
+- it can write anywhere your user can;
+- Bash permission prompts return, because `autoAllowBashIfSandboxed` only applies to sandboxed commands.
+
+The edit hook, pre-push check, and CI still protect the repository, but nothing protects the machine. Choose this knowingly; the session-start warning will remind you.
 
 Commands that need other hosts or system services (for example `docker compose -f infra/docker-compose.yml up -d`) are run by you in your own terminal, not by agents.
 

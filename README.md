@@ -9,6 +9,7 @@ Prerequisite for working with the agent team: the Claude Code sandbox (bubblewra
 ```bash
 nvm use                                   # Node 22
 pnpm install
+cp infra/env.example .env                 # local settings (synthetic data only)
 docker compose -f infra/docker-compose.yml up -d   # local Postgres (synthetic data only)
 pnpm dev                                  # web :3000, api :4000, worker
 pnpm verify                               # everything CI checks

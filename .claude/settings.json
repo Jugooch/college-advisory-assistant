@@ -19,6 +19,16 @@
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-local-safety.mjs\""
+          }
+        ]
+      }
     ]
   },
   "permissions": {
@@ -41,17 +51,9 @@
       "Bash(git push --force:*)",
       "Bash(git push -f:*)",
       "Read(./.env)",
-      "Read(./.env.local)",
-      "Read(./.env.*.local)",
-      "Read(./.env.development)",
-      "Read(./.env.production)",
-      "Read(./.env.test)",
+      "Read(./.env.*)",
       "Read(./**/.env)",
-      "Read(./**/.env.local)",
-      "Read(./**/.env.*.local)",
-      "Read(./**/.env.development)",
-      "Read(./**/.env.production)",
-      "Read(./**/.env.test)"
+      "Read(./**/.env.*)"
     ]
   }
 }
