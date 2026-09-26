@@ -2,7 +2,6 @@
  * @file Canonical serialization and SHA-256 checksum of the rows in a roster import batch.
  * @module @caa/test-kit/serialization/roster-checksum
  * @requirement FR-03
- * @requirement NFR-04
  * @see docs/planning/09-data-model-and-integration-contracts.md
  *
  * Canonical serialization, which the importer (#15) must reproduce exactly:

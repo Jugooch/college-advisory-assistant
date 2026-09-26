@@ -2,7 +2,6 @@
  * @file Builds a synthetic roster import batch: an envelope plus rows whose checksum and count agree.
  * @module @caa/test-kit/builders/roster-batch
  * @requirement FR-03
- * @requirement NFR-04
  * @see packages/test-kit/src/serialization/roster-checksum.ts
  */
 import {
