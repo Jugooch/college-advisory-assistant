@@ -55,6 +55,6 @@ gh pr create --base main --title "<type>(<scope>): <subject>" --body-file - <<'B
 BODY
 ```
 
-Pass the body on stdin with a heredoc as shown. Command substitution (`$(...)`) is blocked for team agents.
+Pass the body on stdin with a heredoc as shown, so the text is never interpreted by the shell.
 
 7. **Report** the PR URL. CI and the AI review panel start automatically.

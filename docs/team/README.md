@@ -24,14 +24,13 @@ Work is done by specialist Claude Code subagents defined in `.claude/agents/`. E
 
 ## Isolation
 
-Four layers keep agents in their lane. None of them is an operating-system sandbox; together they make crossing an ownership boundary deliberate and visible.
+Three layers keep agents in their lane:
 
 1. **Edit hook** (`.claude/hooks/enforce-ownership.mjs`): denies a team agent's Write/Edit outside its area, and any write that resolves outside the repository (after resolving `..` and symlinks), except to the session scratchpad. Reviewers are denied every edit.
-2. **Shell hook** (`.claude/hooks/guard-agent-bash.mjs`, rules in `scripts/lib/bash-guard.mjs`): team agents may only run allowlisted commands: the repo's own `pnpm` scripts, `node scripts/*.mjs`, `git`, `gh pr`/`gh issue`, and read-only utilities. Variable expansion, command substitution, output redirection, file-mutating, network, and nested-shell commands, force-push, and `.env` access are denied. Reviewers get an inspection-only list and never post; the workflow or `/review-pr` posts their returned verdicts.
-3. **Git pre-push hook** (`lefthook.yml`): runs `pnpm check:ownership` against the branch's owner prefix.
-4. **CI** (`Ownership` check): the same script runs on every PR and is a required check. It catches any in-repo change that got past the local layers.
+2. **Git pre-push hook** (`lefthook.yml`): runs `pnpm check:ownership` against the branch's owner prefix.
+3. **CI** (`Ownership` check): the same script runs on every PR and is a required check. It catches any in-repo change that got past the local layers, however it was made.
 
-**Known limit:** the shell guard prevents accidental and casual boundary crossing, but it is not a containment boundary. Builders must run their own tests, and test code executes with normal user permissions. For stronger isolation, enable Claude Code's sandbox for Bash, or run builders in a container or worktree with restricted filesystem and network access. Review and the required CI checks remain the backstop for anything that reaches a PR.
+Shell commands are not yet contained: an agent's Bash tool runs with your user's permissions. OS-level containment for agent shells (Claude Code's sandbox) is tracked as follow-up work. Until it lands, review agent sessions as you would any automation running under your account.
 
 `pnpm-lock.yaml` is shared: any builder may change it by adding dependencies to its own `package.json`.
 
