@@ -27,11 +27,11 @@ Work is done by specialist Claude Code subagents defined in `.claude/agents/`. E
 Four layers keep agents in their lane. None of them is an operating-system sandbox; together they make crossing an ownership boundary deliberate and visible.
 
 1. **Edit hook** (`.claude/hooks/enforce-ownership.mjs`): denies a team agent's Write/Edit outside its area, and any write that resolves outside the repository (after resolving `..` and symlinks), except to the session scratchpad. Reviewers are denied every edit.
-2. **Shell hook** (`.claude/hooks/guard-agent-bash.mjs`, rules in `scripts/lib/bash-guard.mjs`): team agents may only run allowlisted commands (`pnpm`, repo scripts, `git`, `gh pr`/`gh issue`, and read-only utilities). Output redirection, command substitution, file-mutating and network commands, force-push, and `.env` access are denied. Reviewers get an inspection-only list.
+2. **Shell hook** (`.claude/hooks/guard-agent-bash.mjs`, rules in `scripts/lib/bash-guard.mjs`): team agents may only run allowlisted commands: the repo's own `pnpm` scripts, `node scripts/*.mjs`, `git`, `gh pr`/`gh issue`, and read-only utilities. Variable expansion, command substitution, output redirection, file-mutating, network, and nested-shell commands, force-push, and `.env` access are denied. Reviewers get an inspection-only list and never post; the workflow or `/review-pr` posts their returned verdicts.
 3. **Git pre-push hook** (`lefthook.yml`): runs `pnpm check:ownership` against the branch's owner prefix.
 4. **CI** (`Ownership` check): the same script runs on every PR and is a required check. It catches any in-repo change that got past the local layers.
 
-Known limit: code an agent runs through allowed tools (for example a test or package script) executes with normal permissions. Review and CI are the backstop there.
+**Known limit:** the shell guard prevents accidental and casual boundary crossing, but it is not a containment boundary. Builders must run their own tests, and test code executes with normal user permissions. For stronger isolation, enable Claude Code's sandbox for Bash, or run builders in a container or worktree with restricted filesystem and network access. Review and the required CI checks remain the backstop for anything that reaches a PR.
 
 `pnpm-lock.yaml` is shared: any builder may change it by adding dependencies to its own `package.json`.
 

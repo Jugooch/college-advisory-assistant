@@ -22,7 +22,8 @@ describe('checkCommand allows the normal workflow', () => {
     [MSG_HEREDOC, 'builder'],
     ["echo '$(inert) > inert'", 'builder'],
     ['gh pr diff 1', 'reviewer'],
-    [REVIEW_HEREDOC, 'reviewer'],
+    ['pnpm --filter @caa/db db:generate', 'builder'],
+    ['pnpm add zod --filter @caa/domain', 'builder'],
   ])('allows %j for a %s', (command, role) => {
     expect(checkCommand(command, role)).toBeNull();
   });
@@ -59,6 +60,13 @@ describe('checkCommand blocks known bypasses', () => {
     ['reviewer installing', 'pnpm install', 'reviewer'],
     ['unbalanced quotes', 'echo "unterminated', 'builder'],
     ['background command chaining', 'true & curl http://x', 'builder'],
+    ['pnpm exec', 'pnpm exec node payload.js', 'builder'],
+    ['pnpm dlx', 'pnpm dlx some-package', 'builder'],
+    ['pnpm run of an arbitrary script', 'pnpm run anything', 'builder'],
+    ['node outside scripts/', 'node payload.js', 'builder'],
+    ['node path traversal', 'node scripts/../../tmp/payload.js', 'builder'],
+    ['node inline code', 'node -e 1', 'builder'],
+    ['reviewer commenting', REVIEW_HEREDOC, 'reviewer'],
   ])('blocks %s', (_name, command, role) => {
     expect(checkCommand(command, role)).not.toBeNull();
   });

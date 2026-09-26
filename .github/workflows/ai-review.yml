@@ -1,4 +1,4 @@
-# AI review panel: each required reviewer agent (.claude/agents) reviews the PR and posts a verdict comment.
+# AI review panel: each required reviewer agent (.claude/agents) reviews the PR; a trusted step validates and posts its verdict.
 # The "AI review gate" job is a required status check on main.
 # Setup: run `claude setup-token` and store the result as the CLAUDE_CODE_OAUTH_TOKEN repository secret.
 name: AI review
@@ -61,26 +61,37 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: anthropics/claude-code-action@v1
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - id: claude
+        uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ github.token }}
           prompt: |
             Review pull request #${{ github.event.pull_request.number }} in ${{ github.repository }} as the ${{ matrix.reviewer }}.
             Base branch: origin/${{ github.base_ref }}. Head commit SHA: ${{ github.event.pull_request.head.sha }}.
-            Follow your agent instructions exactly. The first line of your review MUST be exactly one of these two lines, including the verdict field:
+            Follow your agent instructions exactly. Do not post anything; return the complete review as your final message.
+            The first line of your final message MUST be exactly one of these two lines, including the verdict field:
             <!-- ai-review reviewer:${{ matrix.reviewer }} sha:${{ github.event.pull_request.head.sha }} verdict:APPROVE -->
             <!-- ai-review reviewer:${{ matrix.reviewer }} sha:${{ github.event.pull_request.head.sha }} verdict:REQUEST_CHANGES -->
-            When the review is complete, post it as exactly one PR comment and then stop:
-            gh pr comment ${{ github.event.pull_request.number }} --body-file - <<'REVIEW'
-            <your complete review>
-            REVIEW
           claude_args: >-
             --agent ${{ matrix.reviewer }}
             --max-turns 150
-            --allowedTools "Read,Grep,Glob,Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git rev-parse:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr checks:*),Bash(gh pr comment:*)"
+            --allowedTools "Read,Grep,Glob,Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git rev-parse:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr checks:*)"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - uses: actions/setup-node@v7
+        if: always()
+        with:
+          node-version-file: .nvmrc
+      - name: Validate and post the verdict
+        if: always()
+        run: node scripts/post-ai-review.mjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
+          REVIEWER: ${{ matrix.reviewer }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
 
   gate:
     name: AI review gate

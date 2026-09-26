@@ -10,8 +10,9 @@
 
 /** Programs every builder may run, with the subcommands allowed where it matters. */
 const BUILDER_COMMANDS = {
-  pnpm: null,
-  node: /^scripts\//,
+  // NOTE: only the repo's own scripts; `exec`, `dlx`, and `run <arbitrary>` would run any code.
+  pnpm: /^(--filter \S+ )?(install|add|remove|verify|lint|typecheck|test|test:coverage|build|format|format:check|check:[\w-]+|db:generate|vitest run)\b/,
+  node: /^scripts\/[\w/-]+\.mjs(\s|$)/,
   npx: /^(eslint|prettier|vitest|tsc|drizzle-kit)\b/,
   git: /^(status|diff|log|show|rev-parse|branch|switch|checkout|add|commit|push|pull|fetch|restore|stash|ls-files|grep)\b/,
   gh: /^(pr (create|view|diff|checks|comment|list)|issue (view|list)|run (view|list))\b/,
@@ -34,7 +35,7 @@ const BUILDER_COMMANDS = {
 /** Programs reviewers may run: inspection only. */
 const REVIEWER_COMMANDS = {
   git: /^(status|diff|log|show|rev-parse|ls-files|grep)\b/,
-  gh: /^(pr (view|diff|checks|comment|list)|run (view|list))\b/,
+  gh: /^(pr (view|diff|checks|list)|run (view|list))\b/,
   ls: null,
   cat: null,
   head: null,
