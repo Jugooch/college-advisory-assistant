@@ -22,6 +22,8 @@ const active = (sourceStudentId: string) =>
   createRosterRow({ sourceStudentId, recordVersion: 1, isDeleted: false });
 const tombstone = (sourceStudentId: string) =>
   createRosterRow({ sourceStudentId, recordVersion: 2, isDeleted: true });
+const versioned = (recordVersion: number, isDeleted: boolean) =>
+  createRosterRow({ sourceStudentId: 'SYN-0001', recordVersion, isDeleted });
 
 describe('RosterRepository', () => {
   let testDatabase: TestDatabase;
@@ -172,6 +174,57 @@ describe('RosterRepository', () => {
 
     await expect(repeat).rejects.toThrow();
     expect(await students.findBySourceStudentId(tenantId, 'SYN-0001')).not.toBeNull();
+  });
+
+  it('keeps a tombstone when a same-time batch carries a lower record version', async () => {
+    const { roster, students } = repositories();
+    const tenantId = await insertTenant(testDatabase.db);
+    await roster.publishRoster(tenantId, {
+      batch: buildBatch(tenantId, { batchId: 'b1' }),
+      rows: [versioned(5, true)],
+      quarantined: [],
+    });
+
+    await roster.publishRoster(tenantId, {
+      batch: buildBatch(tenantId, { batchId: 'b2' }),
+      rows: [versioned(3, false)],
+      quarantined: [],
+    });
+
+    expect(await students.findBySourceStudentId(tenantId, 'SYN-0001')).toBeNull();
+  });
+
+  it('applies a same-time batch that carries a higher record version', async () => {
+    const { roster, students } = repositories();
+    const tenantId = await insertTenant(testDatabase.db);
+    await roster.publishRoster(tenantId, {
+      batch: buildBatch(tenantId, { batchId: 'b1' }),
+      rows: [versioned(3, true)],
+      quarantined: [],
+    });
+
+    await roster.publishRoster(tenantId, {
+      batch: buildBatch(tenantId, { batchId: 'b2' }),
+      rows: [versioned(5, false)],
+      quarantined: [],
+    });
+
+    expect(await students.findBySourceStudentId(tenantId, 'SYN-0001')).not.toBeNull();
+  });
+
+  it('refuses rows that repeat a source student ID and writes nothing', async () => {
+    const { roster, students, batches } = repositories();
+    const tenantId = await insertTenant(testDatabase.db);
+
+    const publish = roster.publishRoster(tenantId, {
+      batch: buildBatch(tenantId),
+      rows: [active('SYN-0001'), active('SYN-0002'), tombstone('SYN-0001')],
+      quarantined: [],
+    });
+
+    await expect(publish).rejects.toThrow('Roster rows 0 and 2 have the same sourceStudentId');
+    expect(await batches.findByKey(tenantId, 'demo-sis', 'batch-0001')).toBeNull();
+    expect(await students.findBySourceStudentId(tenantId, 'SYN-0002')).toBeNull();
   });
 
   it('refuses a batch whose envelope names another tenant', async () => {

@@ -5,7 +5,7 @@
  * @requirement NFR-04
  * @see docs/planning/09-data-model-and-integration-contracts.md
  */
-import { lte, sql } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 
 import {
   type ImportBatch,
@@ -38,7 +38,7 @@ export interface QuarantinedRow {
 /** A validated batch ready to publish. */
 export interface RosterPublication {
   readonly batch: ImportBatch;
-  /** Valid rows, each `sourceStudentId` at most once. */
+  /** Valid rows, each `sourceStudentId` at most once (enforced before writing). */
   readonly rows: readonly RosterRow[];
   readonly quarantined: readonly QuarantinedRow[];
 }
@@ -58,8 +58,8 @@ export interface RosterRepository {
    * @param tenantId - Tenant the batch belongs to; must match `batch.tenantId`.
    * @param publication - Envelope, valid rows, and quarantined rows.
    * @returns Resolves once the transaction commits.
-   * @throws {Error} When the tenant doesn't match, the batch key was already recorded, or any
-   *   write fails. Nothing is stored in that case.
+   * @throws {Error} When the tenant doesn't match, two rows share a `sourceStudentId`, the batch
+   *   key was already recorded, or any write fails. Nothing is stored in that case.
    */
   publishRoster(tenantId: InstitutionId, publication: RosterPublication): Promise<void>;
 
@@ -74,6 +74,21 @@ export interface RosterRepository {
    */
   quarantineRoster(tenantId: InstitutionId, rejection: RosterRejection): Promise<void>;
 }
+
+/**
+ * Upsert condition: true when the incoming row may replace the stored one.
+ *
+ * SAFETY: a late, older batch must not replace newer truth (docs/planning/09, Adapter envelope;
+ * NFR-04). The later `source_effective_at` wins. At an equal effective time, `record_version`
+ * breaks the tie when both sides have one, so a lower version can't undo a tombstone. When
+ * either version is null the source gave no order, so the arrival order decides; the importer
+ * already refuses batches older than the latest published one.
+ */
+const INCOMING_SUPERSEDES_STORED = sql`${studentTable.sourceEffectiveAt} < excluded.source_effective_at
+  OR (${studentTable.sourceEffectiveAt} = excluded.source_effective_at
+    AND (${studentTable.recordVersion} IS NULL
+      OR excluded.record_version IS NULL
+      OR excluded.record_version >= ${studentTable.recordVersion}))`;
 
 /**
  * Splits a list into chunks of at most {@link INSERT_CHUNK_SIZE}.
@@ -159,8 +174,7 @@ async function upsertStudents(
           sourceEffectiveAt: sql`excluded.source_effective_at`,
           isDeleted: sql`excluded.is_deleted`,
         },
-        // SAFETY: a late, older batch must never replace newer source data.
-        setWhere: lte(studentTable.sourceEffectiveAt, sourceEffectiveAt),
+        setWhere: INCOMING_SUPERSEDES_STORED,
       });
   }
 }
@@ -205,6 +219,27 @@ function assertSameTenant(tenantId: InstitutionId, batch: ImportBatch): void {
 }
 
 /**
+ * Rejects rows that name the same source student twice, before anything is written.
+ *
+ * @param rows - Valid rows of one batch.
+ * @throws {Error} When two rows share a `sourceStudentId`. The message names row positions only.
+ */
+function assertUniqueSourceStudentIds(rows: readonly RosterRow[]): void {
+  const firstIndexById = new Map<string, number>();
+  rows.forEach((row, index) => {
+    const firstIndex = firstIndexById.get(row.sourceStudentId);
+    // SAFETY: otherwise the outcome would depend on chunk boundaries (an error inside one chunk,
+    // silent last-write-wins across chunks). SECURITY: positions only; no student identifier.
+    if (firstIndex !== undefined) {
+      throw new Error(
+        `Roster rows ${String(firstIndex)} and ${String(index)} have the same sourceStudentId`,
+      );
+    }
+    firstIndexById.set(row.sourceStudentId, index);
+  });
+}
+
+/**
  * Creates the roster repository.
  *
  * @param db - Typed database handle.
@@ -214,6 +249,7 @@ export function createRosterRepository(db: Database): RosterRepository {
   return {
     async publishRoster(tenantId, { batch, rows, quarantined }) {
       assertSameTenant(tenantId, batch);
+      assertUniqueSourceStudentIds(rows);
       await db.transaction(async (tx) => {
         const importBatchId = await insertBatch(tx, batch, {
           status: ImportBatchStatus.Published,
