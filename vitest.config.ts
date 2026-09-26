@@ -1,13 +1,59 @@
 /**
- * @file Root test configuration. Every workspace with tests is a project.
+ * @file Root test configuration. Every workspace with tests is a unit project; files named
+ * `*.integration.test.ts` form a separate `integration` project that runs against PostgreSQL.
  * @see docs/standards/07-testing.md
  */
-import { defineConfig } from 'vitest/config';
+import { readdirSync } from 'node:fs';
+
+import { configDefaults, defineConfig } from 'vitest/config';
+
+import {
+  INTEGRATION_TEST_PATTERN,
+  resolveIntegrationMode,
+} from './scripts/lib/integration-database.mjs';
+
+/** Workspaces whose unit tests run without a database. */
+const UNIT_WORKSPACES = [
+  ...readdirSync('packages', { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => `packages/${entry.name}`),
+  'apps/api',
+  'apps/worker',
+  'tests',
+  'scripts',
+];
+
+const integration = resolveIntegrationMode(process.env);
+if (integration.mode === 'fail') {
+  throw new Error(integration.reason);
+}
+const isIntegrationSkipped = integration.mode === 'skip';
 
 export default defineConfig({
   test: {
-    projects: ['packages/*', 'apps/api', 'apps/worker', 'tests'],
     passWithNoTests: true,
+    projects: [
+      ...UNIT_WORKSPACES.map((root) => ({
+        test: {
+          name: root,
+          root,
+          exclude: [...configDefaults.exclude, INTEGRATION_TEST_PATTERN],
+        },
+      })),
+      {
+        test: {
+          name: isIntegrationSkipped
+            ? 'integration (skipped: DATABASE_URL not set)'
+            : 'integration',
+          include: UNIT_WORKSPACES.map((root) => `${root}/${INTEGRATION_TEST_PATTERN}`),
+          // NOTE: all files share the per-run database, so they run one at a time.
+          fileParallelism: false,
+          // NOTE: a pattern that matches no test name reports every integration test as skipped.
+          globalSetup: ['scripts/test/integration-global-setup.mjs'],
+          ...(isIntegrationSkipped ? { testNamePattern: /(?!)/ } : {}),
+        },
+      },
+    ],
     coverage: {
       provider: 'v8',
       include: ['packages/*/src/**', 'apps/api/src/**', 'apps/worker/src/**'],
