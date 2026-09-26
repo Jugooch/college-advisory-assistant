@@ -11,10 +11,9 @@ next-env.d.ts
 # Test output
 coverage/
 
-# Environment and secrets (never commit real values; see .env.example)
+# Environment and secrets (never commit real values; see infra/env.example)
 .env
 .env.*
-!.env.example
 
 # Local tooling
 .DS_Store
