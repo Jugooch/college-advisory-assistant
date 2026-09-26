@@ -3,7 +3,7 @@
  * @module scripts/lib/ownership
  */
 import { readFileSync } from 'node:fs';
-import { dirname, join, relative } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /** Absolute path of the repository root. */
@@ -34,14 +34,24 @@ export function globToRegExp(glob) {
 }
 
 /**
- * Normalizes an absolute or relative path to a repository-relative POSIX path.
+ * Resolves an absolute or relative path (including `..` segments) to a repository-relative POSIX path.
  *
  * @param {string} filePath - Path to normalize.
  * @returns {string} Repository-relative path using forward slashes.
  */
 export function toRepoPath(filePath) {
-  const relativePath = filePath.startsWith('/') ? relative(REPO_ROOT, filePath) : filePath;
+  const relativePath = relative(REPO_ROOT, resolve(REPO_ROOT, filePath));
   return relativePath.split('\\').join('/');
+}
+
+/**
+ * Checks whether a repository-relative path escapes the repository root.
+ *
+ * @param {string} repoPath - Result of {@link toRepoPath}.
+ * @returns {boolean} True when the path points outside the repository.
+ */
+export function isOutsideRepo(repoPath) {
+  return repoPath === '..' || repoPath.startsWith('../') || isAbsolute(repoPath);
 }
 
 /**

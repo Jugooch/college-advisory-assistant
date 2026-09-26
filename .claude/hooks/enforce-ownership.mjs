@@ -6,7 +6,15 @@
  * @module .claude/hooks/enforce-ownership
  * @see docs/team/README.md
  */
-import { loadOwnership, mayChange, ownerOf, toRepoPath } from '../../scripts/lib/ownership.mjs';
+import { resolve } from 'node:path';
+
+import {
+  isOutsideRepo,
+  loadOwnership,
+  mayChange,
+  ownerOf,
+  toRepoPath,
+} from '../../scripts/lib/ownership.mjs';
 
 /**
  * Reads all of stdin.
@@ -45,9 +53,24 @@ if (agent && ownership.reviewers.includes(agent)) {
   deny(`${agent} is a reviewer and may not modify files. Report findings instead.`);
 }
 
+/**
+ * Checks whether a path is inside Claude's per-session scratchpad, where agents may write temp files.
+ *
+ * @param {string} filePath - Target path from the tool input.
+ * @returns {boolean} True when the path is inside the scratchpad directory.
+ */
+function isInScratchpad(filePath) {
+  const scratchpad = input.scratchpad_dir;
+  return Boolean(scratchpad) && resolve(filePath).startsWith(`${resolve(scratchpad)}/`);
+}
+
 if (agent && agent in ownership.owners && target) {
   const repoPath = toRepoPath(target);
-  if (!repoPath.startsWith('..') && !mayChange(ownership, agent, repoPath)) {
+  // SECURITY: fail closed; a team agent may not write outside the repository except to its scratchpad.
+  if (isOutsideRepo(repoPath) && !isInScratchpad(target)) {
+    deny(`${target} is outside the repository. Team agents may only edit files in their area.`);
+  }
+  if (!isOutsideRepo(repoPath) && !mayChange(ownership, agent, repoPath)) {
     const owner = ownerOf(ownership, repoPath) ?? 'no one (ask the tech lead)';
     deny(`${repoPath} belongs to ${owner}, not ${agent}. Hand this change off to its owner.`);
   }

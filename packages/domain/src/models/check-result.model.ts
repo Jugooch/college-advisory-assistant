@@ -6,24 +6,8 @@
  */
 import { z } from 'zod';
 
+import { CheckKindSchema } from '../enums/check-kind.enum';
 import { CheckState, CheckStateSchema } from '../enums/check-state.enum';
-
-/** Dimension a check evaluates. Each dimension is displayed separately. */
-export const CheckKind = {
-  RequirementApplicability: 'REQUIREMENT_APPLICABILITY',
-  Prerequisite: 'PREREQUISITE',
-  Corequisite: 'COREQUISITE',
-  ScheduleFeasibility: 'SCHEDULE_FEASIBILITY',
-  OfferingStatus: 'OFFERING_STATUS',
-  SeatEligibility: 'SEAT_ELIGIBILITY',
-  RegistrationReadiness: 'REGISTRATION_READINESS',
-} as const;
-
-/** Union of every {@link CheckKind} value. */
-export type CheckKind = (typeof CheckKind)[keyof typeof CheckKind];
-
-/** Runtime schema for {@link CheckKind}. */
-export const CheckKindSchema = z.enum(CheckKind);
 
 /** Schema for a single validation check result. */
 export const CheckResultSchema = z

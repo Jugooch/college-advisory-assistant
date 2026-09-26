@@ -3,8 +3,9 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import { CheckKind } from '../enums/check-kind.enum';
 import { CheckState } from '../enums/check-state.enum';
-import { CheckKind, createCheckResult } from './check-result.model';
+import { createCheckResult } from './check-result.model';
 
 describe('createCheckResult', () => {
   it('accepts a passing check without a reason code', () => {
