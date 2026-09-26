@@ -2,7 +2,6 @@
  * @file Import batch envelope: the metadata every source import carries before it can be published.
  * @module @caa/domain/models/import-batch
  * @requirement FR-03
- * @requirement NFR-04
  * @see docs/planning/09-data-model-and-integration-contracts.md
  */
 import { z } from 'zod';
