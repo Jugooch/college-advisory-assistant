@@ -158,7 +158,7 @@ export default tseslint.config(
 
   // ---- Tests: longer bodies are fine; everything else still applies ----
   {
-    files: ['**/*.test.ts', '**/*.test.tsx'],
+    files: ['**/*.test.ts', '**/*.test.tsx', '**/*.test.mjs'],
     rules: {
       'max-lines-per-function': 'off',
       '@typescript-eslint/require-await': 'off',
