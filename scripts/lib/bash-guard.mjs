@@ -2,8 +2,9 @@
  * @file Decides whether a team agent may run a shell command.
  *
  * This is an allowlist, not a sandbox: it keeps agents to the commands their workflow needs so
- * the shell can't be used to edit files outside their area. CI's ownership check remains the
- * backstop for anything that reaches git.
+ * the shell isn't a casual way around file ownership. It cannot stop a builder from running code
+ * it wrote (for example through its own tests); see the known limit in docs/team/README.md.
+ * CI's ownership check remains the backstop for anything that reaches git.
  * @module scripts/lib/bash-guard
  * @see docs/team/README.md
  */
@@ -140,12 +141,13 @@ function scanQuotes(command) {
  */
 function checkSegment(segment, role) {
   const allowed = role === 'reviewer' ? REVIEWER_COMMANDS : BUILDER_COMMANDS;
-  const [program = '', ...rest] = segment
-    .trim()
-    .replace(/^(\w+=\S*\s+)+/, '')
-    .split(/\s+/);
+  const [program = '', ...rest] = segment.trim().split(/\s+/);
   if (program === '' || program === 'HEREDOC') {
     return null;
+  }
+  // SECURITY: env assignments like NODE_OPTIONS or GIT_SSH_COMMAND can inject code into allowed programs.
+  if (program.includes('=')) {
+    return 'environment variable assignments are not allowed';
   }
   if (!(program in allowed)) {
     return `"${program}" is not on the ${role} command allowlist`;

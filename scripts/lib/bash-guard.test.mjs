@@ -17,7 +17,6 @@ describe('checkCommand allows the normal workflow', () => {
     ['git switch -c api-engineer/1-x', 'builder'],
     ['git push -u origin HEAD', 'builder'],
     ['git commit -m "feat(api): add health route"', 'builder'],
-    ['FOO=1 pnpm test', 'builder'],
     ['node scripts/check-ownership.mjs', 'builder'],
     [MSG_HEREDOC, 'builder'],
     ["echo '$(inert) > inert'", 'builder'],
@@ -67,6 +66,13 @@ describe('checkCommand blocks known bypasses', () => {
     ['node path traversal', 'node scripts/../../tmp/payload.js', 'builder'],
     ['node inline code', 'node -e 1', 'builder'],
     ['reviewer commenting', REVIEW_HEREDOC, 'reviewer'],
+    [
+      'NODE_OPTIONS preload',
+      'NODE_OPTIONS=--require=./apps/web/x.mjs node scripts/check-ownership.mjs',
+      'builder',
+    ],
+    ['git helper injection', 'GIT_EXTERNAL_DIFF=./x git diff', 'reviewer'],
+    ['env assignment after an operator', 'true && LD_PRELOAD=./x.so pnpm test', 'builder'],
   ])('blocks %s', (_name, command, role) => {
     expect(checkCommand(command, role)).not.toBeNull();
   });
