@@ -18,7 +18,7 @@ Verified Advising Runtime: students plan next term through a conversational UI, 
 | `docs/`, `.claude/`, `CLAUDE.md`              | —                             | Standards, ADRs, agent team                                  | tech-lead         |
 | `.github/workflows`, `scripts/`, root configs | —                             | CI, tooling, lint config                                     | devops-engineer   |
 
-The authoritative ownership map is `.github/ownership.json`. A hook blocks agents from editing outside their area, and CI blocks PRs that do. Agent shell commands run in the Claude Code sandbox (ADR-0003): writes only inside the repo, no `.env` reads, and network limited to GitHub and npm.
+The authoritative ownership map is `.github/ownership.json`. A hook blocks agents from editing outside their area, and CI blocks PRs that do. Agent shell commands run in the Claude Code sandbox (ADR-0003): writes only inside the repo, no `.env` or credential-store reads, and network limited to GitHub and npm.
 
 ## Commands
 

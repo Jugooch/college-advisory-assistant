@@ -28,8 +28,8 @@ Four layers keep agents in their lane. The operating system contains the machine
 
 1. **Shell sandbox** (`sandbox` in `.claude/settings.json`, see ADR-0003): every Bash command, including subagents', runs in Claude Code's OS sandbox.
    - **Writes:** only the repository and the temp directory.
-   - **Reads:** `.env` files, `~/.ssh`, `~/.aws`, and `~/.gnupg` are unreadable.
-   - **Network:** only GitHub and the npm registry.
+   - **Reads:** `.env` files (at any depth) and credential stores in your home directory (SSH, cloud CLIs, Docker, npm, git credentials, Claude's own login) are unreadable. The GitHub CLI login stays readable so agents can open PRs; see ADR-0003.
+   - **Network:** only `github.com`, `api.github.com`, and `registry.npmjs.org`.
    - **No escape hatch:** commands can't fall back to running unsandboxed.
 2. **Edit hook** (`.claude/hooks/enforce-ownership.mjs`): denies a team agent's Write/Edit outside its area, and any write that resolves outside the repository (after resolving `..` and symlinks), except to the session scratchpad. Reviewers are denied every edit.
 3. **Git pre-push hook** (`lefthook.yml`): runs `pnpm check:ownership` against the branch's owner prefix.
