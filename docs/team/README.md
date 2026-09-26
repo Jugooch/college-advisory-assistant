@@ -24,13 +24,38 @@ Work is done by specialist Claude Code subagents defined in `.claude/agents/`. E
 
 ## Isolation
 
-Three layers keep agents in their lane:
+Four layers keep agents in their lane. The operating system contains the machine; the hooks and CI contain the repository.
 
-1. **Edit hook** (`.claude/hooks/enforce-ownership.mjs`): denies a team agent's Write/Edit outside its area, and any write that resolves outside the repository (after resolving `..` and symlinks), except to the session scratchpad. Reviewers are denied every edit.
-2. **Git pre-push hook** (`lefthook.yml`): runs `pnpm check:ownership` against the branch's owner prefix.
-3. **CI** (`Ownership` check): the same script runs on every PR and is a required check. It catches any in-repo change that got past the local layers, however it was made.
+1. **Shell sandbox** (`sandbox` in `.claude/settings.json`, see ADR-0003): every Bash command, including subagents', runs in Claude Code's OS sandbox.
+   - **Writes:** only the repository and the temp directory.
+   - **Reads:** `.env` files, `~/.ssh`, `~/.aws`, and `~/.gnupg` are unreadable.
+   - **Network:** only GitHub and the npm registry.
+   - **No escape hatch:** commands can't fall back to running unsandboxed.
+2. **Edit hook** (`.claude/hooks/enforce-ownership.mjs`): denies a team agent's Write/Edit outside its area, and any write that resolves outside the repository (after resolving `..` and symlinks), except to the session scratchpad. Reviewers are denied every edit.
+3. **Git pre-push hook** (`lefthook.yml`): runs `pnpm check:ownership` against the branch's owner prefix.
+4. **CI** (`Ownership` check): the same script runs on every PR and is a required check. It catches any in-repo change that got past the local layers, however it was made.
 
-Shell commands are not yet contained: an agent's Bash tool runs with your user's permissions. OS-level containment for agent shells (Claude Code's sandbox) is tracked as follow-up work. Until it lands, review agent sessions as you would any automation running under your account.
+**Known limit:** the sandbox can't scope an individual agent to its own folders. An agent's shell can technically change another area inside the repository. Layers 3 and 4 stop that from ever reaching `main`.
+
+### Sandbox setup (once per machine)
+
+On Linux or WSL2 (WSL1 and native Windows aren't supported; macOS needs nothing):
+
+```bash
+sudo apt-get install -y bubblewrap socat
+```
+
+On **Ubuntu 24.04 or later**, AppArmor can stop bubblewrap from creating user namespaces. Follow the AppArmor profile steps in the [Claude Code sandboxing docs](https://code.claude.com/docs/en/sandboxing.md) if `/sandbox` reports that bubblewrap fails.
+
+Then, in Claude Code:
+
+1. Run `/sandbox`. It should show the sandbox as available, with no missing dependencies.
+2. Make a missing sandbox fatal instead of silently unsandboxed. Add this to your **user** settings (`~/.claude/settings.json`); project settings can't set it:
+   ```json
+   { "sandbox": { "failIfUnavailable": true } }
+   ```
+
+Commands that need other hosts or system services (for example `docker compose -f infra/docker-compose.yml up -d`) are run by you in your own terminal, not by agents.
 
 `pnpm-lock.yaml` is shared: any builder may change it by adding dependencies to its own `package.json`.
 
