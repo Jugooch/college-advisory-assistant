@@ -34,6 +34,21 @@ jobs:
   test:
     name: Tests
     runs-on: ubuntu-latest
+    # Throwaway database for *.integration.test.ts; the credentials exist only inside this job.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: caa
+          POSTGRES_PASSWORD: caa
+          POSTGRES_DB: caa
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U caa -d caa"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -43,6 +58,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm test:coverage
+        env:
+          DATABASE_URL: postgres://caa:caa@localhost:5432/caa
 
   build:
     name: Build
