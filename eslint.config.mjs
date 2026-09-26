@@ -88,6 +88,7 @@ export default tseslint.config(
           contexts: [
             'TSInterfaceDeclaration',
             'TSTypeAliasDeclaration',
+            'TSMethodSignature',
             'ExportNamedDeclaration > VariableDeclaration',
           ],
         },

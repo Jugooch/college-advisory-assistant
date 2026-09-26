@@ -5,16 +5,39 @@
  */
 import { ErrorCode } from '@caa/domain';
 import type { FastifyInstance } from 'fastify';
+import { ZodError } from 'zod';
 
 /**
- * Reads an HTTP status from a thrown value, defaulting to 500.
+ * Checks whether a thrown value carries a numeric HTTP status.
  *
  * @param error - Anything that was thrown.
- * @returns The status code to send.
+ * @returns True when `error.statusCode` is a number.
  */
-function statusCodeOf(error: unknown): number {
-  const hasStatus = typeof error === 'object' && error !== null && 'statusCode' in error;
-  return hasStatus && typeof error.statusCode === 'number' ? error.statusCode : 500;
+function hasStatusCode(error: unknown): error is { statusCode: number } {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'statusCode' in error &&
+    typeof error.statusCode === 'number'
+  );
+}
+
+/**
+ * Builds a log-safe description of an error, without submitted values.
+ *
+ * @param error - Anything that was thrown.
+ * @returns Error name, and for validation errors only the failing paths and issue codes.
+ */
+function describeError(error: unknown): Record<string, unknown> {
+  // SECURITY: validation errors can carry submitted values; log only paths and issue codes.
+  if (error instanceof ZodError) {
+    const issues = error.issues.map((issue) => ({ path: issue.path.join('.'), code: issue.code }));
+    return { errorName: 'ZodError', issues };
+  }
+  if (error instanceof Error) {
+    return { errorName: error.name, stack: error.stack };
+  }
+  return { errorName: typeof error };
 }
 
 /**
@@ -24,9 +47,9 @@ function statusCodeOf(error: unknown): number {
  */
 export function registerErrorHandler(app: FastifyInstance): void {
   app.setErrorHandler((error, request, reply) => {
-    // SECURITY: log the full error server-side, but never echo internals or student data to the client.
-    request.log.error({ err: error }, 'request failed');
-    const status = statusCodeOf(error);
+    // SECURITY: never echo internals or student data to the client.
+    request.log.error(describeError(error), 'request failed');
+    const status = hasStatusCode(error) ? error.statusCode : 500;
     const isClientError = status < 500;
     const code = isClientError ? ErrorCode.InvalidRequest : ErrorCode.InternalError;
     const message = isClientError ? 'The request was invalid' : 'An unexpected error occurred';

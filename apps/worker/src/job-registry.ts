@@ -5,4 +5,4 @@
 import type { JobDefinition } from './shared/job-definition';
 
 /** Registered jobs. Empty until the first import adapter is qualified. */
-export const jobRegistry: readonly JobDefinition<unknown>[] = [];
+export const JOB_REGISTRY: readonly JobDefinition<unknown>[] = [];

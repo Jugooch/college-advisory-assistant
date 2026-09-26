@@ -11,6 +11,12 @@ import { institutionTable } from '../tables/institution.table';
 
 /** Reads institutions. The institution is the tenant, so no separate tenant ID is taken. */
 export interface InstitutionRepository {
+  /**
+   * Finds one institution by its ID.
+   *
+   * @param id - Institution ID.
+   * @returns The institution, or null when none exists.
+   */
   findById(id: InstitutionId): Promise<Institution | null>;
 }
 

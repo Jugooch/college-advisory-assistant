@@ -4,8 +4,8 @@
  */
 import pino from 'pino';
 
-import { jobRegistry } from './job-registry';
+import { JOB_REGISTRY } from './job-registry';
 
 const logger = pino({ name: 'worker' });
 
-logger.info({ jobCount: jobRegistry.length }, 'worker started');
+logger.info({ jobCount: JOB_REGISTRY.length }, 'worker started');

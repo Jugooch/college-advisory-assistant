@@ -21,6 +21,14 @@ export interface ApiClientOptions {
 
 /** Calls API endpoints and returns validated response data. */
 export interface ApiClient {
+  /**
+   * Calls an endpoint and validates the response against its contract.
+   *
+   * @param endpoint - Endpoint definition from a contract file.
+   * @param body - Request body, serialized as JSON when present.
+   * @returns The validated `data` payload.
+   * @throws {ApiError} When the API returns an error envelope.
+   */
   call<TResponse extends z.ZodType>(
     endpoint: EndpointDefinition<TResponse>,
     body?: unknown,

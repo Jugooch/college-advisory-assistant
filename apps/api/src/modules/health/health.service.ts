@@ -18,6 +18,11 @@ export interface HealthServiceDependencies {
 
 /** Reports API process health. */
 export interface HealthService {
+  /**
+   * Reads the current process status.
+   *
+   * @returns The version and the time of the check.
+   */
   getSnapshot(): HealthSnapshot;
 }
 
