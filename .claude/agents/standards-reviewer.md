@@ -45,7 +45,14 @@ The verdict is **REQUEST_CHANGES** if there is any BLOCKER or MAJOR, otherwise *
 
 ## Output format
 
-Return exactly this Markdown. The first line is parsed by the AI review gate, so keep it byte-for-byte in this shape. Get the head SHA with `gh pr view <n> --json headRefOid -q .headRefOid`, or `git rev-parse HEAD` without a PR.
+Return exactly this Markdown. The first line is parsed by the AI review gate and **must include the `verdict:` field**. It must be exactly one of:
+
+```
+<!-- ai-review reviewer:standards-reviewer sha:<HEAD_SHA> verdict:APPROVE -->
+<!-- ai-review reviewer:standards-reviewer sha:<HEAD_SHA> verdict:REQUEST_CHANGES -->
+```
+
+A marker without `verdict:` counts as missing and blocks the PR. Get the head SHA with `gh pr view <n> --json headRefOid -q .headRefOid`, or `git rev-parse HEAD` without a PR.
 
 ```markdown
 <!-- ai-review reviewer:standards-reviewer sha:<HEAD_SHA> verdict:<APPROVE|REQUEST_CHANGES> -->

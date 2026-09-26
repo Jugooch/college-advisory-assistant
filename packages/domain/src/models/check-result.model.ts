@@ -10,13 +10,13 @@ import { CheckState, CheckStateSchema } from '../enums/check-state.enum';
 
 /** Dimension a check evaluates. Each dimension is displayed separately. */
 export const CheckKind = {
-  RequirementApplicability: 'requirement_applicability',
-  Prerequisite: 'prerequisite',
-  Corequisite: 'corequisite',
-  ScheduleFeasibility: 'schedule_feasibility',
-  OfferingStatus: 'offering_status',
-  SeatEligibility: 'seat_eligibility',
-  RegistrationReadiness: 'registration_readiness',
+  RequirementApplicability: 'REQUIREMENT_APPLICABILITY',
+  Prerequisite: 'PREREQUISITE',
+  Corequisite: 'COREQUISITE',
+  ScheduleFeasibility: 'SCHEDULE_FEASIBILITY',
+  OfferingStatus: 'OFFERING_STATUS',
+  SeatEligibility: 'SEAT_ELIGIBILITY',
+  RegistrationReadiness: 'REGISTRATION_READINESS',
 } as const;
 
 /** Union of every {@link CheckKind} value. */

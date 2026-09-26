@@ -42,7 +42,6 @@ jobs:
       contents: read
       pull-requests: write
       issues: write
-      id-token: write
     strategy:
       fail-fast: false
       matrix:
@@ -74,14 +73,16 @@ jobs:
           prompt: |
             Review pull request #${{ github.event.pull_request.number }} in ${{ github.repository }} as the ${{ matrix.reviewer }}.
             Base branch: origin/${{ github.base_ref }}. Head commit SHA: ${{ github.event.pull_request.head.sha }}.
-            Follow your agent instructions exactly and use sha:${{ github.event.pull_request.head.sha }} in the marker line.
+            Follow your agent instructions exactly. The first line of your review MUST be exactly one of these two lines, including the verdict field:
+            <!-- ai-review reviewer:${{ matrix.reviewer }} sha:${{ github.event.pull_request.head.sha }} verdict:APPROVE -->
+            <!-- ai-review reviewer:${{ matrix.reviewer }} sha:${{ github.event.pull_request.head.sha }} verdict:REQUEST_CHANGES -->
             When the review is complete, post it as exactly one PR comment and then stop:
             gh pr comment ${{ github.event.pull_request.number }} --body-file - <<'REVIEW'
             <your complete review>
             REVIEW
           claude_args: >-
             --agent ${{ matrix.reviewer }}
-            --max-turns 60
+            --max-turns 150
             --allowedTools "Read,Grep,Glob,Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git rev-parse:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(pnpm vitest run:*)"
 
   gate:
