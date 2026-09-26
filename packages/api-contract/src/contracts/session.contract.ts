@@ -1,0 +1,36 @@
+/**
+ * @file Contract for the current-session endpoint.
+ * @module @caa/api-contract/contracts/session
+ * @requirement FR-01
+ * @requirement FR-02
+ * @see docs/planning/09-data-model-and-integration-contracts.md
+ */
+import { z } from 'zod';
+
+import { InstitutionIdSchema, RoleSetSchema, UserIdSchema } from '@caa/domain';
+
+import { defineEndpoint } from '../define-endpoint';
+
+/**
+ * Response body for `GET /v1/me`: who the server resolved the session to.
+ *
+ * SECURITY: response only. Built from the domain field schemas rather than `ActorSchema`, which no
+ * contract schema embeds, so the actor can never become request input by reuse.
+ */
+export const MeResponseSchema = z
+  .object({
+    userId: UserIdSchema,
+    tenantId: InstitutionIdSchema,
+    roles: RoleSetSchema,
+  })
+  .readonly();
+
+/** Response body for `GET /v1/me`. */
+export type MeResponse = z.infer<typeof MeResponseSchema>;
+
+/** Returns the signed-in user's ID, institution, and roles, as resolved from the session. */
+export const getMeEndpoint = defineEndpoint({
+  method: 'GET',
+  path: '/v1/me',
+  response: MeResponseSchema,
+});
