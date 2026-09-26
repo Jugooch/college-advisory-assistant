@@ -1,0 +1,14 @@
+# Local development database. Synthetic data only.
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: caa
+      POSTGRES_PASSWORD: caa
+      POSTGRES_DB: caa
+    ports:
+      - '5432:5432'
+    volumes:
+      - caa-postgres:/var/lib/postgresql/data
+volumes:
+  caa-postgres:

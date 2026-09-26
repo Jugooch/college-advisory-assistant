@@ -1,0 +1,15 @@
+{
+  "name": "@caa/tests",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Cross-package acceptance (AC01-AC20) and end-to-end tests. Owned by the QA engineer.",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@caa/domain": "workspace:*",
+    "@caa/engine": "workspace:*",
+    "@caa/test-kit": "workspace:*"
+  }
+}

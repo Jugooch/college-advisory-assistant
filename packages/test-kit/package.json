@@ -1,0 +1,16 @@
+{
+  "name": "@caa/test-kit",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Synthetic data builders and golden-corpus fixtures. Test code only; never imported by production code.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@caa/domain": "workspace:*"
+  }
+}

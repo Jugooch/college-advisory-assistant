@@ -1,0 +1,51 @@
+{
+  "$comment": "Single source of truth for file ownership. Read by scripts/check-ownership.mjs (CI, pre-push) and .claude/hooks/enforce-ownership.mjs (agent edits). See docs/team/README.md.",
+  "sharedPaths": ["pnpm-lock.yaml"],
+  "owners": {
+    "tech-lead": [
+      "docs/**",
+      "CLAUDE.md",
+      "README.md",
+      ".claude/**",
+      ".github/ownership.json",
+      ".github/CODEOWNERS",
+      ".github/pull_request_template.md",
+      ".github/ISSUE_TEMPLATE/**"
+    ],
+    "devops-engineer": [
+      ".github/workflows/**",
+      "infra/**",
+      "scripts/**",
+      "config/**",
+      "package.json",
+      "pnpm-workspace.yaml",
+      "tsconfig.base.json",
+      "eslint.config.mjs",
+      "vitest.config.ts",
+      "commitlint.config.mjs",
+      "lefthook.yml",
+      ".prettierrc.json",
+      ".prettierignore",
+      ".editorconfig",
+      ".gitattributes",
+      ".gitignore",
+      ".nvmrc",
+      ".env.example"
+    ],
+    "domain-engineer": ["packages/domain/**", "packages/api-contract/**"],
+    "engine-engineer": ["packages/engine/**"],
+    "data-engineer": ["packages/db/**", "apps/worker/**"],
+    "api-engineer": ["apps/api/**"],
+    "ai-engineer": ["packages/assistant/**"],
+    "frontend-engineer": ["apps/web/**"],
+    "qa-engineer": ["tests/**", "packages/test-kit/**"]
+  },
+  "reviewers": [
+    "architecture-reviewer",
+    "standards-reviewer",
+    "correctness-reviewer",
+    "security-reviewer",
+    "academic-safety-reviewer",
+    "accessibility-reviewer"
+  ]
+}

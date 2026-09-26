@@ -1,0 +1,16 @@
+{
+  "name": "@caa/assistant",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Conversation layer: restricted tool catalog, prompts, and structured-claim templates.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@caa/domain": "workspace:*"
+  }
+}

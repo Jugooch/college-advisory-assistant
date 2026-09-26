@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# Test output
+coverage/
+
+# Environment and secrets (never commit real values; see .env.example)
+.env
+.env.*
+!.env.example
+
+# Local tooling
+.DS_Store
+*.log
+.turbo/
+.claude/settings.local.json

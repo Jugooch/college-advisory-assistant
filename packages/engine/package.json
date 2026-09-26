@@ -1,0 +1,16 @@
+{
+  "name": "@caa/engine",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Deterministic academic verification and schedule planning. Pure functions only.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@caa/domain": "workspace:*"
+  }
+}
