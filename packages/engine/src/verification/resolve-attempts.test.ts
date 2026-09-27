@@ -7,6 +7,7 @@ import {
   type AttemptStatus,
   type Course,
   type CourseAttempt,
+  type CourseAttemptInput,
   createAcademicPolicy,
   createCourse,
   createCourseAttempt,
@@ -59,7 +60,11 @@ const COURSES = [
 
 let nextAttempt = 0;
 
-function buildAttempt(courseId: string, status: AttemptStatus, termCode = '2025FA'): CourseAttempt {
+function buildAttempt(
+  courseId: string,
+  status: AttemptStatus,
+  overrides: Partial<CourseAttemptInput> = {},
+): CourseAttempt {
   nextAttempt += 1;
   const suffix = String(nextAttempt).padStart(2, '0');
   const isEarning = status === 'COMPLETED' || status === 'TRANSFER_AWARDED';
@@ -70,10 +75,11 @@ function buildAttempt(courseId: string, status: AttemptStatus, termCode = '2025F
     studentId: '00000000-0000-4000-8000-000000000002',
     courseId,
     sourceAttemptId: `demo-attempt-${suffix}`,
-    termCode,
+    termCode: '2025FA',
     status,
     grade: isGraded ? { scheme: 'LETTER', value: 'B' } : null,
     creditsEarnedHundredths: isEarning ? 300 : null,
+    ...overrides,
   });
 }
 
@@ -92,6 +98,12 @@ function buildContext(repeatPolicy: RepeatPolicy | null): AttemptResolutionConte
   };
 }
 
+const CATALOG_UNDETERMINED = {
+  state: 'UNDETERMINED',
+  reasonCode: 'COURSE_NOT_IN_CATALOG',
+  earnedCreditsHundredths: null,
+};
+
 const UNSET = buildContext(null);
 const MOST_RECENT = buildContext('MOST_RECENT');
 
@@ -101,8 +113,8 @@ describe('resolveAttempts', () => {
   });
 
   it('counts only one of two aliases in the same equivalency group', () => {
-    const calc = buildAttempt(CALC_ID, 'COMPLETED', '2025FA');
-    const honors = buildAttempt(CALC_HONORS_ID, 'COMPLETED', '2026SP');
+    const calc = buildAttempt(CALC_ID, 'COMPLETED');
+    const honors = buildAttempt(CALC_HONORS_ID, 'COMPLETED', { termCode: '2026SP' });
 
     expect(resolveAttempts([honors, calc], COURSES, MOST_RECENT)).toEqual([
       {
@@ -173,16 +185,14 @@ describe('resolveAttempts', () => {
 
     const [group] = resolveAttempts([awarded], COURSES, UNSET);
 
-    expect(group?.counting).toEqual({
-      state: 'COUNTED',
-      attempt: awarded,
-      earnedCreditsHundredths: 300,
+    expect(group).toMatchObject({
+      counting: { state: 'COUNTED', attempt: awarded, earnedCreditsHundredths: 300 },
     });
   });
 
   it('counts the completed attempt while listing a retake in progress', () => {
     const completed = buildAttempt(WRITING_ID, 'COMPLETED');
-    const retake = buildAttempt(WRITING_ID, 'IN_PROGRESS', '2026SP');
+    const retake = buildAttempt(WRITING_ID, 'IN_PROGRESS', { termCode: '2026SP' });
 
     const [group] = resolveAttempts([completed, retake], COURSES, UNSET);
 
@@ -193,41 +203,30 @@ describe('resolveAttempts', () => {
   });
 
   it('takes earned credit for a variable-credit course from the attempt, not the course range', () => {
-    const attempt = createCourseAttempt({
-      id: '00000000-0000-4000-8000-0000000000a1',
-      tenantId: TENANT_ID,
-      studentId: '00000000-0000-4000-8000-000000000002',
-      courseId: STUDIO_ID,
-      sourceAttemptId: 'demo-attempt-a1',
-      termCode: '2025FA',
-      status: 'COMPLETED',
-      grade: { scheme: 'LETTER', value: 'A' },
-      creditsEarnedHundredths: 150,
-    });
-
-    const [group] = resolveAttempts([attempt], COURSES, UNSET);
-
-    expect(group?.counting).toEqual({
-      state: 'COUNTED',
-      attempt,
-      earnedCreditsHundredths: 150,
-    });
-  });
-
-  it('leaves a group undetermined when its course is missing from the catalog', () => {
-    const attempt = buildAttempt(MISSING_ID, 'COMPLETED');
+    const attempt = buildAttempt(STUDIO_ID, 'COMPLETED', { creditsEarnedHundredths: 150 });
 
     const [group] = resolveAttempts([attempt], COURSES, UNSET);
 
     expect(group).toMatchObject({
-      groupKey: `course:${MISSING_ID}`,
-      equivalencyGroupId: null,
-      counting: {
-        state: 'UNDETERMINED',
-        reasonCode: 'COURSE_NOT_IN_CATALOG',
-        earnedCreditsHundredths: null,
-      },
+      counting: { state: 'COUNTED', attempt, earnedCreditsHundredths: 150 },
     });
+  });
+
+  it('leaves every group undetermined when any attempted course is missing from the catalog', () => {
+    const calc = buildAttempt(CALC_ID, 'COMPLETED');
+    const alias = buildAttempt(MISSING_ID, 'COMPLETED', {
+      termCode: '2026SP',
+      grade: { scheme: 'LETTER', value: 'D' },
+    });
+    const writing = buildAttempt(WRITING_ID, 'COMPLETED');
+
+    const groups = resolveAttempts([calc, alias, writing], COURSES, MOST_RECENT);
+
+    expect(groups.map((group) => [group.groupKey, group.counting, group.attempts])).toEqual([
+      [`course:${WRITING_ID}`, CATALOG_UNDETERMINED, [writing]],
+      [`course:${MISSING_ID}`, CATALOG_UNDETERMINED, [alias]],
+      [`equivalency:${GROUP_ID}`, CATALOG_UNDETERMINED, [calc]],
+    ]);
   });
 
   it('returns groups sorted by group key regardless of input order', () => {

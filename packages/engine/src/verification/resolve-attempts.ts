@@ -48,8 +48,17 @@ const COUNTABLE_STATUSES: readonly AttemptStatus[] = [
 interface GroupDraft {
   readonly equivalencyGroupId: EquivalencyGroupId | null;
   readonly attempts: CourseAttempt[];
-  isMissingCourse: boolean;
 }
+
+/** Resolves a group's counting attempt from its COMPLETED and TRANSFER_AWARDED attempts. */
+type CountingSelector = (completed: readonly CourseAttempt[]) => CountingResolution;
+
+/** Every group's resolution when the catalog doesn't cover every attempted course. */
+const CATALOG_INCOMPLETE: CountingResolution = {
+  state: CountingState.Undetermined,
+  reasonCode: ReasonCode.CourseNotInCatalog,
+  earnedCreditsHundredths: null,
+};
 
 /**
  * Groups attempts by equivalency group, or by course when the course has none, and resolves
@@ -57,6 +66,9 @@ interface GroupDraft {
  *
  * Earned credit for a group is the counting attempt's `creditsEarnedHundredths`, for fixed and
  * variable-credit courses alike; the course's credit fields are never used as a fallback.
+ *
+ * If any attempt's course is missing from `courses`, every group is UNDETERMINED
+ * (`COURSE_NOT_IN_CATALOG`), because the missing course could be an alias in any group.
  *
  * @param attempts - The student's attempts, in any order.
  * @param courses - Catalog courses covering every attempted course.
@@ -79,20 +91,23 @@ export function resolveAttempts(
       equivalencyGroupId === null
         ? `course:${attempt.courseId}`
         : `equivalency:${equivalencyGroupId}`;
-    const draft = drafts.get(groupKey) ?? {
-      equivalencyGroupId,
-      attempts: [],
-      isMissingCourse: false,
-    };
+    const draft = drafts.get(groupKey) ?? { equivalencyGroupId, attempts: [] };
     draft.attempts.push(attempt);
-    draft.isMissingCourse ||= course === undefined;
     drafts.set(groupKey, draft);
   }
+  // SAFETY: a course missing from the catalog could be an alias in any equivalency group, and
+  // the engine can't tell which. Missing data must not produce a settled answer, so every
+  // group is UNDETERMINED rather than only the missing course's own group (planning/08
+  // §Candidate formation: never count two aliases of the same course as separate credits).
+  const isCatalogComplete = attempts.every((attempt) => courseById.has(attempt.courseId));
+  const selectCounting: CountingSelector = isCatalogComplete
+    ? (completed) => selectCountingAttempt(completed, context)
+    : () => CATALOG_INCOMPLETE;
   // NOTE: keys are compared by UTF-16 code unit, not localeCompare, so the order is the same
   // on every machine.
   return [...drafts.entries()]
     .sort(([left], [right]) => Number(left > right) - Number(left < right))
-    .map(([groupKey, draft]) => toAttemptGroup(groupKey, draft, context));
+    .map(([groupKey, draft]) => toAttemptGroup(groupKey, draft, selectCounting));
 }
 
 /**
@@ -100,30 +115,21 @@ export function resolveAttempts(
  *
  * @param groupKey - The group's key.
  * @param draft - The group's collected attempts.
- * @param context - The institution inputs for choosing the counting attempt.
+ * @param selectCounting - Resolves the counting attempt from the group's countable attempts.
  * @returns The resolved group.
  */
 function toAttemptGroup(
   groupKey: string,
   draft: GroupDraft,
-  context: AttemptResolutionContext,
+  selectCounting: CountingSelector,
 ): AttemptGroup {
   const withStatus = (statuses: readonly AttemptStatus[]): readonly CourseAttempt[] =>
     draft.attempts.filter((attempt) => statuses.includes(attempt.status));
-  // SAFETY: a course missing from the catalog may belong to another attempt's equivalency
-  // group, so counting it alone could double count an alias (planning/08 §Candidate formation).
-  const counting: CountingResolution = draft.isMissingCourse
-    ? {
-        state: CountingState.Undetermined,
-        reasonCode: ReasonCode.CourseNotInCatalog,
-        earnedCreditsHundredths: null,
-      }
-    : selectCountingAttempt(withStatus(COUNTABLE_STATUSES), context);
   return {
     groupKey,
     equivalencyGroupId: draft.equivalencyGroupId,
     courseIds: [...new Set(draft.attempts.map((attempt) => attempt.courseId))].sort(),
-    counting,
+    counting: selectCounting(withStatus(COUNTABLE_STATUSES)),
     inProgress: withStatus([AttemptStatus.InProgress]),
     // SAFETY: pending transfers are reported separately and never count as earned credit
     // (planning/08 §Eligibility semantics).

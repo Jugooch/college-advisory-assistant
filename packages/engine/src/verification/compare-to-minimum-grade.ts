@@ -129,7 +129,7 @@ function compareToRequiredGrade(
   if (minimum.scheme === GradeScheme.Letter) {
     return gradeRank === undefined
       ? comparePassToLetter(policy)
-      : compareToMinimumLetter(gradeRank, minimum.value, policy);
+      : compareToMinimumAndCutoff(gradeRank, minimum.value, policy);
   }
   if (minimum.scheme === GradeScheme.PassFail && minimum.value === PassFailGrade.Pass) {
     // SAFETY: whether a letter grade meets a `P` minimum is institution policy that the domain
@@ -139,6 +139,36 @@ function compareToRequiredGrade(
   // SAFETY: an `F`, numeric, or unrecognized minimum has no approved comparison, so it stays
   // UNKNOWN rather than passing by default (planning/08 §Eligibility semantics).
   return MISMATCH;
+}
+
+/**
+ * Compares a ranked letter grade with both a letter minimum and, when set, the policy's lowest
+ * passing letter.
+ *
+ * @param gradeRank - The recorded letter's rank from {@link rankLetterGrade}.
+ * @param minimum - The required letter.
+ * @param policy - Supplies the letter order and `lowestPassingLetterGrade`.
+ * @returns FAIL when the grade is below either, otherwise UNKNOWN when either comparison is
+ *   UNKNOWN, otherwise PASS.
+ */
+function compareToMinimumAndCutoff(
+  gradeRank: number,
+  minimum: LetterGrade,
+  policy: AcademicPolicy,
+): GradeComparisonResult {
+  const minimumResult = compareToMinimumLetter(gradeRank, minimum, policy);
+  // SAFETY: without a cutoff, the rule's explicit minimum is approved source semantics and
+  // decides alone (planning/08 §Eligibility semantics: minimum grades use approved source
+  // semantics).
+  if (policy.lowestPassingLetterGrade === null || minimumResult.state === CheckState.Fail) {
+    return minimumResult;
+  }
+  // SAFETY: a letter below the institution's lowest passing letter isn't a passing completion,
+  // so it can't satisfy a minimum set lower than the cutoff, such as `D-` under a `D` cutoff.
+  // FAIL on either comparison wins, then UNKNOWN, as in check aggregation (planning/08
+  // §Authority and result semantics; academic-policy.model.ts `lowestPassingLetterGrade`).
+  const cutoffResult = compareToMinimumLetter(gradeRank, policy.lowestPassingLetterGrade, policy);
+  return cutoffResult.state === CheckState.Pass ? minimumResult : cutoffResult;
 }
 
 /**
