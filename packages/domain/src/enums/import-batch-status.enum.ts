@@ -2,7 +2,6 @@
  * @file Outcome of validating an import batch.
  * @module @caa/domain/enums/import-batch-status
  * @requirement FR-03
- * @requirement NFR-04
  * @see docs/planning/09-data-model-and-integration-contracts.md
  */
 import { z } from 'zod';
