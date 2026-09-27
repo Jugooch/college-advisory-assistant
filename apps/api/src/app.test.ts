@@ -1,24 +1,22 @@
 /**
- * @file HTTP-level tests for the assembled app.
+ * @file HTTP-level tests for the assembled app: public routes and unknown routes.
  */
 import { describe, expect, it } from 'vitest';
 
 import { ErrorCode } from '@caa/domain';
 
-import { buildApp } from './app';
-import { createControllers } from './container';
+import { buildWorldApp } from './testing/fixtures';
 
-const app = buildApp({
-  controllers: createControllers({ API_PORT: 0, API_HOST: '127.0.0.1', APP_VERSION: 'test' }),
-  isLoggerEnabled: false,
-});
+const { app } = buildWorldApp();
 
 describe('GET /v1/health', () => {
-  it('returns the health payload inside the data envelope', async () => {
+  it('returns the health payload inside the data envelope without a session', async () => {
     const response = await app.inject({ method: 'GET', url: '/v1/health' });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ data: { status: 'ok', version: 'test' } });
+    expect(response.json()).toMatchObject({
+      data: { status: 'ok', version: 'test', checkedAt: '2026-09-01T12:00:00.000Z' },
+    });
   });
 });
 
