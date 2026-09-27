@@ -37,7 +37,8 @@ export function createStudentsController(service: StudentsService): StudentsCont
       if (!params.success) {
         throw new NotFoundError();
       }
-      const student = await service.getStudent(actor, params.data.studentId);
+      // NOTE: request.log is Fastify's per-request child logger; every line it writes has reqId.
+      const student = await service.getStudent(actor, params.data.studentId, request.log);
       return sendData(reply, StudentResponseSchema, student);
     },
   };

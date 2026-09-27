@@ -4,7 +4,10 @@
  * @see docs/standards/09-errors-logging-and-security.md
  */
 
-/** Structured logger. The Fastify (pino) logger satisfies it. */
+/**
+ * Structured logger. Fastify's `request.log` satisfies it; controllers pass that per-request
+ * logger into service methods so every in-request line carries the request ID (`reqId`).
+ */
 export interface Logger {
   /**
    * Writes an info-level line.

@@ -5,7 +5,7 @@
  */
 import type { FastifyInstance } from 'fastify';
 
-import { buildApp } from '../app';
+import { buildApp, type LogDestination } from '../app';
 import { loadApiEnv } from '../config/env';
 import { createContainer } from '../container';
 import type { DevTokenIdentity } from '../modules/session/session.service';
@@ -18,12 +18,14 @@ export interface TestAppOptions {
   readonly tokens: Readonly<Record<string, DevTokenIdentity>>;
   /** Fixed clock for the app. */
   readonly now: () => Date;
+  /** Captures JSON log lines. Logging is off when omitted. */
+  readonly logStream?: LogDestination;
 }
 
 /**
  * Builds the app the way the server does, but over in-memory data and with `AUTH_MODE=dev`.
  *
- * @param options - Backing data, dev tokens, and clock.
+ * @param options - Backing data, dev tokens, clock, and optional log capture.
  * @returns The Fastify instance, not yet listening.
  */
 export function buildTestApp(options: TestAppOptions): FastifyInstance {
@@ -36,8 +38,7 @@ export function buildTestApp(options: TestAppOptions): FastifyInstance {
   });
   const repositories = createInMemoryRepositories(options.store);
   return buildApp({
-    createDependencies: (logger) =>
-      createContainer({ env, repositories, logger, now: options.now }),
-    isLoggerEnabled: false,
+    dependencies: createContainer({ env, repositories, now: options.now }),
+    logger: options.logStream === undefined ? false : { stream: options.logStream },
   });
 }

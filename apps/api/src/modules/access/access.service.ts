@@ -21,7 +21,6 @@ export interface AccessServiceDependencies {
   readonly advisorAssignments: AdvisorAssignmentRepository;
   /** Returns the current time. Injected so assignment windows are evaluated deterministically. */
   readonly now: () => Date;
-  readonly logger: Logger;
 }
 
 /** Authorization decisions for student-scoped objects. */
@@ -31,16 +30,17 @@ export interface AccessService {
    *
    * @param actor - Authenticated actor from the session.
    * @param studentId - Internal student ID.
+   * @param logger - Request-scoped logger, so the decision line carries the request ID.
    * @returns True only for the student themself, an advisor with an active assignment, or an admin,
    *   all within the actor's tenant.
    */
-  canViewStudent(actor: Actor, studentId: StudentId): Promise<boolean>;
+  canViewStudent(actor: Actor, studentId: StudentId, logger: Logger): Promise<boolean>;
 }
 
 /**
  * Creates the access service.
  *
- * @param dependencies - Repositories, clock, and logger.
+ * @param dependencies - Repositories and clock.
  * @returns An {@link AccessService}.
  */
 export function createAccessService(dependencies: AccessServiceDependencies): AccessService {
@@ -70,13 +70,13 @@ export function createAccessService(dependencies: AccessServiceDependencies): Ac
   };
 
   return {
-    async canViewStudent(actor, studentId) {
+    async canViewStudent(actor, studentId, logger) {
       // SECURITY: the tenant comes from the session actor, never from the request.
       const student = await dependencies.students.findById(actor.tenantId, studentId);
       const reason = student === null ? 'STUDENT_NOT_FOUND' : await decide(actor, student);
       const isAllowed = reason !== 'STUDENT_NOT_FOUND' && reason !== 'NO_GRANT';
       // SECURITY: opaque IDs only (FR-14); no names and no source student IDs.
-      dependencies.logger.info(
+      logger.info(
         { actorUserId: actor.userId, tenantId: actor.tenantId, studentId, isAllowed, reason },
         'student access decision',
       );

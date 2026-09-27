@@ -8,8 +8,8 @@ import { createRuntimeDependencies } from './container';
 
 const env = loadApiEnv(process.env);
 const app = buildApp({
-  createDependencies: (logger) => createRuntimeDependencies(env, logger),
-  isLoggerEnabled: true,
+  dependencies: createRuntimeDependencies(env),
+  logger: true,
 });
 
 await app.listen({ port: env.API_PORT, host: env.API_HOST });
