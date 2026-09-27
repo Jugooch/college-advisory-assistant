@@ -37,6 +37,23 @@ export const AcademicPolicySchema = z
      */
     letterGradeOrder: z.array(LetterGradeSchema).min(1).readonly(),
     /**
+     * The lowest letter grade that counts as a passing completion, which the engine uses when
+     * a prerequisite has no minimum grade ("any passing completion"). When set, it must appear
+     * in `letterGradeOrder`. `null` means the institution hasn't said which letters pass.
+     *
+     * Engine contract when the prerequisite's minimum grade is `null`:
+     * - A letter missing from `letterGradeOrder` is UNKNOWN (`GRADE_NOT_RANKED`), whatever
+     *   this field holds.
+     * - With this field set, a ranked letter at or above it is PASS, and a ranked letter below
+     *   it is FAIL (`MIN_GRADE_NOT_MET`).
+     * - With this field `null`, a ranked `F` is FAIL (`MIN_GRADE_NOT_MET`), and any other
+     *   ranked letter is UNKNOWN (`PASSING_GRADE_UNDEFINED`), never PASS. Whether `D` or `D-`
+     *   passes is institutional semantics, so the engine doesn't guess it. The dedicated code is
+     *   used instead of `PASS_EQUIVALENCE_UNDEFINED`, which is only about a `P` grade meeting a
+     *   letter minimum.
+     */
+    lowestPassingLetterGrade: LetterGradeSchema.nullable(),
+    /**
      * Which attempt counts when a course was repeated. `null` means the institution hasn't
      * said, and the engine returns undetermined (`REPEAT_POLICY_UNDEFINED`), never a guess.
      */
@@ -48,6 +65,17 @@ export const AcademicPolicySchema = z
     message: 'letterGradeOrder must list each letter grade at most once',
     path: ['letterGradeOrder'],
   })
+  // SAFETY: a passing cutoff the grade order doesn't rank can't be compared with any grade, so
+  // the engine would have to guess which letters pass it.
+  .refine(
+    (policy) =>
+      policy.lowestPassingLetterGrade === null ||
+      policy.letterGradeOrder.includes(policy.lowestPassingLetterGrade),
+    {
+      message: 'lowestPassingLetterGrade must appear in letterGradeOrder',
+      path: ['lowestPassingLetterGrade'],
+    },
+  )
   .readonly();
 
 /** A validated, immutable academic policy. */
@@ -61,8 +89,8 @@ export type AcademicPolicyInput = z.input<typeof AcademicPolicySchema>;
  *
  * @param input - Raw policy fields.
  * @returns The parsed academic policy.
- * @throws {z.ZodError} When a field is invalid, or `letterGradeOrder` is empty or repeats a
- *   letter.
+ * @throws {z.ZodError} When a field is invalid, `letterGradeOrder` is empty or repeats a
+ *   letter, or `lowestPassingLetterGrade` is set but missing from `letterGradeOrder`.
  */
 export function createAcademicPolicy(input: AcademicPolicyInput): AcademicPolicy {
   return AcademicPolicySchema.parse(input);

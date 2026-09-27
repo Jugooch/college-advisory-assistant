@@ -17,6 +17,7 @@ const VALID: AcademicPolicyInput = {
   allowsInProgressPrerequisites: true,
   passSatisfiesMinimumGrade: null,
   letterGradeOrder: ['A', 'B', 'C', 'D', 'F'],
+  lowestPassingLetterGrade: null,
   repeatPolicy: null,
 };
 
@@ -28,6 +29,7 @@ describe('createAcademicPolicy', () => {
       allowsInProgressPrerequisites: true,
       passSatisfiesMinimumGrade: null,
       letterGradeOrder: ['A', 'B', 'C', 'D', 'F'],
+      lowestPassingLetterGrade: null,
       repeatPolicy: null,
     });
   });
@@ -91,6 +93,36 @@ describe('createAcademicPolicy', () => {
     );
   });
 
+  it.each([
+    [LetterGrade.D, 'D'],
+    [LetterGrade.C, 'C'],
+    [LetterGrade.F, 'F'],
+  ])('accepts %s as the lowest passing letter when the order ranks it', (grade, expected) => {
+    expect(
+      createAcademicPolicy({ ...VALID, lowestPassingLetterGrade: grade }).lowestPassingLetterGrade,
+    ).toBe(expected);
+  });
+
+  it('rejects a lowest passing letter the order does not rank, because it could not be compared', () => {
+    const result = AcademicPolicySchema.safeParse({
+      ...VALID,
+      lowestPassingLetterGrade: LetterGrade.DMinus,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues.map((issue) => issue.path)).toEqual([['lowestPassingLetterGrade']]);
+    expect(result.error?.issues[0]?.message).toMatch(/must appear in letterGradeOrder/);
+  });
+
+  it('rejects P as the lowest passing letter, because P is never a letter grade', () => {
+    expect(
+      AcademicPolicySchema.safeParse({
+        ...VALID,
+        lowestPassingLetterGrade: 'P' as AcademicPolicyInput['lowestPassingLetterGrade'],
+      }).success,
+    ).toBe(false);
+  });
+
   it('rejects an empty letter order', () => {
     expect(() => createAcademicPolicy({ ...VALID, letterGradeOrder: [] })).toThrow();
   });
@@ -113,6 +145,7 @@ describe('AcademicPolicySchema', () => {
       rulesetVersion: 'demo-2026.1',
       allowsInProgressPrerequisites: true,
       letterGradeOrder: ['A'],
+      lowestPassingLetterGrade: null,
       repeatPolicy: null,
     });
 
@@ -126,10 +159,25 @@ describe('AcademicPolicySchema', () => {
       allowsInProgressPrerequisites: true,
       passSatisfiesMinimumGrade: null,
       letterGradeOrder: ['A'],
+      lowestPassingLetterGrade: null,
     });
 
     expect(result.success).toBe(false);
     expect(result.error?.issues.map((issue) => issue.path)).toEqual([['repeatPolicy']]);
+  });
+
+  it('rejects an omitted lowestPassingLetterGrade, because unknown must be an explicit null', () => {
+    const result = AcademicPolicySchema.safeParse({
+      tenantId: '0b8f6a36-3f7e-4a53-9c1e-8f1b2c3d4e5f',
+      rulesetVersion: 'demo-2026.1',
+      allowsInProgressPrerequisites: true,
+      passSatisfiesMinimumGrade: null,
+      letterGradeOrder: ['A'],
+      repeatPolicy: null,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues.map((issue) => issue.path)).toEqual([['lowestPassingLetterGrade']]);
   });
 
   it('rejects a string in place of a boolean switch', () => {

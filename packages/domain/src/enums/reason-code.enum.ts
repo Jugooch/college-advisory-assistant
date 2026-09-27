@@ -18,6 +18,8 @@ import { z } from 'zod';
  *   doesn't say.
  * - `GRADE_NOT_RANKED`: the grade is missing from the institution's grade order, so it can't
  *   be ranked.
+ * - `PASSING_GRADE_UNDEFINED`: the rule accepts any passing completion, but policy doesn't say
+ *   which letter grades pass (no `lowestPassingLetterGrade`), so only a ranked `F` is decided.
  *
  * Attempts:
  * - `IN_PROGRESS_MIN_GRADE`: satisfied only if the in-progress attempt earns the minimum grade.
@@ -48,6 +50,7 @@ export const ReasonCode = {
   GradeSchemeMismatch: 'GRADE_SCHEME_MISMATCH',
   PassEquivalenceUndefined: 'PASS_EQUIVALENCE_UNDEFINED',
   GradeNotRanked: 'GRADE_NOT_RANKED',
+  PassingGradeUndefined: 'PASSING_GRADE_UNDEFINED',
   InProgressMinGrade: 'IN_PROGRESS_MIN_GRADE',
   ProgressionNotPermitted: 'PROGRESSION_NOT_PERMITTED',
   PendingTransfer: 'PENDING_TRANSFER',

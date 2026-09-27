@@ -5,7 +5,16 @@
  */
 
 /** Entity kinds that get their own synthetic ID range. */
-export type SyntheticIdKind = 'tenant' | 'user' | 'student' | 'assignment';
+export type SyntheticIdKind =
+  | 'tenant'
+  | 'user'
+  | 'student'
+  | 'assignment'
+  | 'course'
+  | 'attempt'
+  | 'audit'
+  | 'program'
+  | 'equivalencyGroup';
 
 /** First UUID group per kind, so the kind is visible when an ID shows up in a failing test. */
 const KIND_PREFIX: Readonly<Record<SyntheticIdKind, string>> = {
@@ -13,6 +22,11 @@ const KIND_PREFIX: Readonly<Record<SyntheticIdKind, string>> = {
   user: '20000000',
   student: '30000000',
   assignment: '40000000',
+  course: '50000000',
+  attempt: '60000000',
+  audit: '70000000',
+  program: '80000000',
+  equivalencyGroup: '90000000',
 };
 
 /** Largest seed that fits the 12-hex-digit final UUID group. */
