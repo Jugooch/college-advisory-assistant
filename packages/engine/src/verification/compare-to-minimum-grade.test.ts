@@ -101,7 +101,30 @@ describe('compareToMinimumGrade', () => {
     });
   });
 
-  it('returns PASS for a passing letter when there is no minimum', () => {
+  it('returns UNKNOWN for a letter missing from the policy order when there is no minimum', () => {
+    expect(compareToMinimumGrade(letter('D+'), null, buildPolicy())).toEqual({
+      state: 'UNKNOWN',
+      reasonCode: 'GRADE_NOT_RANKED',
+    });
+  });
+
+  it('returns UNKNOWN for an F the policy does not rank rather than guessing FAIL', () => {
+    const policy = createAcademicPolicy({
+      tenantId: '00000000-0000-4000-8000-000000000001',
+      rulesetVersion: 'demo-2026.1',
+      allowsInProgressPrerequisites: true,
+      passSatisfiesMinimumGrade: null,
+      letterGradeOrder: ['A', 'B', 'C', 'D'],
+      repeatPolicy: null,
+    });
+
+    expect(compareToMinimumGrade(letter('F'), null, policy)).toEqual({
+      state: 'UNKNOWN',
+      reasonCode: 'GRADE_NOT_RANKED',
+    });
+  });
+
+  it('returns PASS for a ranked non-F letter when there is no minimum', () => {
     expect(compareToMinimumGrade(letter('D'), null, buildPolicy())).toEqual({ state: 'PASS' });
   });
 
