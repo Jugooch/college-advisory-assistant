@@ -3,7 +3,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import * as testing from './entry';
+import * as testing from './testing';
 
 describe('@caa/api/testing', () => {
   it('exports the app and container factories', () => {

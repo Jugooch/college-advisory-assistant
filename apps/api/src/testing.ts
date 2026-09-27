@@ -6,18 +6,18 @@
  * For tests only. The production bundle is built from `server.ts` alone and never includes this
  * file, so nothing here is shipped or run by the deployed API.
  */
-export { buildApp, type BuildAppOptions } from '../app';
-export { type ApiEnv, AuthMode, loadApiEnv } from '../config/env';
+export { buildApp, type BuildAppOptions } from './app';
+export { type ApiEnv, AuthMode, loadApiEnv } from './config/env';
 export {
   type AppDependencies,
   type ContainerOptions,
   type Controllers,
   createContainer,
   type Repositories,
-} from '../container';
-export type { DevTokenIdentity } from '../modules/session/session.service';
-export type { LogDestination, Logger } from '../shared/logger';
-export type { RequestContext } from '../shared/request-context';
+} from './container';
+export type { DevTokenIdentity } from './modules/session/session.service';
+export type { LogDestination, Logger } from './shared/logger';
+export type { RequestContext } from './shared/request-context';
 export type {
   AdvisorAssignmentRepository,
   StudentRepository,
