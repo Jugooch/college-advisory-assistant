@@ -1,0 +1,62 @@
+/**
+ * @file Closed registry of reason codes that explain every non-passing check.
+ * @module @caa/domain/enums/reason-code
+ * @requirement FR-06
+ * @requirement FR-09
+ * @see docs/planning/08-academic-verification-and-planning.md
+ */
+import { z } from 'zod';
+
+/**
+ * Why a check did not pass. Every FAIL, UNKNOWN, or CONDITIONAL result carries exactly one of
+ * these codes, so the UI renders a consistent explanation instead of free text.
+ *
+ * Grades:
+ * - `MIN_GRADE_NOT_MET`: the qualifying attempt's grade is below the required minimum.
+ * - `GRADE_SCHEME_MISMATCH`: the grade's scheme can't be compared with the required grade.
+ * - `PASS_EQUIVALENCE_UNDEFINED`: a `P` grade meets a minimum only if policy says so, and it
+ *   doesn't say.
+ *
+ * Attempts:
+ * - `IN_PROGRESS_MIN_GRADE`: satisfied only if the in-progress attempt earns the minimum grade.
+ * - `PROGRESSION_NOT_PERMITTED`: the institution doesn't allow planning on in-progress work.
+ * - `PENDING_TRANSFER`: the only qualifying credit is a transfer still under evaluation.
+ * - `NO_QUALIFYING_ATTEMPT`: no attempt of the course or an equivalent qualifies.
+ *
+ * Rules and audit:
+ * - `UNSUPPORTED_RULE`: the source rule has semantics the app can't represent.
+ * - `AUDIT_STALE`: the degree audit is older than the student record it must reflect.
+ * - `AUDIT_AMBIGUOUS`: the audit doesn't settle the requirement.
+ * - `REQUIREMENT_ALREADY_SATISFIED`: the requirement is already complete.
+ * - `NOT_APPLICABLE`: the course doesn't apply to the requirement.
+ *
+ * Candidate sets:
+ * - `ALLOCATION_CONFLICT`: one course is counted toward requirements that don't allow reuse.
+ * - `CREDIT_LIMIT_EXCEEDED`: the plan exceeds the term's maximum credit load.
+ * - `CREDIT_BELOW_MINIMUM`: the plan is under the term's minimum credit load.
+ * - `VARIABLE_CREDIT_UNSELECTED`: a variable-credit course has no chosen credit value.
+ */
+export const ReasonCode = {
+  MinGradeNotMet: 'MIN_GRADE_NOT_MET',
+  GradeSchemeMismatch: 'GRADE_SCHEME_MISMATCH',
+  PassEquivalenceUndefined: 'PASS_EQUIVALENCE_UNDEFINED',
+  InProgressMinGrade: 'IN_PROGRESS_MIN_GRADE',
+  ProgressionNotPermitted: 'PROGRESSION_NOT_PERMITTED',
+  PendingTransfer: 'PENDING_TRANSFER',
+  NoQualifyingAttempt: 'NO_QUALIFYING_ATTEMPT',
+  UnsupportedRule: 'UNSUPPORTED_RULE',
+  AuditStale: 'AUDIT_STALE',
+  AuditAmbiguous: 'AUDIT_AMBIGUOUS',
+  RequirementAlreadySatisfied: 'REQUIREMENT_ALREADY_SATISFIED',
+  NotApplicable: 'NOT_APPLICABLE',
+  AllocationConflict: 'ALLOCATION_CONFLICT',
+  CreditLimitExceeded: 'CREDIT_LIMIT_EXCEEDED',
+  CreditBelowMinimum: 'CREDIT_BELOW_MINIMUM',
+  VariableCreditUnselected: 'VARIABLE_CREDIT_UNSELECTED',
+} as const;
+
+/** Union of every {@link ReasonCode} value. */
+export type ReasonCode = (typeof ReasonCode)[keyof typeof ReasonCode];
+
+/** Runtime schema for {@link ReasonCode}. */
+export const ReasonCodeSchema = z.enum(ReasonCode);
