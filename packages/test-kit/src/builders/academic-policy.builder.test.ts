@@ -16,6 +16,7 @@ describe('buildAcademicPolicy', () => {
       passSatisfiesMinimumGrade: null,
       letterGradeOrder: ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D+', 'D', 'D-', 'F'],
       repeatPolicy: null,
+      lowestPassingLetterGrade: null,
     });
   });
 

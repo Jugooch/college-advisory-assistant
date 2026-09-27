@@ -51,8 +51,18 @@ describe('CheckResultSchema', () => {
           .reasonCode,
     );
 
-    expect(codes).toHaveLength(20);
+    expect(codes).toHaveLength(21);
     expect(codes).toContain('VARIABLE_CREDIT_UNSELECTED');
+  });
+
+  it('accepts PASSING_GRADE_UNDEFINED on an UNKNOWN check', () => {
+    expect(
+      createCheckResult({
+        kind: CheckKind.Prerequisite,
+        state: CheckState.Unknown,
+        reasonCode: ReasonCode.PassingGradeUndefined,
+      }).reasonCode,
+    ).toBe('PASSING_GRADE_UNDEFINED');
   });
 
   it('accepts the attempt resolution reason codes', () => {
