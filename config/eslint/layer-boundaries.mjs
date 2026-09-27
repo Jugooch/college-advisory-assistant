@@ -2,7 +2,9 @@
  * @file Layer boundary rules: which packages and layers may import which.
  * @see docs/standards/01-repository-structure.md
  * @see docs/standards/05-api-design.md
+ * @see docs/planning/06-system-requirements-and-traceability.md
  */
+import { builtinModules } from 'node:module';
 
 /** Packages that only the API and worker may import. */
 export const SERVER_ONLY = [
@@ -19,6 +21,17 @@ export const FRAMEWORKS = ['fastify', 'next', 'next/*', 'react', 'react-dom'];
 export const TEST_ONLY = ['@caa/*/testing'];
 /** Every production source file; test files re-enable these imports in eslint.config.mjs. */
 export const PRODUCTION_SOURCES = ['apps/*/src/**', 'packages/*/src/**'];
+
+/**
+ * Bare Node built-in module names (`fs`, `fs/promises`, `crypto`, ...), read from the running Node
+ * so the list cannot drift. Prefix-only modules such as `node:test` are covered by NODE_PREFIX.
+ */
+export const NODE_BUILTINS = builtinModules.filter((name) => !name.startsWith('node:'));
+/** Matches every `node:`-prefixed import specifier. */
+const NODE_PREFIX = '^node:';
+/** Why the engine may not import Node built-ins. */
+const NODE_BUILTIN_MESSAGE =
+  'engine is pure (NFR-01): no Node built-ins, so no I/O, clock, or randomness.';
 
 /** Deployable apps; no workspace imports another app, by name or by subpath. */
 const APPS = ['api', 'web', 'worker'];
@@ -46,10 +59,23 @@ const TEST_ONLY_RESTRICTION = {
  *
  * @param {string[]} names - Import specifiers or globs to forbid.
  * @param {string} message - Explanation shown to the developer.
+ * @param {{ paths: string[], regex: string, message: string }} [exact] - Extra specifiers to
+ *   forbid by exact name (`paths`) and by regular expression (`regex`), with their own message.
+ *   Exact names avoid gitignore-style matching, which would catch `domain` inside `@caa/domain`.
  * @returns {import('eslint').Linter.RuleEntry} The rule entry.
  */
-export function forbid(names, message) {
-  return ['error', { patterns: [{ group: names, message }, TEST_ONLY_RESTRICTION] }];
+export function forbid(names, message, exact) {
+  const patterns = [{ group: names, message }, TEST_ONLY_RESTRICTION];
+  if (exact === undefined) {
+    return ['error', { patterns }];
+  }
+  return [
+    'error',
+    {
+      paths: exact.paths.map((name) => ({ name, message: exact.message })),
+      patterns: [...patterns, { regex: exact.regex, message: exact.message }],
+    },
+  ];
 }
 
 /** Import restrictions for every backend package and layer. */
@@ -79,6 +105,7 @@ export const layerBoundaries = [
       'no-restricted-imports': forbid(
         ['@caa/db', '@caa/api-contract', '@caa/assistant', ...FRAMEWORKS, 'drizzle-orm', 'pg'],
         'engine is pure: it depends only on @caa/domain.',
+        { paths: NODE_BUILTINS, regex: NODE_PREFIX, message: NODE_BUILTIN_MESSAGE },
       ),
       'no-restricted-properties': [
         'error',
