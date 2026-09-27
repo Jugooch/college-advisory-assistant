@@ -130,10 +130,22 @@ importers:
       '@caa/engine':
         specifier: workspace:*
         version: link:../../packages/engine
+      drizzle-orm:
+        specifier: ^0.45.3
+        version: 0.45.3(@types/pg@8.23.1)(pg@8.23.0)
+      pg:
+        specifier: ^8.23.0
+        version: 8.23.0
       pino:
         specifier: ^10.3.1
         version: 10.3.1
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
     devDependencies:
+      '@caa/test-kit':
+        specifier: workspace:*
+        version: link:../../packages/test-kit
       tsup:
         specifier: ^8.5.1
         version: 8.5.1(jiti@2.6.1)(postcss@8.5.28)(tsx@4.23.15)(typescript@6.0.3)
