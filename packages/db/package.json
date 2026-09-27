@@ -10,7 +10,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "db:seed": "tsx src/seed/run-seed.ts"
   },
   "dependencies": {
     "@caa/domain": "workspace:*",
@@ -19,6 +20,9 @@
   },
   "devDependencies": {
     "@types/pg": "^8.23.1",
-    "drizzle-kit": "^0.31.11"
+    "drizzle-kit": "^0.31.11",
+    "pino": "^10.3.1",
+    "tsx": "^4.23.15",
+    "zod": "^4.6.5"
   }
 }
