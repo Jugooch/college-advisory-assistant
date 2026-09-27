@@ -7,7 +7,7 @@
  */
 import { z } from 'zod';
 
-import { LetterGradeSchema } from '../enums/grade-scheme.enum';
+import { LetterGrade, LetterGradeSchema } from '../enums/grade-scheme.enum';
 import { RepeatPolicySchema } from '../enums/repeat-policy.enum';
 import { InstitutionIdSchema } from './institution.model';
 
@@ -39,18 +39,19 @@ export const AcademicPolicySchema = z
     /**
      * The lowest letter grade that counts as a passing completion, which the engine uses when
      * a prerequisite has no minimum grade ("any passing completion"). When set, it must appear
-     * in `letterGradeOrder`. `null` means the institution hasn't said which letters pass.
+     * in `letterGradeOrder` and must not be `F`, because a failing grade never passes because
+     * of a policy setting. `null` means the institution hasn't said which letters pass.
      *
      * Engine contract when the prerequisite's minimum grade is `null`:
      * - A letter missing from `letterGradeOrder` is UNKNOWN (`GRADE_NOT_RANKED`), whatever
      *   this field holds.
+     * - A ranked `F` is FAIL (`MIN_GRADE_NOT_MET`), whatever this field holds.
      * - With this field set, a ranked letter at or above it is PASS, and a ranked letter below
      *   it is FAIL (`MIN_GRADE_NOT_MET`).
-     * - With this field `null`, a ranked `F` is FAIL (`MIN_GRADE_NOT_MET`), and any other
-     *   ranked letter is UNKNOWN (`PASSING_GRADE_UNDEFINED`), never PASS. Whether `D` or `D-`
-     *   passes is institutional semantics, so the engine doesn't guess it. The dedicated code is
-     *   used instead of `PASS_EQUIVALENCE_UNDEFINED`, which is only about a `P` grade meeting a
-     *   letter minimum.
+     * - With this field `null`, any ranked letter other than `F` is UNKNOWN
+     *   (`PASSING_GRADE_UNDEFINED`), never PASS. Whether `D` or `D-` passes is institutional
+     *   semantics, so the engine doesn't guess it. The dedicated code is used instead of
+     *   `PASS_EQUIVALENCE_UNDEFINED`, which is only about a `P` grade meeting a letter minimum.
      */
     lowestPassingLetterGrade: LetterGradeSchema.nullable(),
     /**
@@ -76,6 +77,13 @@ export const AcademicPolicySchema = z
       path: ['lowestPassingLetterGrade'],
     },
   )
+  // SAFETY: a failing grade never passes because of a policy setting. An `F` cutoff would
+  // declare every ranked letter passing, which contradicts the engine's rule that a ranked `F`
+  // is always FAIL.
+  .refine((policy) => policy.lowestPassingLetterGrade !== LetterGrade.F, {
+    message: 'lowestPassingLetterGrade must not be F, because a failing grade never passes',
+    path: ['lowestPassingLetterGrade'],
+  })
   .readonly();
 
 /** A validated, immutable academic policy. */
@@ -90,7 +98,7 @@ export type AcademicPolicyInput = z.input<typeof AcademicPolicySchema>;
  * @param input - Raw policy fields.
  * @returns The parsed academic policy.
  * @throws {z.ZodError} When a field is invalid, `letterGradeOrder` is empty or repeats a
- *   letter, or `lowestPassingLetterGrade` is set but missing from `letterGradeOrder`.
+ *   letter, or `lowestPassingLetterGrade` is `F` or is set but missing from `letterGradeOrder`.
  */
 export function createAcademicPolicy(input: AcademicPolicyInput): AcademicPolicy {
   return AcademicPolicySchema.parse(input);

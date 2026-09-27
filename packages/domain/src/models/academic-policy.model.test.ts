@@ -94,13 +94,28 @@ describe('createAcademicPolicy', () => {
   });
 
   it.each([
-    [LetterGrade.D, 'D'],
     [LetterGrade.C, 'C'],
-    [LetterGrade.F, 'F'],
+    [LetterGrade.D, 'D'],
+    [LetterGrade.DMinus, 'D-'],
   ])('accepts %s as the lowest passing letter when the order ranks it', (grade, expected) => {
     expect(
-      createAcademicPolicy({ ...VALID, lowestPassingLetterGrade: grade }).lowestPassingLetterGrade,
+      createAcademicPolicy({
+        ...VALID,
+        letterGradeOrder: Object.values(LetterGrade),
+        lowestPassingLetterGrade: grade,
+      }).lowestPassingLetterGrade,
     ).toBe(expected);
+  });
+
+  it('rejects F as the lowest passing letter, because a failing grade never passes', () => {
+    const result = AcademicPolicySchema.safeParse({
+      ...VALID,
+      lowestPassingLetterGrade: LetterGrade.F,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues.map((issue) => issue.path)).toEqual([['lowestPassingLetterGrade']]);
+    expect(result.error?.issues[0]?.message).toMatch(/must not be F/);
   });
 
   it('rejects a lowest passing letter the order does not rank, because it could not be compared', () => {
