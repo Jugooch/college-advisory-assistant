@@ -111,6 +111,15 @@ export const layerBoundaries = [
     },
   },
   {
+    files: ['packages/test-kit/src/**'],
+    rules: {
+      'no-restricted-imports': forbid(
+        ['@caa/db', '@caa/api', '@caa/worker', ...FRAMEWORKS],
+        'test-kit builds synthetic domain data only; it must not depend on db, apps, or frameworks.',
+      ),
+    },
+  },
+  {
     files: ['apps/worker/src/**'],
     rules: {
       'no-restricted-imports': forbid(
