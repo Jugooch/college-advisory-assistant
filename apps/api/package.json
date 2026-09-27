@@ -19,6 +19,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@caa/test-kit": "workspace:*",
     "tsup": "^8.5.1",
     "tsx": "^4.23.15"
   }

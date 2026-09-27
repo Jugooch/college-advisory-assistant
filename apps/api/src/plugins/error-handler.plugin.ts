@@ -2,11 +2,29 @@
  * @file Converts every thrown error into the standard error envelope.
  * @module @caa/api/plugins/error-handler
  * @requirement FR-14
+ * @see docs/standards/05-api-design.md
  */
 import type { FastifyInstance } from 'fastify';
 import { ZodError } from 'zod';
 
 import { ErrorCode } from '@caa/domain';
+
+import { DomainError } from '../shared/domain-errors';
+
+/** HTTP status for each typed error code (standards/05 status table). */
+const STATUS_BY_CODE: Readonly<Record<ErrorCode, number>> = {
+  [ErrorCode.InvalidRequest]: 400,
+  [ErrorCode.Unauthorized]: 401,
+  [ErrorCode.NotFound]: 404,
+  [ErrorCode.OutOfScope]: 422,
+  [ErrorCode.SourceUnavailable]: 503,
+  [ErrorCode.StaleSource]: 409,
+  [ErrorCode.SemanticGap]: 422,
+  [ErrorCode.RevisionConflict]: 409,
+  [ErrorCode.SearchTimeout]: 422,
+  [ErrorCode.NoFeasiblePlan]: 422,
+  [ErrorCode.InternalError]: 500,
+};
 
 /**
  * Checks whether a thrown value carries a numeric HTTP status.
@@ -48,6 +66,12 @@ function describeError(error: unknown): Record<string, unknown> {
  */
 export function registerErrorHandler(app: FastifyInstance): void {
   app.setErrorHandler((error, request, reply) => {
+    if (error instanceof DomainError) {
+      // NOTE: typed errors are expected outcomes (401, 404, ...), so they log at info, not error.
+      request.log.info({ errorName: error.name, code: error.code }, 'request rejected');
+      const envelope = { code: error.code, message: error.message, requestId: request.id };
+      return reply.status(STATUS_BY_CODE[error.code]).send({ error: envelope });
+    }
     // SECURITY: never echo internals or student data to the client.
     request.log.error(describeError(error), 'request failed');
     const status = isErrorWithStatusCode(error) ? error.statusCode : 500;

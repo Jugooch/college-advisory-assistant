@@ -87,6 +87,9 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
+      '@caa/test-kit':
+        specifier: workspace:*
+        version: link:../../packages/test-kit
       tsup:
         specifier: ^8.5.1
         version: 8.5.1(jiti@2.6.1)(postcss@8.5.28)(tsx@4.23.15)(typescript@6.0.3)

@@ -1,0 +1,86 @@
+/**
+ * @file Decides whether an actor may see a student, and logs every decision with opaque IDs.
+ * @module @caa/api/modules/access/access.service
+ * @requirement FR-02
+ * @requirement FR-14
+ * @see docs/standards/09-errors-logging-and-security.md
+ * @see docs/planning/12-security-privacy-and-procurement.md
+ */
+import type { AdvisorAssignmentRepository, StudentRepository } from '@caa/db';
+import { type Actor, Role, type Student, type StudentId } from '@caa/domain';
+
+import type { Logger } from '../../shared/logger';
+
+/** Why access was granted or denied. Logged; never shown to the client. */
+export type AccessReason =
+  'OWN_RECORD' | 'ACTIVE_ASSIGNMENT' | 'ADMIN_SAME_TENANT' | 'STUDENT_NOT_FOUND' | 'NO_GRANT';
+
+/** Dependencies of the access service. */
+export interface AccessServiceDependencies {
+  readonly students: StudentRepository;
+  readonly advisorAssignments: AdvisorAssignmentRepository;
+  /** Returns the current time. Injected so assignment windows are evaluated deterministically. */
+  readonly now: () => Date;
+  readonly logger: Logger;
+}
+
+/** Authorization decisions for student-scoped objects. */
+export interface AccessService {
+  /**
+   * Decides whether the actor may see a student. Deny by default.
+   *
+   * @param actor - Authenticated actor from the session.
+   * @param studentId - Internal student ID.
+   * @returns True only for the student themself, an advisor with an active assignment, or an admin,
+   *   all within the actor's tenant.
+   */
+  canViewStudent(actor: Actor, studentId: StudentId): Promise<boolean>;
+}
+
+/**
+ * Creates the access service.
+ *
+ * @param dependencies - Repositories, clock, and logger.
+ * @returns An {@link AccessService}.
+ */
+export function createAccessService(dependencies: AccessServiceDependencies): AccessService {
+  const decide = async (actor: Actor, student: Student): Promise<AccessReason> => {
+    // SECURITY: defense in depth; the repository already filters by the session's tenant.
+    if (student.tenantId !== actor.tenantId) {
+      return 'NO_GRANT';
+    }
+    if (actor.roles.includes(Role.Admin)) {
+      return 'ADMIN_SAME_TENANT';
+    }
+    if (actor.roles.includes(Role.Student) && student.userId === actor.userId) {
+      return 'OWN_RECORD';
+    }
+    if (actor.roles.includes(Role.Advisor)) {
+      // SECURITY: the assignment is checked on every call, so a revocation applies immediately.
+      const assignment = await dependencies.advisorAssignments.findActive(actor.tenantId, {
+        advisorUserId: actor.userId,
+        studentId: student.id,
+        at: dependencies.now().toISOString(),
+      });
+      if (assignment !== null) {
+        return 'ACTIVE_ASSIGNMENT';
+      }
+    }
+    return 'NO_GRANT';
+  };
+
+  return {
+    async canViewStudent(actor, studentId) {
+      // SECURITY: the tenant comes from the session actor, never from the request.
+      const student = await dependencies.students.findById(actor.tenantId, studentId);
+      const reason = student === null ? 'STUDENT_NOT_FOUND' : await decide(actor, student);
+      const isAllowed = reason !== 'STUDENT_NOT_FOUND' && reason !== 'NO_GRANT';
+      // SECURITY: opaque IDs only (FR-14); no names and no source student IDs.
+      dependencies.logger.info(
+        { actorUserId: actor.userId, tenantId: actor.tenantId, studentId, isAllowed, reason },
+        'student access decision',
+      );
+      return isAllowed;
+    },
+  };
+}

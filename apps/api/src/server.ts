@@ -4,9 +4,12 @@
  */
 import { buildApp } from './app';
 import { loadApiEnv } from './config/env';
-import { createControllers } from './container';
+import { createRuntimeDependencies } from './container';
 
 const env = loadApiEnv(process.env);
-const app = buildApp({ controllers: createControllers(env), isLoggerEnabled: true });
+const app = buildApp({
+  createDependencies: (logger) => createRuntimeDependencies(env, logger),
+  isLoggerEnabled: true,
+});
 
 await app.listen({ port: env.API_PORT, host: env.API_HOST });
