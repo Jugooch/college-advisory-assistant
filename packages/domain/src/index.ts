@@ -5,6 +5,7 @@
 export * from './enums/attempt-status.enum';
 export * from './enums/check-kind.enum';
 export * from './enums/check-state.enum';
+export * from './enums/counting-state.enum';
 export * from './enums/error-code.enum';
 export * from './enums/grade-scheme.enum';
 export * from './enums/identity-status.enum';
@@ -12,6 +13,7 @@ export * from './enums/import-batch-status.enum';
 export * from './enums/import-operation.enum';
 export * from './enums/prerequisite-expression-type.enum';
 export * from './enums/reason-code.enum';
+export * from './enums/repeat-policy.enum';
 export * from './enums/requirement-state.enum';
 export * from './enums/role.enum';
 export * from './models/academic-policy.model';

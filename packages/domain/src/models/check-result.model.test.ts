@@ -51,7 +51,27 @@ describe('CheckResultSchema', () => {
           .reasonCode,
     );
 
-    expect(codes).toHaveLength(16);
+    expect(codes).toHaveLength(20);
     expect(codes).toContain('VARIABLE_CREDIT_UNSELECTED');
+  });
+
+  it('accepts the attempt resolution reason codes', () => {
+    const codes = [
+      ReasonCode.RepeatPolicyUndefined,
+      ReasonCode.RepeatOrderUndetermined,
+      ReasonCode.CourseNotInCatalog,
+      ReasonCode.GradeNotRanked,
+    ].map(
+      (reasonCode) =>
+        createCheckResult({ kind: CheckKind.Prerequisite, state: CheckState.Unknown, reasonCode })
+          .reasonCode,
+    );
+
+    expect(codes).toEqual([
+      'REPEAT_POLICY_UNDEFINED',
+      'REPEAT_ORDER_UNDETERMINED',
+      'COURSE_NOT_IN_CATALOG',
+      'GRADE_NOT_RANKED',
+    ]);
   });
 });
