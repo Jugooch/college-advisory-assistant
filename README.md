@@ -15,6 +15,24 @@ pnpm dev                                  # web :3000, api :4000, worker
 pnpm verify                               # everything CI checks
 ```
 
+### Seed and sign in locally
+
+Everything below uses synthetic data only. Never load real student records on a development machine.
+
+```bash
+docker compose -f infra/docker-compose.yml up -d   # local Postgres
+cp infra/env.example .env
+set -a && . ./.env && set +a                       # export the variables into this shell
+pnpm --filter @caa/db db:migrate                    # create the tables
+pnpm --filter @caa/db db:seed                       # synthetic colleges, users, students, assignment (safe to re-run)
+pnpm dev                                            # web :3000, api :4000, worker
+
+# Who am I? Sign in as the synthetic advisor (AUTH_MODE=dev)
+curl -H 'Authorization: Bearer dev-token-advisor' http://localhost:4000/v1/me
+```
+
+`db:seed` refuses to run when `NODE_ENV=production`, and the API refuses to start with `AUTH_MODE=dev` in production. The available tokens, and the synthetic identities they sign in as, are defined by `DEV_AUTH_TOKENS` in `.env`.
+
 ## Where things are
 
 | Read this                                          | For                                                                                   |
