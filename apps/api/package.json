@@ -4,6 +4,9 @@
   "private": true,
   "description": "HTTP API. Routes, controllers, and services; all business rules live in services and the engine.",
   "type": "module",
+  "exports": {
+    "./testing": "./src/testing/entry.ts"
+  },
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsup",
