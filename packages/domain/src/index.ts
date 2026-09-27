@@ -26,6 +26,7 @@ export * from './models/import-batch.model';
 export * from './models/institution.model';
 export * from './models/prerequisite-expression.model';
 export * from './models/prerequisite-rule.model';
+export * from './models/program.model';
 export * from './models/requirement-result.model';
 export * from './models/roster-row.model';
 export * from './models/student.model';

@@ -17,6 +17,7 @@ const COURSE_2 = '3c4d5e6f-0000-4000-8000-000000000002';
 
 const INCOMPLETE: RequirementResultInput = {
   sourceRequirementId: 'demo.math.core',
+  parentSourceRequirementId: 'demo.core',
   label: 'Mathematics core',
   state: RequirementState.Incomplete,
   allocatedAttemptIds: [ATTEMPT_1],
@@ -40,6 +41,7 @@ describe('createRequirementResult', () => {
   it('accepts an incomplete requirement with a remainder and candidates', () => {
     expect(createRequirementResult(INCOMPLETE)).toEqual({
       sourceRequirementId: 'demo.math.core',
+      parentSourceRequirementId: 'demo.core',
       label: 'Mathematics core',
       state: 'INCOMPLETE',
       allocatedAttemptIds: ['5e6f7081-0000-4000-8000-000000000001'],
@@ -131,6 +133,28 @@ describe('createRequirementResult', () => {
 });
 
 describe('RequirementResultSchema', () => {
+  it('accepts a null parent for a top-level requirement', () => {
+    const result = RequirementResultSchema.safeParse({
+      ...INCOMPLETE,
+      parentSourceRequirementId: null,
+    });
+
+    expect(result.data?.parentSourceRequirementId).toBeNull();
+  });
+
+  it('rejects an omitted parent, because unknown must be an explicit null', () => {
+    const { parentSourceRequirementId: omitted, ...withoutParent } = INCOMPLETE;
+
+    expect(omitted).toBe('demo.core');
+    expect(RequirementResultSchema.safeParse(withoutParent).success).toBe(false);
+  });
+
+  it('rejects an empty parent reference', () => {
+    expect(
+      RequirementResultSchema.safeParse({ ...INCOMPLETE, parentSourceRequirementId: '' }).success,
+    ).toBe(false);
+  });
+
   it('rejects an unknown state', () => {
     expect(RequirementResultSchema.safeParse({ ...INCOMPLETE, state: 'WAIVED' }).success).toBe(
       false,

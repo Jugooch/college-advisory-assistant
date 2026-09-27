@@ -30,6 +30,12 @@ export const RequirementResultSchema = z
   .object({
     /** Requirement identifier in the audit system. Unique within one audit snapshot. */
     sourceRequirementId: z.string().min(1),
+    /**
+     * `sourceRequirementId` of the parent requirement in the same snapshot, or `null` for a
+     * top-level requirement. The audit decides each node's state: the engine must not mark a
+     * parent satisfied from partial children, and reads the parent's own `state` instead.
+     */
+    parentSourceRequirementId: z.string().min(1).nullable(),
     /** Display text such as `Mathematics core`. Never used as identity. */
     label: z.string().min(1),
     state: RequirementStateSchema,
@@ -49,7 +55,10 @@ export const RequirementResultSchema = z
      * `false` when the audit doesn't say, so reuse is never assumed.
      */
     isReusable: z.boolean(),
-    /** Reference to the requirement in the audit, shown as evidence. */
+    /**
+     * Reference to the requirement in the audit, shown as evidence. Resolved within the
+     * enclosing snapshot's `auditSource` and `auditVersion`, never across audit revisions.
+     */
     sourceRef: z.string().min(1),
   })
   // SAFETY: a COMPLETE requirement that still needs credits or courses contradicts itself; the

@@ -11,10 +11,12 @@ import { z } from 'zod';
 /**
  * State of a requirement, taken from the audit and never recomputed by the app.
  *
- * - `COMPLETE`: satisfied; nothing remains.
- * - `IN_PROGRESS`: would be satisfied by attempts that are still in progress.
- * - `INCOMPLETE`: something remains to be done.
- * - `AMBIGUOUS`: the audit doesn't settle the requirement. The engine returns UNKNOWN
+ * Mapping contract to check states (planning/08 §Authority and result semantics):
+ * - `COMPLETE`: satisfied; nothing remains. May support a PASS.
+ * - `IN_PROGRESS`: would be satisfied only if in-progress attempts finish as required. Maps to
+ *   CONDITIONAL, never PASS.
+ * - `INCOMPLETE`: something remains to be done. The requirement is outstanding.
+ * - `AMBIGUOUS`: the audit doesn't settle the requirement. Maps to UNKNOWN
  *   (`AUDIT_AMBIGUOUS`), never PASS.
  */
 export const RequirementState = {

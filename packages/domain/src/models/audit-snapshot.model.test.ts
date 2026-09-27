@@ -11,8 +11,22 @@ import {
 } from './audit-snapshot.model';
 import type { RequirementResultInput } from './requirement-result.model';
 
+const CORE: RequirementResultInput = {
+  sourceRequirementId: 'demo.core',
+  parentSourceRequirementId: null,
+  label: 'Core curriculum',
+  state: RequirementState.Incomplete,
+  allocatedAttemptIds: [],
+  remainingCreditsHundredths: null,
+  remainingCourseCount: null,
+  candidateCourseIds: [],
+  isReusable: false,
+  sourceRef: 'audit_demo_r7:item1',
+};
+
 const MATH_CORE: RequirementResultInput = {
   sourceRequirementId: 'demo.math.core',
+  parentSourceRequirementId: 'demo.core',
   label: 'Mathematics core',
   state: RequirementState.Incomplete,
   allocatedAttemptIds: ['5e6f7081-0000-4000-8000-000000000001'],
@@ -25,6 +39,7 @@ const MATH_CORE: RequirementResultInput = {
 
 const WRITING: RequirementResultInput = {
   sourceRequirementId: 'demo.gen.writing',
+  parentSourceRequirementId: null,
   label: 'Writing intensive',
   state: RequirementState.Complete,
   allocatedAttemptIds: ['5e6f7081-0000-4000-8000-000000000002'],
@@ -40,25 +55,42 @@ const VALID: AuditSnapshotInput = {
   tenantId: '0b8f6a36-3f7e-4a53-9c1e-8f1b2c3d4e5f',
   studentId: '2b3c4d5e-0000-4000-8000-000000000001',
   programId: '708192a3-0000-4000-8000-000000000001',
+  auditSource: 'demo-audit',
+  auditVersion: 'audit_demo_r7',
   catalogYear: '2025-2026',
   generatedAt: '2026-09-25T07:00:00.000-05:00',
   studentRecordEffectiveAt: '2026-09-25T05:30:00.000-05:00',
-  requirements: [MATH_CORE, WRITING],
+  requirements: [CORE, MATH_CORE, WRITING],
 };
 
 describe('createAuditSnapshot', () => {
-  it('accepts a snapshot with distinct requirements', () => {
-    expect(createAuditSnapshot(VALID)).toEqual({
+  it('accepts a snapshot with provenance and a requirement tree', () => {
+    expect(createAuditSnapshot({ ...VALID, requirements: [CORE, MATH_CORE] })).toEqual({
       id: '6f708192-0000-4000-8000-000000000001',
       tenantId: '0b8f6a36-3f7e-4a53-9c1e-8f1b2c3d4e5f',
       studentId: '2b3c4d5e-0000-4000-8000-000000000001',
       programId: '708192a3-0000-4000-8000-000000000001',
+      auditSource: 'demo-audit',
+      auditVersion: 'audit_demo_r7',
       catalogYear: '2025-2026',
       generatedAt: '2026-09-25T07:00:00.000-05:00',
       studentRecordEffectiveAt: '2026-09-25T05:30:00.000-05:00',
       requirements: [
         {
+          sourceRequirementId: 'demo.core',
+          parentSourceRequirementId: null,
+          label: 'Core curriculum',
+          state: 'INCOMPLETE',
+          allocatedAttemptIds: [],
+          remainingCreditsHundredths: null,
+          remainingCourseCount: null,
+          candidateCourseIds: [],
+          isReusable: false,
+          sourceRef: 'audit_demo_r7:item1',
+        },
+        {
           sourceRequirementId: 'demo.math.core',
+          parentSourceRequirementId: 'demo.core',
           label: 'Mathematics core',
           state: 'INCOMPLETE',
           allocatedAttemptIds: ['5e6f7081-0000-4000-8000-000000000001'],
@@ -68,19 +100,29 @@ describe('createAuditSnapshot', () => {
           isReusable: false,
           sourceRef: 'audit_demo_r7:item12',
         },
-        {
-          sourceRequirementId: 'demo.gen.writing',
-          label: 'Writing intensive',
-          state: 'COMPLETE',
-          allocatedAttemptIds: ['5e6f7081-0000-4000-8000-000000000002'],
-          remainingCreditsHundredths: null,
-          remainingCourseCount: 0,
-          candidateCourseIds: [],
-          isReusable: true,
-          sourceRef: 'audit_demo_r7:item3',
-        },
       ],
     });
+  });
+
+  it('accepts a child listed before its parent', () => {
+    const snapshot = createAuditSnapshot({ ...VALID, requirements: [MATH_CORE, CORE] });
+
+    expect(snapshot.requirements.map((result) => result.sourceRequirementId)).toEqual([
+      'demo.math.core',
+      'demo.core',
+    ]);
+  });
+
+  it('accepts a three-level tree', () => {
+    const algebra = {
+      ...MATH_CORE,
+      sourceRequirementId: 'demo.math.algebra',
+      parentSourceRequirementId: 'demo.math.core',
+    };
+
+    expect(
+      createAuditSnapshot({ ...VALID, requirements: [CORE, MATH_CORE, algebra] }).requirements,
+    ).toHaveLength(3);
   });
 
   it('accepts a record time equal to the generation time', () => {
@@ -117,9 +159,51 @@ describe('createAuditSnapshot', () => {
     expect(() =>
       createAuditSnapshot({
         ...VALID,
-        requirements: [MATH_CORE, { ...WRITING, sourceRequirementId: 'demo.math.core' }],
+        requirements: [CORE, MATH_CORE, { ...WRITING, sourceRequirementId: 'demo.math.core' }],
       }),
     ).toThrow(/sourceRequirementId must be unique/);
+  });
+
+  it('rejects a requirement that names itself as its parent', () => {
+    expect(() =>
+      createAuditSnapshot({
+        ...VALID,
+        requirements: [{ ...WRITING, parentSourceRequirementId: 'demo.gen.writing' }],
+      }),
+    ).toThrow(/must refer to another requirement in the snapshot/);
+  });
+
+  it('rejects a parent that is not in the snapshot', () => {
+    expect(() => createAuditSnapshot({ ...VALID, requirements: [MATH_CORE, WRITING] })).toThrow(
+      /must refer to another requirement in the snapshot/,
+    );
+  });
+
+  it('rejects a two-requirement cycle', () => {
+    expect(() =>
+      createAuditSnapshot({
+        ...VALID,
+        requirements: [{ ...CORE, parentSourceRequirementId: 'demo.math.core' }, MATH_CORE],
+      }),
+    ).toThrow(/must not form a cycle/);
+  });
+
+  it('rejects a longer cycle below a valid root', () => {
+    const a = { ...MATH_CORE, sourceRequirementId: 'demo.a', parentSourceRequirementId: 'demo.c' };
+    const b = { ...MATH_CORE, sourceRequirementId: 'demo.b', parentSourceRequirementId: 'demo.a' };
+    const c = { ...MATH_CORE, sourceRequirementId: 'demo.c', parentSourceRequirementId: 'demo.b' };
+
+    expect(() => createAuditSnapshot({ ...VALID, requirements: [CORE, a, b, c] })).toThrow(
+      /must not form a cycle/,
+    );
+  });
+
+  it('rejects an empty auditSource', () => {
+    expect(() => createAuditSnapshot({ ...VALID, auditSource: '' })).toThrow();
+  });
+
+  it('rejects an empty auditVersion', () => {
+    expect(() => createAuditSnapshot({ ...VALID, auditVersion: '' })).toThrow();
   });
 
   it('rejects a snapshot with no requirements', () => {
@@ -150,11 +234,15 @@ describe('createAuditSnapshot', () => {
 
 describe('AuditSnapshotSchema', () => {
   it('reports a duplicate requirement on the requirements field', () => {
-    const result = AuditSnapshotSchema.safeParse({
-      ...VALID,
-      requirements: [MATH_CORE, MATH_CORE],
-    });
+    const result = AuditSnapshotSchema.safeParse({ ...VALID, requirements: [WRITING, WRITING] });
 
     expect(result.error?.issues.map((issue) => issue.path)).toEqual([['requirements']]);
+  });
+
+  it('rejects an omitted auditVersion, because provenance is required', () => {
+    const { auditVersion: omitted, ...withoutVersion } = VALID;
+
+    expect(omitted).toBe('audit_demo_r7');
+    expect(AuditSnapshotSchema.safeParse(withoutVersion).success).toBe(false);
   });
 });
