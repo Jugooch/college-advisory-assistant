@@ -81,6 +81,7 @@ apps/worker/src/
   shared/*.ts, job-registry.ts, main.ts
 
 tests/acceptance/acNN-<description>.test.ts
+tests/support/*.ts                  acceptance harnesses (import apps only via @caa/<app>/testing)
 ```
 
 ## File naming
@@ -104,6 +105,7 @@ tests/acceptance/acNN-<description>.test.ts
 - Hooks: `use-plan-revisions.ts` → `usePlanRevisions`.
 - **One primary export per file.** Supporting types for that export may sit beside it.
 - **Barrels:** only `<package>/src/index.ts`. Other packages import only from the package root (`@caa/domain`), never deep paths.
+- **Test entry points:** the one exception is a documented `./testing` subpath export. It is a single file `apps/<app>/src/testing.ts` (no nested `index.ts`), exported as `"./testing"` in the app's `package.json`, used only by tests (`@caa/api/testing`, `@caa/worker/testing`), and never bundled into the production entry. Anything else under `src/` stays private.
 
 ## Size
 

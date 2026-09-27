@@ -30,7 +30,6 @@ import {
   type StudentsController,
 } from './modules/students/students.controller';
 import { createStudentsService } from './modules/students/students.service';
-import type { Logger } from './shared/logger';
 
 /** Every controller the app registers. */
 export interface Controllers {
@@ -50,7 +49,6 @@ export interface Repositories {
 export interface ContainerOptions {
   readonly env: ApiEnv;
   readonly repositories: Repositories;
-  readonly logger: Logger;
   /** Returns the current time. */
   readonly now: () => Date;
 }
@@ -78,17 +76,16 @@ function createSessionResolver(env: ApiEnv, identities: UserIdentityRepository):
 /**
  * Builds the dependency graph from the given repositories and clock.
  *
- * @param options - Configuration, repositories, logger, and clock.
+ * @param options - Configuration, repositories, and clock.
  * @returns The controllers and the session resolver.
  */
 export function createContainer(options: ContainerOptions): AppDependencies {
-  const { env, repositories, logger, now } = options;
+  const { env, repositories, now } = options;
   const healthService = createHealthService({ version: env.APP_VERSION, now });
   const accessService = createAccessService({
     students: repositories.students,
     advisorAssignments: repositories.advisorAssignments,
     now,
-    logger,
   });
   const studentsService = createStudentsService({
     access: accessService,
@@ -108,15 +105,14 @@ export function createContainer(options: ContainerOptions): AppDependencies {
  * Builds the production dependency graph: PostgreSQL repositories and the system clock.
  *
  * @param env - Validated configuration.
- * @param logger - Application logger.
  * @returns The controllers and the session resolver.
  */
-export function createRuntimeDependencies(env: ApiEnv, logger: Logger): AppDependencies {
+export function createRuntimeDependencies(env: ApiEnv): AppDependencies {
   const db = createDatabase(env.DATABASE_URL);
   const repositories: Repositories = {
     userIdentities: createUserIdentityRepository(db),
     students: createStudentRepository(db),
     advisorAssignments: createAdvisorAssignmentRepository(db),
   };
-  return createContainer({ env, repositories, logger, now: () => new Date() });
+  return createContainer({ env, repositories, now: () => new Date() });
 }

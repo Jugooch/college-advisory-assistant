@@ -16,6 +16,7 @@ import {
 } from '@caa/test-kit';
 
 import type { DevTokenIdentity } from '../modules/session/session.service';
+import type { LogDestination } from '../shared/logger';
 import type { InMemoryStore } from './in-memory-repositories';
 import { buildTestApp } from './test-app';
 
@@ -59,9 +60,13 @@ function signInAs(identity: UserIdentity): DevTokenIdentity {
 /**
  * Builds the app over the synthetic world. The advisor is assigned to the `own` student only.
  *
+ * @param logStream - Captures JSON log lines. Logging is off when omitted.
  * @returns The app and its mutable store.
  */
-export function buildWorldApp(): { app: FastifyInstance; store: InMemoryStore } {
+export function buildWorldApp(logStream?: LogDestination): {
+  app: FastifyInstance;
+  store: InMemoryStore;
+} {
   const store: InMemoryStore = {
     identities: Object.values(IDENTITIES),
     students: Object.values(STUDENTS),
@@ -75,7 +80,13 @@ export function buildWorldApp(): { app: FastifyInstance; store: InMemoryStore } 
     [TOKENS.admin]: signInAs(IDENTITIES.admin),
     [TOKENS.disabled]: signInAs(IDENTITIES.disabled),
   };
-  return { app: buildTestApp({ store, tokens, now: () => TEST_NOW }), store };
+  const app = buildTestApp({
+    store,
+    tokens,
+    now: () => TEST_NOW,
+    ...(logStream === undefined ? {} : { logStream }),
+  });
+  return { app, store };
 }
 
 /**

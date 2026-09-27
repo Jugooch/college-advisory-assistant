@@ -8,10 +8,7 @@ import { buildUserIdentity } from '@caa/test-kit';
 
 import { loadApiEnv } from './config/env';
 import { createContainer, createRuntimeDependencies } from './container';
-import {
-  createInMemoryRepositories,
-  createRecordingLogger,
-} from './testing/in-memory-repositories';
+import { createInMemoryRepositories } from './testing/in-memory-repositories';
 
 const identity = buildUserIdentity();
 const tokens = JSON.stringify({
@@ -35,8 +32,7 @@ function resolverFor(authMode: string) {
     AUTH_MODE: authMode,
     DEV_AUTH_TOKENS: tokens,
   });
-  const logger = createRecordingLogger();
-  return createContainer({ env, repositories, logger, now: () => new Date() }).sessionResolver;
+  return createContainer({ env, repositories, now: () => new Date() }).sessionResolver;
 }
 
 describe('createContainer', () => {
@@ -53,7 +49,7 @@ describe('createRuntimeDependencies', () => {
   it('wires every controller without connecting to the database', () => {
     const env = loadApiEnv({ DATABASE_URL: 'postgres://unused.invalid/test' });
 
-    const dependencies = createRuntimeDependencies(env, createRecordingLogger());
+    const dependencies = createRuntimeDependencies(env);
 
     expect(Object.keys(dependencies.controllers)).toEqual(['health', 'session', 'students']);
   });

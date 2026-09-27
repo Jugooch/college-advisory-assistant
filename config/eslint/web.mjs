@@ -7,7 +7,7 @@ import jsxA11y from 'eslint-plugin-jsx-a11y';
 import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
 
-import { forbid, SERVER_ONLY } from './layer-boundaries.mjs';
+import { forbid, otherApps, SERVER_ONLY } from './layer-boundaries.mjs';
 
 /** Configuration blocks for apps/web. */
 export const webRules = [
@@ -30,7 +30,7 @@ export const webRules = [
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'error',
       'no-restricted-imports': forbid(
-        [...SERVER_ONLY, 'fastify'],
+        [...SERVER_ONLY, 'fastify', ...otherApps('web')],
         'The web app reaches data only through the API.',
       ),
       'no-restricted-globals': [
@@ -43,7 +43,7 @@ export const webRules = [
     files: ['apps/web/src/components/**', 'apps/web/src/features/*/components/**'],
     rules: {
       'no-restricted-imports': forbid(
-        [...SERVER_ONLY, 'fastify', '@/api/*'],
+        [...SERVER_ONLY, 'fastify', '@/api/*', ...otherApps('web')],
         'Components receive data via props or hooks.',
       ),
     },
