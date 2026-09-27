@@ -4,15 +4,15 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  type AcademicPolicy,
   type AttemptStatus,
   type CourseAttempt,
   createAcademicPolicy,
   createCourseAttempt,
   type GradeInput,
+  type RepeatPolicy,
 } from '@caa/domain';
 
-import { type RepeatRule, selectCountingAttempt } from './select-counting-attempt';
+import { type AttemptResolutionContext, selectCountingAttempt } from './select-counting-attempt';
 
 // NOTE: @caa/test-kit has no builders for attempts or policies yet (#53), so these use the
 // domain factories directly.
@@ -39,36 +39,39 @@ function buildAttempt(overrides: AttemptOverrides): CourseAttempt {
   });
 }
 
-const POLICY: AcademicPolicy = createAcademicPolicy({
-  tenantId: '00000000-0000-4000-8000-000000000001',
-  rulesetVersion: 'demo-2026.1',
-  allowsInProgressPrerequisites: true,
-  passSatisfiesMinimumGrade: null,
-  letterGradeOrder: ['A', 'B', 'C', 'D', 'F'],
-});
+function buildContext(repeatPolicy: RepeatPolicy | null): AttemptResolutionContext {
+  return {
+    academicPolicy: createAcademicPolicy({
+      tenantId: '00000000-0000-4000-8000-000000000001',
+      rulesetVersion: 'demo-2026.1',
+      allowsInProgressPrerequisites: true,
+      passSatisfiesMinimumGrade: null,
+      letterGradeOrder: ['A', 'B', 'C', 'D', 'F'],
+      repeatPolicy,
+    }),
+    termCodesOldestFirst: ['2025SP', '2025FA', '2026SP'],
+  };
+}
 
-const MOST_RECENT: RepeatRule = {
-  repeatPolicy: 'MOST_RECENT',
-  termCodesOldestFirst: ['2025SP', '2025FA', '2026SP'],
-};
-
-const HIGHEST_GRADE: RepeatRule = { repeatPolicy: 'HIGHEST_GRADE', academicPolicy: POLICY };
+const UNSET = buildContext(null);
+const MOST_RECENT = buildContext('MOST_RECENT');
+const HIGHEST_GRADE = buildContext('HIGHEST_GRADE');
 
 const FIRST_ID = '00000000-0000-4000-8000-000000000011';
 const SECOND_ID = '00000000-0000-4000-8000-000000000012';
 
 describe('selectCountingAttempt', () => {
   it('returns NONE with zero earned credits when nothing was completed', () => {
-    expect(selectCountingAttempt([], undefined)).toEqual({
+    expect(selectCountingAttempt([], UNSET)).toEqual({
       state: 'NONE',
       earnedCreditsHundredths: 0,
     });
   });
 
-  it('counts a single completed attempt without needing a repeat policy', () => {
+  it('counts a single completed attempt even when the policy has no repeat policy', () => {
     const attempt = buildAttempt({ id: FIRST_ID, creditsEarnedHundredths: 350 });
 
-    expect(selectCountingAttempt([attempt], undefined)).toEqual({
+    expect(selectCountingAttempt([attempt], UNSET)).toEqual({
       state: 'COUNTED',
       attempt,
       earnedCreditsHundredths: 350,
@@ -78,19 +81,19 @@ describe('selectCountingAttempt', () => {
   it('keeps earned credits unknown when the counting attempt has no recorded award', () => {
     const attempt = buildAttempt({ id: FIRST_ID, creditsEarnedHundredths: null });
 
-    expect(selectCountingAttempt([attempt], undefined)).toEqual({
+    expect(selectCountingAttempt([attempt], UNSET)).toEqual({
       state: 'COUNTED',
       attempt,
       earnedCreditsHundredths: null,
     });
   });
 
-  it('returns UNDETERMINED for a repeat when no repeat policy is supplied', () => {
+  it('returns UNDETERMINED for a repeat when the policy has no repeat policy', () => {
     const attempts = [buildAttempt({ id: FIRST_ID }), buildAttempt({ id: SECOND_ID })];
 
-    expect(selectCountingAttempt(attempts, undefined)).toEqual({
+    expect(selectCountingAttempt(attempts, UNSET)).toEqual({
       state: 'UNDETERMINED',
-      issue: 'REPEAT_POLICY_UNDEFINED',
+      reasonCode: 'REPEAT_POLICY_UNDEFINED',
       earnedCreditsHundredths: null,
     });
   });
@@ -114,7 +117,7 @@ describe('selectCountingAttempt', () => {
 
     expect(selectCountingAttempt(attempts, MOST_RECENT)).toEqual({
       state: 'UNDETERMINED',
-      issue: 'REPEAT_ORDER_UNDETERMINED',
+      reasonCode: 'REPEAT_ORDER_UNDETERMINED',
       earnedCreditsHundredths: null,
     });
   });
@@ -127,7 +130,7 @@ describe('selectCountingAttempt', () => {
 
     expect(selectCountingAttempt(attempts, MOST_RECENT)).toEqual({
       state: 'UNDETERMINED',
-      issue: 'REPEAT_ORDER_UNDETERMINED',
+      reasonCode: 'REPEAT_ORDER_UNDETERMINED',
       earnedCreditsHundredths: null,
     });
   });
@@ -174,7 +177,7 @@ describe('selectCountingAttempt', () => {
 
     expect(selectCountingAttempt(attempts, HIGHEST_GRADE)).toEqual({
       state: 'UNDETERMINED',
-      issue: 'REPEAT_ORDER_UNDETERMINED',
+      reasonCode: 'REPEAT_ORDER_UNDETERMINED',
       earnedCreditsHundredths: null,
     });
   });
@@ -187,7 +190,7 @@ describe('selectCountingAttempt', () => {
 
     expect(selectCountingAttempt(attempts, HIGHEST_GRADE)).toEqual({
       state: 'UNDETERMINED',
-      issue: 'REPEAT_ORDER_UNDETERMINED',
+      reasonCode: 'REPEAT_ORDER_UNDETERMINED',
       earnedCreditsHundredths: null,
     });
   });
@@ -197,7 +200,7 @@ describe('selectCountingAttempt', () => {
 
     expect(selectCountingAttempt(attempts, HIGHEST_GRADE)).toEqual({
       state: 'UNDETERMINED',
-      issue: 'REPEAT_ORDER_UNDETERMINED',
+      reasonCode: 'REPEAT_ORDER_UNDETERMINED',
       earnedCreditsHundredths: null,
     });
   });
@@ -210,7 +213,7 @@ describe('selectCountingAttempt', () => {
 
     expect(selectCountingAttempt(attempts, HIGHEST_GRADE)).toEqual({
       state: 'UNDETERMINED',
-      issue: 'REPEAT_ORDER_UNDETERMINED',
+      reasonCode: 'REPEAT_ORDER_UNDETERMINED',
       earnedCreditsHundredths: null,
     });
   });
@@ -223,7 +226,7 @@ describe('selectCountingAttempt', () => {
 
     expect(selectCountingAttempt(attempts, HIGHEST_GRADE)).toEqual({
       state: 'UNDETERMINED',
-      issue: 'REPEAT_ORDER_UNDETERMINED',
+      reasonCode: 'REPEAT_ORDER_UNDETERMINED',
       earnedCreditsHundredths: null,
     });
   });

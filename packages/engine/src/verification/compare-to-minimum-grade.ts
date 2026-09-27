@@ -15,6 +15,8 @@ import {
   ReasonCode,
 } from '@caa/domain';
 
+import { rankLetterGrade } from './rank-letter-grade';
+
 /** Outcome of {@link compareToMinimumGrade}. Anything short of PASS says why. */
 export type GradeComparisonResult =
   | { readonly state: typeof CheckState.Pass }
@@ -27,6 +29,10 @@ const PASS: GradeComparisonResult = { state: CheckState.Pass };
 const NOT_MET: GradeComparisonResult = {
   state: CheckState.Fail,
   reasonCode: ReasonCode.MinGradeNotMet,
+};
+const NOT_RANKED: GradeComparisonResult = {
+  state: CheckState.Unknown,
+  reasonCode: ReasonCode.GradeNotRanked,
 };
 const MISMATCH: GradeComparisonResult = {
   state: CheckState.Unknown,
@@ -42,8 +48,8 @@ const MISMATCH: GradeComparisonResult = {
  * @param grade - The grade recorded on a completed or awarded attempt.
  * @param minimum - The required minimum grade, or `null` when the rule sets no minimum.
  * @param policy - The institution's grade policy for the ruleset in force.
- * @returns PASS, FAIL (`MIN_GRADE_NOT_MET`), or UNKNOWN (`GRADE_SCHEME_MISMATCH` or
- *   `PASS_EQUIVALENCE_UNDEFINED`).
+ * @returns PASS, FAIL (`MIN_GRADE_NOT_MET`), or UNKNOWN (`GRADE_SCHEME_MISMATCH`,
+ *   `GRADE_NOT_RANKED`, or `PASS_EQUIVALENCE_UNDEFINED`).
  */
 export function compareToMinimumGrade(
   grade: Grade,
@@ -80,27 +86,27 @@ export function compareToMinimumGrade(
 }
 
 /**
- * Ranks two letters by the policy order, highest first.
+ * Compares two letters by the policy's letter order.
  *
  * @param grade - The recorded letter.
  * @param minimum - The required letter.
  * @param policy - Supplies the letter order.
- * @returns PASS when the grade ranks at or above the minimum, FAIL below it, UNKNOWN when
- *   either letter is missing from the order.
+ * @returns PASS when the grade ranks at or above the minimum, FAIL below it, UNKNOWN
+ *   (`GRADE_NOT_RANKED`) when either letter is missing from the order.
  */
 function compareLetters(
   grade: LetterGrade,
   minimum: LetterGrade,
   policy: AcademicPolicy,
 ): GradeComparisonResult {
-  const gradeRank = policy.letterGradeOrder.indexOf(grade);
-  const minimumRank = policy.letterGradeOrder.indexOf(minimum);
+  const gradeRank = rankLetterGrade(grade, policy);
+  const minimumRank = rankLetterGrade(minimum, policy);
   // SAFETY: a letter the institution didn't rank has no known position, so the comparison is
   // UNKNOWN rather than guessed from a conventional scale (planning/08 §Eligibility semantics).
-  if (gradeRank === -1 || minimumRank === -1) {
-    return MISMATCH;
+  if (gradeRank === null || minimumRank === null) {
+    return NOT_RANKED;
   }
-  return gradeRank <= minimumRank ? PASS : NOT_MET;
+  return gradeRank >= minimumRank ? PASS : NOT_MET;
 }
 
 /**

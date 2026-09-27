@@ -22,6 +22,7 @@ function buildPolicy(passSatisfiesMinimumGrade: boolean | null = null): Academic
     allowsInProgressPrerequisites: true,
     passSatisfiesMinimumGrade,
     letterGradeOrder: ['A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D', 'F'],
+    repeatPolicy: null,
   });
 }
 
@@ -55,14 +56,14 @@ describe('compareToMinimumGrade', () => {
   it('returns UNKNOWN when the grade letter is missing from the policy order', () => {
     expect(compareToMinimumGrade(letter('D+'), letter('C'), buildPolicy())).toEqual({
       state: 'UNKNOWN',
-      reasonCode: 'GRADE_SCHEME_MISMATCH',
+      reasonCode: 'GRADE_NOT_RANKED',
     });
   });
 
   it('returns UNKNOWN when the minimum letter is missing from the policy order', () => {
     expect(compareToMinimumGrade(letter('A'), letter('D-'), buildPolicy())).toEqual({
       state: 'UNKNOWN',
-      reasonCode: 'GRADE_SCHEME_MISMATCH',
+      reasonCode: 'GRADE_NOT_RANKED',
     });
   });
 

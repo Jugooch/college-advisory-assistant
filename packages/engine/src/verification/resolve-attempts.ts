@@ -7,17 +7,17 @@
  */
 import {
   AttemptStatus,
+  CountingState,
   type Course,
   type CourseAttempt,
   type CourseId,
   type EquivalencyGroupId,
+  ReasonCode,
 } from '@caa/domain';
 
 import {
-  AttemptResolutionIssue,
+  type AttemptResolutionContext,
   type CountingResolution,
-  CountingState,
-  type RepeatRule,
   selectCountingAttempt,
 } from './select-counting-attempt';
 
@@ -60,14 +60,15 @@ interface GroupDraft {
  *
  * @param attempts - The student's attempts, in any order.
  * @param courses - Catalog courses covering every attempted course.
- * @param repeatRule - Which repeat counts, or `undefined` when the institution hasn't said.
- *   Groups with more than one completed or awarded attempt are then UNDETERMINED.
+ * @param context - The academic policy (whose `repeatPolicy` decides which repeat counts; `null`
+ *   leaves groups with several completed or awarded attempts UNDETERMINED) and the term order.
+ *   It is required so a caller can't omit the policy by accident.
  * @returns One group per equivalency group or standalone course, sorted by `groupKey`.
  */
 export function resolveAttempts(
   attempts: readonly CourseAttempt[],
   courses: readonly Course[],
-  repeatRule?: RepeatRule,
+  context: AttemptResolutionContext,
 ): readonly AttemptGroup[] {
   const courseById = new Map(courses.map((course) => [course.id, course]));
   const drafts = new Map<string, GroupDraft>();
@@ -91,7 +92,7 @@ export function resolveAttempts(
   // on every machine.
   return [...drafts.entries()]
     .sort(([left], [right]) => Number(left > right) - Number(left < right))
-    .map(([groupKey, draft]) => toAttemptGroup(groupKey, draft, repeatRule));
+    .map(([groupKey, draft]) => toAttemptGroup(groupKey, draft, context));
 }
 
 /**
@@ -99,13 +100,13 @@ export function resolveAttempts(
  *
  * @param groupKey - The group's key.
  * @param draft - The group's collected attempts.
- * @param repeatRule - The institution's repeat rule, if supplied.
+ * @param context - The institution inputs for choosing the counting attempt.
  * @returns The resolved group.
  */
 function toAttemptGroup(
   groupKey: string,
   draft: GroupDraft,
-  repeatRule: RepeatRule | undefined,
+  context: AttemptResolutionContext,
 ): AttemptGroup {
   const withStatus = (statuses: readonly AttemptStatus[]): readonly CourseAttempt[] =>
     draft.attempts.filter((attempt) => statuses.includes(attempt.status));
@@ -114,10 +115,10 @@ function toAttemptGroup(
   const counting: CountingResolution = draft.isMissingCourse
     ? {
         state: CountingState.Undetermined,
-        issue: AttemptResolutionIssue.CourseNotInCatalog,
+        reasonCode: ReasonCode.CourseNotInCatalog,
         earnedCreditsHundredths: null,
       }
-    : selectCountingAttempt(withStatus(COUNTABLE_STATUSES), repeatRule);
+    : selectCountingAttempt(withStatus(COUNTABLE_STATUSES), context);
   return {
     groupKey,
     equivalencyGroupId: draft.equivalencyGroupId,

@@ -7,62 +7,33 @@
  */
 import {
   type AcademicPolicy,
+  CountingState,
   type CourseAttempt,
   type Grade,
   GradeScheme,
   PassFailGrade,
+  ReasonCode,
+  RepeatPolicy,
 } from '@caa/domain';
 
-/** Institution rule for which of several completed attempts of a course counts. */
-export const RepeatPolicy = {
-  /** The attempt in the latest term counts, whatever its grade. */
-  MostRecent: 'MOST_RECENT',
-  /** The attempt with the highest grade counts. */
-  HighestGrade: 'HIGHEST_GRADE',
-} as const;
+import { rankLetterGrade } from './rank-letter-grade';
 
-/** Union of every {@link RepeatPolicy} value. */
-export type RepeatPolicy = (typeof RepeatPolicy)[keyof typeof RepeatPolicy];
+/** Institution inputs needed to decide which attempt of a repeated course counts. */
+export interface AttemptResolutionContext {
+  /** Supplies `repeatPolicy` (`null` = undetermined) and the letter order for HIGHEST_GRADE. */
+  readonly academicPolicy: AcademicPolicy;
+  /**
+   * The tenant's term codes, oldest first, used only by MOST_RECENT. Term codes don't sort
+   * lexically across tenants, and there is no Term model yet (S3), so the order is explicit.
+   */
+  readonly termCodesOldestFirst: readonly string[];
+}
 
-/** A repeat policy together with the institution data it needs. Never defaulted by the engine. */
-export type RepeatRule =
-  | {
-      readonly repeatPolicy: typeof RepeatPolicy.MostRecent;
-      /** The tenant's term codes, oldest first. Term codes don't sort lexically across tenants. */
-      readonly termCodesOldestFirst: readonly string[];
-    }
-  | {
-      readonly repeatPolicy: typeof RepeatPolicy.HighestGrade;
-      /** Supplies the letter order used to rank grades. */
-      readonly academicPolicy: AcademicPolicy;
-    };
-
-/** Whether a group has a counting attempt. */
-export const CountingState = {
-  /** Exactly one attempt counts. */
-  Counted: 'COUNTED',
-  /** No completed or awarded attempt exists, so nothing counts and no credit is earned. */
-  None: 'NONE',
-  /** Attempts exist but the engine can't tell which counts; treat as UNKNOWN. */
-  Undetermined: 'UNDETERMINED',
-} as const;
-
-/** Union of every {@link CountingState} value. */
-export type CountingState = (typeof CountingState)[keyof typeof CountingState];
-
-/** Why the counting attempt of a group is undetermined. */
-export const AttemptResolutionIssue = {
-  /** Several attempts completed and no repeat policy was supplied. */
-  RepeatPolicyUndefined: 'REPEAT_POLICY_UNDEFINED',
-  /** The repeat policy can't rank the attempts: unknown term or grade, or a tie. */
-  RepeatOrderUndetermined: 'REPEAT_ORDER_UNDETERMINED',
-  /** An attempt's course isn't in the supplied catalog, so its equivalents are unknown. */
-  CourseNotInCatalog: 'COURSE_NOT_IN_CATALOG',
-} as const;
-
-/** Union of every {@link AttemptResolutionIssue} value. */
-export type AttemptResolutionIssue =
-  (typeof AttemptResolutionIssue)[keyof typeof AttemptResolutionIssue];
+/** Why a group's counting attempt is undetermined. */
+export type UndeterminedCountingReason =
+  | typeof ReasonCode.RepeatPolicyUndefined
+  | typeof ReasonCode.RepeatOrderUndetermined
+  | typeof ReasonCode.CourseNotInCatalog;
 
 /**
  * The counting attempt of one group. `earnedCreditsHundredths` is integer hundredths of a
@@ -77,7 +48,7 @@ export type CountingResolution =
   | { readonly state: typeof CountingState.None; readonly earnedCreditsHundredths: 0 }
   | {
       readonly state: typeof CountingState.Undetermined;
-      readonly issue: AttemptResolutionIssue;
+      readonly reasonCode: UndeterminedCountingReason;
       readonly earnedCreditsHundredths: null;
     };
 
@@ -85,12 +56,13 @@ export type CountingResolution =
  * Chooses the one attempt that counts among a group's completed or awarded attempts.
  *
  * @param completed - The group's COMPLETED and TRANSFER_AWARDED attempts.
- * @param rule - The institution's repeat rule, or `undefined` when it hasn't been supplied.
- * @returns The counting attempt, NONE when there is no candidate, or UNDETERMINED with an issue.
+ * @param context - The institution's repeat policy, letter order, and term order.
+ * @returns The counting attempt, NONE when there is no candidate, or UNDETERMINED with a
+ *   reason code.
  */
 export function selectCountingAttempt(
   completed: readonly CourseAttempt[],
-  rule: RepeatRule | undefined,
+  context: AttemptResolutionContext,
 ): CountingResolution {
   const [first, ...rest] = completed;
   if (first === undefined) {
@@ -99,20 +71,29 @@ export function selectCountingAttempt(
   if (rest.length === 0) {
     return counted(first);
   }
+  const { repeatPolicy } = context.academicPolicy;
   // SAFETY: which repeat counts is institution policy. Without it the engine doesn't pick one,
-  // so the group is UNKNOWN (planning/08 §Eligibility semantics: repeated attempts use approved
-  // source semantics).
-  if (rule === undefined) {
-    return undetermined(AttemptResolutionIssue.RepeatPolicyUndefined);
+  // so the group is undetermined (planning/08 §Eligibility semantics: repeated attempts use
+  // approved source semantics).
+  if (repeatPolicy === null) {
+    return undeterminedCounting(ReasonCode.RepeatPolicyUndefined);
   }
   const rank =
-    rule.repeatPolicy === RepeatPolicy.MostRecent
-      ? (attempt: CourseAttempt): number | null => rankByTerm(attempt, rule.termCodesOldestFirst)
-      : gradeRanker(completed, rule.academicPolicy);
+    repeatPolicy === RepeatPolicy.MostRecent
+      ? (attempt: CourseAttempt): number | null => rankByTerm(attempt, context.termCodesOldestFirst)
+      : gradeRanker(completed, context.academicPolicy);
   const best = pickUniqueBest(completed, rank);
-  return best === null
-    ? undetermined(AttemptResolutionIssue.RepeatOrderUndetermined)
-    : counted(best);
+  return best === null ? undeterminedCounting(ReasonCode.RepeatOrderUndetermined) : counted(best);
+}
+
+/**
+ * Builds an UNDETERMINED resolution.
+ *
+ * @param reasonCode - Why no attempt could be chosen.
+ * @returns The resolution, with unknown earned credits.
+ */
+function undeterminedCounting(reasonCode: UndeterminedCountingReason): CountingResolution {
+  return { state: CountingState.Undetermined, reasonCode, earnedCreditsHundredths: null };
 }
 
 /**
@@ -130,16 +111,6 @@ function counted(attempt: CourseAttempt): CountingResolution {
     attempt,
     earnedCreditsHundredths: attempt.creditsEarnedHundredths,
   };
-}
-
-/**
- * Builds an UNDETERMINED resolution.
- *
- * @param issue - Why no attempt could be chosen.
- * @returns The resolution, with unknown earned credits.
- */
-function undetermined(issue: AttemptResolutionIssue): CountingResolution {
-  return { state: CountingState.Undetermined, issue, earnedCreditsHundredths: null };
 }
 
 /**
@@ -187,14 +158,13 @@ function gradeRanker(
  */
 function rankGrade(grade: Grade | null, policy: AcademicPolicy): number | null {
   if (grade?.scheme === GradeScheme.Letter) {
-    const index = policy.letterGradeOrder.indexOf(grade.value);
-    // SAFETY: a letter missing from the institution's order has no rank (planning/08).
-    return index === -1 ? null : policy.letterGradeOrder.length - index;
+    return rankLetterGrade(grade.value, policy);
   }
   if (grade?.scheme === GradeScheme.PassFail) {
     return grade.value === PassFailGrade.Pass ? 1 : 0;
   }
-  // SAFETY: missing, numeric, and unrecognized grades have no approved order.
+  // SAFETY: missing, numeric, and unrecognized grades have no approved order (planning/08
+  // §Candidate formation: preserve grade schemes).
   return null;
 }
 
@@ -226,6 +196,6 @@ function pickUniqueBest(
     }
   }
   // SAFETY: a tie means the policy doesn't single out one attempt; picking by input order would
-  // be a guess.
+  // be a guess (planning/08 §Eligibility semantics).
   return isTied ? null : best;
 }

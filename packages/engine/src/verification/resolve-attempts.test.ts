@@ -7,12 +7,14 @@ import {
   type AttemptStatus,
   type Course,
   type CourseAttempt,
+  createAcademicPolicy,
   createCourse,
   createCourseAttempt,
+  type RepeatPolicy,
 } from '@caa/domain';
 
 import { resolveAttempts } from './resolve-attempts';
-import type { RepeatRule } from './select-counting-attempt';
+import type { AttemptResolutionContext } from './select-counting-attempt';
 
 // NOTE: @caa/test-kit has no builders for courses or attempts yet (#53), so these use the
 // domain factories directly.
@@ -75,14 +77,26 @@ function buildAttempt(courseId: string, status: AttemptStatus, termCode = '2025F
   });
 }
 
-const MOST_RECENT: RepeatRule = {
-  repeatPolicy: 'MOST_RECENT',
-  termCodesOldestFirst: ['2025FA', '2026SP'],
-};
+function buildContext(repeatPolicy: RepeatPolicy | null): AttemptResolutionContext {
+  return {
+    academicPolicy: createAcademicPolicy({
+      tenantId: TENANT_ID,
+      rulesetVersion: 'demo-2026.1',
+      allowsInProgressPrerequisites: true,
+      passSatisfiesMinimumGrade: null,
+      letterGradeOrder: ['A', 'B', 'C', 'D', 'F'],
+      repeatPolicy,
+    }),
+    termCodesOldestFirst: ['2025FA', '2026SP'],
+  };
+}
+
+const UNSET = buildContext(null);
+const MOST_RECENT = buildContext('MOST_RECENT');
 
 describe('resolveAttempts', () => {
   it('returns no groups when there are no attempts', () => {
-    expect(resolveAttempts([], COURSES)).toEqual([]);
+    expect(resolveAttempts([], COURSES, UNSET)).toEqual([]);
   });
 
   it('counts only one of two aliases in the same equivalency group', () => {
@@ -102,14 +116,14 @@ describe('resolveAttempts', () => {
     ]);
   });
 
-  it('leaves a repeated course undetermined when no repeat policy is supplied', () => {
+  it('leaves a repeated course undetermined when the policy has no repeat policy', () => {
     const attempts = [buildAttempt(WRITING_ID, 'COMPLETED'), buildAttempt(WRITING_ID, 'COMPLETED')];
 
-    const [group] = resolveAttempts(attempts, COURSES);
+    const [group] = resolveAttempts(attempts, COURSES, UNSET);
 
     expect(group?.counting).toEqual({
       state: 'UNDETERMINED',
-      issue: 'REPEAT_POLICY_UNDEFINED',
+      reasonCode: 'REPEAT_POLICY_UNDEFINED',
       earnedCreditsHundredths: null,
     });
   });
@@ -117,7 +131,7 @@ describe('resolveAttempts', () => {
   it('groups a course without an equivalency group by its course ID', () => {
     const attempt = buildAttempt(WRITING_ID, 'COMPLETED');
 
-    const [group] = resolveAttempts([attempt], COURSES);
+    const [group] = resolveAttempts([attempt], COURSES, UNSET);
 
     expect(group).toMatchObject({
       groupKey: `course:${WRITING_ID}`,
@@ -130,7 +144,7 @@ describe('resolveAttempts', () => {
     const inProgress = buildAttempt(CALC_ID, 'IN_PROGRESS');
     const pending = buildAttempt(CALC_HONORS_ID, 'TRANSFER_PENDING');
 
-    const [group] = resolveAttempts([inProgress, pending], COURSES);
+    const [group] = resolveAttempts([inProgress, pending], COURSES, UNSET);
 
     expect(group).toMatchObject({
       counting: { state: 'NONE', earnedCreditsHundredths: 0 },
@@ -143,7 +157,7 @@ describe('resolveAttempts', () => {
     const withdrawn = buildAttempt(WRITING_ID, 'WITHDRAWN');
     const incomplete = buildAttempt(WRITING_ID, 'INCOMPLETE');
 
-    const [group] = resolveAttempts([withdrawn, incomplete], COURSES);
+    const [group] = resolveAttempts([withdrawn, incomplete], COURSES, UNSET);
 
     expect(group).toMatchObject({
       counting: { state: 'NONE', earnedCreditsHundredths: 0 },
@@ -156,7 +170,7 @@ describe('resolveAttempts', () => {
   it('counts an awarded transfer attempt', () => {
     const awarded = buildAttempt(WRITING_ID, 'TRANSFER_AWARDED');
 
-    const [group] = resolveAttempts([awarded], COURSES);
+    const [group] = resolveAttempts([awarded], COURSES, UNSET);
 
     expect(group?.counting).toEqual({
       state: 'COUNTED',
@@ -169,7 +183,7 @@ describe('resolveAttempts', () => {
     const completed = buildAttempt(WRITING_ID, 'COMPLETED');
     const retake = buildAttempt(WRITING_ID, 'IN_PROGRESS', '2026SP');
 
-    const [group] = resolveAttempts([completed, retake], COURSES);
+    const [group] = resolveAttempts([completed, retake], COURSES, UNSET);
 
     expect(group).toMatchObject({
       counting: { state: 'COUNTED', attempt: completed, earnedCreditsHundredths: 300 },
@@ -190,7 +204,7 @@ describe('resolveAttempts', () => {
       creditsEarnedHundredths: 150,
     });
 
-    const [group] = resolveAttempts([attempt], COURSES);
+    const [group] = resolveAttempts([attempt], COURSES, UNSET);
 
     expect(group?.counting).toEqual({
       state: 'COUNTED',
@@ -202,14 +216,14 @@ describe('resolveAttempts', () => {
   it('leaves a group undetermined when its course is missing from the catalog', () => {
     const attempt = buildAttempt(MISSING_ID, 'COMPLETED');
 
-    const [group] = resolveAttempts([attempt], COURSES);
+    const [group] = resolveAttempts([attempt], COURSES, UNSET);
 
     expect(group).toMatchObject({
       groupKey: `course:${MISSING_ID}`,
       equivalencyGroupId: null,
       counting: {
         state: 'UNDETERMINED',
-        issue: 'COURSE_NOT_IN_CATALOG',
+        reasonCode: 'COURSE_NOT_IN_CATALOG',
         earnedCreditsHundredths: null,
       },
     });
@@ -222,7 +236,7 @@ describe('resolveAttempts', () => {
       buildAttempt(WRITING_ID, 'COMPLETED'),
     ];
 
-    const keys = resolveAttempts(attempts, COURSES).map((group) => group.groupKey);
+    const keys = resolveAttempts(attempts, COURSES, UNSET).map((group) => group.groupKey);
 
     expect(keys).toEqual([
       `course:${WRITING_ID}`,
