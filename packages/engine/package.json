@@ -12,5 +12,8 @@
   },
   "dependencies": {
     "@caa/domain": "workspace:*"
+  },
+  "devDependencies": {
+    "@caa/test-kit": "workspace:*"
   }
 }
