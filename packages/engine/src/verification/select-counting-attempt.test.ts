@@ -14,8 +14,8 @@ import {
 
 import { type AttemptResolutionContext, selectCountingAttempt } from './select-counting-attempt';
 
-// NOTE: @caa/test-kit has no builders for attempts or policies yet (#53), so these use the
-// domain factories directly.
+// NOTE: the engine doesn't depend on @caa/test-kit yet, so these use the domain factories
+// directly.
 interface AttemptOverrides {
   readonly id: string;
   readonly termCode?: string;
@@ -47,6 +47,7 @@ function buildContext(repeatPolicy: RepeatPolicy | null): AttemptResolutionConte
       allowsInProgressPrerequisites: true,
       passSatisfiesMinimumGrade: null,
       letterGradeOrder: ['A', 'B', 'C', 'D', 'F'],
+      lowestPassingLetterGrade: null,
       repeatPolicy,
     }),
     termCodesOldestFirst: ['2025SP', '2025FA', '2026SP'],

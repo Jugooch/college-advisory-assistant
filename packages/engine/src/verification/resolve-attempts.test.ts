@@ -16,8 +16,8 @@ import {
 import { resolveAttempts } from './resolve-attempts';
 import type { AttemptResolutionContext } from './select-counting-attempt';
 
-// NOTE: @caa/test-kit has no builders for courses or attempts yet (#53), so these use the
-// domain factories directly.
+// NOTE: the engine doesn't depend on @caa/test-kit yet, so these use the domain factories
+// directly.
 const TENANT_ID = '00000000-0000-4000-8000-000000000001';
 const GROUP_ID = '00000000-0000-4000-8000-0000000000e1';
 const CALC_ID = '00000000-0000-4000-8000-0000000000c1';
@@ -85,6 +85,7 @@ function buildContext(repeatPolicy: RepeatPolicy | null): AttemptResolutionConte
       allowsInProgressPrerequisites: true,
       passSatisfiesMinimumGrade: null,
       letterGradeOrder: ['A', 'B', 'C', 'D', 'F'],
+      lowestPassingLetterGrade: null,
       repeatPolicy,
     }),
     termCodesOldestFirst: ['2025FA', '2026SP'],

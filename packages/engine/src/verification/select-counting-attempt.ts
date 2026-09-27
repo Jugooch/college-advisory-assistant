@@ -64,6 +64,7 @@ export function selectCountingAttempt(
   completed: readonly CourseAttempt[],
   context: AttemptResolutionContext,
 ): CountingResolution {
+  // TODO(#66): count repeatable-for-credit courses once the domain models them
   const [first, ...rest] = completed;
   if (first === undefined) {
     return { state: CountingState.None, earnedCreditsHundredths: 0 };

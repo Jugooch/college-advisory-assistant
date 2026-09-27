@@ -13,15 +13,33 @@ import {
 
 import { compareToMinimumGrade } from './compare-to-minimum-grade';
 
-// NOTE: @caa/test-kit has no builders for grades or policies yet (#53), so these use the
-// domain factories directly.
-function buildPolicy(passSatisfiesMinimumGrade: boolean | null = null): AcademicPolicy {
+// NOTE: the engine doesn't depend on @caa/test-kit yet, so these use the domain factories
+// directly.
+interface PolicyOverrides {
+  readonly passSatisfiesMinimumGrade?: boolean | null;
+  readonly lowestPassingLetterGrade?: LetterGrade | null;
+  readonly letterGradeOrder?: readonly LetterGrade[];
+}
+
+function buildPolicy(overrides: PolicyOverrides = {}): AcademicPolicy {
   return createAcademicPolicy({
     tenantId: '00000000-0000-4000-8000-000000000001',
     rulesetVersion: 'demo-2026.1',
     allowsInProgressPrerequisites: true,
-    passSatisfiesMinimumGrade,
-    letterGradeOrder: ['A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D', 'F'],
+    passSatisfiesMinimumGrade: overrides.passSatisfiesMinimumGrade ?? null,
+    letterGradeOrder: overrides.letterGradeOrder ?? [
+      'A',
+      'A-',
+      'B+',
+      'B',
+      'B-',
+      'C+',
+      'C',
+      'C-',
+      'D',
+      'F',
+    ],
+    lowestPassingLetterGrade: overrides.lowestPassingLetterGrade ?? null,
     repeatPolicy: null,
   });
 }
@@ -68,33 +86,51 @@ describe('compareToMinimumGrade', () => {
   });
 
   it('returns UNKNOWN when policy is silent on P against a letter minimum', () => {
-    expect(compareToMinimumGrade(PASS_GRADE, letter('C'), buildPolicy(null))).toEqual({
+    expect(compareToMinimumGrade(PASS_GRADE, letter('C'), buildPolicy())).toEqual({
       state: 'UNKNOWN',
       reasonCode: 'PASS_EQUIVALENCE_UNDEFINED',
     });
   });
 
   it('returns PASS for P against a letter minimum when policy says P satisfies it', () => {
-    expect(compareToMinimumGrade(PASS_GRADE, letter('C'), buildPolicy(true))).toEqual({
+    expect(
+      compareToMinimumGrade(
+        PASS_GRADE,
+        letter('C'),
+        buildPolicy({ passSatisfiesMinimumGrade: true }),
+      ),
+    ).toEqual({
       state: 'PASS',
     });
   });
 
   it('returns FAIL for P against a letter minimum when policy says P does not satisfy it', () => {
-    expect(compareToMinimumGrade(PASS_GRADE, letter('C'), buildPolicy(false))).toEqual({
+    expect(
+      compareToMinimumGrade(
+        PASS_GRADE,
+        letter('C'),
+        buildPolicy({ passSatisfiesMinimumGrade: false }),
+      ),
+    ).toEqual({
       state: 'FAIL',
       reasonCode: 'MIN_GRADE_NOT_MET',
     });
   });
 
   it('returns FAIL for a pass/fail F even when P satisfies the minimum', () => {
-    expect(compareToMinimumGrade(FAIL_GRADE, letter('C'), buildPolicy(true))).toEqual({
+    expect(
+      compareToMinimumGrade(
+        FAIL_GRADE,
+        letter('C'),
+        buildPolicy({ passSatisfiesMinimumGrade: true }),
+      ),
+    ).toEqual({
       state: 'FAIL',
       reasonCode: 'MIN_GRADE_NOT_MET',
     });
   });
 
-  it('returns FAIL for a letter F when there is no minimum', () => {
+  it('returns FAIL for a ranked F when there is no minimum and no passing cutoff', () => {
     expect(compareToMinimumGrade(letter('F'), null, buildPolicy())).toEqual({
       state: 'FAIL',
       reasonCode: 'MIN_GRADE_NOT_MET',
@@ -102,21 +138,16 @@ describe('compareToMinimumGrade', () => {
   });
 
   it('returns UNKNOWN for a letter missing from the policy order when there is no minimum', () => {
-    expect(compareToMinimumGrade(letter('D+'), null, buildPolicy())).toEqual({
+    const policy = buildPolicy({ lowestPassingLetterGrade: 'D' });
+
+    expect(compareToMinimumGrade(letter('D+'), null, policy)).toEqual({
       state: 'UNKNOWN',
       reasonCode: 'GRADE_NOT_RANKED',
     });
   });
 
   it('returns UNKNOWN for an F the policy does not rank rather than guessing FAIL', () => {
-    const policy = createAcademicPolicy({
-      tenantId: '00000000-0000-4000-8000-000000000001',
-      rulesetVersion: 'demo-2026.1',
-      allowsInProgressPrerequisites: true,
-      passSatisfiesMinimumGrade: null,
-      letterGradeOrder: ['A', 'B', 'C', 'D'],
-      repeatPolicy: null,
-    });
+    const policy = buildPolicy({ letterGradeOrder: ['A', 'B', 'C', 'D'] });
 
     expect(compareToMinimumGrade(letter('F'), null, policy)).toEqual({
       state: 'UNKNOWN',
@@ -124,12 +155,30 @@ describe('compareToMinimumGrade', () => {
     });
   });
 
-  it('returns PASS for a ranked non-F letter when there is no minimum', () => {
-    expect(compareToMinimumGrade(letter('D'), null, buildPolicy())).toEqual({ state: 'PASS' });
+  it('returns PASS for a letter at the lowest passing letter when there is no minimum', () => {
+    const policy = buildPolicy({ lowestPassingLetterGrade: 'D' });
+
+    expect(compareToMinimumGrade(letter('D'), null, policy)).toEqual({ state: 'PASS' });
+  });
+
+  it('returns FAIL for a letter below the lowest passing letter when there is no minimum', () => {
+    const policy = buildPolicy({ lowestPassingLetterGrade: 'C' });
+
+    expect(compareToMinimumGrade(letter('D'), null, policy)).toEqual({
+      state: 'FAIL',
+      reasonCode: 'MIN_GRADE_NOT_MET',
+    });
+  });
+
+  it('returns UNKNOWN for a ranked D when policy does not say which letters pass', () => {
+    expect(compareToMinimumGrade(letter('D'), null, buildPolicy())).toEqual({
+      state: 'UNKNOWN',
+      reasonCode: 'PASSING_GRADE_UNDEFINED',
+    });
   });
 
   it('returns PASS for P when there is no minimum', () => {
-    expect(compareToMinimumGrade(PASS_GRADE, null, buildPolicy(null))).toEqual({ state: 'PASS' });
+    expect(compareToMinimumGrade(PASS_GRADE, null, buildPolicy())).toEqual({ state: 'PASS' });
   });
 
   it('returns UNKNOWN for a numeric grade against a letter minimum', () => {

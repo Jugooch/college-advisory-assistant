@@ -46,15 +46,15 @@ const MISMATCH: GradeComparisonResult = {
  * A letter missing from that order is UNKNOWN (`GRADE_NOT_RANKED`) whether or not there is a
  * minimum. `NUMERIC` and `UNKNOWN` grades are never compared, so they are always UNKNOWN.
  *
- * With no minimum, the rule means "any passing completion". The engine assumes every ranked
- * letter except `F`, and `P`, is passing; `AcademicPolicy` has no lowest-passing-letter field
- * yet, so a policy where, for example, `D` doesn't pass isn't represented.
+ * With no minimum, the rule means "any passing completion": `P` passes, `F` fails, and a
+ * ranked letter passes only at or above `policy.lowestPassingLetterGrade`. When that cutoff is
+ * `null`, any other ranked letter is UNKNOWN (`PASSING_GRADE_UNDEFINED`), never PASS.
  *
  * @param grade - The grade recorded on a completed or awarded attempt.
  * @param minimum - The required minimum grade, or `null` when the rule sets no minimum.
  * @param policy - The institution's grade policy for the ruleset in force.
  * @returns PASS, FAIL (`MIN_GRADE_NOT_MET`), or UNKNOWN (`GRADE_SCHEME_MISMATCH`,
- *   `GRADE_NOT_RANKED`, or `PASS_EQUIVALENCE_UNDEFINED`).
+ *   `GRADE_NOT_RANKED`, `PASS_EQUIVALENCE_UNDEFINED`, or `PASSING_GRADE_UNDEFINED`).
  */
 export function compareToMinimumGrade(
   grade: Grade,
@@ -75,18 +75,42 @@ export function compareToMinimumGrade(
   if (gradeRank === null) {
     return NOT_RANKED;
   }
-  // SAFETY: an `F`, letter or pass/fail, never satisfies a course requirement, whatever the
-  // minimum; "no minimum" means any passing completion, not any completion.
+  // SAFETY: a ranked `F`, or a pass/fail `F`, never satisfies a course requirement, whatever the
+  // minimum or cutoff; "no minimum" means any passing completion, not any completion
+  // (planning/08 §Eligibility semantics; academic-policy.model.ts `lowestPassingLetterGrade`).
   if (grade.value === PassFailGrade.Fail) {
     return NOT_MET;
   }
-  // SAFETY: assumption. With no minimum, every ranked letter other than `F` counts as a passing
-  // completion; AcademicPolicy has no lowest-passing-letter field yet to say otherwise
-  // (planning/08 §Eligibility semantics: minimum grades use approved source semantics).
-  if (minimum === null) {
+  return minimum === null
+    ? compareToPassingCutoff(gradeRank, policy)
+    : compareToRequiredGrade(gradeRank, minimum, policy);
+}
+
+/**
+ * Decides whether a non-`F` grade is a passing completion when the rule sets no minimum.
+ *
+ * @param gradeRank - The letter grade's rank, or `undefined` when the grade is a pass/fail `P`.
+ * @param policy - Supplies `lowestPassingLetterGrade` and the letter order.
+ * @returns PASS at or above the policy's lowest passing letter, FAIL below it, and UNKNOWN
+ *   (`PASSING_GRADE_UNDEFINED`) when the policy doesn't say which letters pass.
+ */
+function compareToPassingCutoff(
+  gradeRank: number | undefined,
+  policy: AcademicPolicy,
+): GradeComparisonResult {
+  // NOTE: a `P` is a passing completion by definition of the pass/fail scheme.
+  if (gradeRank === undefined) {
     return PASS;
   }
-  return compareToRequiredGrade(gradeRank, minimum, policy);
+  // SAFETY: whether `D` or `D-` passes is institutional semantics. Without a cutoff the engine
+  // doesn't guess, so a ranked non-F letter is UNKNOWN, never PASS (planning/08 §Eligibility
+  // semantics; academic-policy.model.ts `lowestPassingLetterGrade`).
+  if (policy.lowestPassingLetterGrade === null) {
+    return { state: CheckState.Unknown, reasonCode: ReasonCode.PassingGradeUndefined };
+  }
+  // SAFETY: the cutoff is compared exactly like a letter minimum, through the policy's own
+  // letter order (planning/08 §Eligibility semantics).
+  return compareToMinimumLetter(gradeRank, policy.lowestPassingLetterGrade, policy);
 }
 
 /**
