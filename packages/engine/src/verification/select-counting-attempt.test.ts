@@ -13,7 +13,11 @@ import {
   pass,
 } from '@caa/test-kit';
 
-import { type AttemptResolutionContext, selectCountingAttempt } from './select-counting-attempt';
+import {
+  type AttemptResolutionContext,
+  haveOneGradeScheme,
+  selectCountingAttempt,
+} from './select-counting-attempt';
 
 // NOTE: the resolution context is an engine type, so test-kit has no builder for it. The partial
 // letter order leaves `B+` unranked; the test-kit default ranks every letter.
@@ -185,5 +189,15 @@ describe('selectCountingAttempt', () => {
       reasonCode: 'REPEAT_ORDER_UNDETERMINED',
       earnedCreditsHundredths: null,
     });
+  });
+});
+
+describe('haveOneGradeScheme', () => {
+  it('is true when every grade is a letter', () => {
+    expect(haveOneGradeScheme(['LETTER', 'LETTER'])).toBe(true);
+  });
+
+  it('is false when pass/fail and letter grades are mixed', () => {
+    expect(haveOneGradeScheme(['LETTER', 'PASS_FAIL'])).toBe(false);
   });
 });

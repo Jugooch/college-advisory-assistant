@@ -20,6 +20,7 @@ import { compareToMinimumGrade } from './compare-to-minimum-grade';
 import {
   evaluateInProgressPrerequisite,
   evaluateRetakeOfPassingAttempt,
+  type InProgressAttempts,
 } from './evaluate-in-progress-prerequisite';
 import type { AttemptGroup } from './resolve-attempts';
 import type { AttemptResolutionContext } from './select-counting-attempt';
@@ -32,6 +33,13 @@ export type LeafOutcome =
         typeof CheckState.Fail | typeof CheckState.Unknown | typeof CheckState.Conditional;
       readonly reasonCode: ReasonCode;
     };
+
+/** What the prospects of one leaf are weighed against. */
+interface LeafInputs {
+  readonly leaf: CoursePrerequisite;
+  readonly group: AttemptGroup;
+  readonly context: AttemptResolutionContext;
+}
 
 const PASS: LeafOutcome = { state: CheckState.Pass, reasonCode: null };
 const NO_QUALIFYING_ATTEMPT: LeafOutcome = {
@@ -83,7 +91,7 @@ export function evaluateCoursePrerequisite(
     return { state: CheckState.Unknown, reasonCode: counting.reasonCode };
   }
   if (counting.state === CountingState.None) {
-    return evaluateProspects(NO_QUALIFYING_ATTEMPT, group, context);
+    return evaluateProspects(NO_QUALIFYING_ATTEMPT, { leaf, group, context });
   }
   const current = compareCountingAttempt(counting.attempt, leaf, context.academicPolicy);
   // SAFETY: a pending transfer never replaces an institutional grade, so it can't take a PASS
@@ -93,7 +101,14 @@ export function evaluateCoursePrerequisite(
     const [retake, ...otherRetakes] = group.inProgress;
     return retake === undefined
       ? current
-      : evaluateRetakeOfPassingAttempt(counting.attempt, [retake, ...otherRetakes], context);
+      : evaluateRetakeOfPassingAttempt(
+          {
+            counted: counting.attempt,
+            inProgress: [retake, ...otherRetakes],
+            minimumGrade: leaf.minimumGrade,
+          },
+          context,
+        );
   }
   // SAFETY: an UNKNOWN comparison stays UNKNOWN: whether a retake would replace a grade the
   // engine can't compare is itself undetermined, so no CONDITIONAL is offered (planning/08
@@ -101,7 +116,7 @@ export function evaluateCoursePrerequisite(
   if (current.state !== CheckState.Fail) {
     return current;
   }
-  return evaluateProspects(current, group, context);
+  return evaluateProspects(current, { leaf, group, context });
 }
 
 /**
@@ -136,20 +151,23 @@ function compareCountingAttempt(
  * current record's.
  *
  * @param current - The failing outcome of the current record.
- * @param group - The group, for its counting, in-progress, and pending-transfer attempts.
- * @param context - The academic policy and the term order.
+ * @param inputs - The leaf, its group (for the counting, in-progress, and pending-transfer
+ *   attempts), and the academic policy and term order.
  * @returns The leaf's outcome.
  */
-function evaluateProspects(
-  current: LeafOutcome,
-  group: AttemptGroup,
-  context: AttemptResolutionContext,
-): LeafOutcome {
+function evaluateProspects(current: LeafOutcome, inputs: LeafInputs): LeafOutcome {
+  const { leaf, group, context } = inputs;
   const outcomes: LeafOutcome[] = [];
   const [retake, ...otherRetakes] = group.inProgress;
   if (retake !== undefined) {
     const counted = group.counting.state === CountingState.Counted ? group.counting.attempt : null;
-    outcomes.push(evaluateInProgressPrerequisite(counted, [retake, ...otherRetakes], context));
+    const inProgress: InProgressAttempts = [retake, ...otherRetakes];
+    outcomes.push(
+      evaluateInProgressPrerequisite(
+        { counted, inProgress, minimumGrade: leaf.minimumGrade },
+        context,
+      ),
+    );
   }
   // SAFETY: a pending transfer could satisfy the course once evaluated, but it never counts
   // before an award, so it is UNKNOWN, never PASS (planning/08 §Eligibility semantics; AC03).

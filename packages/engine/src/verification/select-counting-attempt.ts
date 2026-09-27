@@ -53,6 +53,18 @@ export type CountingResolution =
     };
 
 /**
+ * Decides whether HIGHEST_GRADE can rank grades against each other: only grades of one scheme
+ * are comparable. The prerequisite evaluator uses the same rule to decide whether a retake's
+ * future grade will be rankable, so the two can't drift.
+ *
+ * @param schemes - The scheme of each grade; `undefined` for a grade that wasn't recorded.
+ * @returns `true` when every grade has the same scheme. Unrecorded grades still get no rank.
+ */
+export function haveOneGradeScheme(schemes: readonly (GradeScheme | undefined)[]): boolean {
+  return new Set(schemes).size === 1;
+}
+
+/**
  * Chooses the one attempt that counts among a group's completed or awarded attempts.
  *
  * @param completed - The group's COMPLETED and TRANSFER_AWARDED attempts.
@@ -141,10 +153,9 @@ function gradeRanker(
   attempts: readonly CourseAttempt[],
   policy: AcademicPolicy,
 ): (attempt: CourseAttempt) => number | null {
-  const schemes = new Set(attempts.map((attempt) => attempt.grade?.scheme));
   // SAFETY: grades under different schemes, such as `P` and `B`, have no approved common scale
   // (planning/08 §Candidate formation: preserve grade schemes).
-  if (schemes.size !== 1) {
+  if (!haveOneGradeScheme(attempts.map((attempt) => attempt.grade?.scheme))) {
     return () => null;
   }
   return (attempt) => rankGrade(attempt.grade, policy);

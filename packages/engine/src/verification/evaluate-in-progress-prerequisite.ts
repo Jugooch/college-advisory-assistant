@@ -5,10 +5,17 @@
  * @requirement NFR-01
  * @see docs/planning/08-academic-verification-and-planning.md
  */
-import { CheckState, type CourseAttempt, GradeScheme, ReasonCode, RepeatPolicy } from '@caa/domain';
+import {
+  CheckState,
+  type CourseAttempt,
+  type Grade,
+  GradeScheme,
+  ReasonCode,
+  RepeatPolicy,
+} from '@caa/domain';
 
 import type { LeafOutcome } from './evaluate-course-prerequisite';
-import type { AttemptResolutionContext } from './select-counting-attempt';
+import { type AttemptResolutionContext, haveOneGradeScheme } from './select-counting-attempt';
 
 const PROGRESSION_NOT_PERMITTED: LeafOutcome = {
   state: CheckState.Fail,
@@ -31,23 +38,32 @@ const IN_PROGRESS_MIN_GRADE: LeafOutcome = {
 /** One or more in-progress attempts of the same group. */
 export type InProgressAttempts = readonly [CourseAttempt, ...CourseAttempt[]];
 
+/** A group's in-progress attempts, with what they would have to beat and meet. */
+export interface RetakeSituation {
+  /** The group's counting attempt, or `null` when nothing counts yet. */
+  readonly counted: CourseAttempt | null;
+  readonly inProgress: InProgressAttempts;
+  /** The leaf's minimum grade, or `null` when any passing completion satisfies it. */
+  readonly minimumGrade: Grade | null;
+}
+
 /**
  * Evaluates a group's in-progress attempts as the way to satisfy a course whose current record
  * fails. When the group already has a counting attempt, or several attempts are in progress,
  * completing them creates a repeat, so the repeat policy must make the in-progress attempt the
  * one that counts once it meets the minimum.
  *
- * @param counted - The group's failing counting attempt, or `null` when nothing counts yet.
- * @param inProgress - The group's in-progress attempts.
+ * @param situation - The failing counting attempt (or `null`), the in-progress attempts, and the
+ *   leaf's minimum grade.
  * @param context - The academic policy and the tenant's term order.
  * @returns FAIL (`PROGRESSION_NOT_PERMITTED`), UNKNOWN (`REPEAT_POLICY_UNDEFINED` or
  *   `REPEAT_ORDER_UNDETERMINED`), or CONDITIONAL (`IN_PROGRESS_MIN_GRADE`).
  */
 export function evaluateInProgressPrerequisite(
-  counted: CourseAttempt | null,
-  inProgress: InProgressAttempts,
+  situation: RetakeSituation,
   context: AttemptResolutionContext,
 ): LeafOutcome {
+  const { counted, inProgress, minimumGrade } = situation;
   const { academicPolicy } = context;
   // SAFETY: planning on unfinished work is conditional on the institution permitting planned
   // progression; without that permission it is a FAIL (planning/08 §Eligibility semantics:
@@ -70,7 +86,7 @@ export function evaluateInProgressPrerequisite(
   if (counted === null || otherRetakes.length > 0) {
     return REPEAT_ORDER_UNDETERMINED;
   }
-  return willRetakeCount(retake, counted, context)
+  return willRetakeCount(retake, { counted, minimumGrade }, context)
     ? IN_PROGRESS_MIN_GRADE
     : REPEAT_ORDER_UNDETERMINED;
 }
@@ -79,18 +95,19 @@ export function evaluateInProgressPrerequisite(
  * Evaluates in-progress retakes of a course whose counting attempt already meets the minimum.
  * The passing grade holds only if no retake will replace it.
  *
- * @param counted - The group's passing counting attempt.
- * @param inProgress - The group's in-progress attempts.
+ * @param situation - The passing counting attempt, the in-progress attempts, and the leaf's
+ *   minimum grade.
  * @param context - The academic policy and the tenant's term order.
- * @returns PASS under HIGHEST_GRADE, CONDITIONAL (`IN_PROGRESS_MIN_GRADE`) when a MOST_RECENT
- *   retake will replace the passing grade, or UNKNOWN (`REPEAT_POLICY_UNDEFINED` or
- *   `REPEAT_ORDER_UNDETERMINED`) when the engine can't tell which attempt will count.
+ * @returns PASS under HIGHEST_GRADE when the retake can be ranked against the passing grade,
+ *   CONDITIONAL (`IN_PROGRESS_MIN_GRADE`) when a MOST_RECENT retake will replace the passing
+ *   grade, or UNKNOWN (`REPEAT_POLICY_UNDEFINED` or `REPEAT_ORDER_UNDETERMINED`) when the engine
+ *   can't tell which attempt will count.
  */
 export function evaluateRetakeOfPassingAttempt(
-  counted: CourseAttempt,
-  inProgress: InProgressAttempts,
+  situation: RetakeSituation & { readonly counted: CourseAttempt },
   context: AttemptResolutionContext,
 ): LeafOutcome {
+  const { counted, inProgress, minimumGrade } = situation;
   const { repeatPolicy } = context.academicPolicy;
   // SAFETY: once the retake completes, the course is repeated, and without a repeat policy no
   // attempt counts, so the passing grade can't be relied on (planning/08 §Eligibility
@@ -100,9 +117,10 @@ export function evaluateRetakeOfPassingAttempt(
   }
   // SAFETY: under HIGHEST_GRADE a retake can only replace the counting grade with a higher one,
   // so the passing grade stands on current evidence (planning/08 §Authority and result
-  // semantics: PASS is "satisfied by current evidence").
+  // semantics: PASS is "satisfied by current evidence"), but only while the retake stays
+  // rankable against it; see {@link canRankLetterRetake}.
   if (repeatPolicy === RepeatPolicy.HighestGrade) {
-    return PASS;
+    return canRankLetterRetake(counted, minimumGrade) ? PASS : REPEAT_ORDER_UNDETERMINED;
   }
   const [retake, ...otherRetakes] = inProgress;
   // SAFETY: under MOST_RECENT a later retake replaces the passing grade whatever it earns, so
@@ -122,22 +140,41 @@ export function evaluateRetakeOfPassingAttempt(
  * Decides whether a retake that meets the minimum will replace the failing counting attempt.
  *
  * @param retake - The in-progress attempt.
- * @param counted - The failing counting attempt.
+ * @param replaced - The failing counting attempt and the leaf's minimum grade.
  * @param context - The academic policy, whose repeat policy is set, and the term order.
  * @returns `true` when the repeat policy will make the retake count once it meets the minimum.
  */
 function willRetakeCount(
   retake: CourseAttempt,
-  counted: CourseAttempt,
+  replaced: { readonly counted: CourseAttempt; readonly minimumGrade: Grade | null },
   context: AttemptResolutionContext,
 ): boolean {
   if (context.academicPolicy.repeatPolicy === RepeatPolicy.MostRecent) {
-    return isLaterTerm(retake, counted, context.termCodesOldestFirst);
+    return isLaterTerm(retake, replaced.counted, context.termCodesOldestFirst);
   }
-  // SAFETY: HIGHEST_GRADE ranks only grades of one scheme. A letter retake that meets the
-  // minimum outranks a failing letter, but it can't be ranked against a `P` or an unranked
-  // grade (planning/08 §Candidate formation: preserve grade schemes).
-  return counted.grade?.scheme === GradeScheme.Letter;
+  return canRankLetterRetake(replaced.counted, replaced.minimumGrade);
+}
+
+/**
+ * Decides whether HIGHEST_GRADE will be able to rank a retake against the counting attempt.
+ * The retake's condition is stated as a letter grade, so the counting grade and the minimum,
+ * when there is one, must be letters too.
+ *
+ * @param counted - The counting attempt.
+ * @param minimumGrade - The leaf's minimum grade, or `null`.
+ * @returns `true` when the counting grade, the minimum, and the retake share the LETTER scheme.
+ */
+function canRankLetterRetake(counted: CourseAttempt, minimumGrade: Grade | null): boolean {
+  // SAFETY: `selectCountingAttempt` leaves a group with mixed grade schemes UNDETERMINED
+  // (`haveOneGradeScheme`), so a `P` next to a letter, in the counting grade or in the minimum
+  // the retake must meet, would make the retake's outcome unrankable. A PASS or CONDITIONAL
+  // would then promise what the resolution can't deliver (planning/08 §Candidate formation:
+  // preserve grade schemes).
+  return haveOneGradeScheme([
+    GradeScheme.Letter,
+    counted.grade?.scheme,
+    minimumGrade?.scheme ?? GradeScheme.Letter,
+  ]);
 }
 
 /**

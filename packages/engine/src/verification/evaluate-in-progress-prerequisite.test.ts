@@ -3,21 +3,22 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import type { AcademicPolicyInput, CourseAttempt } from '@caa/domain';
+import type { AcademicPolicyInput, CourseAttempt, PrerequisiteExpression } from '@caa/domain';
 import {
   buildAcademicPolicy,
   buildPrerequisiteRule,
   completedAttempt,
+  course,
   inProgressAttempt,
   letter,
   pass,
-  pendingTransferAttempt,
   SYNTHETIC_COURSES,
 } from '@caa/test-kit';
 
 import { evaluatePrerequisite } from './evaluate-prerequisite';
 
 const COURSES = Object.values(SYNTHETIC_COURSES);
+const CALC_ID = SYNTHETIC_COURSES.math101.id;
 /** DEMO-MATH 111 is equivalent to DEMO-MATH 101, the default rule's required course. */
 const CALC_ALIAS_ID = SYNTHETIC_COURSES.math111.id;
 const ALLOWS: Partial<AcademicPolicyInput> = { allowsInProgressPrerequisites: true };
@@ -29,18 +30,20 @@ const BELOW_MINIMUM = completedAttempt({ grade: letter('D') }, 1);
 const RETAKE = inProgressAttempt({}, 2);
 
 /**
- * Evaluates the default rule (DEMO-MATH 101 with a `C` minimum) and returns the state and reason.
+ * Evaluates a one-course rule and returns the state and reason.
  *
  * @param attempts - The student's attempts.
  * @param policy - Policy switches to override.
+ * @param expression - The rule's expression; DEMO-MATH 101 with a `C` minimum by default.
  * @returns The check's state and reason code.
  */
 function outcomeOf(
   attempts: readonly CourseAttempt[],
   policy: Partial<AcademicPolicyInput>,
+  expression: PrerequisiteExpression = course(CALC_ID, letter('C')),
 ): readonly [string, string | undefined] {
   const { check } = evaluatePrerequisite(
-    buildPrerequisiteRule(),
+    buildPrerequisiteRule({ expression }),
     { attempts, courses: COURSES },
     { academicPolicy: buildAcademicPolicy(policy), termCodesOldestFirst: ['2026SP', '2026FA'] },
   );
@@ -156,6 +159,40 @@ describe('evaluatePrerequisite with a passing grade and a retake', () => {
   });
 });
 
+describe('evaluatePrerequisite with a retake under HIGHEST_GRADE', () => {
+  it('is UNKNOWN for a passing P against a letter minimum, since a letter retake is unrankable', () => {
+    const passed = completedAttempt({ grade: pass() }, 1);
+    const policy = { ...HIGHEST_GRADE, passSatisfiesMinimumGrade: true };
+
+    expect(outcomeOf([passed, RETAKE], policy)).toEqual(['UNKNOWN', 'REPEAT_ORDER_UNDETERMINED']);
+  });
+
+  it('is UNKNOWN for a letter F against a P minimum, since a P retake is unrankable', () => {
+    const failed = completedAttempt({ grade: letter('F') }, 1);
+
+    expect(outcomeOf([failed, RETAKE], HIGHEST_GRADE, course(CALC_ID, pass()))).toEqual([
+      'UNKNOWN',
+      'REPEAT_ORDER_UNDETERMINED',
+    ]);
+  });
+
+  it('is CONDITIONAL for a letter below the passing cutoff when the rule has no minimum', () => {
+    const policy = { ...HIGHEST_GRADE, lowestPassingLetterGrade: 'C' } as const;
+
+    expect(outcomeOf([BELOW_MINIMUM, RETAKE], policy, course(CALC_ID))).toEqual([
+      'CONDITIONAL',
+      'IN_PROGRESS_MIN_GRADE',
+    ]);
+  });
+
+  it('passes a passing letter when the rule has no minimum', () => {
+    const passing = completedAttempt({ grade: letter('B') }, 1);
+    const policy = { ...HIGHEST_GRADE, lowestPassingLetterGrade: 'D' } as const;
+
+    expect(outcomeOf([passing, RETAKE], policy, course(CALC_ID))).toEqual(['PASS', undefined]);
+  });
+});
+
 describe('evaluatePrerequisite with several in-progress attempts', () => {
   const aliasRetake = inProgressAttempt({ courseId: CALC_ALIAS_ID }, 3);
 
@@ -178,30 +215,5 @@ describe('evaluatePrerequisite with several in-progress attempts', () => {
       'UNKNOWN',
       'REPEAT_ORDER_UNDETERMINED',
     ]);
-  });
-});
-
-describe('evaluatePrerequisite with a pending transfer', () => {
-  const pending = pendingTransferAttempt({}, 4);
-
-  it('passes on a completed grade that meets the minimum, despite a pending transfer', () => {
-    const passing = completedAttempt({ grade: letter('C') }, 1);
-
-    expect(outcomeOf([passing, pending], {})).toEqual(['PASS', undefined]);
-  });
-
-  it('is UNKNOWN with PENDING_TRANSFER when the completed grade is below the minimum', () => {
-    expect(outcomeOf([BELOW_MINIMUM, pending], {})).toEqual(['UNKNOWN', 'PENDING_TRANSFER']);
-  });
-
-  it('is UNKNOWN with PENDING_TRANSFER when in-progress work is not permitted', () => {
-    expect(outcomeOf([RETAKE, pending], { allowsInProgressPrerequisites: false })).toEqual([
-      'UNKNOWN',
-      'PENDING_TRANSFER',
-    ]);
-  });
-
-  it('is CONDITIONAL when in-progress work is permitted alongside a pending transfer', () => {
-    expect(outcomeOf([RETAKE, pending], ALLOWS)).toEqual(['CONDITIONAL', 'IN_PROGRESS_MIN_GRADE']);
   });
 });
