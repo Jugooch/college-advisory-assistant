@@ -107,7 +107,9 @@ function createAssignments(world: AcceptanceWorld): AdvisorAssignmentRepository 
 }
 
 /**
- * Builds the API with dev auth over the world, at {@link ACCEPTANCE_NOW}.
+ * Builds the API with dev auth over the world, at {@link ACCEPTANCE_NOW}. Call it once per file at
+ * module scope and mutate the world between cases: the first build in a worker loads Fastify's
+ * schema compilers, which can take seconds on a slow disk and would count against a case's timeout.
  *
  * @param world - Backing data; mutate it between requests to change what the API sees.
  * @param tokens - Dev tokens the API accepts.
