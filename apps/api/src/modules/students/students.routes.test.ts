@@ -1,9 +1,11 @@
 /**
  * @file HTTP-level tests for `GET /v1/students/:studentId`: allowed reads, 401, and NOT_FOUND that
- * doesn't reveal whether a student exists.
+ * doesn't reveal whether a student exists, and access-decision logs that carry the request ID.
  * @requirement FR-02
+ * @requirement FR-14
  */
 import { describe, expect, it } from 'vitest';
+import { z } from 'zod';
 
 import { ErrorCode } from '@caa/domain';
 import { buildStudent } from '@caa/test-kit';
@@ -82,5 +84,71 @@ describe('GET /v1/students/:studentId', () => {
 
     expect(response.statusCode).toBe(401);
     expect(readError(response.json()).code).toBe(ErrorCode.Unauthorized);
+  });
+});
+
+/** The fields of a pino JSON line these tests read; other fields pass through. */
+const LogLineSchema = z.looseObject({ msg: z.string(), reqId: z.string().optional() });
+
+/**
+ * Builds the world app with a log capture, and requests one student with a dev token.
+ *
+ * @param studentId - Path param, sent as-is.
+ * @param token - Dev token.
+ * @returns The response, the access-decision lines, the `reqId` of the request-completed line,
+ *   and every raw log line.
+ */
+async function getStudentCapturingLogs(studentId: string, token: string) {
+  const rawLines: string[] = [];
+  const world = buildWorldApp({ write: (line) => rawLines.push(line) });
+  const response = await world.app.inject({
+    method: 'GET',
+    url: `/v1/students/${studentId}`,
+    headers: bearer(token),
+  });
+  const lines = rawLines.map((line) => LogLineSchema.parse(JSON.parse(line)));
+  const decisions = lines.filter((line) => line.msg === 'student access decision');
+  const completed = lines.find((line) => line.msg === 'request completed');
+  return { response, decisions, completedReqId: completed?.reqId, rawLines };
+}
+
+describe('access-decision logs (FR-14)', () => {
+  it('carry the request ID on an allowed read', async () => {
+    const { response, decisions, completedReqId } = await getStudentCapturingLogs(
+      STUDENTS.own.id,
+      TOKENS.advisor,
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(completedReqId).toEqual(expect.any(String));
+    expect(decisions).toEqual([
+      expect.objectContaining({
+        reqId: completedReqId,
+        isAllowed: true,
+        reason: 'ACTIVE_ASSIGNMENT',
+      }),
+    ]);
+  });
+
+  it('carry the request ID returned in the error envelope on a denied read', async () => {
+    const { response, decisions } = await getStudentCapturingLogs(
+      STUDENTS.other.id,
+      TOKENS.student,
+    );
+    const { requestId } = z
+      .object({ error: z.object({ requestId: z.string() }) })
+      .parse(response.json()).error;
+
+    expect(response.statusCode).toBe(404);
+    expect(decisions).toEqual([
+      expect.objectContaining({ reqId: requestId, isAllowed: false, reason: 'NO_GRANT' }),
+    ]);
+  });
+
+  it('never contain source student IDs or tokens', async () => {
+    const { rawLines } = await getStudentCapturingLogs(STUDENTS.own.id, TOKENS.student);
+
+    expect(rawLines.join('')).not.toContain(STUDENTS.own.sourceStudentId);
+    expect(rawLines.join('')).not.toContain(TOKENS.student);
   });
 });
