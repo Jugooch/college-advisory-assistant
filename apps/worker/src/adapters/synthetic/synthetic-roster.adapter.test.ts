@@ -145,6 +145,31 @@ describe('parseSyntheticRoster', () => {
     });
   });
 
+  it('quarantines a valid row whose student also appears in an invalid row', () => {
+    const document = {
+      batch: buildImportBatch({
+        // NOTE: computed independently with `printf ... | sha256sum` over the two raw rows.
+        checksum: '984dabb69639cbcb795f4c4000458751ed5378acade881d6c8551f79c92014b1',
+        recordCount: 2,
+      }),
+      rows: [
+        { sourceStudentId: 'SYN-000001', recordVersion: 5, isDeleted: false },
+        { sourceStudentId: 'SYN-000001', recordVersion: 'x', isDeleted: true },
+      ],
+    };
+
+    const result = parseSyntheticRoster(document, EXPECTED);
+
+    expect(result).toMatchObject({
+      isValid: true,
+      rows: [],
+      quarantined: [
+        { rowIndex: 0, sourceRecordId: 'SYN-000001', reason: 'duplicate_source_student_id' },
+        { rowIndex: 1, sourceRecordId: 'SYN-000001', reason: 'invalid_field:recordVersion' },
+      ],
+    });
+  });
+
   it('checksums rows as received and never puts row values into a quarantine reason', () => {
     const document = {
       batch: buildImportBatch({

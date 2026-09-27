@@ -213,20 +213,38 @@ describe('import-roster job', () => {
     expect(store.students.size).toBe(0);
   });
 
-  it('rejects a batch older than the newest published one, comparing instants', async () => {
+  it('rejects an older batch whose offset makes it sort later as a string', async () => {
     const { job, store } = setUp();
     await job.handle(payloadFor({ sourceEffectiveAt: LATE }));
 
     const result = await job.handle(
       payloadFor({
         batchId: 'b0',
-        sourceEffectiveAt: '2026-09-25T10:00:00.000Z',
+        // NOTE: 10:00Z, older than the stored 10:30Z, but "T11" sorts after "T10" as a string.
+        sourceEffectiveAt: '2026-09-25T11:00:00.000+01:00',
         rows: [buildRosterRow({ isDeleted: true }, 1)],
       }),
     );
 
     expect(result).toMatchObject({ outcome: 'REJECTED_STALE' });
     expect(store.students.get('SYN-000001')?.isDeleted).toBe(false);
+  });
+
+  it('publishes a newer batch whose offset makes it sort earlier as a string', async () => {
+    const { job, store } = setUp();
+    await job.handle(payloadFor({ sourceEffectiveAt: LATE }));
+
+    const result = await job.handle(
+      payloadFor({
+        batchId: 'b2',
+        // NOTE: 11:00Z, newer than the stored 10:30Z, but "T06" sorts before "T10" as a string.
+        sourceEffectiveAt: '2026-09-25T06:00:00.000-05:00',
+        rows: [buildRosterRow({ isDeleted: true }, 1)],
+      }),
+    );
+
+    expect(result).toMatchObject({ outcome: 'PUBLISHED' });
+    expect(store.students.get('SYN-000001')?.isDeleted).toBe(true);
   });
 
   it('rejects a FULL snapshot without writing anything', async () => {

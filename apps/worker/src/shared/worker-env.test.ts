@@ -21,7 +21,13 @@ describe('loadWorkerEnv', () => {
     expect(env.ROSTER_MAX_INVALID_ROW_PERCENT).toBe(10);
   });
 
-  it.each(['101', '-1', '2.5'])('rejects the threshold %s', (value) => {
+  it.each(['', '  '])('treats an empty threshold %j as unset', (value) => {
+    const env = loadWorkerEnv({ DATABASE_URL, ROSTER_MAX_INVALID_ROW_PERCENT: value });
+
+    expect(env.ROSTER_MAX_INVALID_ROW_PERCENT).toBe(5);
+  });
+
+  it.each(['101', '-1', '2.5', 'abc'])('rejects the threshold %s', (value) => {
     expect(() => loadWorkerEnv({ DATABASE_URL, ROSTER_MAX_INVALID_ROW_PERCENT: value })).toThrow();
   });
 

@@ -101,7 +101,18 @@ function validateRow(raw: unknown, rowIndex: number): RosterRow | QuarantinedRow
 }
 
 /**
- * Validates every row, then quarantines every row of any student ID that appears more than once.
+ * Reads the source student ID of a validated or quarantined row.
+ *
+ * @param result - Outcome of {@link validateRow}.
+ * @returns The ID, or null when an invalid row had no usable one.
+ */
+function sourceIdOf(result: RosterRow | QuarantinedRow): string | null {
+  return 'isDeleted' in result ? result.sourceStudentId : result.sourceRecordId;
+}
+
+/**
+ * Validates every row, then quarantines every row of any student ID that appears more than once,
+ * counting invalid rows that still carry a usable ID.
  *
  * @param rawRows - Rows as received.
  * @returns Valid rows and quarantined rows, both in batch order.
@@ -112,10 +123,8 @@ function splitRows(rawRows: readonly unknown[]): {
 } {
   const results = rawRows.map(validateRow);
   const occurrences = new Map<string, number>();
-  for (const result of results) {
-    if ('isDeleted' in result) {
-      occurrences.set(result.sourceStudentId, (occurrences.get(result.sourceStudentId) ?? 0) + 1);
-    }
+  for (const id of results.map(sourceIdOf)) {
+    if (id !== null) occurrences.set(id, (occurrences.get(id) ?? 0) + 1);
   }
   const rows: RosterRow[] = [];
   const quarantined: QuarantinedRow[] = [];
@@ -123,7 +132,8 @@ function splitRows(rawRows: readonly unknown[]): {
     if (!('isDeleted' in result)) {
       quarantined.push(result);
     } else if ((occurrences.get(result.sourceStudentId) ?? 0) > 1) {
-      // SAFETY: two rows for one student leave its state ambiguous; keep neither, never guess.
+      // SAFETY: two rows for one student, even if one is invalid, leave its state ambiguous;
+      // keep neither, never guess.
       quarantined.push({
         rowIndex,
         sourceRecordId: result.sourceStudentId,
