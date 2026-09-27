@@ -51,4 +51,7 @@ One blank line between groups.
 
 ## Dependency injection
 
-Anything with side effects (database, clock, network, logger, randomness) is passed in as a dependency. Only `container.ts` (API) and `main.ts` (worker) construct real implementations. This keeps services testable without mocks of modules.
+Anything with side effects (database, clock, network, logger, randomness) is passed in, never imported as a module-level singleton. Only `container.ts` (API) and `main.ts` (worker) construct real implementations. This keeps services testable without mocks of modules.
+
+- **Long-lived** dependencies (repositories, clock, configuration) are passed once, through the factory's `dependencies` object.
+- **Request-scoped** values (the request logger, and later correlation data) are passed per call, through a final `context: RequestContext` parameter built by the controller. See standard 05 §Services.
