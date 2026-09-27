@@ -74,6 +74,7 @@ Every response is one of two shapes:
   ```ts
   getStudent(actor: Actor, studentId: StudentId, context: RequestContext): Promise<Student>
   ```
+
 - Services return domain objects or throw a typed domain error; they never build HTTP responses.
 
 ## Controllers
