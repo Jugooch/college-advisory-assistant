@@ -33,9 +33,11 @@ const STRUCTURE_RULES = [
   },
   {
     scope: /^apps\/api\/src\/[^/]+$/,
-    allow: (name) => /^(server|app|container)(\.(integration\.)?test)?\.ts$/.test(name),
+    allow: (name) =>
+      /^(server|app|container)(\.(integration\.)?test)?\.ts$/.test(name) ||
+      /^testing(\.test)?\.ts$/.test(name),
     expected:
-      'server.ts | app.ts | container.ts (other code goes in modules/, plugins/, shared/, config/)',
+      'server.ts | app.ts | container.ts | testing.ts (other code goes in modules/, plugins/, shared/, config/)',
   },
   {
     scope: /^packages\/domain\/src\/models\//,

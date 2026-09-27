@@ -53,6 +53,14 @@ Each case records source versions, complete input, expected per-check state, exp
 | AC18 | Variable-credit independent study | Correct selected credit value and cap evaluation |
 | AC19 | Pass grade not defined for minimum-letter-grade prerequisite | UNKNOWN, not presumed passing |
 | AC20 | Model tries to summarize CONDITIONAL as eligible | Template/gate preserves condition and blocks unsupported narrative |
+| AC21 | Actor from tenant A requests a tenant B student | 404, indistinguishable from a missing student; no existence leak |
+| AC22 | Request with no session, an unknown session, or a disabled identity | 401 standard error envelope |
+| AC23 | An identical roster batch is imported again | ALREADY_IMPORTED; nothing changes |
+| AC24 | Same batch ID arrives with a different checksum | CONFLICT; nothing published |
+| AC25 | A DELTA batch omits a student; a later batch tombstones them | Omission keeps the student; only the tombstone deletes |
+| AC26 | An older batch arrives after a newer one | Rejected as stale; newer data is not overwritten |
+
+AC21–AC26 were added in sprint S1 (issues #16, #27); they cover identity, tenant isolation, and ingestion.
 
 ## Metrics and interpretation
 
