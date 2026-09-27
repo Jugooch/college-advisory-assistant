@@ -3,49 +3,28 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import {
-  type AcademicPolicy,
-  createAcademicPolicy,
-  createGrade,
-  type Grade,
-  type LetterGrade,
-} from '@caa/domain';
+import type { AcademicPolicy, AcademicPolicyInput, LetterGrade } from '@caa/domain';
+import { buildAcademicPolicy, buildGrade, fail, letter, pass } from '@caa/test-kit';
 
 import { compareToMinimumGrade } from './compare-to-minimum-grade';
 
-// NOTE: the engine doesn't depend on @caa/test-kit yet, so these use the domain factories
-// directly.
-interface PolicyOverrides {
-  readonly passSatisfiesMinimumGrade?: boolean | null;
-  readonly lowestPassingLetterGrade?: LetterGrade | null;
-  readonly letterGradeOrder?: readonly LetterGrade[];
-}
+/** A partial order, so `D+` and `D-` are unranked; the test-kit default ranks every letter. */
+const PARTIAL_ORDER: readonly LetterGrade[] = [
+  'A',
+  'A-',
+  'B+',
+  'B',
+  'B-',
+  'C+',
+  'C',
+  'C-',
+  'D',
+  'F',
+];
 
-function buildPolicy(overrides: PolicyOverrides = {}): AcademicPolicy {
-  return createAcademicPolicy({
-    tenantId: '00000000-0000-4000-8000-000000000001',
-    rulesetVersion: 'demo-2026.1',
-    allowsInProgressPrerequisites: true,
-    passSatisfiesMinimumGrade: overrides.passSatisfiesMinimumGrade ?? null,
-    letterGradeOrder: overrides.letterGradeOrder ?? [
-      'A',
-      'A-',
-      'B+',
-      'B',
-      'B-',
-      'C+',
-      'C',
-      'C-',
-      'D',
-      'F',
-    ],
-    lowestPassingLetterGrade: overrides.lowestPassingLetterGrade ?? null,
-    repeatPolicy: null,
-  });
-}
-
-function letter(value: LetterGrade): Grade {
-  return createGrade({ scheme: 'LETTER', value });
+// NOTE: a local wrapper only to apply PARTIAL_ORDER by default; everything else is the builder's.
+function buildPolicy(overrides: Partial<AcademicPolicyInput> = {}): AcademicPolicy {
+  return buildAcademicPolicy({ letterGradeOrder: PARTIAL_ORDER, ...overrides });
 }
 
 /** A partial order that ranks `D-` but not `C+`, for the passing-cutoff cases. */
@@ -58,8 +37,8 @@ const NOT_RANKED = { state: 'UNKNOWN', reasonCode: 'GRADE_NOT_RANKED' };
 const PASS_EQUIVALENCE_UNDEFINED = { state: 'UNKNOWN', reasonCode: 'PASS_EQUIVALENCE_UNDEFINED' };
 const PASSING_GRADE_UNDEFINED = { state: 'UNKNOWN', reasonCode: 'PASSING_GRADE_UNDEFINED' };
 
-const PASS_GRADE = createGrade({ scheme: 'PASS_FAIL', value: 'P' });
-const FAIL_GRADE = createGrade({ scheme: 'PASS_FAIL', value: 'F' });
+const PASS_GRADE = pass();
+const FAIL_GRADE = fail();
 
 describe('compareToMinimumGrade', () => {
   it('returns PASS when the letter ranks above the minimum', () => {
@@ -193,13 +172,13 @@ describe('compareToMinimumGrade', () => {
   });
 
   it('returns UNKNOWN for a numeric grade against a letter minimum', () => {
-    const numeric = createGrade({ scheme: 'NUMERIC', value: '87.5' });
+    const numeric = buildGrade({ scheme: 'NUMERIC', value: '87.5' });
 
     expect(compareToMinimumGrade(numeric, letter('C'), buildPolicy())).toEqual(SCHEME_MISMATCH);
   });
 
   it('returns UNKNOWN for a grade under an unrecognized scheme', () => {
-    const unrecognized = createGrade({ scheme: 'UNKNOWN', value: 'S' });
+    const unrecognized = buildGrade({ scheme: 'UNKNOWN', value: 'S' });
 
     expect(compareToMinimumGrade(unrecognized, letter('C'), buildPolicy())).toEqual(
       SCHEME_MISMATCH,
@@ -207,7 +186,7 @@ describe('compareToMinimumGrade', () => {
   });
 
   it('returns UNKNOWN for a numeric grade when there is no minimum', () => {
-    const numeric = createGrade({ scheme: 'NUMERIC', value: '42' });
+    const numeric = buildGrade({ scheme: 'NUMERIC', value: '42' });
 
     expect(compareToMinimumGrade(numeric, null, buildPolicy())).toEqual(SCHEME_MISMATCH);
   });
@@ -225,7 +204,7 @@ describe('compareToMinimumGrade', () => {
   });
 
   it('returns UNKNOWN against a numeric minimum', () => {
-    const minimum = createGrade({ scheme: 'NUMERIC', value: '70' });
+    const minimum = buildGrade({ scheme: 'NUMERIC', value: '70' });
 
     expect(compareToMinimumGrade(letter('A'), minimum, buildPolicy())).toEqual(SCHEME_MISMATCH);
   });

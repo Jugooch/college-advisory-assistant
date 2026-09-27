@@ -3,100 +3,46 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import type { RepeatPolicy } from '@caa/domain';
 import {
-  type AttemptStatus,
-  type Course,
-  type CourseAttempt,
-  type CourseAttemptInput,
-  createAcademicPolicy,
-  createCourse,
-  createCourseAttempt,
-  type RepeatPolicy,
-} from '@caa/domain';
+  buildAcademicPolicy,
+  completedAttempt,
+  incompleteAttempt,
+  inProgressAttempt,
+  letter,
+  pendingTransferAttempt,
+  SYNTHETIC_COURSES,
+  SYNTHETIC_MATH_EQUIVALENCY_GROUP_ID,
+  syntheticId,
+  transferAwardedAttempt,
+  withdrawnAttempt,
+} from '@caa/test-kit';
 
 import { resolveAttempts } from './resolve-attempts';
 import type { AttemptResolutionContext } from './select-counting-attempt';
 
-// NOTE: the engine doesn't depend on @caa/test-kit yet, so these use the domain factories
-// directly.
-const TENANT_ID = '00000000-0000-4000-8000-000000000001';
-const GROUP_ID = '00000000-0000-4000-8000-0000000000e1';
-const CALC_ID = '00000000-0000-4000-8000-0000000000c1';
-const CALC_HONORS_ID = '00000000-0000-4000-8000-0000000000c2';
-const WRITING_ID = '00000000-0000-4000-8000-0000000000c3';
-const STUDIO_ID = '00000000-0000-4000-8000-0000000000c4';
-const MISSING_ID = '00000000-0000-4000-8000-0000000000c9';
+const COURSES = Object.values(SYNTHETIC_COURSES);
+const GROUP_ID = SYNTHETIC_MATH_EQUIVALENCY_GROUP_ID;
+/** DEMO-MATH 101 and 111 share the math equivalency group. */
+const CALC_ID = SYNTHETIC_COURSES.math101.id;
+const CALC_ALIAS_ID = SYNTHETIC_COURSES.math111.id;
+/** DEMO-MATH 102 has no equivalency group. */
+const STANDALONE_ID = SYNTHETIC_COURSES.math102.id;
+/** DEMO-IND 390 is a variable-credit course (1.00 to 3.00 credits). */
+const VARIABLE_ID = SYNTHETIC_COURSES.ind390.id;
+/** A course ID that no synthetic catalog entry uses. */
+const MISSING_ID = syntheticId('course', 0x999);
 
-function buildCourse(id: string, equivalencyGroupId: string | null): Course {
-  return createCourse({
-    id,
-    tenantId: TENANT_ID,
-    sourceCourseId: `demo-${id.slice(-2)}`,
-    label: `DEMO ${id.slice(-2)}`,
-    creditsHundredths: 300,
-    minCreditsHundredths: null,
-    maxCreditsHundredths: null,
-    equivalencyGroupId,
-  });
-}
-
-const STUDIO = createCourse({
-  id: STUDIO_ID,
-  tenantId: TENANT_ID,
-  sourceCourseId: 'demo-c4',
-  label: 'DEMO STUDIO',
-  creditsHundredths: null,
-  minCreditsHundredths: 100,
-  maxCreditsHundredths: 400,
-  equivalencyGroupId: null,
-});
-
-const COURSES = [
-  buildCourse(CALC_ID, GROUP_ID),
-  buildCourse(CALC_HONORS_ID, GROUP_ID),
-  buildCourse(WRITING_ID, null),
-  STUDIO,
-];
-
-let nextAttempt = 0;
-
-function buildAttempt(
-  courseId: string,
-  status: AttemptStatus,
-  overrides: Partial<CourseAttemptInput> = {},
-): CourseAttempt {
-  nextAttempt += 1;
-  const suffix = String(nextAttempt).padStart(2, '0');
-  const isEarning = status === 'COMPLETED' || status === 'TRANSFER_AWARDED';
-  const isGraded = isEarning || status === 'WITHDRAWN' || status === 'INCOMPLETE';
-  return createCourseAttempt({
-    id: `00000000-0000-4000-8000-0000000000${suffix}`,
-    tenantId: TENANT_ID,
-    studentId: '00000000-0000-4000-8000-000000000002',
-    courseId,
-    sourceAttemptId: `demo-attempt-${suffix}`,
-    termCode: '2025FA',
-    status,
-    grade: isGraded ? { scheme: 'LETTER', value: 'B' } : null,
-    creditsEarnedHundredths: isEarning ? 300 : null,
-    ...overrides,
-  });
-}
-
+// NOTE: the resolution context is an engine type, so test-kit has no builder for it.
 function buildContext(repeatPolicy: RepeatPolicy | null): AttemptResolutionContext {
   return {
-    academicPolicy: createAcademicPolicy({
-      tenantId: TENANT_ID,
-      rulesetVersion: 'demo-2026.1',
-      allowsInProgressPrerequisites: true,
-      passSatisfiesMinimumGrade: null,
-      letterGradeOrder: ['A', 'B', 'C', 'D', 'F'],
-      lowestPassingLetterGrade: null,
-      repeatPolicy,
-    }),
+    academicPolicy: buildAcademicPolicy({ repeatPolicy }),
     termCodesOldestFirst: ['2025FA', '2026SP'],
   };
 }
+
+const UNSET = buildContext(null);
+const MOST_RECENT = buildContext('MOST_RECENT');
 
 const CATALOG_UNDETERMINED = {
   state: 'UNDETERMINED',
@@ -104,33 +50,33 @@ const CATALOG_UNDETERMINED = {
   earnedCreditsHundredths: null,
 };
 
-const UNSET = buildContext(null);
-const MOST_RECENT = buildContext('MOST_RECENT');
-
 describe('resolveAttempts', () => {
   it('returns no groups when there are no attempts', () => {
     expect(resolveAttempts([], COURSES, UNSET)).toEqual([]);
   });
 
   it('counts only one of two aliases in the same equivalency group', () => {
-    const calc = buildAttempt(CALC_ID, 'COMPLETED');
-    const honors = buildAttempt(CALC_HONORS_ID, 'COMPLETED', { termCode: '2026SP' });
+    const calc = completedAttempt({ courseId: CALC_ID, termCode: '2025FA' }, 1);
+    const alias = completedAttempt({ courseId: CALC_ALIAS_ID, termCode: '2026SP' }, 2);
 
-    expect(resolveAttempts([honors, calc], COURSES, MOST_RECENT)).toEqual([
+    expect(resolveAttempts([alias, calc], COURSES, MOST_RECENT)).toEqual([
       {
         groupKey: `equivalency:${GROUP_ID}`,
         equivalencyGroupId: GROUP_ID,
-        courseIds: [CALC_ID, CALC_HONORS_ID],
-        counting: { state: 'COUNTED', attempt: honors, earnedCreditsHundredths: 300 },
+        courseIds: [CALC_ID, CALC_ALIAS_ID],
+        counting: { state: 'COUNTED', attempt: alias, earnedCreditsHundredths: 300 },
         inProgress: [],
         pendingTransfer: [],
-        attempts: [honors, calc],
+        attempts: [alias, calc],
       },
     ]);
   });
 
   it('leaves a repeated course undetermined when the policy has no repeat policy', () => {
-    const attempts = [buildAttempt(WRITING_ID, 'COMPLETED'), buildAttempt(WRITING_ID, 'COMPLETED')];
+    const attempts = [
+      completedAttempt({ courseId: STANDALONE_ID }, 1),
+      completedAttempt({ courseId: STANDALONE_ID }, 2),
+    ];
 
     const [group] = resolveAttempts(attempts, COURSES, UNSET);
 
@@ -142,20 +88,20 @@ describe('resolveAttempts', () => {
   });
 
   it('groups a course without an equivalency group by its course ID', () => {
-    const attempt = buildAttempt(WRITING_ID, 'COMPLETED');
+    const attempt = completedAttempt({ courseId: STANDALONE_ID });
 
     const [group] = resolveAttempts([attempt], COURSES, UNSET);
 
     expect(group).toMatchObject({
-      groupKey: `course:${WRITING_ID}`,
+      groupKey: `course:${STANDALONE_ID}`,
       equivalencyGroupId: null,
-      courseIds: [WRITING_ID],
+      courseIds: [STANDALONE_ID],
     });
   });
 
   it('reports in-progress and pending-transfer attempts without counting them', () => {
-    const inProgress = buildAttempt(CALC_ID, 'IN_PROGRESS');
-    const pending = buildAttempt(CALC_HONORS_ID, 'TRANSFER_PENDING');
+    const inProgress = inProgressAttempt({ courseId: CALC_ID }, 1);
+    const pending = pendingTransferAttempt({ courseId: CALC_ALIAS_ID }, 2);
 
     const [group] = resolveAttempts([inProgress, pending], COURSES, UNSET);
 
@@ -167,8 +113,8 @@ describe('resolveAttempts', () => {
   });
 
   it('keeps withdrawn and incomplete attempts as evidence only', () => {
-    const withdrawn = buildAttempt(WRITING_ID, 'WITHDRAWN');
-    const incomplete = buildAttempt(WRITING_ID, 'INCOMPLETE');
+    const withdrawn = withdrawnAttempt({ courseId: STANDALONE_ID }, 1);
+    const incomplete = incompleteAttempt({ courseId: STANDALONE_ID }, 2);
 
     const [group] = resolveAttempts([withdrawn, incomplete], COURSES, UNSET);
 
@@ -181,7 +127,7 @@ describe('resolveAttempts', () => {
   });
 
   it('counts an awarded transfer attempt', () => {
-    const awarded = buildAttempt(WRITING_ID, 'TRANSFER_AWARDED');
+    const awarded = transferAwardedAttempt({ courseId: STANDALONE_ID });
 
     const [group] = resolveAttempts([awarded], COURSES, UNSET);
 
@@ -191,8 +137,8 @@ describe('resolveAttempts', () => {
   });
 
   it('counts the completed attempt while listing a retake in progress', () => {
-    const completed = buildAttempt(WRITING_ID, 'COMPLETED');
-    const retake = buildAttempt(WRITING_ID, 'IN_PROGRESS', { termCode: '2026SP' });
+    const completed = completedAttempt({ courseId: STANDALONE_ID }, 1);
+    const retake = inProgressAttempt({ courseId: STANDALONE_ID }, 2);
 
     const [group] = resolveAttempts([completed, retake], COURSES, UNSET);
 
@@ -203,7 +149,7 @@ describe('resolveAttempts', () => {
   });
 
   it('takes earned credit for a variable-credit course from the attempt, not the course range', () => {
-    const attempt = buildAttempt(STUDIO_ID, 'COMPLETED', { creditsEarnedHundredths: 150 });
+    const attempt = completedAttempt({ courseId: VARIABLE_ID, creditsEarnedHundredths: 150 });
 
     const [group] = resolveAttempts([attempt], COURSES, UNSET);
 
@@ -213,17 +159,17 @@ describe('resolveAttempts', () => {
   });
 
   it('leaves every group undetermined when any attempted course is missing from the catalog', () => {
-    const calc = buildAttempt(CALC_ID, 'COMPLETED');
-    const alias = buildAttempt(MISSING_ID, 'COMPLETED', {
-      termCode: '2026SP',
-      grade: { scheme: 'LETTER', value: 'D' },
-    });
-    const writing = buildAttempt(WRITING_ID, 'COMPLETED');
+    const calc = completedAttempt({ courseId: CALC_ID, termCode: '2025FA' }, 1);
+    const alias = completedAttempt(
+      { courseId: MISSING_ID, termCode: '2026SP', grade: letter('D') },
+      2,
+    );
+    const standalone = completedAttempt({ courseId: STANDALONE_ID }, 3);
 
-    const groups = resolveAttempts([calc, alias, writing], COURSES, MOST_RECENT);
+    const groups = resolveAttempts([calc, alias, standalone], COURSES, MOST_RECENT);
 
     expect(groups.map((group) => [group.groupKey, group.counting, group.attempts])).toEqual([
-      [`course:${WRITING_ID}`, CATALOG_UNDETERMINED, [writing]],
+      [`course:${STANDALONE_ID}`, CATALOG_UNDETERMINED, [standalone]],
       [`course:${MISSING_ID}`, CATALOG_UNDETERMINED, [alias]],
       [`equivalency:${GROUP_ID}`, CATALOG_UNDETERMINED, [calc]],
     ]);
@@ -231,16 +177,16 @@ describe('resolveAttempts', () => {
 
   it('returns groups sorted by group key regardless of input order', () => {
     const attempts = [
-      buildAttempt(CALC_ID, 'COMPLETED'),
-      buildAttempt(STUDIO_ID, 'IN_PROGRESS'),
-      buildAttempt(WRITING_ID, 'COMPLETED'),
+      completedAttempt({ courseId: CALC_ID }, 1),
+      inProgressAttempt({ courseId: VARIABLE_ID }, 2),
+      completedAttempt({ courseId: STANDALONE_ID }, 3),
     ];
 
     const keys = resolveAttempts(attempts, COURSES, UNSET).map((group) => group.groupKey);
 
     expect(keys).toEqual([
-      `course:${WRITING_ID}`,
-      `course:${STUDIO_ID}`,
+      `course:${STANDALONE_ID}`,
+      `course:${VARIABLE_ID}`,
       `equivalency:${GROUP_ID}`,
     ]);
   });

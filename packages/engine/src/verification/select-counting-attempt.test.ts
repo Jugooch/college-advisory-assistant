@@ -3,51 +3,24 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import type { RepeatPolicy } from '@caa/domain';
 import {
-  type AttemptStatus,
-  type CourseAttempt,
-  createAcademicPolicy,
-  createCourseAttempt,
-  type GradeInput,
-  type RepeatPolicy,
-} from '@caa/domain';
+  buildAcademicPolicy,
+  buildGrade,
+  completedAttempt,
+  fail,
+  letter,
+  pass,
+} from '@caa/test-kit';
 
 import { type AttemptResolutionContext, selectCountingAttempt } from './select-counting-attempt';
 
-// NOTE: the engine doesn't depend on @caa/test-kit yet, so these use the domain factories
-// directly.
-interface AttemptOverrides {
-  readonly id: string;
-  readonly termCode?: string;
-  readonly status?: AttemptStatus;
-  readonly grade?: GradeInput | null;
-  readonly creditsEarnedHundredths?: number | null;
-}
-
-function buildAttempt(overrides: AttemptOverrides): CourseAttempt {
-  return createCourseAttempt({
-    id: overrides.id,
-    tenantId: '00000000-0000-4000-8000-000000000001',
-    studentId: '00000000-0000-4000-8000-000000000002',
-    courseId: '00000000-0000-4000-8000-000000000003',
-    sourceAttemptId: `demo-${overrides.id.slice(-2)}`,
-    termCode: overrides.termCode ?? '2025FA',
-    status: overrides.status ?? 'COMPLETED',
-    grade: overrides.grade === undefined ? { scheme: 'LETTER', value: 'B' } : overrides.grade,
-    creditsEarnedHundredths:
-      overrides.creditsEarnedHundredths === undefined ? 300 : overrides.creditsEarnedHundredths,
-  });
-}
-
+// NOTE: the resolution context is an engine type, so test-kit has no builder for it. The partial
+// letter order leaves `B+` unranked; the test-kit default ranks every letter.
 function buildContext(repeatPolicy: RepeatPolicy | null): AttemptResolutionContext {
   return {
-    academicPolicy: createAcademicPolicy({
-      tenantId: '00000000-0000-4000-8000-000000000001',
-      rulesetVersion: 'demo-2026.1',
-      allowsInProgressPrerequisites: true,
-      passSatisfiesMinimumGrade: null,
+    academicPolicy: buildAcademicPolicy({
       letterGradeOrder: ['A', 'B', 'C', 'D', 'F'],
-      lowestPassingLetterGrade: null,
       repeatPolicy,
     }),
     termCodesOldestFirst: ['2025SP', '2025FA', '2026SP'],
@@ -58,9 +31,6 @@ const UNSET = buildContext(null);
 const MOST_RECENT = buildContext('MOST_RECENT');
 const HIGHEST_GRADE = buildContext('HIGHEST_GRADE');
 
-const FIRST_ID = '00000000-0000-4000-8000-000000000011';
-const SECOND_ID = '00000000-0000-4000-8000-000000000012';
-
 describe('selectCountingAttempt', () => {
   it('returns NONE with zero earned credits when nothing was completed', () => {
     expect(selectCountingAttempt([], UNSET)).toEqual({
@@ -70,7 +40,7 @@ describe('selectCountingAttempt', () => {
   });
 
   it('counts a single completed attempt even when the policy has no repeat policy', () => {
-    const attempt = buildAttempt({ id: FIRST_ID, creditsEarnedHundredths: 350 });
+    const attempt = completedAttempt({ creditsEarnedHundredths: 350 });
 
     expect(selectCountingAttempt([attempt], UNSET)).toEqual({
       state: 'COUNTED',
@@ -80,7 +50,7 @@ describe('selectCountingAttempt', () => {
   });
 
   it('keeps earned credits unknown when the counting attempt has no recorded award', () => {
-    const attempt = buildAttempt({ id: FIRST_ID, creditsEarnedHundredths: null });
+    const attempt = completedAttempt({ creditsEarnedHundredths: null });
 
     expect(selectCountingAttempt([attempt], UNSET)).toEqual({
       state: 'COUNTED',
@@ -90,7 +60,7 @@ describe('selectCountingAttempt', () => {
   });
 
   it('returns UNDETERMINED for a repeat when the policy has no repeat policy', () => {
-    const attempts = [buildAttempt({ id: FIRST_ID }), buildAttempt({ id: SECOND_ID })];
+    const attempts = [completedAttempt({}, 1), completedAttempt({}, 2)];
 
     expect(selectCountingAttempt(attempts, UNSET)).toEqual({
       state: 'UNDETERMINED',
@@ -100,8 +70,8 @@ describe('selectCountingAttempt', () => {
   });
 
   it('counts the attempt in the latest term under MOST_RECENT, whatever its position', () => {
-    const later = buildAttempt({ id: FIRST_ID, termCode: '2026SP', grade: null });
-    const earlier = buildAttempt({ id: SECOND_ID, termCode: '2025SP' });
+    const later = completedAttempt({ termCode: '2026SP', grade: null }, 1);
+    const earlier = completedAttempt({ termCode: '2025SP' }, 2);
 
     expect(selectCountingAttempt([later, earlier], MOST_RECENT)).toEqual({
       state: 'COUNTED',
@@ -112,8 +82,8 @@ describe('selectCountingAttempt', () => {
 
   it('returns UNDETERMINED under MOST_RECENT when a term is missing from the order', () => {
     const attempts = [
-      buildAttempt({ id: FIRST_ID, termCode: '2025FA' }),
-      buildAttempt({ id: SECOND_ID, termCode: '2027SU' }),
+      completedAttempt({ termCode: '2025FA' }, 1),
+      completedAttempt({ termCode: '2027SU' }, 2),
     ];
 
     expect(selectCountingAttempt(attempts, MOST_RECENT)).toEqual({
@@ -125,8 +95,8 @@ describe('selectCountingAttempt', () => {
 
   it('returns UNDETERMINED under MOST_RECENT when both attempts share the latest term', () => {
     const attempts = [
-      buildAttempt({ id: FIRST_ID, termCode: '2026SP' }),
-      buildAttempt({ id: SECOND_ID, termCode: '2026SP' }),
+      completedAttempt({ termCode: '2026SP' }, 1),
+      completedAttempt({ termCode: '2026SP' }, 2),
     ];
 
     expect(selectCountingAttempt(attempts, MOST_RECENT)).toEqual({
@@ -137,16 +107,8 @@ describe('selectCountingAttempt', () => {
   });
 
   it('counts the higher letter under HIGHEST_GRADE, whatever its term', () => {
-    const lower = buildAttempt({
-      id: FIRST_ID,
-      termCode: '2026SP',
-      grade: { scheme: 'LETTER', value: 'D' },
-    });
-    const higher = buildAttempt({
-      id: SECOND_ID,
-      termCode: '2025SP',
-      grade: { scheme: 'LETTER', value: 'B' },
-    });
+    const lower = completedAttempt({ termCode: '2026SP', grade: letter('D') }, 1);
+    const higher = completedAttempt({ termCode: '2025SP', grade: letter('B') }, 2);
 
     expect(selectCountingAttempt([lower, higher], HIGHEST_GRADE)).toEqual({
       state: 'COUNTED',
@@ -156,12 +118,8 @@ describe('selectCountingAttempt', () => {
   });
 
   it('counts P over F under HIGHEST_GRADE', () => {
-    const passed = buildAttempt({ id: FIRST_ID, grade: { scheme: 'PASS_FAIL', value: 'P' } });
-    const failed = buildAttempt({
-      id: SECOND_ID,
-      grade: { scheme: 'PASS_FAIL', value: 'F' },
-      creditsEarnedHundredths: 0,
-    });
+    const passed = completedAttempt({ grade: pass() }, 1);
+    const failed = completedAttempt({ grade: fail(), creditsEarnedHundredths: 0 }, 2);
 
     expect(selectCountingAttempt([passed, failed], HIGHEST_GRADE)).toEqual({
       state: 'COUNTED',
@@ -172,8 +130,8 @@ describe('selectCountingAttempt', () => {
 
   it('returns UNDETERMINED under HIGHEST_GRADE when a letter is missing from the order', () => {
     const attempts = [
-      buildAttempt({ id: FIRST_ID, grade: { scheme: 'LETTER', value: 'B+' } }),
-      buildAttempt({ id: SECOND_ID, grade: { scheme: 'LETTER', value: 'C' } }),
+      completedAttempt({ grade: letter('B+') }, 1),
+      completedAttempt({ grade: letter('C') }, 2),
     ];
 
     expect(selectCountingAttempt(attempts, HIGHEST_GRADE)).toEqual({
@@ -185,8 +143,8 @@ describe('selectCountingAttempt', () => {
 
   it('returns UNDETERMINED under HIGHEST_GRADE when the grades use different schemes', () => {
     const attempts = [
-      buildAttempt({ id: FIRST_ID, grade: { scheme: 'PASS_FAIL', value: 'P' } }),
-      buildAttempt({ id: SECOND_ID, grade: { scheme: 'LETTER', value: 'B' } }),
+      completedAttempt({ grade: pass() }, 1),
+      completedAttempt({ grade: letter('B') }, 2),
     ];
 
     expect(selectCountingAttempt(attempts, HIGHEST_GRADE)).toEqual({
@@ -197,7 +155,7 @@ describe('selectCountingAttempt', () => {
   });
 
   it('returns UNDETERMINED under HIGHEST_GRADE when the best grade is tied', () => {
-    const attempts = [buildAttempt({ id: FIRST_ID }), buildAttempt({ id: SECOND_ID })];
+    const attempts = [completedAttempt({}, 1), completedAttempt({}, 2)];
 
     expect(selectCountingAttempt(attempts, HIGHEST_GRADE)).toEqual({
       state: 'UNDETERMINED',
@@ -207,10 +165,7 @@ describe('selectCountingAttempt', () => {
   });
 
   it('returns UNDETERMINED under HIGHEST_GRADE when no grades were recorded', () => {
-    const attempts = [
-      buildAttempt({ id: FIRST_ID, grade: null }),
-      buildAttempt({ id: SECOND_ID, grade: null }),
-    ];
+    const attempts = [completedAttempt({ grade: null }, 1), completedAttempt({ grade: null }, 2)];
 
     expect(selectCountingAttempt(attempts, HIGHEST_GRADE)).toEqual({
       state: 'UNDETERMINED',
@@ -221,8 +176,8 @@ describe('selectCountingAttempt', () => {
 
   it('returns UNDETERMINED under HIGHEST_GRADE for numeric grades', () => {
     const attempts = [
-      buildAttempt({ id: FIRST_ID, grade: { scheme: 'NUMERIC', value: '91' } }),
-      buildAttempt({ id: SECOND_ID, grade: { scheme: 'NUMERIC', value: '64' } }),
+      completedAttempt({ grade: buildGrade({ scheme: 'NUMERIC', value: '91' }) }, 1),
+      completedAttempt({ grade: buildGrade({ scheme: 'NUMERIC', value: '64' }) }, 2),
     ];
 
     expect(selectCountingAttempt(attempts, HIGHEST_GRADE)).toEqual({

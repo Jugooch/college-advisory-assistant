@@ -3,21 +3,11 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { createAcademicPolicy } from '@caa/domain';
+import { buildAcademicPolicy } from '@caa/test-kit';
 
 import { rankLetterGrade } from './rank-letter-grade';
 
-// NOTE: the engine doesn't depend on @caa/test-kit yet, so this uses the domain factory
-// directly.
-const POLICY = createAcademicPolicy({
-  tenantId: '00000000-0000-4000-8000-000000000001',
-  rulesetVersion: 'demo-2026.1',
-  allowsInProgressPrerequisites: true,
-  passSatisfiesMinimumGrade: null,
-  letterGradeOrder: ['A', 'B', 'C', 'D', 'F'],
-  lowestPassingLetterGrade: null,
-  repeatPolicy: null,
-});
+const POLICY = buildAcademicPolicy({ letterGradeOrder: ['A', 'B', 'C', 'D', 'F'] });
 
 describe('rankLetterGrade', () => {
   it('ranks the highest letter in the order highest', () => {
