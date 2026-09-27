@@ -67,8 +67,13 @@ Every response is one of two shapes:
 ## Services
 
 - Factory function `createXxxService(dependencies)` returning an object that implements an exported `XxxService` interface.
-- Dependencies (repositories, engine functions, clock, logger) come in through the `dependencies` object. Only `container.ts` constructs them.
+- Long-lived dependencies (repositories, engine functions, clock, configuration) come in through the `dependencies` object. Only `container.ts` constructs them.
 - Methods take the authenticated actor (`actor: Actor`) as their first argument when the operation touches tenant data. `// SECURITY:` comments mark authorization decisions.
+- Request-scoped values come in through a single **final** `context: RequestContext` parameter that the controller builds from the request. Today it carries the request logger (`context.logger`, Fastify's `request.log`, typed as the `Logger` port), so every log line has the request ID (standard 09). New request-scoped values are added to `RequestContext`, never as extra parameters. Services never import Fastify types and never log through a process-wide logger.
+
+  ```ts
+  getStudent(actor: Actor, studentId: StudentId, context: RequestContext): Promise<Student>
+  ```
 - Services return domain objects or throw a typed domain error; they never build HTTP responses.
 
 ## Controllers
