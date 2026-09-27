@@ -210,6 +210,9 @@ importers:
 
   tests:
     dependencies:
+      '@caa/db':
+        specifier: workspace:*
+        version: link:../packages/db
       '@caa/domain':
         specifier: workspace:*
         version: link:../packages/domain
@@ -219,6 +222,13 @@ importers:
       '@caa/test-kit':
         specifier: workspace:*
         version: link:../packages/test-kit
+    devDependencies:
+      '@caa/api':
+        specifier: workspace:*
+        version: link:../apps/api
+      '@caa/worker':
+        specifier: workspace:*
+        version: link:../apps/worker
 
 packages:
 

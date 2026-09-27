@@ -8,8 +8,13 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@caa/db": "workspace:*",
     "@caa/domain": "workspace:*",
     "@caa/engine": "workspace:*",
     "@caa/test-kit": "workspace:*"
+  },
+  "devDependencies": {
+    "@caa/api": "workspace:*",
+    "@caa/worker": "workspace:*"
   }
 }
