@@ -33,7 +33,10 @@ export interface AnyPrerequisite {
 export interface CoursePrerequisite {
   readonly type: typeof PrerequisiteExpressionType.Course;
   readonly courseId: CourseId;
-  /** Minimum grade required, or `null` when any completed attempt satisfies the course. */
+  /**
+   * Minimum grade required, or `null` when any passing completion satisfies the course (a
+   * failing grade does not).
+   */
   readonly minimumGrade: Grade | null;
 }
 
