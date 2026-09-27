@@ -16,12 +16,19 @@ import { z } from 'zod';
  * - `GRADE_SCHEME_MISMATCH`: the grade's scheme can't be compared with the required grade.
  * - `PASS_EQUIVALENCE_UNDEFINED`: a `P` grade meets a minimum only if policy says so, and it
  *   doesn't say.
+ * - `GRADE_NOT_RANKED`: the grade is missing from the institution's grade order, so it can't
+ *   be ranked.
  *
  * Attempts:
  * - `IN_PROGRESS_MIN_GRADE`: satisfied only if the in-progress attempt earns the minimum grade.
  * - `PROGRESSION_NOT_PERMITTED`: the institution doesn't allow planning on in-progress work.
  * - `PENDING_TRANSFER`: the only qualifying credit is a transfer still under evaluation.
  * - `NO_QUALIFYING_ATTEMPT`: no attempt of the course or an equivalent qualifies.
+ * - `REPEAT_POLICY_UNDEFINED`: the course was repeated and policy doesn't say which attempt
+ *   counts.
+ * - `REPEAT_ORDER_UNDETERMINED`: the repeat policy can't pick one attempt, because terms or
+ *   grades are missing, unranked, or tied.
+ * - `COURSE_NOT_IN_CATALOG`: an attempt names a course the catalog doesn't contain.
  *
  * Rules and audit:
  * - `UNSUPPORTED_RULE`: the source rule has semantics the app can't represent.
@@ -40,10 +47,14 @@ export const ReasonCode = {
   MinGradeNotMet: 'MIN_GRADE_NOT_MET',
   GradeSchemeMismatch: 'GRADE_SCHEME_MISMATCH',
   PassEquivalenceUndefined: 'PASS_EQUIVALENCE_UNDEFINED',
+  GradeNotRanked: 'GRADE_NOT_RANKED',
   InProgressMinGrade: 'IN_PROGRESS_MIN_GRADE',
   ProgressionNotPermitted: 'PROGRESSION_NOT_PERMITTED',
   PendingTransfer: 'PENDING_TRANSFER',
   NoQualifyingAttempt: 'NO_QUALIFYING_ATTEMPT',
+  RepeatPolicyUndefined: 'REPEAT_POLICY_UNDEFINED',
+  RepeatOrderUndetermined: 'REPEAT_ORDER_UNDETERMINED',
+  CourseNotInCatalog: 'COURSE_NOT_IN_CATALOG',
   UnsupportedRule: 'UNSUPPORTED_RULE',
   AuditStale: 'AUDIT_STALE',
   AuditAmbiguous: 'AUDIT_AMBIGUOUS',

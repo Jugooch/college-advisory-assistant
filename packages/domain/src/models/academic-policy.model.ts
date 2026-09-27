@@ -8,11 +8,15 @@
 import { z } from 'zod';
 
 import { LetterGradeSchema } from '../enums/grade-scheme.enum';
+import { RepeatPolicySchema } from '../enums/repeat-policy.enum';
 import { InstitutionIdSchema } from './institution.model';
 
 /**
  * Schema for the academic policy of one tenant in one ruleset version. Every value is
  * institution configuration, never a default built into code.
+ *
+ * Tenant term ordering is not part of this policy yet: until a Term model exists (S3), the
+ * engine takes the tenant's term order as an explicit input.
  */
 export const AcademicPolicySchema = z
   .object({
@@ -32,6 +36,11 @@ export const AcademicPolicySchema = z
      * missing from it as UNKNOWN rather than guessing its rank. It must not be empty.
      */
     letterGradeOrder: z.array(LetterGradeSchema).min(1).readonly(),
+    /**
+     * Which attempt counts when a course was repeated. `null` means the institution hasn't
+     * said, and the engine returns undetermined (`REPEAT_POLICY_UNDEFINED`), never a guess.
+     */
+    repeatPolicy: RepeatPolicySchema.nullable(),
   })
   // SAFETY: a repeated letter would give it two ranks, so a minimum-grade comparison could
   // pass or fail depending on which rank the engine found first.

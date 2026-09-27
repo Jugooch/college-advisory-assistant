@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { LetterGrade } from '../enums/grade-scheme.enum';
+import { RepeatPolicy } from '../enums/repeat-policy.enum';
 import {
   type AcademicPolicyInput,
   AcademicPolicySchema,
@@ -16,17 +17,35 @@ const VALID: AcademicPolicyInput = {
   allowsInProgressPrerequisites: true,
   passSatisfiesMinimumGrade: null,
   letterGradeOrder: ['A', 'B', 'C', 'D', 'F'],
+  repeatPolicy: null,
 };
 
 describe('createAcademicPolicy', () => {
-  it('accepts a policy with a partial letter order and undecided pass equivalence', () => {
+  it('accepts a policy with a partial letter order and undecided pass and repeat rules', () => {
     expect(createAcademicPolicy(VALID)).toEqual({
       tenantId: '0b8f6a36-3f7e-4a53-9c1e-8f1b2c3d4e5f',
       rulesetVersion: 'demo-2026.1',
       allowsInProgressPrerequisites: true,
       passSatisfiesMinimumGrade: null,
       letterGradeOrder: ['A', 'B', 'C', 'D', 'F'],
+      repeatPolicy: null,
     });
+  });
+
+  it.each([
+    [RepeatPolicy.MostRecent, 'MOST_RECENT'],
+    [RepeatPolicy.HighestGrade, 'HIGHEST_GRADE'],
+  ])('accepts the %s repeat policy', (repeatPolicy, expected) => {
+    expect(createAcademicPolicy({ ...VALID, repeatPolicy }).repeatPolicy).toBe(expected);
+  });
+
+  it('rejects a repeat policy outside the registry', () => {
+    expect(() =>
+      createAcademicPolicy({
+        ...VALID,
+        repeatPolicy: 'FIRST_ATTEMPT' as AcademicPolicyInput['repeatPolicy'],
+      }),
+    ).toThrow();
   });
 
   it('accepts a complete letter order', () => {
@@ -94,9 +113,23 @@ describe('AcademicPolicySchema', () => {
       rulesetVersion: 'demo-2026.1',
       allowsInProgressPrerequisites: true,
       letterGradeOrder: ['A'],
+      repeatPolicy: null,
     });
 
     expect(result.success).toBe(false);
+  });
+
+  it('rejects an omitted repeatPolicy, because unknown must be an explicit null', () => {
+    const result = AcademicPolicySchema.safeParse({
+      tenantId: '0b8f6a36-3f7e-4a53-9c1e-8f1b2c3d4e5f',
+      rulesetVersion: 'demo-2026.1',
+      allowsInProgressPrerequisites: true,
+      passSatisfiesMinimumGrade: null,
+      letterGradeOrder: ['A'],
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues.map((issue) => issue.path)).toEqual([['repeatPolicy']]);
   });
 
   it('rejects a string in place of a boolean switch', () => {
