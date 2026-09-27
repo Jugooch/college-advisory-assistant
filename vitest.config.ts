@@ -21,6 +21,7 @@ const UNIT_WORKSPACES = [
   'apps/worker',
   'tests',
   'scripts',
+  'config',
 ];
 
 const integration = resolveIntegrationMode(process.env);
