@@ -3,3 +3,4 @@ coverage/
 dist/
 .next/
 docs/planning/
+packages/db/migrations/
