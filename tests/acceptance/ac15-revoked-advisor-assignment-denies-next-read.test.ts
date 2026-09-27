@@ -6,9 +6,9 @@
  * @requirement AC15
  * @see docs/planning/13-test-and-evaluation-strategy.md
  */
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
-import { Role } from '@caa/domain';
+import { type AdvisorAssignment, Role } from '@caa/domain';
 import { buildAdvisorAssignment, buildStudent, buildUserIdentity } from '@caa/test-kit';
 
 import {
@@ -24,23 +24,30 @@ const ADVISOR_TOKEN = 'ac15-advisor-token';
 const STUDENT_URL = '/v1/students/30000000-0000-4000-8000-000000000001';
 
 /**
- * Builds a world where the advisor holds an open-ended assignment to the student.
+ * Builds the advisor's open-ended assignment to the student.
  *
- * @returns The mutable world.
+ * @returns The active assignment.
  */
-function assignedWorld(): AcceptanceWorld {
-  return {
-    identities: [ADVISOR],
-    students: [STUDENT],
-    assignments: [buildAdvisorAssignment({ advisorUserId: ADVISOR.id, studentId: STUDENT.id })],
-  };
+function openAssignment(): AdvisorAssignment {
+  return buildAdvisorAssignment({ advisorUserId: ADVISOR.id, studentId: STUDENT.id });
 }
 
-describe('AC15 advisor assignment revoked mid-session', () => {
-  it('lets the assigned advisor read the student before revocation', async () => {
-    const world = assignedWorld();
-    const app = buildAcceptanceApp(world, [{ token: ADVISOR_TOKEN, identity: ADVISOR }]);
+const world: AcceptanceWorld = {
+  identities: [ADVISOR],
+  students: [STUDENT],
+  assignments: [openAssignment()],
+};
 
+// NOTE: built once per file at module scope, like AC21 and AC22. The first build in a worker loads
+// Fastify's schema compilers (ajv), which took 2-4 s on a slow WSL checkout and timed out a case.
+const app = buildAcceptanceApp(world, [{ token: ADVISOR_TOKEN, identity: ADVISOR }]);
+
+describe('AC15 advisor assignment revoked mid-session', () => {
+  beforeEach(() => {
+    world.assignments = [openAssignment()];
+  });
+
+  it('lets the assigned advisor read the student before revocation', async () => {
     const response = await getAs(app, STUDENT_URL, `Bearer ${ADVISOR_TOKEN}`);
 
     expect(response).toEqual({
@@ -50,8 +57,6 @@ describe('AC15 advisor assignment revoked mid-session', () => {
   });
 
   it('denies the next read with 404 once the assignment has ended', async () => {
-    const world = assignedWorld();
-    const app = buildAcceptanceApp(world, [{ token: ADVISOR_TOKEN, identity: ADVISOR }]);
     await getAs(app, STUDENT_URL, `Bearer ${ADVISOR_TOKEN}`);
 
     world.assignments = [
@@ -72,8 +77,6 @@ describe('AC15 advisor assignment revoked mid-session', () => {
   });
 
   it('denies the next read with 404 once the assignment is removed', async () => {
-    const world = assignedWorld();
-    const app = buildAcceptanceApp(world, [{ token: ADVISOR_TOKEN, identity: ADVISOR }]);
     await getAs(app, STUDENT_URL, `Bearer ${ADVISOR_TOKEN}`);
 
     world.assignments = [];
