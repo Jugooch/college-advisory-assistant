@@ -108,11 +108,51 @@ describe('evaluatePrerequisite with a completed attempt and a retake', () => {
 
     expect(outcomeOf([BELOW_MINIMUM, RETAKE], policy)).toEqual(['UNKNOWN', 'GRADE_NOT_RANKED']);
   });
+});
 
-  it('passes on a completed grade that meets the minimum, despite a retake in progress', () => {
-    const passing = completedAttempt({ grade: letter('B') }, 1);
+describe('evaluatePrerequisite with a passing grade and a retake', () => {
+  const passing = completedAttempt({ grade: letter('B') }, 1);
 
-    expect(outcomeOf([passing, RETAKE], MOST_RECENT)).toEqual(['PASS', undefined]);
+  it('is CONDITIONAL under MOST_RECENT, because the retake grade will replace the pass', () => {
+    expect(outcomeOf([passing, RETAKE], MOST_RECENT)).toEqual([
+      'CONDITIONAL',
+      'IN_PROGRESS_MIN_GRADE',
+    ]);
+  });
+
+  it('is CONDITIONAL under MOST_RECENT even when planned progression is not permitted', () => {
+    const policy = { repeatPolicy: 'MOST_RECENT', allowsInProgressPrerequisites: false } as const;
+
+    expect(outcomeOf([passing, RETAKE], policy)).toEqual(['CONDITIONAL', 'IN_PROGRESS_MIN_GRADE']);
+  });
+
+  it('passes under HIGHEST_GRADE, because a retake cannot lower the counting grade', () => {
+    expect(outcomeOf([passing, RETAKE], HIGHEST_GRADE)).toEqual(['PASS', undefined]);
+  });
+
+  it('is UNKNOWN when there is no repeat policy to say which attempt will count', () => {
+    expect(outcomeOf([passing, RETAKE], { ...ALLOWS, repeatPolicy: null })).toEqual([
+      'UNKNOWN',
+      'REPEAT_POLICY_UNDEFINED',
+    ]);
+  });
+
+  it('is UNKNOWN under MOST_RECENT when the retake term is not in the term order', () => {
+    const lateRetake = inProgressAttempt({ termCode: '2027SP' }, 2);
+
+    expect(outcomeOf([passing, lateRetake], MOST_RECENT)).toEqual([
+      'UNKNOWN',
+      'REPEAT_ORDER_UNDETERMINED',
+    ]);
+  });
+
+  it('is UNKNOWN under MOST_RECENT when two retakes are in progress at once', () => {
+    const aliasRetake = inProgressAttempt({ courseId: CALC_ALIAS_ID }, 3);
+
+    expect(outcomeOf([passing, RETAKE, aliasRetake], MOST_RECENT)).toEqual([
+      'UNKNOWN',
+      'REPEAT_ORDER_UNDETERMINED',
+    ]);
   });
 });
 

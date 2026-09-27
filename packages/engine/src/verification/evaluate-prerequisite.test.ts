@@ -144,6 +144,26 @@ describe('evaluatePrerequisite evidence', () => {
     });
   });
 
+  it('reports the required grade when a MOST_RECENT retake could replace a pass', () => {
+    const passing = completedAttempt({ courseId: CALC_ID, grade: letter('B') }, 1);
+    const retake = inProgressAttempt({ courseId: CALC_ID }, 3);
+    const policy = { repeatPolicy: 'MOST_RECENT' } as const;
+
+    expect(
+      evaluate(course(CALC_ID, letter('C')), [passing, retake], policy).decisiveLeaves,
+    ).toEqual([
+      {
+        type: 'COURSE',
+        path: [],
+        state: 'CONDITIONAL',
+        reasonCode: 'IN_PROGRESS_MIN_GRADE',
+        courseId: CALC_ID,
+        requiredGrade: { scheme: 'LETTER', value: 'C' },
+        attemptIds: [syntheticId('attempt', 1), syntheticId('attempt', 3)],
+      },
+    ]);
+  });
+
   it('reports every passing leaf of a passing ALL, with a null reason code', () => {
     const expression = all(course(PHYSICS_ID, letter('B')), any(CONSENT, course(PHYSICS_ID)));
     const policy = { lowestPassingLetterGrade: 'D' } as const;

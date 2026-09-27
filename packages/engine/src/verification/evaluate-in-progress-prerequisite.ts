@@ -22,6 +22,7 @@ const REPEAT_ORDER_UNDETERMINED: LeafOutcome = {
   state: CheckState.Unknown,
   reasonCode: ReasonCode.RepeatOrderUndetermined,
 };
+const PASS: LeafOutcome = { state: CheckState.Pass, reasonCode: null };
 const IN_PROGRESS_MIN_GRADE: LeafOutcome = {
   state: CheckState.Conditional,
   reasonCode: ReasonCode.InProgressMinGrade,
@@ -75,6 +76,49 @@ export function evaluateInProgressPrerequisite(
 }
 
 /**
+ * Evaluates in-progress retakes of a course whose counting attempt already meets the minimum.
+ * The passing grade holds only if no retake will replace it.
+ *
+ * @param counted - The group's passing counting attempt.
+ * @param inProgress - The group's in-progress attempts.
+ * @param context - The academic policy and the tenant's term order.
+ * @returns PASS under HIGHEST_GRADE, CONDITIONAL (`IN_PROGRESS_MIN_GRADE`) when a MOST_RECENT
+ *   retake will replace the passing grade, or UNKNOWN (`REPEAT_POLICY_UNDEFINED` or
+ *   `REPEAT_ORDER_UNDETERMINED`) when the engine can't tell which attempt will count.
+ */
+export function evaluateRetakeOfPassingAttempt(
+  counted: CourseAttempt,
+  inProgress: InProgressAttempts,
+  context: AttemptResolutionContext,
+): LeafOutcome {
+  const { repeatPolicy } = context.academicPolicy;
+  // SAFETY: once the retake completes, the course is repeated, and without a repeat policy no
+  // attempt counts, so the passing grade can't be relied on (planning/08 §Eligibility
+  // semantics: repeated attempts use approved source semantics).
+  if (repeatPolicy === null) {
+    return REPEAT_POLICY_UNDEFINED;
+  }
+  // SAFETY: under HIGHEST_GRADE a retake can only replace the counting grade with a higher one,
+  // so the passing grade stands on current evidence (planning/08 §Authority and result
+  // semantics: PASS is "satisfied by current evidence").
+  if (repeatPolicy === RepeatPolicy.HighestGrade) {
+    return PASS;
+  }
+  const [retake, ...otherRetakes] = inProgress;
+  // SAFETY: under MOST_RECENT a later retake replaces the passing grade whatever it earns, so
+  // the result depends on a future grade: CONDITIONAL on the retake meeting the minimum, never
+  // PASS. This holds whatever `allowsInProgressPrerequisites` says, because the student already
+  // passed and the condition only warns that the retake can undo it. Several concurrent
+  // retakes, or terms missing from the order, leave the counting attempt undetermined
+  // (planning/08 §Authority and result semantics: CONDITIONAL depends on an explicit future
+  // condition).
+  if (otherRetakes.length > 0 || !isLaterTerm(retake, counted, context.termCodesOldestFirst)) {
+    return REPEAT_ORDER_UNDETERMINED;
+  }
+  return IN_PROGRESS_MIN_GRADE;
+}
+
+/**
  * Decides whether a retake that meets the minimum will replace the failing counting attempt.
  *
  * @param retake - The in-progress attempt.
@@ -88,14 +132,30 @@ function willRetakeCount(
   context: AttemptResolutionContext,
 ): boolean {
   if (context.academicPolicy.repeatPolicy === RepeatPolicy.MostRecent) {
-    const retakeIndex = context.termCodesOldestFirst.indexOf(retake.termCode);
-    const countedIndex = context.termCodesOldestFirst.indexOf(counted.termCode);
-    // SAFETY: MOST_RECENT counts the retake only if its term is known to be later; a term
-    // missing from the order can't be placed (planning/08 §Eligibility semantics).
-    return countedIndex !== -1 && retakeIndex > countedIndex;
+    return isLaterTerm(retake, counted, context.termCodesOldestFirst);
   }
   // SAFETY: HIGHEST_GRADE ranks only grades of one scheme. A letter retake that meets the
   // minimum outranks a failing letter, but it can't be ranked against a `P` or an unranked
   // grade (planning/08 §Candidate formation: preserve grade schemes).
   return counted.grade?.scheme === GradeScheme.Letter;
+}
+
+/**
+ * Decides whether a retake's term is known to be later than the counting attempt's.
+ *
+ * @param retake - The in-progress attempt.
+ * @param counted - The counting attempt.
+ * @param termCodesOldestFirst - The tenant's term order.
+ * @returns `true` only when both terms are in the order and the retake's is later.
+ */
+function isLaterTerm(
+  retake: CourseAttempt,
+  counted: CourseAttempt,
+  termCodesOldestFirst: readonly string[],
+): boolean {
+  const retakeIndex = termCodesOldestFirst.indexOf(retake.termCode);
+  const countedIndex = termCodesOldestFirst.indexOf(counted.termCode);
+  // SAFETY: MOST_RECENT counts the retake only if its term is known to be later; a term missing
+  // from the order can't be placed (planning/08 §Eligibility semantics).
+  return countedIndex !== -1 && retakeIndex > countedIndex;
 }
