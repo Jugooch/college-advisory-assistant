@@ -8,13 +8,15 @@ import { z } from 'zod';
 
 import { CheckKindSchema } from '../enums/check-kind.enum';
 import { CheckState, CheckStateSchema } from '../enums/check-state.enum';
+import { ReasonCodeSchema } from '../enums/reason-code.enum';
 
 /** Schema for a single validation check result. */
 export const CheckResultSchema = z
   .object({
     kind: CheckKindSchema,
     state: CheckStateSchema,
-    reasonCode: z.string().min(1).optional(),
+    /** Why the check did not pass, from the closed {@link ReasonCodeSchema} registry. */
+    reasonCode: ReasonCodeSchema.optional(),
     sourceRef: z.string().min(1).optional(),
   })
   // SAFETY: anything short of PASS must say why, so the UI never shows an unexplained state.
