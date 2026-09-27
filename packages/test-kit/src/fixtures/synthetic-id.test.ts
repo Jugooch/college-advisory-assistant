@@ -15,6 +15,14 @@ describe('syntheticId', () => {
     );
   });
 
+  it('gives each S2 kind its own prefix', () => {
+    expect(syntheticId('course', 1)).toBe('50000000-0000-4000-8000-000000000001');
+    expect(syntheticId('attempt', 1)).toBe('60000000-0000-4000-8000-000000000001');
+    expect(syntheticId('audit', 1)).toBe('70000000-0000-4000-8000-000000000001');
+    expect(syntheticId('program', 1)).toBe('80000000-0000-4000-8000-000000000001');
+    expect(syntheticId('equivalencyGroup', 1)).toBe('90000000-0000-4000-8000-000000000001');
+  });
+
   it('rejects a seed that is negative, fractional, or too large for the final group', () => {
     expect(() => syntheticId('user', -1)).toThrow(RangeError);
     expect(() => syntheticId('user', 1.5)).toThrow(RangeError);
