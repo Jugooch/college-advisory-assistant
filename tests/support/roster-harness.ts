@@ -1,6 +1,8 @@
 /**
  * @file Runs the real roster import job over QA-owned in-memory repositories, so acceptance cases
- * can observe what each batch published. Written against the `@caa/db` repository interfaces.
+ * can observe what each batch published. The job is reached only through `@caa/worker/testing`.
+ * Its in-memory fakes deliberately don't reuse the worker team's fakes, so the acceptance oracle
+ * stays independent of the code under test (docs/standards/07-testing.md, Acceptance tests).
  * @module @caa/tests/support/roster-harness
  * @see docs/planning/13-test-and-evaluation-strategy.md
  * @see docs/planning/09-data-model-and-integration-contracts.md
@@ -8,11 +10,7 @@
 import type { ImportBatchRepository, QuarantinedRow, RosterRepository } from '@caa/db';
 import { type ImportBatch, ImportOperation, type RosterRow } from '@caa/domain';
 import { buildRosterBatch, type RosterBatchOptions, SYNTHETIC_TENANTS } from '@caa/test-kit';
-
-import {
-  createImportRosterJob,
-  type ImportRosterJob,
-} from '../../apps/worker/src/jobs/import-roster.job';
+import { createImportRosterJob, type ImportRosterJob } from '@caa/worker/testing';
 
 /** Source every acceptance batch comes from. */
 export const ROSTER_SOURCE_ID = 'demo-sis';

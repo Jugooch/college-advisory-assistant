@@ -1,20 +1,24 @@
 /**
  * @file Builds the real API over QA-owned in-memory repositories so acceptance cases can call it
- * through `app.inject`. Written against the `@caa/db` repository interfaces, not the API's fakes.
+ * through `app.inject`. The app is reached only through the `@caa/api/testing` entry point.
+ * Its in-memory fakes deliberately don't reuse the API team's fakes, so the acceptance oracle stays
+ * independent of the code under test (docs/standards/07-testing.md, Acceptance tests).
  * @module @caa/tests/support/api-harness
  * @see docs/planning/13-test-and-evaluation-strategy.md
  * @see docs/standards/07-testing.md
  */
-import type {
-  AdvisorAssignmentRepository,
-  StudentRepository,
-  UserIdentityRepository,
-} from '@caa/db';
+import {
+  type AdvisorAssignmentRepository,
+  AuthMode,
+  buildApp,
+  createContainer,
+  type DevTokenIdentity,
+  loadApiEnv,
+  type Repositories,
+  type StudentRepository,
+  type UserIdentityRepository,
+} from '@caa/api/testing';
 import type { AdvisorAssignment, Student, UserIdentity } from '@caa/domain';
-
-import { buildApp } from '../../apps/api/src/app';
-import { loadApiEnv } from '../../apps/api/src/config/env';
-import { createContainer } from '../../apps/api/src/container';
 
 /** Fixed instant every API acceptance case runs at. */
 export const ACCEPTANCE_NOW = new Date('2026-09-01T12:00:00.000Z');
@@ -113,7 +117,7 @@ export function buildAcceptanceApp(
   world: AcceptanceWorld,
   tokens: readonly AcceptanceToken[],
 ): AcceptanceApp {
-  const tokenMap = Object.fromEntries(
+  const tokenMap: Record<string, DevTokenIdentity> = Object.fromEntries(
     tokens.map(({ token, identity }) => [
       token,
       { issuer: identity.issuer, subject: identity.subject },
@@ -123,18 +127,17 @@ export function buildAcceptanceApp(
     NODE_ENV: 'test',
     APP_VERSION: 'acceptance',
     DATABASE_URL: 'postgres://unused.invalid/acceptance',
-    AUTH_MODE: 'dev',
+    AUTH_MODE: AuthMode.Dev,
     DEV_AUTH_TOKENS: JSON.stringify(tokenMap),
   });
-  const repositories = {
+  const repositories: Repositories = {
     userIdentities: createIdentities(world),
     students: createStudents(world),
     advisorAssignments: createAssignments(world),
   };
   return buildApp({
-    createDependencies: (logger) =>
-      createContainer({ env, repositories, logger, now: () => ACCEPTANCE_NOW }),
-    isLoggerEnabled: false,
+    dependencies: createContainer({ env, repositories, now: () => ACCEPTANCE_NOW }),
+    logger: false,
   });
 }
 
