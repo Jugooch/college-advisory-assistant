@@ -1,12 +1,12 @@
 /**
- * @file Minimal structured logger port, so services can log without depending on Fastify.
+ * @file Logger port, so services can log without Fastify types, and the app log destination.
  * @module @caa/api/shared/logger
  * @see docs/standards/09-errors-logging-and-security.md
  */
 
 /**
- * Structured logger. Fastify's `request.log` satisfies it; controllers pass that per-request
- * logger into service methods so every in-request line carries the request ID (`reqId`).
+ * Structured logger. Fastify's `request.log` satisfies it; services receive that per-request
+ * logger through `RequestContext`, so every in-request line carries the request ID (`reqId`).
  */
 export interface Logger {
   /**
@@ -16,4 +16,14 @@ export interface Logger {
    * @param message - Short, lower-case, constant message.
    */
   info(details: Record<string, unknown>, message: string): void;
+}
+
+/** Where log lines go instead of stdout. Tests pass one to capture lines. */
+export interface LogDestination {
+  /**
+   * Receives one serialized JSON log line.
+   *
+   * @param line - Newline-terminated JSON.
+   */
+  write(line: string): void;
 }

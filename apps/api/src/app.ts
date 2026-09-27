@@ -10,16 +10,7 @@ import { registerSessionRoutes } from './modules/session/session.routes';
 import { registerStudentsRoutes } from './modules/students/students.routes';
 import { registerAuthenticatedScope } from './plugins/auth.plugin';
 import { registerErrorHandler } from './plugins/error-handler.plugin';
-
-/** Where log lines go when not stdout. Tests pass one to capture lines. */
-export interface LogDestination {
-  /**
-   * Receives one serialized JSON log line.
-   *
-   * @param line - Newline-terminated JSON.
-   */
-  write(line: string): void;
-}
+import type { LogDestination } from './shared/logger';
 
 /** Options for {@link buildApp}. */
 export interface BuildAppOptions {

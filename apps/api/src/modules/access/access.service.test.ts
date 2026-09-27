@@ -33,7 +33,7 @@ const assignment = buildAdvisorAssignment({
  * Creates an access service over fresh in-memory data.
  *
  * @param overrides - Store fields to replace.
- * @returns A `canView` call bound to the recording logger, the mutable store, a settable clock,
+ * @returns A `canView` call whose context holds the recording logger, the mutable store, a settable clock,
  *   and the recording logger.
  */
 function setup(overrides: Partial<InMemoryStore> = {}) {
@@ -50,7 +50,7 @@ function setup(overrides: Partial<InMemoryStore> = {}) {
     now: () => clock.now,
   });
   const canView = (actor: Actor, studentId: StudentId) =>
-    service.canViewStudent(actor, studentId, logger);
+    service.canViewStudent(actor, studentId, { logger });
   return { canView, store, clock, logger };
 }
 
@@ -140,9 +140,11 @@ describe('AccessService.canViewStudent', () => {
       now: () => new Date(NOW),
     });
 
-    expect(await leaky.canViewStudent(adminActor, tenantBStudent.id, createRecordingLogger())).toBe(
-      false,
-    );
+    expect(
+      await leaky.canViewStudent(adminActor, tenantBStudent.id, {
+        logger: createRecordingLogger(),
+      }),
+    ).toBe(false);
   });
 
   it('logs every decision with opaque IDs only', async () => {

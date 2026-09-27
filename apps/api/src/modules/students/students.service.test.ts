@@ -15,7 +15,7 @@ import { createStudentsService } from './students.service';
 
 const actor = buildActor();
 const student = buildStudent({ userId: actor.userId });
-const logger = createRecordingLogger();
+const context = { logger: createRecordingLogger() };
 
 /**
  * Creates the service with an access decision fixed to the given value.
@@ -33,17 +33,17 @@ function setup(isAllowed: boolean, students = [student]) {
 
 describe('StudentsService.getStudent', () => {
   it('returns the student when access is allowed', async () => {
-    expect(await setup(true).getStudent(actor, student.id, logger)).toEqual(student);
+    expect(await setup(true).getStudent(actor, student.id, context)).toEqual(student);
   });
 
   it('throws NOT_FOUND when access is denied', async () => {
-    await expect(setup(false).getStudent(actor, student.id, logger)).rejects.toBeInstanceOf(
+    await expect(setup(false).getStudent(actor, student.id, context)).rejects.toBeInstanceOf(
       NotFoundError,
     );
   });
 
   it('throws NOT_FOUND when the student disappears after the access check', async () => {
-    await expect(setup(true, []).getStudent(actor, student.id, logger)).rejects.toBeInstanceOf(
+    await expect(setup(true, []).getStudent(actor, student.id, context)).rejects.toBeInstanceOf(
       NotFoundError,
     );
   });

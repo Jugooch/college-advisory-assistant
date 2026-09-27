@@ -15,8 +15,8 @@ import {
   SYNTHETIC_TENANTS,
 } from '@caa/test-kit';
 
-import type { LogDestination } from '../app';
 import type { DevTokenIdentity } from '../modules/session/session.service';
+import type { LogDestination } from '../shared/logger';
 import type { InMemoryStore } from './in-memory-repositories';
 import { buildTestApp } from './test-app';
 

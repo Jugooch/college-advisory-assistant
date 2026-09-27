@@ -11,6 +11,7 @@ import { StudentIdSchema } from '@caa/domain';
 
 import { requireActor } from '../../plugins/auth.plugin';
 import { NotFoundError } from '../../shared/domain-errors';
+import type { RequestContext } from '../../shared/request-context';
 import { sendData } from '../../shared/send-data';
 import type { StudentsService } from './students.service';
 
@@ -38,7 +39,8 @@ export function createStudentsController(service: StudentsService): StudentsCont
         throw new NotFoundError();
       }
       // NOTE: request.log is Fastify's per-request child logger; every line it writes has reqId.
-      const student = await service.getStudent(actor, params.data.studentId, request.log);
+      const context: RequestContext = { logger: request.log };
+      const student = await service.getStudent(actor, params.data.studentId, context);
       return sendData(reply, StudentResponseSchema, student);
     },
   };

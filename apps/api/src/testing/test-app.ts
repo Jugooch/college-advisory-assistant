@@ -5,10 +5,11 @@
  */
 import type { FastifyInstance } from 'fastify';
 
-import { buildApp, type LogDestination } from '../app';
+import { buildApp } from '../app';
 import { loadApiEnv } from '../config/env';
 import { createContainer } from '../container';
 import type { DevTokenIdentity } from '../modules/session/session.service';
+import type { LogDestination } from '../shared/logger';
 import { createInMemoryRepositories, type InMemoryStore } from './in-memory-repositories';
 
 /** Options for {@link buildTestApp}. */

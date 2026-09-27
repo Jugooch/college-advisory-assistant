@@ -7,7 +7,7 @@ import type { StudentRepository } from '@caa/db';
 import type { Actor, Student, StudentId } from '@caa/domain';
 
 import { NotFoundError } from '../../shared/domain-errors';
-import type { Logger } from '../../shared/logger';
+import type { RequestContext } from '../../shared/request-context';
 import type { AccessService } from '../access/access.service';
 
 /** Dependencies of the students service. */
@@ -23,11 +23,11 @@ export interface StudentsService {
    *
    * @param actor - Authenticated actor from the session.
    * @param studentId - Internal student ID.
-   * @param logger - Request-scoped logger, passed on to the access decision.
+   * @param context - Request-scoped values, passed on to the access decision.
    * @returns The student.
    * @throws {NotFoundError} When the student doesn't exist or the actor may not see it.
    */
-  getStudent(actor: Actor, studentId: StudentId, logger: Logger): Promise<Student>;
+  getStudent(actor: Actor, studentId: StudentId, context: RequestContext): Promise<Student>;
 }
 
 /**
@@ -38,9 +38,9 @@ export interface StudentsService {
  */
 export function createStudentsService(dependencies: StudentsServiceDependencies): StudentsService {
   return {
-    async getStudent(actor, studentId, logger) {
+    async getStudent(actor, studentId, context) {
       // SECURITY: denied and missing are the same NOT_FOUND, so existence isn't revealed.
-      if (!(await dependencies.access.canViewStudent(actor, studentId, logger))) {
+      if (!(await dependencies.access.canViewStudent(actor, studentId, context))) {
         throw new NotFoundError();
       }
       const student = await dependencies.students.findById(actor.tenantId, studentId);
