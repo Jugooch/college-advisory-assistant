@@ -22,7 +22,11 @@ import { buildRecordAudit, buildRecordSnapshot } from './academic-fixtures';
 import type { InMemoryStore } from './in-memory-repositories';
 import { buildTestApp } from './test-app';
 
-/** Fixed instant every HTTP test runs at. */
+/**
+ * Fixed instant every HTTP test runs at. With the tests' 24-hour maximum source age, SYN-000001's
+ * seeded record (2026-09-01 05:00Z, 7 hours earlier) and the default record fixtures
+ * (2026-08-31 12:30Z, 23.5 hours earlier) are fresh.
+ */
 export const TEST_NOW = new Date('2026-09-01T12:00:00.000Z');
 
 /** Synthetic identities, one per case the routes must handle. */

@@ -1,6 +1,6 @@
 /**
- * @file Tests for the academic summary service: access, scoping, the engine's audit verdicts,
- * missing and tied records, the out-of-scope backstop, and ID-only logging.
+ * @file Tests for the academic summary service: access, the engine's audit verdicts, and ID-only
+ * logging. Loading, ties, and the out-of-scope backstop are tested with the pinned records service.
  * @requirement FR-02
  * @requirement FR-04
  * @requirement FR-05
@@ -10,18 +10,15 @@ import { describe, expect, it } from 'vitest';
 
 import type { AuditSnapshotRepository, StudentSnapshotRepository } from '@caa/db';
 import { type AuditSnapshot, CheckState, ReasonCode, type StudentSnapshot } from '@caa/domain';
-import { buildActor, buildStudent, SYNTHETIC_TENANTS, syntheticId } from '@caa/test-kit';
+import { buildActor, buildStudent } from '@caa/test-kit';
 
-import {
-  NotFoundError,
-  SourceUnavailableError,
-  StaleSourceError,
-} from '../../shared/domain-errors';
+import { NotFoundError, SourceUnavailableError } from '../../shared/domain-errors';
 import { buildRecordAudit, buildRecordSnapshot } from '../../testing/academic-fixtures';
 import {
   createInMemoryRepositories,
   createRecordingLogger,
 } from '../../testing/in-memory-repositories';
+import { createPinnedRecordsService } from '../pinned-records/pinned-records.service';
 import { createAcademicSummaryService } from './academic-summary.service';
 
 const MAX_SKEW_MS = 3_600_000;
@@ -62,8 +59,10 @@ function read(setup: Setup = {}) {
       getStudent: () =>
         setup.isAllowed === false ? Promise.reject(new NotFoundError()) : Promise.resolve(student),
     },
-    studentSnapshots: setup.repositories?.studentSnapshots ?? store.studentSnapshots,
-    auditSnapshots: setup.repositories?.auditSnapshots ?? store.auditSnapshots,
+    pinnedRecords: createPinnedRecordsService({
+      studentSnapshots: setup.repositories?.studentSnapshots ?? store.studentSnapshots,
+      auditSnapshots: setup.repositories?.auditSnapshots ?? store.auditSnapshots,
+    }),
     maxSkewMs: MAX_SKEW_MS,
   });
   return { result: service.getAcademicSummary(actor, student.id, { logger }), logger };
@@ -139,34 +138,6 @@ describe('AcademicSummaryService.getAcademicSummary', () => {
     });
   });
 
-  it('reads records for the session tenant and the path student only', async () => {
-    const calls: unknown[] = [];
-    const { result } = read({
-      repositories: {
-        studentSnapshots: {
-          findLatest: (...args) => {
-            calls.push(['snapshot', ...args]);
-            return Promise.resolve({ status: 'FOUND', revision: { snapshot, attempts: [] } });
-          },
-          findById: () => Promise.resolve(null),
-        },
-        auditSnapshots: {
-          findLatest: (...args) => {
-            calls.push(['audit', ...args]);
-            return Promise.resolve(null);
-          },
-        },
-      },
-    });
-
-    await result;
-
-    expect(calls).toEqual([
-      ['snapshot', actor.tenantId, student.id],
-      ['audit', actor.tenantId, student.id],
-    ]);
-  });
-
   it('throws NOT_FOUND without reading any record when access is denied', async () => {
     const reads: string[] = [];
     const { result } = read({
@@ -186,90 +157,10 @@ describe('AcademicSummaryService.getAcademicSummary', () => {
     expect(reads).toEqual([]);
   });
 
-  it('throws SOURCE_UNAVAILABLE and logs the reason when the student has no snapshot', async () => {
-    const { result, logger } = read({ studentSnapshots: [] });
-
-    await expect(result).rejects.toBeInstanceOf(SourceUnavailableError);
-    expect(logger.entries).toEqual([
-      {
-        level: 'info',
-        message: 'academic summary unavailable',
-        details: {
-          actorUserId: actor.userId,
-          tenantId: actor.tenantId,
-          studentId: student.id,
-          reason: 'NO_STUDENT_SNAPSHOT',
-        },
-      },
-    ]);
-  });
-
-  it('throws STALE_SOURCE, never a pick, when two snapshots tie for latest', async () => {
-    const { result, logger } = read({
-      studentSnapshots: [snapshot, buildRecordSnapshot({}, 2)],
-    });
-
-    await expect(result).rejects.toBeInstanceOf(StaleSourceError);
-    expect(logger.entries[0]?.details).toMatchObject({ reason: 'STUDENT_SNAPSHOT_AMBIGUOUS' });
-  });
-
-  it('throws STALE_SOURCE, never a pick or "no audit", when two audits tie for latest', async () => {
-    const { result, logger } = read({ audits: [audit, buildRecordAudit({}, 2)] });
-
-    await expect(result).rejects.toBeInstanceOf(StaleSourceError);
-    expect(logger.entries[0]?.details).toMatchObject({ reason: 'AUDIT_AMBIGUOUS' });
-  });
-});
-
-describe('AcademicSummaryService.getAcademicSummary out-of-scope backstop', () => {
-  const foreignAudits: readonly [string, AuditSnapshot][] = [
-    ['another tenant', buildRecordAudit({ tenantId: SYNTHETIC_TENANTS.b.id }, 9)],
-    ['another student', buildRecordAudit({ studentId: syntheticId('student', 2) }, 9)],
-  ];
-
-  it.each(foreignAudits)(
-    'returns NOT_FOUND and logs a security event for an audit of %s',
-    async (_case, foreign) => {
-      const { result, logger } = read({
-        repositories: {
-          auditSnapshots: {
-            findLatest: () => Promise.resolve({ status: 'FOUND', audit: foreign }),
-          },
-        },
-      });
-
-      await expect(result).rejects.toBeInstanceOf(NotFoundError);
-      expect(logger.entries).toEqual([
-        {
-          level: 'warn',
-          message: 'academic summary record out of scope',
-          details: {
-            actorUserId: actor.userId,
-            tenantId: actor.tenantId,
-            studentId: student.id,
-            recordId: foreign.id,
-          },
-        },
-      ]);
-    },
-  );
-
-  it('returns NOT_FOUND and logs a security event for a snapshot of another tenant', async () => {
-    const foreign = buildRecordSnapshot({ tenantId: SYNTHETIC_TENANTS.b.id }, 9);
-    const { result, logger } = read({
-      repositories: {
-        studentSnapshots: {
-          findLatest: () =>
-            Promise.resolve({ status: 'FOUND', revision: { snapshot: foreign, attempts: [] } }),
-          findById: () => Promise.resolve(null),
-        },
-      },
-    });
-
-    await expect(result).rejects.toBeInstanceOf(NotFoundError);
-    expect(logger.entries.map((entry) => [entry.level, entry.details.recordId])).toEqual([
-      ['warn', foreign.id],
-    ]);
+  it('passes on the pinned records refusal when the student has no snapshot', async () => {
+    await expect(read({ studentSnapshots: [] }).result).rejects.toBeInstanceOf(
+      SourceUnavailableError,
+    );
   });
 });
 

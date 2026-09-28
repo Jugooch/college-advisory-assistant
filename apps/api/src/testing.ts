@@ -19,12 +19,16 @@ export type { DevTokenIdentity } from './modules/session/session.service';
 export type { LogDestination, Logger } from './shared/logger';
 export type { RequestContext } from './shared/request-context';
 export type {
+  AcademicPolicyRepository,
   AdvisorAssignmentRepository,
   AuditSnapshotRepository,
+  CourseCatalogRepository,
   LatestAuditSnapshot,
   LatestStudentSnapshot,
+  PrerequisiteRuleRepository,
   StudentRepository,
   StudentSnapshotRepository,
   StudentSnapshotRevision,
+  TermRepository,
   UserIdentityRepository,
 } from '@caa/db';

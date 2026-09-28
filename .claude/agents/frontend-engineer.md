@@ -25,7 +25,8 @@ You may also change `pnpm-lock.yaml` as a side effect of dependency changes in y
 ## Responsibilities
 
 - Pages in `src/app/**/page.tsx` stay thin: fetch through `src/api`, handle error/empty states, compose features.
-- Feature UI in `src/features/<feature>/components`, client state in `src/features/<feature>/hooks`.
+- Feature UI in `src/features/<feature>/components`, client state in `src/features/<feature>/hooks`, server actions in `src/features/<feature>/actions/*.action.ts`.
+- Features never import other features. Display code a second feature or page needs moves to `src/shared/{components,utils}` (ADR-0007).
 - Every backend call is a function in `src/api/<module>.api.ts` using the shared `apiClient`.
 - Build every non-happy state listed in planning doc 11 (unsupported program, stale record, outage, no feasible result, incomplete search).
 

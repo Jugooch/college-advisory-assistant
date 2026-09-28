@@ -58,6 +58,7 @@ describe('createRuntimeDependencies', () => {
       'session',
       'students',
       'academicSummary',
+      'courseChecks',
     ]);
   });
 });
