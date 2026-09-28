@@ -87,7 +87,7 @@ Every PR is reviewed by specialist reviewer agents (definitions in `.claude/agen
 | academic-safety-reviewer | Changes to domain, contract, engine, db, api, worker, assistant, or tests | UNKNOWN/CONDITIONAL semantics, AI claim boundary, freshness, determinism                            |
 | accessibility-reviewer   | Changes to `apps/web`                                                     | WCAG 2.2 AA, plan-vs-registration clarity                                                           |
 
-Verdicts: `APPROVE` or `REQUEST_CHANGES`. Any BLOCKER or MAJOR finding means REQUEST_CHANGES. The **AI review gate** check passes only when every required reviewer has approved the PR's current head commit. A new push requires fresh reviews.
+Verdicts: `APPROVE` or `REQUEST_CHANGES`. Any BLOCKER or MAJOR finding means REQUEST_CHANGES. The **AI review gate** check passes only when every required reviewer's latest verdict is `APPROVE`, either on the PR's current head commit or on an earlier commit whose PR change is identical (same `git patch-id --verbatim` of the diff from its merge-base with the base branch). Updating a branch from `main` therefore carries approvals, and only reviewers without a current or carried approval run again. Any real edit, including a whitespace-only edit or one inside a merge commit, requires fresh reviews, as does a force-push that removes the approved commit (ADR-0006).
 
 The reviewers run automatically in GitHub Actions (`.github/workflows/ai-review.yml`) and can also be run locally with `/review-pr <number>`.
 
