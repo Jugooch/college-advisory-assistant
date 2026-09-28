@@ -1,0 +1,55 @@
+/**
+ * @file The rule families the golden corpus is organized by.
+ * @module @caa/test-kit/golden/golden-rule-family
+ * @see docs/planning/13-test-and-evaluation-strategy.md
+ */
+import { z } from 'zod';
+
+/**
+ * Rule family of a golden case, so coverage can be counted per family (planning/13 §Proposed
+ * student-pilot release gates: every supported rule family has positive, negative, boundary, and
+ * unknown cases).
+ *
+ * - `MINIMUM_GRADE`: a letter grade against a letter minimum.
+ * - `PASS_FAIL_EQUIVALENCE`: a `P` grade against a letter minimum.
+ * - `PASSING_CUTOFF`: a rule with no minimum, decided by the policy's lowest passing letter.
+ * - `UNRANKED_GRADE`: a grade the policy's order can't rank, or a scheme it can't compare.
+ * - `IN_PROGRESS`: a prerequisite that is currently in progress.
+ * - `PENDING_TRANSFER`: transfer credit that is still under evaluation.
+ * - `INCOMPLETE_ATTEMPT`: an attempt with a deferred grade.
+ * - `REPEAT`: a repeated course under a repeat policy.
+ * - `EQUIVALENCY`: courses that share an equivalency group.
+ * - `AND_OR_EXPRESSION`: nested `ALL`/`ANY` prerequisite expressions.
+ * - `UNSUPPORTED_RULE`: source rule text the app can't represent.
+ * - `CATALOG_GAP`: a required or attempted course the catalog doesn't contain.
+ * - `APPLICABILITY`: whether the audit lists a course for an outstanding requirement.
+ * - `AUDIT_STALE`: an audit older than the student record beyond the allowed skew.
+ * - `ALLOCATION`: candidate courses competing for audit requirements.
+ * - `CREDIT_BOUNDS`: a candidate set's credit total against the load bounds.
+ * - `VARIABLE_CREDIT`: a variable-credit course inside a candidate set.
+ */
+export const GoldenRuleFamily = {
+  MinimumGrade: 'MINIMUM_GRADE',
+  PassFailEquivalence: 'PASS_FAIL_EQUIVALENCE',
+  PassingCutoff: 'PASSING_CUTOFF',
+  UnrankedGrade: 'UNRANKED_GRADE',
+  InProgress: 'IN_PROGRESS',
+  PendingTransfer: 'PENDING_TRANSFER',
+  IncompleteAttempt: 'INCOMPLETE_ATTEMPT',
+  Repeat: 'REPEAT',
+  Equivalency: 'EQUIVALENCY',
+  AndOrExpression: 'AND_OR_EXPRESSION',
+  UnsupportedRule: 'UNSUPPORTED_RULE',
+  CatalogGap: 'CATALOG_GAP',
+  Applicability: 'APPLICABILITY',
+  AuditStale: 'AUDIT_STALE',
+  Allocation: 'ALLOCATION',
+  CreditBounds: 'CREDIT_BOUNDS',
+  VariableCredit: 'VARIABLE_CREDIT',
+} as const;
+
+/** Union of every {@link GoldenRuleFamily} value. */
+export type GoldenRuleFamily = (typeof GoldenRuleFamily)[keyof typeof GoldenRuleFamily];
+
+/** Runtime schema for {@link GoldenRuleFamily}. */
+export const GoldenRuleFamilySchema = z.enum(GoldenRuleFamily);
