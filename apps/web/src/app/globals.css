@@ -4,7 +4,9 @@
   --color-background: #ffffff;
   --color-positive: #1b5e20;
   --color-negative: #b71c1c;
+  --color-caution: #8a4b00;
   --color-neutral: #37474f;
+  --color-focus: #1a4fa0;
   --font-body: system-ui, sans-serif;
 }
 
@@ -12,8 +14,40 @@ body {
   margin: 0;
   padding: 1rem;
   font-family: var(--font-body);
+  line-height: 1.5;
   color: var(--color-text);
   background: var(--color-background);
+}
+
+/* Visible focus for every keyboard-focusable element (WCAG 2.2 AA 2.4.7, 2.4.11). */
+:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.skip-link {
+  position: absolute;
+  left: -10000px;
+}
+
+.skip-link:focus {
+  position: static;
+}
+
+.site-header,
+.nav-list {
+  margin-bottom: 1rem;
+}
+
+.nav-list {
+  display: flex;
+  gap: 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.nav-list [aria-current='page'] {
+  font-weight: bold;
 }
 
 .status-badge {
@@ -31,6 +65,67 @@ body {
   color: var(--color-negative);
 }
 
+/* Caution also changes the border style, so it differs from other tones without color. */
+.status-badge--caution {
+  color: var(--color-caution);
+  border-style: dashed;
+}
+
 .status-badge--neutral {
   color: var(--color-neutral);
+}
+
+.notice {
+  margin: 1rem 0;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--color-neutral);
+  border-left-width: 0.5rem;
+}
+
+.notice--caution {
+  border-color: var(--color-caution);
+}
+
+.notice--problem {
+  border-color: var(--color-negative);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem 1rem;
+}
+
+.facts dd {
+  margin: 0;
+}
+
+.requirement {
+  margin: 0.75rem 0;
+}
+
+.requirement__label {
+  font-weight: bold;
+}
+
+.field-error {
+  color: var(--color-negative);
+}
+
+table {
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--color-neutral);
+  text-align: left;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto;
+    transition: none;
+  }
 }
