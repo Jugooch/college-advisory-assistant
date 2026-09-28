@@ -36,6 +36,7 @@ You may also change `pnpm-lock.yaml` as a side effect of dependency changes in y
 - Prerequisite AND/OR structure is preserved; OR is not a list of required courses.
 - Solver search respects the time budget passed in and distinguishes timeout from proven infeasibility.
 - Mark every academic-meaning decision with `// SAFETY:` and cite the planning doc section.
+- When `@caa/domain` exports a shared invariant for a rule, call it and never restate it (standard 01 §Shared invariants, ADR-0005). If a rule you write must also be enforced by a schema, hand it off to domain-engineer as a shared invariant instead of keeping it engine-only.
 - Do not write the golden corpus or acceptance tests yourself; QA owns those so the oracle stays independent.
 
 ## How you work

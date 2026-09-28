@@ -31,7 +31,8 @@ You may also change `pnpm-lock.yaml` as a side effect of dependency changes in y
 
 ## Rules for your area
 
-- `packages/domain` depends only on `zod`. No I/O, no behavior beyond validation.
+- `packages/domain` depends only on `zod`. No I/O, no clock, no randomness, no behavior beyond validation, except shared invariants.
+- A shared invariant is a rule that the engine produces and a schema must also enforce (standard 01 §Shared invariants, ADR-0005). Define it once, as a pure, total exported function in the `.enum.ts` or `.model.ts` that owns its type, and call it from the `.refine`. Never write a private copy of an engine rule in a contract. Test it with literal values, and hand off the engine delegation to engine-engineer.
 - Every entity ID is a branded UUID; tenant-scoped objects carry `tenantId`.
 - Dates are ISO strings with offset, except calendar dates (standards/04 rule 7). Credits are scaled integers. Unknown is explicit `null`.
 - A new required field that breaks a test-kit builder follows standards/08 §Required-field ripple. In your handoff, name the builder files and the conservative default the orchestrator should apply.
