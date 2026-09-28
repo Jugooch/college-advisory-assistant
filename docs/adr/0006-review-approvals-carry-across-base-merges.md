@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-09-28
 - **Deciders:** Product owner, tech lead
-- **Related:** amends ADR-0002, standard 08 §The review panel, issues #129, #131, PR #130
+- **Related:** amends ADR-0002, standard 08 §The review panel, issues #129, #131, #137, PR #130
 
 ## Context
 
@@ -24,16 +24,31 @@ The product owner chose option 1.
 Option 1. A required reviewer passes the gate when both of these hold:
 
 - Their **latest trusted verdict** is `APPROVE`. A later `REQUEST_CHANGES` overrides an earlier approval, and markers from untrusted authors are ignored.
-- That verdict is on the current head commit, or on an earlier commit X whose **PR change is byte-identical** to the head's. The PR change of a commit `sha` is `git diff $(git merge-base origin/<base> <sha>) <sha>`. Two changes are identical when their `git patch-id --verbatim` values are equal.
+- That verdict is on the current head commit, or on an earlier commit X whose **PR files are identical** to the head H's. The PR files of a commit `sha` are compared in two parts, and both must match between X and H:
+  1. **The touched-path set.** The paths the PR touches, each with its status letter, from `git diff --no-renames --name-status $(git merge-base origin/<base> <sha>) <sha>`. With `--no-renames`, a rename is a delete plus an add.
+  2. **Each path's tree entry.** For every one of those paths, the `git ls-tree` entry at `sha`: mode, type and blob, or absent in both.
 
-`--verbatim` is required, not `--stable` on its own. Without `--verbatim`, `git patch-id` drops whitespace before hashing, so `a = ' '` and `a = ''` hash the same, and so do two YAML files whose only difference is a key's indentation level. The #130 reviewers showed that a whitespace-only edit like that could change behavior and still carry an approval. `--verbatim` keeps whitespace and still ignores line numbers, so a clean merge from `main` that only shifts lines still carries.
+Every file outside the touched-path set comes from the base branch, which is already reviewed. Every file inside it is byte-identical to what the reviewers approved, including whitespace, mode and position. So a merge from `main` that leaves the PR's files alone carries approvals, and any edit, rename, mode change, moved block or whitespace change to a PR file does not. `scripts/lib/review-carryover.mjs` (`computeChangeFingerprint`) implements the rule.
 
-The rule fails closed. A fresh review is required when:
+### Why not `git patch-id`
 
-- the approved commit can't be resolved, for example after a force-push removed it;
-- either patch-id can't be computed, or the change is empty;
-- the base ref is missing;
-- the two patch-ids differ in any way, including an edit hidden inside a merge commit.
+The first version compared `git patch-id` values of the PR diff. Two review rounds on #130 rejected it:
+
+- `--stable` drops whitespace before hashing, so `a = ' '` and `a = ''` hash the same, and so do two YAML files that differ only in a key's indentation. A behavior-changing whitespace edit could carry an approval.
+- `--verbatim` fixes whitespace, but a patch-id still can't see renames, mode changes or moved hunks, so those edits could also carry.
+
+A patch-id can't be made airtight, so the decision on #130 replaced it with file identity.
+
+### Fail-closed cases
+
+A fresh review is required when:
+
+- the base branch changed a file the PR touches, even if the PR's own diff is unchanged;
+- the approved commit or the head can't be resolved, for example after a force-push removed it, or the base ref is missing;
+- the PR touches more than 500 paths;
+- the PR change is empty;
+- the reviewer's latest trusted verdict is anything other than `APPROVE`;
+- the path set, a status letter, or any tree entry differs, including an edit hidden inside a merge commit.
 
 Reviewer selection uses the same rule, so only reviewers without a current or carried approval run again.
 
@@ -41,9 +56,10 @@ Build, Tests, Quality, Ownership and PR title are unchanged: they still run on e
 
 ## Consequences
 
-- Updating a branch from `main` no longer costs a full review round. ADR-0002's consequence "reviews cost model usage on every push" now applies to pushes that change the PR's own diff.
-- A false carry is limited to a head whose PR change is byte-identical to one a reviewer approved. The approval doesn't cover how that change interacts with new code on `main`; the non-review checks above still run on the updated head and catch build, test and quality breaks.
+- Updating a branch from `main` no longer costs a full review round. ADR-0002's consequence "reviews cost model usage on every push" now applies to pushes that change the PR's own files.
+- A false carry is limited to a head whose PR files are byte-identical to the ones a reviewer approved. The approval doesn't cover how that change interacts with new code on `main`; the non-review checks above still run on the updated head and catch build, test and quality breaks.
 - Standard 08 §The review panel states the rule.
+- **Verified live.** On 2026-09-28, PRs #136 and #142 were each updated from `main` after approval. Both carried every approval, and the review job was skipped.
 - **Residual risk: the gate runs from the PR's branch.** The workflow runs under `pull_request`, so the gate and selection scripts come from the PR's own branch, and a PR could in principle change them to pass itself. Two controls mitigate this:
   - Only `devops-engineer` may edit `scripts/**` and `.github/**`. The ownership hook and the required CI Ownership check both enforce it.
   - Every change to those paths goes through the review panel, and the architecture and security reviewers always run.
