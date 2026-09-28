@@ -20,6 +20,15 @@ import {
 const TRUSTED = new Set(['github-actions[bot]', 'owner']);
 const UNKNOWN_SHA = 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeef';
 const LINES = Array.from({ length: 20 }, (_, index) => `line ${index + 1}`);
+/**
+ * Builds the PR's workflow file; indenting `permissions` under `env` changes its meaning.
+ *
+ * @param {string} indent - Leading spaces before `permissions:`.
+ * @returns {string} YAML text.
+ */
+function workflow(indent) {
+  return `jobs:\n  build:\n    env:\n      DEBUG: 'false'\n${indent}permissions: read-all\n`;
+}
 
 let dir = '';
 /** Commits in the scenario repository, by role. */
@@ -85,7 +94,14 @@ beforeAll(() => {
 
   git('switch', '-q', '-c', 'feature');
   const edited = LINES.map((line, index) => (index === 9 ? 'line 10 changed by the PR' : line));
-  shas.approved = commit({ 'a.txt': `${edited.join('\n')}\n` }, 'pr change');
+  shas.approved = commit(
+    {
+      'a.txt': `${edited.join('\n')}\n`,
+      'sep.mjs': "export const SEP = ' ';\n",
+      'ci.yml': workflow('    '),
+    },
+    'pr change',
+  );
 
   git('switch', '-q', 'main');
   // NOTE: prepending shifts the PR hunk's line numbers without touching its context.
@@ -102,6 +118,12 @@ beforeAll(() => {
 
   git('switch', '-q', '-c', 'edited', shas.cleanMerge);
   shas.edited = commit({ 'a.txt': `header\n${edited.join('\n')}\nline 21 by the PR\n` }, 'edit');
+
+  git('switch', '-q', '-c', 'string-whitespace', shas.cleanMerge);
+  shas.stringWhitespace = commit({ 'sep.mjs': "export const SEP = '';\n" }, 'drop the space');
+
+  git('switch', '-q', '-c', 'yaml-indent', shas.cleanMerge);
+  shas.yamlIndent = commit({ 'ci.yml': workflow('      ') }, 'indent permissions');
 });
 
 afterAll(() => {
@@ -132,6 +154,15 @@ describe('computePatchId', () => {
     const approved = computePatchId(shas.approved, 'main', dir);
 
     expect(computePatchId(shas.edited, 'main', dir)).not.toBe(approved);
+  });
+
+  it.each([
+    ['inside a string literal', 'stringWhitespace'],
+    ['in YAML indentation', 'yamlIndent'],
+  ])('differs when the PR changes only whitespace %s', (_, head) => {
+    const approved = computePatchId(shas.approved, 'main', dir);
+
+    expect(computePatchId(shas[head], 'main', dir)).not.toBe(approved);
   });
 
   it('returns null for a commit that is not in the repository', () => {
@@ -229,6 +260,8 @@ describe('resolveReviewStatus', () => {
   it.each([
     ['a merge commit with an extra change', 'evilMerge'],
     ['an edit to the PR files', 'edited'],
+    ['a whitespace-only edit inside a string literal', 'stringWhitespace'],
+    ['a whitespace-only YAML indentation change', 'yamlIndent'],
   ])('does not carry an APPROVE to %s', (_, head) => {
     const row = resolveOne(
       [verdictComment('security-reviewer', shas.approved, 'APPROVE')],

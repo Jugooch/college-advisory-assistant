@@ -14,12 +14,9 @@
 import { execFileSync } from 'node:child_process';
 
 import {
-  fetchPrComments,
   formatStatus,
-  latestVerdicts,
-  resolveReviewStatus,
+  resolvePrReviewStatus,
   reviewersNeedingReview,
-  trustedAuthors,
 } from './lib/review-carryover.mjs';
 import { selectReviewers } from './lib/review-selection.mjs';
 
@@ -33,14 +30,16 @@ const files = execFileSync(
   .split('\n')
   .filter(Boolean);
 const required = selectReviewers(files);
-const verdicts = latestVerdicts(
-  fetchPrComments(GITHUB_REPOSITORY, PR_NUMBER),
-  trustedAuthors(process.env),
+const rows = resolvePrReviewStatus(
+  required,
+  {
+    repository: GITHUB_REPOSITORY,
+    prNumber: PR_NUMBER,
+    headSha: HEAD_SHA,
+    base: `origin/${BASE_REF}`,
+  },
+  process.env,
 );
-const rows = resolveReviewStatus(required, verdicts, {
-  headSha: HEAD_SHA,
-  base: `origin/${BASE_REF}`,
-});
 
 console.log(`Required reviewers for ${HEAD_SHA.slice(0, 7)}:`);
 rows.forEach((row) => console.log(formatStatus(row)));

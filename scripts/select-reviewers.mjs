@@ -12,12 +12,9 @@ import { execFileSync } from 'node:child_process';
 import { appendFileSync } from 'node:fs';
 
 import {
-  fetchPrComments,
   formatStatus,
-  latestVerdicts,
-  resolveReviewStatus,
+  resolvePrReviewStatus,
   reviewersNeedingReview,
-  trustedAuthors,
 } from './lib/review-carryover.mjs';
 import { selectReviewers } from './lib/review-selection.mjs';
 
@@ -29,14 +26,16 @@ const diff = execFileSync('git', ['diff', '--name-only', `origin/${baseRef}...HE
 let reviewers = selectReviewers(diff.split('\n').filter(Boolean));
 
 if (PR_NUMBER && HEAD_SHA && GITHUB_REPOSITORY) {
-  const verdicts = latestVerdicts(
-    fetchPrComments(GITHUB_REPOSITORY, PR_NUMBER),
-    trustedAuthors(process.env),
+  const rows = resolvePrReviewStatus(
+    reviewers,
+    {
+      repository: GITHUB_REPOSITORY,
+      prNumber: PR_NUMBER,
+      headSha: HEAD_SHA,
+      base: `origin/${baseRef}`,
+    },
+    process.env,
   );
-  const rows = resolveReviewStatus(reviewers, verdicts, {
-    headSha: HEAD_SHA,
-    base: `origin/${baseRef}`,
-  });
   console.log(`Required reviewers for ${HEAD_SHA.slice(0, 7)}:`);
   rows.forEach((row) => console.log(formatStatus(row)));
   reviewers = reviewersNeedingReview(rows);

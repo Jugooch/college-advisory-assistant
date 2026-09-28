@@ -2,9 +2,10 @@
  * @file Decides which AI review verdicts still count for a PR's head commit.
  *
  * An APPROVE for commit X also counts for head H when the PR's own change is identical: the
- * `git patch-id --stable` of `git diff $(git merge-base <base> X) X` equals the same for H.
- * A merge from the base branch keeps the patch-id, so approvals carry; any real edit, including
- * one hidden in a merge commit, changes it. A commit that can't be resolved never carries.
+ * `git patch-id --verbatim` of `git diff $(git merge-base <base> X) X` equals the same for H.
+ * The patch-id ignores line numbers but keeps whitespace, so a merge from the base branch keeps
+ * it and approvals carry; any edit, including a whitespace-only one or one hidden in a merge
+ * commit, changes it. A commit that can't be resolved never carries.
  * Only node built-ins are imported: the review workflow runs these scripts without installing.
  * @module scripts/lib/review-carryover
  * @see docs/standards/08-git-and-pull-requests.md
@@ -42,7 +43,7 @@ function git(args, cwd, input) {
  * @param {string} sha - Commit to fingerprint (full or abbreviated hex).
  * @param {string} base - Base branch ref, for example `origin/main`.
  * @param {string} [cwd] - Repository directory.
- * @returns {string | null} The stable patch-id, or null when the commit can't be resolved or
+ * @returns {string | null} The whitespace-sensitive patch-id, or null when the commit can't be resolved or
  *   the change is empty.
  */
 export function computePatchId(sha, base, cwd) {
@@ -54,7 +55,9 @@ export function computePatchId(sha, base, cwd) {
   try {
     const mergeBase = git(['merge-base', base, `${sha}^{commit}`], cwd).trim();
     const diff = git(['diff', '--no-color', '--no-ext-diff', '--binary', mergeBase, sha], cwd);
-    const patchId = git(['patch-id', '--stable'], cwd, diff).trim().split(' ')[0];
+    // SECURITY: --verbatim keeps whitespace; the default and --stable strip it, which would let
+    // an indentation or string-literal edit carry an approval it never received.
+    const patchId = git(['patch-id', '--verbatim'], cwd, diff).trim().split(' ')[0];
     return patchId || null;
   } catch {
     return null;
@@ -157,7 +160,7 @@ export function formatStatus(row) {
  * @param {string} prNumber - Pull request number.
  * @returns {{ body?: string, user: { login: string } }[]} The PR's issue comments.
  */
-export function fetchPrComments(repository, prNumber) {
+function fetchPrComments(repository, prNumber) {
   const output = execFileSync(
     'gh',
     ['api', `repos/${repository}/issues/${prNumber}/comments`, '--paginate', '--jq', '.[] | @json'],
@@ -167,4 +170,19 @@ export function fetchPrComments(repository, prNumber) {
     .split('\n')
     .filter(Boolean)
     .map((line) => JSON.parse(line));
+}
+
+/**
+ * Resolves the required reviewers' status for a PR head from its trusted verdict comments.
+ * The review workflow's `select` and `gate` jobs both call this, so they apply one rule.
+ *
+ * @param {string[]} required - Reviewer agents required for the head's changed files.
+ * @param {{ repository: string, prNumber: string, headSha: string, base: string }} pr - The PR,
+ *   its head commit, and the base branch ref (for example `origin/main`).
+ * @param {Record<string, string | undefined>} env - Process environment, for trusted authors.
+ * @returns {{ reviewer: string, state: string, sha: string | null }[]} One row per reviewer.
+ */
+export function resolvePrReviewStatus(required, pr, env) {
+  const verdicts = latestVerdicts(fetchPrComments(pr.repository, pr.prNumber), trustedAuthors(env));
+  return resolveReviewStatus(required, verdicts, { headSha: pr.headSha, base: pr.base });
 }
