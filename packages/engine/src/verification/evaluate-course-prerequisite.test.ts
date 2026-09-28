@@ -205,8 +205,27 @@ describe('evaluatePrerequisite with a pending transfer', () => {
     );
   });
 
-  it('is CONDITIONAL when in-progress work is permitted alongside a pending transfer', () => {
-    expect(checkOf([retake, pending], { allowsInProgressPrerequisites: true })).toEqual(
+  it('is UNKNOWN, not CONDITIONAL, beside a pending transfer with no repeat policy', () => {
+    const policy = { allowsInProgressPrerequisites: true, repeatPolicy: null };
+
+    expect(checkOf([retake, pending], policy)).toEqual(
+      expected('UNKNOWN', 'REPEAT_POLICY_UNDEFINED'),
+    );
+  });
+
+  it('is UNKNOWN beside a pending transfer of an equivalent with no repeat policy', () => {
+    const aliasPending = pendingTransferAttempt({ courseId: CALC_ALIAS_ID }, 5);
+    const policy = { allowsInProgressPrerequisites: true, repeatPolicy: null };
+
+    expect(checkOf([retake, aliasPending], policy)).toEqual(
+      expected('UNKNOWN', 'REPEAT_POLICY_UNDEFINED'),
+    );
+  });
+
+  it('is CONDITIONAL beside a pending transfer when a repeat policy is set', () => {
+    const policy = { allowsInProgressPrerequisites: true, repeatPolicy: 'MOST_RECENT' } as const;
+
+    expect(checkOf([retake, pending], policy)).toEqual(
       expected('CONDITIONAL', 'IN_PROGRESS_MIN_GRADE'),
     );
   });

@@ -169,7 +169,7 @@ describe('evaluatePrerequisite evidence', () => {
   it('reports the required grade when a MOST_RECENT retake could replace a pass', () => {
     const passing = completedAttempt({ courseId: CALC_ID, grade: letter('B') }, 1);
     const retake = inProgressAttempt({ courseId: CALC_ID }, 3);
-    const policy = { repeatPolicy: 'MOST_RECENT' } as const;
+    const policy = { repeatPolicy: 'MOST_RECENT', allowsInProgressPrerequisites: true } as const;
 
     expect(leavesOf(course(CALC_ID, letter('C')), [passing, retake], policy)).toEqual([
       {

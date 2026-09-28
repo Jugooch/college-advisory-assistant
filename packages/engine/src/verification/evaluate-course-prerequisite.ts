@@ -178,7 +178,12 @@ function evaluateProspects(current: LeafOutcome, inputs: LeafInputs): LeafOutcom
     const inProgress: InProgressAttempts = [retake, ...otherRetakes];
     outcomes.push(
       evaluateInProgressPrerequisite(
-        { counted, inProgress, minimumGrade: leaf.minimumGrade },
+        {
+          counted,
+          inProgress,
+          minimumGrade: leaf.minimumGrade,
+          hasPendingTransfer: group.pendingTransfer.length > 0,
+        },
         context,
       ),
     );
