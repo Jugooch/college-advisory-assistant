@@ -82,10 +82,25 @@ export const SetCheckResultsSchema = z
   })
   .readonly();
 
-/** The input revisions every result was computed from, so a result can be reproduced. */
+/**
+ * The input revisions every result was computed from, so a result can be reproduced, and the
+ * source times they describe. Every result is valid only as of `studentRecordEffectiveAt` and
+ * `auditRecordEffectiveAt`: a PASS may be shown only as "passed as of" those times, never as
+ * current (planning/08 §Authority and result semantics).
+ */
 export const PinnedInputsSchema = z
   .object({
     studentSnapshotId: StudentSnapshotIdSchema,
+    /**
+     * The point in time the pinned student record describes: the snapshot's
+     * `sourceEffectiveAt`. ISO 8601 with offset.
+     */
+    studentRecordEffectiveAt: z.iso.datetime({ offset: true }),
+    /**
+     * The point in time of the student record the pinned audit was run against: the audit's
+     * `studentRecordEffectiveAt`. ISO 8601 with offset.
+     */
+    auditRecordEffectiveAt: z.iso.datetime({ offset: true }),
     /** Audit system of the pinned audit, for example `demo-audit`. */
     auditSource: z.string().min(1),
     /** The audit system's run or revision ID, for example `audit_demo_r7`. */
