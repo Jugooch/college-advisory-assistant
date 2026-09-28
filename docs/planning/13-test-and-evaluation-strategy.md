@@ -29,6 +29,12 @@ Start with at least 200 deliberately distinct synthetic cases across the support
 
 Each case records source versions, complete input, expected per-check state, expected evidence, allowed alternatives, prohibited claims, rationale, reviewer, and adjudication date. Keep a frozen holdout set separate from development fixtures. De-identified historical cases require institutional authorization and a re-identification risk review; synthetic cases are the default.
 
+**Status (sprint S2, v0):**
+- The corpus holds 69 development cases across 17 rule families, plus 8 holdout cases.
+- The format, layout, finding workflow and holdout rules are in `docs/standards/07-testing.md` §Golden corpus.
+- Every case is currently marked `pending-academic-review`. The 200-case gate and academic sign-off remain open for G1.
+- v0 surfaced two engine defects (#88, #89), both fixed before the sprint closed.
+
 ## Representative acceptance cases
 
 | Case | Setup | Expected result |

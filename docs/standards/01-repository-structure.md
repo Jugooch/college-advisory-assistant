@@ -82,6 +82,12 @@ apps/worker/src/
 
 tests/acceptance/acNN-<description>.test.ts
 tests/support/*.ts                  acceptance harnesses (import apps only via @caa/<app>/testing)
+tests/golden/*.test.ts              golden corpus runners (development set, holdout, isolation)
+tests/golden/holdout/               frozen holdout cases; importable only from tests/golden/
+
+packages/test-kit/src/golden/
+  golden-case.schema.ts             the golden case format (Zod)
+  cases/<rule-family>.cases.ts      development cases, one file per rule family
 ```
 
 ## File naming
@@ -99,6 +105,8 @@ tests/support/*.ts                  acceptance harnesses (import apps only via @
 | `.api.ts`                                       | Frontend functions that call one API module                          |
 | `.job.ts` / `.adapter.ts`                       | One background job / one source adapter                              |
 | `.plugin.ts`                                    | One Fastify plugin                                                   |
+| `.schema.ts`                                    | Zod schema for a test-data format (for example golden cases)         |
+| `.cases.ts`                                     | Golden cases for one rule family                                     |
 | `.test.ts(x)`                                   | Tests, colocated with the file under test                            |
 
 - React component files are kebab-case and export one PascalCase component: `plan-card.tsx` → `PlanCard`.

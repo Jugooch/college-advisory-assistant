@@ -44,6 +44,32 @@ Code that talks to PostgreSQL is tested against a real database, not mocks.
 
 `tests/acceptance/acNN-<description>.test.ts`, one case per file, written by the QA engineer from `docs/planning/13`. Shared harnesses live in `tests/support/*.ts`. They reach apps only through their documented `@caa/<app>/testing` entry points (standard 01), and they keep their own in-memory fakes so the oracle stays independent of the code under test.
 
+## Golden corpus
+
+The golden corpus is the independent oracle for the verification engine (planning/13 §Golden corpus design). The QA engineer owns it.
+
+- **Format:** each case is validated by `packages/test-kit/src/golden/golden-case.schema.ts` and records:
+  - its ID (`GC-` for development, `GH-` for holdout), rule family, title, requirement IDs and source versions;
+  - its full synthetic inputs and the check to invoke;
+  - the expected result for each check: state, reason code, and evidence where it matters;
+  - `allowedAlternatives`, and `prohibitedClaims` given as `{ state, claim }`;
+  - its rationale, with citations;
+  - `reviewer` (`pending-academic-review` until an academic owner signs it) and the adjudication date.
+- **Independence:**
+  - Expected values come from the planning docs and from tech-lead decisions recorded on issues and PRs.
+  - They're never computed with engine code.
+  - Cases call the engine only through `@caa/engine`'s public API.
+- **Findings:**
+  - A case the engine doesn't meet is never weakened.
+  - It runs as `it.fails` and is listed in `tests/golden/known-findings.ts`, with a `bug` issue for the owning engineer.
+  - When the fix lands, the entry is removed in the same PR, under `ownership-override` if the fix belongs to another owner.
+- **Holdout (`tests/golden/holdout/`):**
+  - It's frozen and versioned, and engine engineers don't read it.
+  - A disagreement becomes a bug issue, never an edit.
+  - A case used to diagnose a defect is "burned": it moves to the development set and is replaced.
+  - `tests/golden/holdout-isolation.test.ts` fails if anything outside `tests/golden/` imports the holdout, or if IDs or inputs overlap with the development set.
+- **Layout:** development cases go in `packages/test-kit/src/golden/cases/<rule-family>.cases.ts`, and runners in `tests/golden/*.test.ts`.
+
 ## Running
 
 ```bash
