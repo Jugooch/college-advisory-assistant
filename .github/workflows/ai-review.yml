@@ -1,5 +1,7 @@
 # AI review panel: each required reviewer agent (.claude/agents) reviews the PR; a trusted step validates and posts its verdict.
 # The "AI review gate" job is a required status check on main.
+# An APPROVE carries to a new head commit when the PR's own change is identical (same patch-id),
+# so updating a branch from main re-runs only the reviewers without a current or carried APPROVE.
 # Setup: run `claude setup-token` and store the result as the CLAUDE_CODE_OAUTH_TOKEN repository secret.
 name: AI review
 
@@ -20,6 +22,11 @@ jobs:
     # Same-repository PRs only: fork PRs never receive the review token.
     if: github.event.pull_request.draft == false && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    # Reads PR comments to find verdicts that still count; no Claude token in this job.
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
     outputs:
       reviewers: ${{ steps.select.outputs.reviewers }}
     steps:
@@ -33,10 +40,15 @@ jobs:
         run: node scripts/select-reviewers.mjs "$BASE_REF"
         env:
           BASE_REF: ${{ github.base_ref }}
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
 
   review:
     name: Review (${{ matrix.reviewer }})
     needs: select
+    # An empty matrix is an error, so skip when every required reviewer's APPROVE still counts.
+    if: needs.select.result == 'success' && needs.select.outputs.reviewers != '[]'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -103,13 +115,17 @@ jobs:
       pull-requests: read
       issues: read
     steps:
+      # Full history (all branches, including origin/<base>) so merge-base and patch-id resolve.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
-      - name: Require an APPROVE verdict from every required reviewer on the head commit
+      - name: Require a current or carried APPROVE verdict from every required reviewer
         run: node scripts/check-ai-reviews.mjs
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_REF: ${{ github.base_ref }}
