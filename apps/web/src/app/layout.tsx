@@ -11,7 +11,7 @@ import './globals.css';
 
 /** Default document metadata. */
 export const metadata: Metadata = {
-  title: 'College Advisory Assistant',
+  title: { default: 'College Advisory Assistant', template: '%s · College Advisory Assistant' },
   description: 'Verified next-term course planning.',
 };
 

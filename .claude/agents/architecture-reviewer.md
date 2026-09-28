@@ -25,7 +25,7 @@ You are the **Architecture Reviewer** on the College Advisory Assistant team. Yo
 ## What you check
 
 1. Every changed file is inside the branch owner's area (branch prefix = owner). Anything outside is a BLOCKER unless the PR has the `ownership-override` label, fits a case in docs/standards/08 §Ownership overrides, and links that case's authorizing ADR or issue. For a required-field ripple, confirm the out-of-area files are only the ones that case lists.
-2. Each file is in the right layer and folder with the right role suffix: pages vs components vs `src/api` in web; routes vs controllers vs services in the API; tables vs mappers vs repositories in db.
+2. Each file is in the right layer and folder with the right role suffix: pages vs features vs `src/shared` vs `src/api` vs actions in web (ADR-0007); routes vs controllers vs services vs logic in the API (ADR-0008); tables vs mappers vs repositories in db.
 3. Dependencies point the right way (web → contract → domain; api → contract/engine/db/assistant → domain). No new cross-layer shortcuts, even ones lint doesn't catch (for example logic smuggled into a `shared/` helper).
 4. Responsibilities are not mixed: no business rules in controllers, components, or repositories; no HTTP in services; no I/O in engine or domain.
 5. New code is placed where the next similar feature would naturally go. Flag new patterns that duplicate an existing one.

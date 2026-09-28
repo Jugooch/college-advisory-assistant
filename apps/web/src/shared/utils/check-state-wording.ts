@@ -1,6 +1,6 @@
 /**
  * @file Wording for check states and the aggregate, as the API returns them. Never recomputed.
- * @module @caa/web/features/verification-states/utils/check-state-wording
+ * @module @caa/web/shared/utils/check-state-wording
  * @requirement FR-09
  * @requirement FR-10
  * @requirement NFR-02
@@ -25,7 +25,8 @@ export interface AggregateDisplay extends StateDisplay {
  * Describes one check state.
  *
  * @param state - The check state from the API.
- * @param asOf - The as-of text a PASS holds for, for example `record Sep 12, 2026, …`.
+ * @param asOf - The as-of text a PASS holds for, for example
+ *   `Sep 12, 2026, 2:00 PM UTC (record) and Sep 10, 2026, 9:00 AM UTC (audit)`.
  * @returns The badge label and tone.
  */
 export function describeCheckState(state: CheckState, asOf: string): StateDisplay {

@@ -1,6 +1,6 @@
 /**
  * @file Fixed student-facing wording for every reason code: what it means and the next step.
- * @module @caa/web/features/verification-states/utils/reason-code-wording
+ * @module @caa/web/shared/utils/reason-code-wording
  * @requirement FR-10
  * @requirement NFR-02
  * @see docs/planning/08-academic-verification-and-planning.md

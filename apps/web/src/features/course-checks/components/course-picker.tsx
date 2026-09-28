@@ -16,14 +16,50 @@ export interface CoursePickerProps {
   /** Internal student ID, submitted with the form. */
   readonly studentId: string;
   readonly candidates: readonly CandidateCourse[];
+  /** Whether the audit's candidates couldn't be listed because the record didn't load. */
+  readonly isCandidateListUnavailable: boolean;
   /** Courses selected in the last submission, checked again. */
   readonly selectedCourseIds: readonly string[];
-  /** Whether the last submission's selection was rejected (none, or too many). */
-  readonly hasSelectionError: boolean;
+  /** Why the last submission's selection was rejected, or null. */
+  readonly selectionError: string | null;
 }
 
 /**
- * Renders the course picker, or says there is nothing to pick.
+ * Renders one candidate checkbox. Ids are prefixed `pick-` so they never collide with results.
+ *
+ * @param props - The candidate and whether it is checked.
+ * @returns The choice row.
+ */
+function CourseChoice(props: {
+  readonly candidate: CandidateCourse;
+  readonly isChecked: boolean;
+}): ReactElement {
+  const { courseId, requirementLabels } = props.candidate;
+  const inputId = `pick-course-${courseId}`;
+  return (
+    <div className="choice">
+      <input
+        id={inputId}
+        type="checkbox"
+        name="course"
+        value={courseId}
+        defaultChecked={props.isChecked}
+        aria-describedby={`${inputId}-listed`}
+      />
+      <label htmlFor={inputId}>
+        Course <code>{courseId}</code>
+      </label>
+      <span id={`${inputId}-listed`}>
+        {requirementLabels.length === 0
+          ? ' Checked earlier; its requirements can’t be listed right now.'
+          : ` Listed for: ${requirementLabels.join(', ')}`}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Renders the course picker, or says why there is nothing to pick.
  *
  * @param props - The student, the candidates, and the last selection.
  * @returns The picker section.
@@ -31,21 +67,26 @@ export interface CoursePickerProps {
 export function CoursePicker({
   studentId,
   candidates,
+  isCandidateListUnavailable,
   selectedCourseIds,
-  hasSelectionError,
+  selectionError,
 }: CoursePickerProps): ReactElement {
   if (candidates.length === 0) {
     return (
       <section aria-labelledby="picker-heading">
         <h2 id="picker-heading">Choose courses</h2>
-        <p>Your audit doesn’t list any candidate courses to check.</p>
+        <p>
+          {isCandidateListUnavailable
+            ? 'Candidate courses can’t be listed until your record loads.'
+            : 'Your audit doesn’t list any candidate courses to check.'}
+        </p>
         <p>
           <strong>Next step:</strong> Ask your advisor which courses to plan for.
         </p>
       </section>
     );
   }
-  const describedBy = hasSelectionError ? 'picker-hint picker-error' : 'picker-hint';
+  const describedBy = selectionError === null ? 'picker-hint' : 'picker-hint picker-error';
   return (
     <section aria-labelledby="picker-heading">
       <h2 id="picker-heading">Choose courses</h2>
@@ -57,29 +98,17 @@ export function CoursePicker({
           <p id="picker-hint">
             Choose 1 to {MAX_COURSE_CHECK_COURSES} courses. They are checked together, as one set.
           </p>
-          {hasSelectionError ? (
+          {selectionError === null ? null : (
             <p id="picker-error" className="field-error" role="alert">
-              Choose between 1 and {MAX_COURSE_CHECK_COURSES} courses.
+              {selectionError}
             </p>
-          ) : null}
-          {candidates.map(({ courseId, requirementLabels }) => (
-            <div key={courseId} className="choice">
-              <input
-                id={`course-${courseId}`}
-                type="checkbox"
-                name="course"
-                value={courseId}
-                defaultChecked={selectedCourseIds.includes(courseId)}
-                aria-describedby={`course-${courseId}-listed`}
-              />
-              <label htmlFor={`course-${courseId}`}>
-                Course <code>{courseId}</code>
-              </label>
-              <span id={`course-${courseId}-listed`}>
-                {' '}
-                Listed for: {requirementLabels.join(', ')}
-              </span>
-            </div>
+          )}
+          {candidates.map((candidate) => (
+            <CourseChoice
+              key={candidate.courseId}
+              candidate={candidate}
+              isChecked={selectedCourseIds.includes(candidate.courseId)}
+            />
           ))}
         </fieldset>
         <button type="submit">Check these courses</button>

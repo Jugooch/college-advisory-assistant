@@ -11,8 +11,8 @@ import type { ReactElement } from 'react';
 import type { CheckResult } from '@caa/domain';
 
 import { StatusBadge } from '@/components/ui/status-badge';
-import { ReasonExplanation } from '@/features/verification-states/components/reason-explanation';
-import { describeCheckState } from '@/features/verification-states/utils/check-state-wording';
+import { ReasonExplanation } from '@/shared/components/reason-explanation';
+import { describeCheckState } from '@/shared/utils/check-state-wording';
 
 import { CheckEvidence } from './check-evidence';
 

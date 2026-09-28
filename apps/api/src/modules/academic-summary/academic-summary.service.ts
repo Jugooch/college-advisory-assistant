@@ -9,20 +9,7 @@
  * @see docs/planning/09-data-model-and-integration-contracts.md
  * @see docs/standards/09-errors-logging-and-security.md
  */
-import type {
-  AuditSnapshotRepository,
-  LatestAuditSnapshot,
-  LatestStudentSnapshot,
-  StudentSnapshotRepository,
-} from '@caa/db';
-import type {
-  Actor,
-  AuditSnapshot,
-  InstitutionId,
-  Student,
-  StudentId,
-  StudentSnapshot,
-} from '@caa/domain';
+import type { Actor, AuditSnapshot, Student, StudentId, StudentSnapshot } from '@caa/domain';
 import {
   type AuditProgramConsistency,
   type AuditRecordReflection,
@@ -30,20 +17,16 @@ import {
   checkAuditReflectsRecord,
 } from '@caa/engine';
 
-import {
-  NotFoundError,
-  SourceUnavailableError,
-  StaleSourceError,
-} from '../../shared/domain-errors';
 import type { RequestContext } from '../../shared/request-context';
+import type { PinnedRecordsService, RecordScope } from '../pinned-records/pinned-records.service';
 import type { StudentsService } from '../students/students.service';
 
 /** Dependencies of the academic summary service. */
 export interface AcademicSummaryServiceDependencies {
   /** Applies the S1 access rule and loads the student. */
   readonly students: StudentsService;
-  readonly studentSnapshots: StudentSnapshotRepository;
-  readonly auditSnapshots: AuditSnapshotRepository;
+  /** Loads the latest snapshot and audit, refusing missing, tied, or out-of-scope records. */
+  readonly pinnedRecords: PinnedRecordsService;
   /** Validated `AUDIT_RECORD_MAX_SKEW_MS`: the allowed record and audit skew in milliseconds. */
   readonly maxSkewMs: number;
 }
@@ -73,7 +56,7 @@ export interface AcademicSummaryService {
    * @param context - Request-scoped values; every log line carries the request ID.
    * @returns The student, their latest snapshot, and their latest audit with its verdicts.
    * @throws {NotFoundError} When the student doesn't exist, the actor may not see them, or a
-   *   loaded record belongs to another tenant or student.
+   *   loaded record belongs to another tenant or student (see `PinnedRecordsService`).
    * @throws {SourceUnavailableError} When the student has no record snapshot.
    * @throws {StaleSourceError} When the latest snapshot or audit is tied, so none is latest.
    */
@@ -84,106 +67,20 @@ export interface AcademicSummaryService {
   ): Promise<AcademicSummary>;
 }
 
-/** The tenant and student every loaded record must belong to. */
-interface SummaryScope {
-  readonly actor: Actor;
-  readonly tenantId: InstitutionId;
-  readonly studentId: StudentId;
-  readonly context: RequestContext;
-}
-
-/** Why no summary could be built. Logged; the client sees only the error code. */
-type UnavailableReason = 'NO_STUDENT_SNAPSHOT' | 'STUDENT_SNAPSHOT_AMBIGUOUS' | 'AUDIT_AMBIGUOUS';
-
 /**
- * Logs why no summary could be built, with opaque IDs only.
+ * Runs the engine's audit checks on the audit.
  *
- * @param scope - The session's tenant and the path student.
- * @param reason - Why the summary is unavailable.
- */
-function logUnavailable(scope: SummaryScope, reason: UnavailableReason): void {
-  const { actor, tenantId, studentId } = scope;
-  scope.context.logger.info(
-    { actorUserId: actor.userId, tenantId, studentId, reason },
-    'academic summary unavailable',
-  );
-}
-
-/**
- * Stops the read when a loaded record is not the session tenant's and the path student's.
- *
- * @param scope - The session's tenant and the path student.
- * @param record - The loaded snapshot or audit.
- * @throws {NotFoundError} On any mismatch, after logging a security event.
- */
-function assertInScope(scope: SummaryScope, record: StudentSnapshot | AuditSnapshot): void {
-  if (record.tenantId === scope.tenantId && record.studentId === scope.studentId) {
-    return;
-  }
-  // SECURITY: defense in depth (standards/09). The repositories already filter by the session's
-  // tenant and the path student, so this only fires on a data or repository defect. The
-  // record is dropped, the client sees the same NOT_FOUND as a forbidden student, and the log
-  // names opaque IDs only, never the foreign record's contents.
-  const { actor, tenantId, studentId } = scope;
-  scope.context.logger.warn(
-    { actorUserId: actor.userId, tenantId, studentId, recordId: record.id },
-    'academic summary record out of scope',
-  );
-  throw new NotFoundError();
-}
-
-/**
- * Picks the pinned snapshot from the repository's answer.
- *
- * @param scope - The session's tenant and the path student.
- * @param latest - The repository's latest snapshot, ambiguity, or `null`.
- * @returns The snapshot every check reads.
- * @throws {SourceUnavailableError} When there is no snapshot.
- * @throws {StaleSourceError} When two snapshots are tied for latest.
- * @throws {NotFoundError} When the snapshot is out of scope.
- */
-function pinSnapshot(scope: SummaryScope, latest: LatestStudentSnapshot | null): StudentSnapshot {
-  // SAFETY: with no record there is nothing to summarize, and a tie means the source doesn't
-  // say which record is current. Neither is guessed; the student is referred to an advisor
-  // (planning/07 §Consistency model; planning/08: missing or conflicting data is UNKNOWN).
-  if (latest === null) {
-    logUnavailable(scope, 'NO_STUDENT_SNAPSHOT');
-    throw new SourceUnavailableError();
-  }
-  if (latest.status === 'AMBIGUOUS') {
-    logUnavailable(scope, 'STUDENT_SNAPSHOT_AMBIGUOUS');
-    throw new StaleSourceError();
-  }
-  assertInScope(scope, latest.revision.snapshot);
-  return latest.revision.snapshot;
-}
-
-/**
- * Picks the audit from the repository's answer and runs the engine's audit checks on it.
- *
- * @param scope - The session's tenant and the path student.
- * @param latest - The repository's latest audit, ambiguity, or `null`.
+ * @param audit - The pinned audit, or `null`.
  * @param pinned - The pinned snapshot and the configured skew.
  * @returns The audit with its verdicts, or `null` when the student has no audit.
- * @throws {StaleSourceError} When two audits are tied for latest.
- * @throws {NotFoundError} When the audit is out of scope.
  */
 function summarizeAudit(
-  scope: SummaryScope,
-  latest: LatestAuditSnapshot | null,
+  audit: AuditSnapshot | null,
   pinned: { readonly studentSnapshot: StudentSnapshot; readonly maxSkewMs: number },
 ): SummarizedAudit | null {
-  if (latest === null) {
+  if (audit === null) {
     return null;
   }
-  // SAFETY: a tie means neither audit's requirement states can be shown as the audit's, and
-  // `audit: null` would claim the student has none. The read is refused and referred instead.
-  if (latest.status === 'AMBIGUOUS') {
-    logUnavailable(scope, 'AUDIT_AMBIGUOUS');
-    throw new StaleSourceError();
-  }
-  const { audit } = latest;
-  assertInScope(scope, audit);
   return {
     audit,
     reflectsRecord: checkAuditReflectsRecord(audit, pinned.studentSnapshot, pinned.maxSkewMs),
@@ -199,17 +96,17 @@ function summarizeAudit(
  * @param audit - The summarized audit, or `null`.
  */
 function logRead(
-  scope: SummaryScope,
+  scope: RecordScope,
   studentSnapshot: StudentSnapshot,
   audit: SummarizedAudit | null,
 ): void {
-  const { actor, tenantId, studentId } = scope;
+  const { actor, studentId } = scope;
   const verdictOf = (check: AuditRecordReflection | AuditProgramConsistency | undefined) =>
     check?.reasonCode ?? check?.state ?? null;
   scope.context.logger.info(
     {
       actorUserId: actor.userId,
-      tenantId,
+      tenantId: actor.tenantId,
       studentId,
       studentSnapshotId: studentSnapshot.id,
       auditSnapshotId: audit?.audit.id ?? null,
@@ -223,33 +120,23 @@ function logRead(
 /**
  * Creates the academic summary service.
  *
- * @param dependencies - Students service, snapshot repositories, and the configured skew.
+ * @param dependencies - Students service, pinned records service, and the configured skew.
  * @returns An {@link AcademicSummaryService}.
  */
 export function createAcademicSummaryService(
   dependencies: AcademicSummaryServiceDependencies,
 ): AcademicSummaryService {
-  const { students, studentSnapshots, auditSnapshots, maxSkewMs } = dependencies;
+  const { students, pinnedRecords, maxSkewMs } = dependencies;
   return {
     async getAcademicSummary(actor, studentId, context) {
       // SECURITY: the same rule as GET /v1/students/:studentId (self, assigned advisor, or admin
       // of the same tenant). Denied and missing are the same NOT_FOUND.
       const student = await students.getStudent(actor, studentId, context);
-      // SECURITY: every record is read for the session's tenant and the path student only.
-      const scope: SummaryScope = {
-        actor,
-        tenantId: actor.tenantId,
-        studentId: student.id,
-        context,
-      };
-      const [latestSnapshot, latestAudit] = await Promise.all([
-        studentSnapshots.findLatest(scope.tenantId, scope.studentId),
-        auditSnapshots.findLatest(scope.tenantId, scope.studentId),
-      ]);
-      const studentSnapshot = pinSnapshot(scope, latestSnapshot);
-      const audit = summarizeAudit(scope, latestAudit, { studentSnapshot, maxSkewMs });
-      logRead(scope, studentSnapshot, audit);
-      return { student, studentSnapshot, audit };
+      const { revision, audit } = await pinnedRecords.loadLatest(actor, student, context);
+      const studentSnapshot = revision.snapshot;
+      const summarized = summarizeAudit(audit, { studentSnapshot, maxSkewMs });
+      logRead({ actor, studentId: student.id, context }, studentSnapshot, summarized);
+      return { student, studentSnapshot, audit: summarized };
     },
   };
 }

@@ -33,12 +33,15 @@ describe('CoursePicker', () => {
         studentId={STUDENT_ID}
         candidates={CANDIDATES}
         selectedCourseIds={[]}
-        hasSelectionError={false}
+        isCandidateListUnavailable={false}
+        selectionError={null}
       />,
     );
 
-    expect(html).toContain(`<label for="course-${math102.id}">Course <code>${math102.id}</code>`);
-    expect(html).toContain(`aria-describedby="course-${math102.id}-listed"`);
+    expect(html).toContain(
+      `<label for="pick-course-${math102.id}">Course <code>${math102.id}</code>`,
+    );
+    expect(html).toContain(`aria-describedby="pick-course-${math102.id}-listed"`);
     expect(html).toContain('Listed for: Core, Elective');
   });
 
@@ -48,7 +51,8 @@ describe('CoursePicker', () => {
         studentId={STUDENT_ID}
         candidates={CANDIDATES}
         selectedCourseIds={[math101.id]}
-        hasSelectionError={false}
+        isCandidateListUnavailable={false}
+        selectionError={null}
       />,
     );
 
@@ -63,12 +67,13 @@ describe('CoursePicker', () => {
         studentId={STUDENT_ID}
         candidates={CANDIDATES}
         selectedCourseIds={[]}
-        hasSelectionError
+        isCandidateListUnavailable={false}
+        selectionError="Choose at least one course."
       />,
     );
 
     expect(html).toContain('<fieldset aria-describedby="picker-hint picker-error">');
-    expect(html).toContain('Choose between 1 and 12 courses.');
+    expect(html).toContain('>Choose at least one course.</p>');
   });
 
   it('gives a next step when the audit lists no candidates', () => {
@@ -77,11 +82,26 @@ describe('CoursePicker', () => {
         studentId={STUDENT_ID}
         candidates={[]}
         selectedCourseIds={[]}
-        hasSelectionError={false}
+        isCandidateListUnavailable={false}
+        selectionError={null}
       />,
     );
 
     expect(html).toContain('Ask your advisor which courses to plan for.');
     expect(html).not.toContain('<form');
+  });
+
+  it('says the list is unavailable, not empty, when the record did not load', () => {
+    const html = renderToStaticMarkup(
+      <CoursePicker
+        studentId={STUDENT_ID}
+        candidates={[]}
+        isCandidateListUnavailable
+        selectedCourseIds={[]}
+        selectionError={null}
+      />,
+    );
+
+    expect(html).toContain('Candidate courses can’t be listed until your record loads.');
   });
 });

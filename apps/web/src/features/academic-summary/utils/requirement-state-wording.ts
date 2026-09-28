@@ -10,7 +10,7 @@ import type { AcademicSummaryResponse } from '@caa/api-contract';
 import { CheckState, type RequirementState } from '@caa/domain';
 
 import type { StatusTone } from '@/components/ui/status-badge';
-import { formatTimestamp } from '@/features/verification-states/utils/format-display';
+import { formatTimestamp } from '@/shared/utils/format-display';
 
 /** How one requirement's state is shown. */
 export interface RequirementStateDisplay {

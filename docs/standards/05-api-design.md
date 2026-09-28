@@ -9,11 +9,12 @@ HTTP request
                              calls ONE service method, sends the result via sendData()
   → <module>.service.ts      business logic: authorization decisions, orchestration of repositories,
                              engine calls, and the assistant
+  → <module>.logic.ts        optional: pure functions over values the service already loaded
   → @caa/db repositories     SQL only; return domain objects
   → @caa/engine              pure academic rules
 ```
 
-Each layer only calls the one below it. ESLint blocks controllers from importing repositories or the engine, services from importing Fastify, and routes from importing services.
+Each layer only calls the one below it. ESLint blocks controllers from importing repositories, the engine, or logic; services from importing Fastify; routes from importing services or logic; and logic from importing anything with I/O.
 
 ## Contract first
 
@@ -67,7 +68,8 @@ Every response is one of two shapes:
 ## Services
 
 - Factory function `createXxxService(dependencies)` returning an object that implements an exported `XxxService` interface.
-- Long-lived dependencies (repositories, engine functions, clock, configuration) come in through the `dependencies` object. Only `container.ts` constructs them.
+- Long-lived dependencies (repositories, other services, the clock, configuration) come in through the `dependencies` object. Only `container.ts` constructs them. Pure code, meaning `@caa/engine` and `.logic.ts` functions, is imported directly, because there's nothing to construct or replace.
+- A `.service.ts` file exports its factory, its `XxxService` interface, and their supporting types. Nothing else. Another service imports only its types and reaches its behavior through the injected interface. A pure helper that two services need goes in a `.logic.ts` file.
 - Methods take the authenticated actor (`actor: Actor`) as their first argument when the operation touches tenant data. `// SECURITY:` comments mark authorization decisions.
 - Request-scoped values come in through a single **final** `context: RequestContext` parameter that the controller builds from the request. Today it carries the request logger (`context.logger`, Fastify's `request.log`, typed as the `Logger` port), so every log line has the request ID (standard 09). New request-scoped values are added to `RequestContext`, never as extra parameters. Services never import Fastify types and never log through a process-wide logger.
 
@@ -76,6 +78,35 @@ Every response is one of two shapes:
   ```
 
 - Services return domain objects or throw a typed domain error; they never build HTTP responses.
+
+## Logic
+
+A `<module>.logic.ts` file holds pure functions that a service calls: orchestration of engine calls over already-loaded inputs, or a policy decision such as source freshness. It exists so that pure code has one named place instead of hiding in a service file (ADR-0008).
+
+- **Pure:** the result depends only on the arguments. No I/O, no repositories, no logger, no request context, no Fastify, no container. It never reads the clock or randomness. The service reads the injected clock and passes the time in.
+- **May import:** `@caa/engine`, `@caa/domain`, types from `@caa/db` and `@caa/api-contract`, `shared/domain-errors`, and other `.logic.ts` files.
+- **Imported by** services only. Controllers and routes never import it.
+- **One primary export**, named for what it decides (`verifyCourseSet`, `isSourceFresh`). Supporting types and constants may sit beside it. It returns values and may throw a typed domain error. The service decides what to log.
+- **Tested** with literal inputs and expected values, no fakes needed. A module may consist of a `.logic.ts` file alone.
+- It restates no academic rule. Rules stay in `@caa/engine`, and logic only composes engine entry points.
+
+## Source freshness
+
+A validated result is built only from sources that are fresh (planning/09 §Proposed freshness policies, ADR-0008). For the student record and the audit:
+
+| Setting                      | Value                                                                                                |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `ACADEMIC_SOURCE_MAX_AGE_MS` | **Required in production**, with no default. Outside production the default is `86400000` (24 hours) |
+| Accepted range               | `0` to `604800000` (7 days), whole milliseconds. Startup refuses anything else                       |
+| Future tolerance             | 5 minutes (`300000`), a fixed constant, not configurable                                             |
+| Times checked                | The snapshot's `sourceEffectiveAt` and the audit's `studentRecordEffectiveAt`                        |
+| Fresh when                   | `-300000 ≤ now − time ≤ maxAge`. Exactly at the maximum age is fresh; 1 ms past it is not            |
+| Missing or unparseable time  | Not fresh                                                                                            |
+| Not fresh                    | 409 `STALE_SOURCE` with a referral, before any engine call. Never a PASS or a `VALIDATED` aggregate  |
+
+- The 24-hour default is planning/09's proposed age. Each deployment sets the production value from the institution's approved policy. A production value above 24 hours needs that approval on record (planning/04 §Change control).
+- The future tolerance absorbs clock drift between the source system and the API. A time more than 5 minutes ahead is a source error, not fresh data.
+- The service reads the injected clock. The comparison is a `.logic.ts` function, so every endpoint that returns validated results applies the same check.
 
 ## Controllers
 

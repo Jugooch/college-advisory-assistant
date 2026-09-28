@@ -3,38 +3,20 @@
  * @module @caa/web/app/dev/sign-in/page
  * @requirement FR-01
  */
-import { cookies } from 'next/headers';
-import { notFound, redirect } from 'next/navigation';
+import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 import type { ReactElement } from 'react';
 
+import { devSignInAction } from '@/features/session/actions/dev-sign-in.action';
+import { devSignOutAction } from '@/features/session/actions/dev-sign-out.action';
 import { DevSignInForm } from '@/features/session/components/dev-sign-in-form';
-import { isDevSignInEnabled, signInWithDevToken, signOut } from '@/lib/dev-sign-in';
+import { isDevSignInEnabled } from '@/features/session/utils/dev-sign-in';
+
+/** Page title. */
+export const metadata: Metadata = { title: 'Development sign-in' };
 
 /** Never prerender: the page depends on the build and the request. */
 export const dynamic = 'force-dynamic';
-
-/**
- * Stores the submitted dev token in the session cookie, then goes home to show the result.
- *
- * @param formData - The submitted form.
- */
-async function signInAction(formData: FormData): Promise<void> {
-  'use server';
-  // SECURITY: signInWithDevToken throws in a production build, so the action refuses even if
-  // it is called directly.
-  const result = signInWithDevToken(formData, {
-    nodeEnv: process.env.NODE_ENV,
-    cookieStore: await cookies(),
-  });
-  redirect(result === 'SIGNED_IN' ? '/' : '/dev/sign-in?error=invalid-token');
-}
-
-/** Removes the session cookie and returns to the sign-in page. */
-async function signOutAction(): Promise<void> {
-  'use server';
-  signOut(await cookies());
-  redirect('/dev/sign-in');
-}
 
 /**
  * Renders the development sign-in page.
@@ -53,8 +35,8 @@ export default async function DevSignInPage({
   const { error } = await searchParams;
   return (
     <DevSignInForm
-      signInAction={signInAction}
-      signOutAction={signOutAction}
+      signInAction={devSignInAction}
+      signOutAction={devSignOutAction}
       hasInvalidToken={error === 'invalid-token'}
     />
   );

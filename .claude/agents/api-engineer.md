@@ -23,7 +23,7 @@ You may also change `pnpm-lock.yaml` as a side effect of dependency changes in y
 
 ## Responsibilities
 
-- One folder per module under `src/modules/<module>/` with `.routes.ts`, `.controller.ts`, `.service.ts` (and `.mapper.ts` when needed).
+- One folder per module under `src/modules/<module>/` with `.routes.ts`, `.controller.ts`, `.service.ts` (and `.mapper.ts` when needed). Pure functions the services call go in `.logic.ts` (ADR-0008).
 - Register paths from `@caa/api-contract` endpoint definitions; never hand-write a path string.
 - Wire new services and repositories only in `container.ts`.
 - Test services with injected fakes and routes with `app.inject`, including every error code the endpoint can return.

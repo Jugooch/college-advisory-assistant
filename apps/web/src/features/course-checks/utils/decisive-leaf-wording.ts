@@ -7,10 +7,7 @@
  */
 import type { CreditLoadEvidence, DecisiveLeaf, Grade } from '@caa/domain';
 
-import {
-  formatCredits,
-  formatTimestamp,
-} from '@/features/verification-states/utils/format-display';
+import { formatCredits, formatTimestamp } from '@/shared/utils/format-display';
 
 /**
  * Describes a required grade.

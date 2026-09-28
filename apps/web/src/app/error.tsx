@@ -1,9 +1,10 @@
-'use client';
 /**
  * @file Error boundary for failures that aren't API error envelopes, such as a lost connection.
  * @module @caa/web/app/error
  * @requirement NFR-02
  */
+'use client';
+
 import type { ReactElement } from 'react';
 
 /**

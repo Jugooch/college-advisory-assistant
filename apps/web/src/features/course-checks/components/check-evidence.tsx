@@ -9,7 +9,7 @@ import type { ReactElement, ReactNode } from 'react';
 
 import type { CheckResult } from '@caa/domain';
 
-import { describeReason } from '@/features/verification-states/utils/reason-code-wording';
+import { describeReason } from '@/shared/utils/reason-code-wording';
 
 import { describeCreditLoad, describeLeaf } from '../utils/decisive-leaf-wording';
 

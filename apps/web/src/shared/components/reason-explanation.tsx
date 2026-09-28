@@ -1,6 +1,6 @@
 /**
  * @file Shows what a reason code means and the next step, from the fixed wording map.
- * @module @caa/web/features/verification-states/components/reason-explanation
+ * @module @caa/web/shared/components/reason-explanation
  * @requirement FR-10
  * @requirement NFR-02
  */
@@ -8,7 +8,7 @@ import type { ReactElement } from 'react';
 
 import type { ReasonCode } from '@caa/domain';
 
-import { describeReason } from '../utils/reason-code-wording';
+import { describeReason } from '@/shared/utils/reason-code-wording';
 
 /** Props for {@link ReasonExplanation}. */
 export interface ReasonExplanationProps {

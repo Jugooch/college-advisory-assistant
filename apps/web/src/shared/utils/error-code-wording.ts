@@ -1,7 +1,7 @@
 /**
  * @file Fixed headings and next steps for every API error code. The API's own message is shown
  * beside them, unchanged.
- * @module @caa/web/features/service-errors/utils/error-code-wording
+ * @module @caa/web/shared/utils/error-code-wording
  * @requirement NFR-02
  * @see docs/planning/05-product-requirements.md
  * @see docs/standards/05-api-design.md

@@ -1,6 +1,6 @@
 /**
  * @file Display formatting for timestamps and credit amounts. Formatting only; no decisions.
- * @module @caa/web/features/verification-states/utils/format-display
+ * @module @caa/web/shared/utils/format-display
  */
 
 /** Timestamps render in UTC, labelled, so every reader sees the same time. */

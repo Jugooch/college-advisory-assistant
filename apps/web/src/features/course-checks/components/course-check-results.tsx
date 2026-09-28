@@ -13,7 +13,7 @@ import type { ReactElement } from 'react';
 import type { CourseChecksResponse } from '@caa/api-contract';
 
 import { StatusBadge } from '@/components/ui/status-badge';
-import { describeAggregate } from '@/features/verification-states/utils/check-state-wording';
+import { describeAggregate } from '@/shared/utils/check-state-wording';
 
 import { describeAsOf } from '../utils/decisive-leaf-wording';
 import { CheckResultItem } from './check-result-item';
@@ -49,8 +49,8 @@ export function CourseCheckResults({ result }: CourseCheckResultsProps): ReactEl
         .
       </p>
       {result.courseResults.map((course) => (
-        <section key={course.courseId} aria-labelledby={`course-${course.courseId}`}>
-          <h3 id={`course-${course.courseId}`}>
+        <section key={course.courseId} aria-labelledby={`result-course-${course.courseId}`}>
+          <h3 id={`result-course-${course.courseId}`}>
             Course <code>{course.courseId}</code>
           </h3>
           <ul className="check-list">
