@@ -22,7 +22,39 @@ Issue (with requirement IDs and acceptance examples)
 
 - `<owner>` is an agent name from `.github/ownership.json`. The ownership check fails the PR if any file is outside that owner's area.
 - One branch per issue per owner. When a feature spans areas, the tech lead splits the issue into one sub-issue per owner, merged in dependency order: `domain → db → engine → api → web`, with `qa` in parallel.
-- The `ownership-override` label is reserved for repo-wide mechanical changes (for example a rename that touches every package). It requires a linked ADR or tech-lead issue explaining why.
+- The `ownership-override` label is allowed only in the cases listed under [Ownership overrides](#ownership-overrides).
+
+## Ownership overrides
+
+A PR may change files outside its owner's area only with the `ownership-override` label, and only in one of these cases. Every override PR links its authorizing ADR or tech-lead issue in the body. Reviewers treat any out-of-area file that doesn't fit a listed case as a BLOCKER.
+
+| Case                  | What it allows                                                                                             | Authorized by                             |
+| --------------------- | ---------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| Repo-wide mechanical  | A mechanical change that touches many areas, for example a rename across every package                     | Its own ADR or tech-lead issue            |
+| Golden finding fixed  | Removing a fixed entry from `tests/golden/known-findings.ts` in the fixing PR (standard 07, golden corpus) | Standard 07 and the finding's `bug` issue |
+| Required-field ripple | Updating a test-kit builder when a domain PR adds a required field, under the rules below                  | #108 (ADR-0004)                           |
+
+### Required-field ripple
+
+When a domain PR adds a required field to a model, the test-kit builder for that model stops compiling. Neither order of two separate PRs keeps `main` green: the builder can't set a field the schema doesn't have yet (excess-property error), and the schema can't require a field the builder doesn't set. So the builder fix lands in the domain PR, under these rules:
+
+1. **Only the orchestrator** (the main session) makes the edit. Builder agents never do; their edit hook blocks it.
+2. **Only these files:**
+   - `packages/test-kit/src/builders/<model>.builder.ts`: the new field in the defaults, plus a TSDoc line naming the default.
+   - `packages/test-kit/src/builders/<model>.builder.test.ts`: the field in the literal expectations.
+   - When the field is a non-nullable ID: a new kind in `packages/test-kit/src/fixtures/synthetic-id.ts`, with a literal test in `synthetic-id.test.ts`.
+3. **Conservative default.** A nullable field defaults to `null`, meaning unknown. A non-nullable field defaults to a synthetic value that fits the builder's other defaults (for an ID, its `syntheticId` kind at seed 1). No new builder options, no other behavior changes.
+4. **Its own commit** on the domain branch, for example `test(test-kit): default term credit bounds to null in the policy builder` (commit subjects are lower case).
+5. **The PR body says so.** Under Handoffs, add:
+   > **Ownership override (required-field ripple, standard 08, authorized by #108):** the orchestrator changed only `<files>`. Default: `<field>: <value>`. qa-engineer owns the default from here.
+
+After the merge, qa-engineer may change the default in its own PR like any other test-kit code.
+
+If anything else breaks (a golden case, an acceptance test, engine or db code), or no default fits rule 3, this case doesn't apply. Use a staged rollout instead, with each step its own single-owner PR:
+
+1. The domain PR adds the field as `.optional()` with a `TODO(#issue)` to make it required. Until then, an omitted value means unknown. This is a temporary, tracked exception to standard 04 rule 10.
+2. Each affected owner sets the field in its own code.
+3. A final domain PR removes `.optional()`.
 
 ## Commits and PR titles
 
