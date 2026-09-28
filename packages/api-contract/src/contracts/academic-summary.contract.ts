@@ -134,10 +134,16 @@ export const AcademicSummaryResponseSchema = z
     audit: SummaryAuditSchema.nullable(),
     /**
      * Whether the audit reflects the pinned record, or `null` exactly when `audit` is `null`:
-     * with no audit there is nothing to compare. `null` is never a PASS.
+     * with no audit there is nothing to compare. `null` is never a PASS. Under UNKNOWN
+     * (`AUDIT_STALE`), every requirement state is the audit's as of `audit.generatedAt` and
+     * must be shown as needing verification, never as the student's current standing.
      */
     auditReflectsRecord: AuditReflectsRecordSchema.nullable(),
-    /** The audit's requirements in audit order. Empty exactly when `audit` is `null`. */
+    /**
+     * The audit's requirements in audit order. Empty exactly when `audit` is `null`. Their
+     * states are the audit's as of `audit.generatedAt`: when `auditReflectsRecord` is UNKNOWN
+     * (`AUDIT_STALE`), they must be shown as needing verification, never as current.
+     */
     requirements: z.array(SummaryRequirementSchema).readonly(),
   })
   // SAFETY: a freshness verdict with no audit, or an audit with no verdict, would let the UI

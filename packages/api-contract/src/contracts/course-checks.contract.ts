@@ -107,8 +107,18 @@ export const CourseCheckResultSchema = z
     /**
      * The PREREQUISITE check, or `null` when the course has no prerequisite rule. `null` means
      * "no rule" and is not a PASS: the UI shows that no rule was checked, never a passed check.
+     * A check that isn't UNKNOWN carries evidence, whose `rulesetVersion` is the pinned one.
      */
-    prerequisite: checkOfKind(CheckKind.Prerequisite).nullable(),
+    prerequisite: checkOfKind(CheckKind.Prerequisite)
+      // SAFETY: a PASS, FAIL, or CONDITIONAL prerequisite is a verdict under one ruleset; without
+      // evidence it can't be tied to `pinnedInputs.rulesetVersion`, so it isn't reproducible.
+      // An UNKNOWN claims no verdict, so it may come without evidence (for example when the
+      // rule couldn't be loaded).
+      .refine((check) => check.state === CheckState.Unknown || check.evidence !== undefined, {
+        message: 'A prerequisite check that is not UNKNOWN requires evidence',
+        path: ['evidence'],
+      })
+      .nullable(),
     /** The REQUIREMENT_APPLICABILITY check of the course against the audit. */
     applicability: checkOfKind(CheckKind.RequirementApplicability),
   })
@@ -165,13 +175,37 @@ function allChecks(response: CourseChecksShape): readonly CheckResult[] {
   ];
 }
 
+/**
+ * Derives the aggregate a set of checks must have, with the same fixed precedence as the
+ * engine's `aggregateCheckStates` (planning/08 §Authority and result semantics): any FAIL is
+ * BLOCKED, otherwise any UNKNOWN is NEEDS_VERIFICATION, otherwise any CONDITIONAL is
+ * CONDITIONAL, otherwise VALIDATED. An empty list is NEEDS_VERIFICATION, never VALIDATED.
+ *
+ * NOTE: restated here because api-contract can't depend on the engine. Keep the two in step.
+ *
+ * @param checks - Every check in the response.
+ * @returns The only aggregate the response may carry.
+ */
+function expectedAggregate(checks: readonly CheckResult[]): AggregateState {
+  const states = new Set(checks.map((check) => check.state));
+  if (states.has(CheckState.Fail)) return AggregateState.Blocked;
+  if (checks.length === 0 || states.has(CheckState.Unknown)) {
+    return AggregateState.NeedsVerification;
+  }
+  if (states.has(CheckState.Conditional)) return AggregateState.Conditional;
+  return AggregateState.Validated;
+}
+
 /** Response body for `POST /v1/students/:studentId/course-checks`. */
 export const CourseChecksResponseSchema = z
   .object({
     /** One entry per requested course, in request order. */
     courseResults: z.array(CourseCheckResultSchema).min(1).max(MAX_COURSE_CHECK_COURSES).readonly(),
     setResults: SetCheckResultsSchema,
-    /** Aggregate of every check, by the fixed precedence FAIL, UNKNOWN, CONDITIONAL, PASS. */
+    /**
+     * Aggregate of every check, by the fixed precedence FAIL, UNKNOWN, CONDITIONAL, PASS. A
+     * `null` prerequisite is not a check, so it doesn't count.
+     */
     aggregate: AggregateStateSchema,
     pinnedInputs: PinnedInputsSchema,
   })
@@ -179,13 +213,13 @@ export const CourseChecksResponseSchema = z
     message: 'courseResults must not repeat a course',
     path: ['courseResults'],
   })
-  // SAFETY: VALIDATED claims every check passed; one non-passing check makes that claim false.
-  .refine(
-    (response) =>
-      response.aggregate !== AggregateState.Validated ||
-      allChecks(response).every((check) => check.state === CheckState.Pass),
-    { message: 'VALIDATED requires every check to PASS', path: ['aggregate'] },
-  )
+  // SAFETY: the aggregate must follow from the checks it summarizes, so a FAIL is never shown
+  // as conditional, an UNKNOWN never as conditional or validated, and a clean set never as
+  // blocked.
+  .refine((response) => response.aggregate === expectedAggregate(allChecks(response)), {
+    message: 'aggregate must follow the FAIL, UNKNOWN, CONDITIONAL, PASS precedence',
+    path: ['aggregate'],
+  })
   // SAFETY: a prerequisite evaluated under another ruleset isn't reproducible from the pinned
   // inputs, so it must not be shown beside them.
   .refine(

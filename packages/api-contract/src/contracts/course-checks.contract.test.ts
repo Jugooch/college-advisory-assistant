@@ -199,6 +199,27 @@ describe('CourseChecksResponseSchema', () => {
     expect(accepts({ ...VALID, setResults, aggregate: 'NEEDS_VERIFICATION' })).toBe(true);
   });
 
+  it('rejects a prerequisite PASS without evidence, so it is tied to the pinned ruleset', () => {
+    const withoutEvidence = {
+      kind: 'PREREQUISITE',
+      state: 'PASS',
+      sourceRef: 'demo-rules:MATH-201',
+    };
+
+    expect(accepts(withCourse(0, { prerequisite: withoutEvidence }))).toBe(false);
+  });
+
+  it('accepts a prerequisite UNKNOWN without evidence, since it claims no verdict', () => {
+    const unknown = { kind: 'PREREQUISITE', state: 'UNKNOWN', reasonCode: 'UNSUPPORTED_RULE' };
+
+    expect(
+      accepts({
+        ...(withCourse(0, { prerequisite: unknown }) as object),
+        aggregate: 'NEEDS_VERIFICATION',
+      }),
+    ).toBe(true);
+  });
+
   it('rejects a repeated course', () => {
     const [first] = VALID.courseResults;
 
