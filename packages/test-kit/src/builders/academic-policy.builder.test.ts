@@ -17,6 +17,7 @@ describe('buildAcademicPolicy', () => {
       letterGradeOrder: ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D+', 'D', 'D-', 'F'],
       repeatPolicy: null,
       lowestPassingLetterGrade: null,
+      termCreditBounds: null,
     });
   });
 
@@ -32,12 +33,17 @@ describe('buildAcademicPolicy', () => {
       passSatisfiesMinimumGrade: false,
       letterGradeOrder: ['A', 'B', 'C', 'D', 'F'],
       repeatPolicy: RepeatPolicy.HighestGrade,
+      termCreditBounds: { minCreditsHundredths: 1200, maxCreditsHundredths: 1800 },
     });
 
     expect(policy.allowsInProgressPrerequisites).toBe(true);
     expect(policy.passSatisfiesMinimumGrade).toBe(false);
     expect(policy.letterGradeOrder).toEqual(['A', 'B', 'C', 'D', 'F']);
     expect(policy.repeatPolicy).toBe('HIGHEST_GRADE');
+    expect(policy.termCreditBounds).toEqual({
+      minCreditsHundredths: 1200,
+      maxCreditsHundredths: 1800,
+    });
   });
 
   it('returns a policy that passes the domain schema', () => {
