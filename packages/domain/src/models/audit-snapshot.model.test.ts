@@ -54,6 +54,7 @@ const VALID: AuditSnapshotInput = {
   id: '6f708192-0000-4000-8000-000000000001',
   tenantId: '0b8f6a36-3f7e-4a53-9c1e-8f1b2c3d4e5f',
   studentId: '2b3c4d5e-0000-4000-8000-000000000001',
+  studentSnapshotId: '8192a3b4-0000-4000-8000-000000000001',
   programId: '708192a3-0000-4000-8000-000000000001',
   auditSource: 'demo-audit',
   auditVersion: 'audit_demo_r7',
@@ -69,6 +70,7 @@ describe('createAuditSnapshot', () => {
       id: '6f708192-0000-4000-8000-000000000001',
       tenantId: '0b8f6a36-3f7e-4a53-9c1e-8f1b2c3d4e5f',
       studentId: '2b3c4d5e-0000-4000-8000-000000000001',
+      studentSnapshotId: '8192a3b4-0000-4000-8000-000000000001',
       programId: '708192a3-0000-4000-8000-000000000001',
       auditSource: 'demo-audit',
       auditVersion: 'audit_demo_r7',
@@ -237,6 +239,21 @@ describe('AuditSnapshotSchema', () => {
     const result = AuditSnapshotSchema.safeParse({ ...VALID, requirements: [WRITING, WRITING] });
 
     expect(result.error?.issues.map((issue) => issue.path)).toEqual([['requirements']]);
+  });
+
+  it('rejects an omitted studentSnapshotId, because the audited record must be pinned', () => {
+    const { studentSnapshotId: omitted, ...withoutSnapshot } = VALID;
+
+    expect(omitted).toBe('8192a3b4-0000-4000-8000-000000000001');
+    expect(
+      AuditSnapshotSchema.safeParse(withoutSnapshot).error?.issues.map((issue) => issue.path),
+    ).toEqual([['studentSnapshotId']]);
+  });
+
+  it('rejects a studentSnapshotId that is not a UUID', () => {
+    expect(AuditSnapshotSchema.safeParse({ ...VALID, studentSnapshotId: 'r7' }).success).toBe(
+      false,
+    );
   });
 
   it('rejects an omitted auditVersion, because provenance is required', () => {
