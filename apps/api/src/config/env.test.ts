@@ -5,7 +5,12 @@
 import { describe, expect, it } from 'vitest';
 import { ZodError } from 'zod';
 
-import { AuthMode, loadApiEnv } from './env';
+import {
+  AuthMode,
+  DEFAULT_AUDIT_RECORD_MAX_SKEW_MS,
+  loadApiEnv,
+  MAX_AUDIT_RECORD_MAX_SKEW_MS,
+} from './env';
 
 const BASE = { DATABASE_URL: 'postgres://unused.invalid/test' };
 
@@ -56,4 +61,37 @@ describe('loadApiEnv', () => {
   it('rejects an unknown auth mode', () => {
     expect(() => loadApiEnv({ ...BASE, AUTH_MODE: 'sso' })).toThrow(ZodError);
   });
+});
+
+describe('loadApiEnv AUDIT_RECORD_MAX_SKEW_MS', () => {
+  it('defaults to one hour, well under the 17-day seeded stale gap', () => {
+    const env = loadApiEnv(BASE);
+
+    expect(env.AUDIT_RECORD_MAX_SKEW_MS).toBe(3_600_000);
+    expect(DEFAULT_AUDIT_RECORD_MAX_SKEW_MS).toBeLessThan(17 * 24 * 60 * 60 * 1000);
+  });
+
+  it('parses a configured whole number of milliseconds, including 0', () => {
+    expect(
+      loadApiEnv({ ...BASE, AUDIT_RECORD_MAX_SKEW_MS: '900000' }).AUDIT_RECORD_MAX_SKEW_MS,
+    ).toBe(900_000);
+    expect(loadApiEnv({ ...BASE, AUDIT_RECORD_MAX_SKEW_MS: '0' }).AUDIT_RECORD_MAX_SKEW_MS).toBe(0);
+  });
+
+  it('accepts exactly seven days and refuses one millisecond more', () => {
+    const at = (value: number) => (): unknown =>
+      loadApiEnv({ ...BASE, AUDIT_RECORD_MAX_SKEW_MS: String(value) });
+
+    expect(at(MAX_AUDIT_RECORD_MAX_SKEW_MS)()).toMatchObject({
+      AUDIT_RECORD_MAX_SKEW_MS: 604_800_000,
+    });
+    expect(at(MAX_AUDIT_RECORD_MAX_SKEW_MS + 1)).toThrow(ZodError);
+  });
+
+  it.each(['', ' ', '-1', '1.5', '1e3', 'one-hour', 'Infinity'])(
+    'refuses %j instead of coercing it',
+    (value) => {
+      expect(() => loadApiEnv({ ...BASE, AUDIT_RECORD_MAX_SKEW_MS: value })).toThrow(ZodError);
+    },
+  );
 });

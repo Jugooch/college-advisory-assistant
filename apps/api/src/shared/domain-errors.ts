@@ -40,3 +40,27 @@ export class UnauthorizedError extends DomainError {
     this.name = 'UnauthorizedError';
   }
 }
+
+/** The source hasn't supplied the record this read needs, so there is nothing to show. */
+export class SourceUnavailableError extends DomainError {
+  /** Creates a SOURCE_UNAVAILABLE error that refers the student to an advisor. */
+  constructor() {
+    super(
+      ErrorCode.SourceUnavailable,
+      'Your academic record is not available yet. Please contact your advisor.',
+    );
+    this.name = 'SourceUnavailableError';
+  }
+}
+
+/** The source's latest revisions conflict, so no revision can be shown as the current one. */
+export class StaleSourceError extends DomainError {
+  /** Creates a STALE_SOURCE error that refers the student to an advisor. */
+  constructor() {
+    super(
+      ErrorCode.StaleSource,
+      'Your academic record needs to be verified. Please contact your advisor.',
+    );
+    this.name = 'StaleSourceError';
+  }
+}
