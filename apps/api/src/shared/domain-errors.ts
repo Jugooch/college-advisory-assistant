@@ -64,3 +64,12 @@ export class StaleSourceError extends DomainError {
     this.name = 'StaleSourceError';
   }
 }
+
+/** The request can't be checked as sent. The message names no field, value, or internal. */
+export class InvalidRequestError extends DomainError {
+  /** Creates an INVALID_REQUEST error with the standard message. */
+  constructor() {
+    super(ErrorCode.InvalidRequest, 'The request was invalid');
+    this.name = 'InvalidRequestError';
+  }
+}

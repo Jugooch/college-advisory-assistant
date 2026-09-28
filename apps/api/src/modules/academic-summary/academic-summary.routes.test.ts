@@ -284,7 +284,7 @@ describe('academic summary logs', () => {
       .object({ error: z.object({ requestId: z.string() }) })
       .parse(response.json()).error;
 
-    expect(readLines().filter((line) => line.msg === 'academic summary unavailable')).toEqual([
+    expect(readLines().filter((line) => line.msg === 'academic record unavailable')).toEqual([
       expect.objectContaining({ reqId: requestId, reason: 'NO_STUDENT_SNAPSHOT' }),
     ]);
   });
@@ -299,7 +299,7 @@ describe('academic summary out-of-scope backstop', () => {
     });
     const events = leakyLines
       .map((line) => LogLineSchema.parse(JSON.parse(line)))
-      .filter((line) => line.msg === 'academic summary record out of scope');
+      .filter((line) => line.msg === 'academic record out of scope');
 
     expect(response.statusCode).toBe(404);
     expect(readError(response.json()).code).toBe(ErrorCode.NotFound);

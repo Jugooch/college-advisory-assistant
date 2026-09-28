@@ -74,11 +74,23 @@ const ApiEnvSchema = z
     AUTH_MODE: z.enum(AuthMode).default(AuthMode.None),
     DEV_AUTH_TOKENS: z.string().default('{}').transform(parseJson).pipe(DevTokenMapSchema),
     AUDIT_RECORD_MAX_SKEW_MS: AuditRecordMaxSkewSchema,
+    /**
+     * Published ruleset version the course checks read the policy and prerequisite rules at,
+     * for example `demo-2026.1`. No default: a guessed version would check courses against
+     * rules nobody approved. Required in production; unset elsewhere, course checks fail closed.
+     */
+    ACTIVE_RULESET_VERSION: z.string().trim().min(1).optional(),
   })
   // SECURITY: dev tokens are guessable shortcuts, so production refuses to start with them.
   .refine((env) => !(env.NODE_ENV === 'production' && env.AUTH_MODE === AuthMode.Dev), {
     message: 'AUTH_MODE=dev is not allowed when NODE_ENV=production',
     path: ['AUTH_MODE'],
+  })
+  // SAFETY: course checks can't run without a ruleset, so production refuses to start without
+  // one instead of failing every check at request time (planning/08 §Rule lifecycle).
+  .refine((env) => env.NODE_ENV !== 'production' || env.ACTIVE_RULESET_VERSION !== undefined, {
+    message: 'ACTIVE_RULESET_VERSION is required when NODE_ENV=production',
+    path: ['ACTIVE_RULESET_VERSION'],
   });
 
 /** Validated API configuration. */
@@ -89,8 +101,9 @@ export type ApiEnv = z.infer<typeof ApiEnvSchema>;
  *
  * @param source - Raw environment, usually `process.env`.
  * @returns Validated configuration.
- * @throws {z.ZodError} When a variable is missing or invalid, when dev auth is enabled in
- *   production, or when the audit skew isn't a whole number of milliseconds up to seven days.
+ * @throws {z.ZodError} When a variable is missing or invalid, when dev auth is enabled or the
+ *   active ruleset is missing in production, or when the audit skew isn't a whole number of
+ *   milliseconds up to seven days.
  */
 export function loadApiEnv(source: NodeJS.ProcessEnv): ApiEnv {
   return ApiEnvSchema.parse(source);

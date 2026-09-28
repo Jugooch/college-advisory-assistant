@@ -38,6 +38,8 @@ export function buildTestApp(options: TestAppOptions): FastifyInstance {
     DATABASE_URL: 'postgres://unused.invalid/test',
     AUTH_MODE: 'dev',
     DEV_AUTH_TOKENS: JSON.stringify(options.tokens),
+    // NOTE: the seed's ruleset version (seed-scenario-fixtures.ts).
+    ACTIVE_RULESET_VERSION: 'demo-2026.1',
   });
   const repositories: Repositories = {
     ...createInMemoryRepositories(options.store),

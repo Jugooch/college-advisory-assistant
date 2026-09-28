@@ -29,8 +29,10 @@ describe('loadApiEnv', () => {
     expect(load).toThrow(/AUTH_MODE=dev is not allowed when NODE_ENV=production/);
   });
 
-  it('allows production when dev auth is off', () => {
-    expect(loadApiEnv({ ...BASE, NODE_ENV: 'production' }).AUTH_MODE).toBe(AuthMode.None);
+  it('allows production when dev auth is off and a ruleset is active', () => {
+    const env = loadApiEnv({ ...BASE, NODE_ENV: 'production', ACTIVE_RULESET_VERSION: 'r-1' });
+
+    expect(env.AUTH_MODE).toBe(AuthMode.None);
   });
 
   it('parses the dev token map when dev auth is on', () => {
@@ -94,4 +96,19 @@ describe('loadApiEnv AUDIT_RECORD_MAX_SKEW_MS', () => {
       expect(() => loadApiEnv({ ...BASE, AUDIT_RECORD_MAX_SKEW_MS: value })).toThrow(ZodError);
     },
   );
+});
+
+describe('loadApiEnv ACTIVE_RULESET_VERSION', () => {
+  it('reads the configured version, and has no default outside production', () => {
+    expect(loadApiEnv({ ...BASE, ACTIVE_RULESET_VERSION: 'demo-2026.1' })).toMatchObject({
+      ACTIVE_RULESET_VERSION: 'demo-2026.1',
+    });
+    expect(loadApiEnv(BASE).ACTIVE_RULESET_VERSION).toBeUndefined();
+  });
+
+  it.each([undefined, '', '  '])('refuses to start in production with %j', (value) => {
+    const source = { ...BASE, NODE_ENV: 'production', ACTIVE_RULESET_VERSION: value };
+
+    expect(() => loadApiEnv(source)).toThrow(ZodError);
+  });
 });
