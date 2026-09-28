@@ -20,11 +20,15 @@ import { z } from 'zod';
  *   be ranked.
  * - `PASSING_GRADE_UNDEFINED`: the rule accepts any passing completion, but policy doesn't say
  *   which letter grades pass (no `lowestPassingLetterGrade`), so only a ranked `F` is decided.
+ * - `GRADE_NOT_RECORDED`: the attempt that counts has no recorded grade, so the grade can't be
+ *   checked.
  *
  * Attempts:
  * - `IN_PROGRESS_MIN_GRADE`: satisfied only if the in-progress attempt earns the minimum grade.
  * - `PROGRESSION_NOT_PERMITTED`: the institution doesn't allow planning on in-progress work.
  * - `PENDING_TRANSFER`: the only qualifying credit is a transfer still under evaluation.
+ * - `INCOMPLETE_ATTEMPT`: an attempt for this course has a deferred (incomplete) grade, so the
+ *   outcome can't be settled until it's recorded.
  * - `NO_QUALIFYING_ATTEMPT`: no attempt of the course or an equivalent qualifies.
  * - `REPEAT_POLICY_UNDEFINED`: the course was repeated and policy doesn't say which attempt
  *   counts.
@@ -51,9 +55,11 @@ export const ReasonCode = {
   PassEquivalenceUndefined: 'PASS_EQUIVALENCE_UNDEFINED',
   GradeNotRanked: 'GRADE_NOT_RANKED',
   PassingGradeUndefined: 'PASSING_GRADE_UNDEFINED',
+  GradeNotRecorded: 'GRADE_NOT_RECORDED',
   InProgressMinGrade: 'IN_PROGRESS_MIN_GRADE',
   ProgressionNotPermitted: 'PROGRESSION_NOT_PERMITTED',
   PendingTransfer: 'PENDING_TRANSFER',
+  IncompleteAttempt: 'INCOMPLETE_ATTEMPT',
   NoQualifyingAttempt: 'NO_QUALIFYING_ATTEMPT',
   RepeatPolicyUndefined: 'REPEAT_POLICY_UNDEFINED',
   RepeatOrderUndetermined: 'REPEAT_ORDER_UNDETERMINED',
