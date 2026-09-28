@@ -33,4 +33,5 @@ export * from './models/program.model';
 export * from './models/requirement-result.model';
 export * from './models/roster-row.model';
 export * from './models/student.model';
+export * from './models/term.model';
 export * from './models/user-identity.model';

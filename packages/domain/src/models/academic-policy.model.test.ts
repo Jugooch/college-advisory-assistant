@@ -19,6 +19,7 @@ const VALID: AcademicPolicyInput = {
   letterGradeOrder: ['A', 'B', 'C', 'D', 'F'],
   lowestPassingLetterGrade: null,
   repeatPolicy: null,
+  termCreditBounds: null,
 };
 
 describe('createAcademicPolicy', () => {
@@ -31,6 +32,7 @@ describe('createAcademicPolicy', () => {
       letterGradeOrder: ['A', 'B', 'C', 'D', 'F'],
       lowestPassingLetterGrade: null,
       repeatPolicy: null,
+      termCreditBounds: null,
     });
   });
 
@@ -138,6 +140,51 @@ describe('createAcademicPolicy', () => {
     ).toBe(false);
   });
 
+  it('accepts institution-supplied credit bounds', () => {
+    expect(
+      createAcademicPolicy({
+        ...VALID,
+        termCreditBounds: { minCreditsHundredths: 1200, maxCreditsHundredths: 1800 },
+      }).termCreditBounds,
+    ).toEqual({ minCreditsHundredths: 1200, maxCreditsHundredths: 1800 });
+  });
+
+  it('accepts credit bounds whose minimum equals the maximum', () => {
+    expect(
+      createAcademicPolicy({
+        ...VALID,
+        termCreditBounds: { minCreditsHundredths: 1250, maxCreditsHundredths: 1250 },
+      }).termCreditBounds,
+    ).toEqual({ minCreditsHundredths: 1250, maxCreditsHundredths: 1250 });
+  });
+
+  it('rejects credit bounds whose minimum is above the maximum', () => {
+    const result = AcademicPolicySchema.safeParse({
+      ...VALID,
+      termCreditBounds: { minCreditsHundredths: 1801, maxCreditsHundredths: 1800 },
+    });
+
+    expect(result.error?.issues.map((issue) => issue.path)).toEqual([
+      ['termCreditBounds', 'minCreditsHundredths'],
+    ]);
+    expect(result.error?.issues[0]?.message).toMatch(
+      /minCreditsHundredths must not be greater than maxCreditsHundredths/,
+    );
+  });
+
+  it.each([
+    [{ minCreditsHundredths: -100, maxCreditsHundredths: 1800 }],
+    [{ minCreditsHundredths: 1200, maxCreditsHundredths: 1800.5 }],
+    [{ minCreditsHundredths: 1200 }],
+  ])('rejects the credit bounds %j', (termCreditBounds) => {
+    expect(() =>
+      createAcademicPolicy({
+        ...VALID,
+        termCreditBounds: termCreditBounds as AcademicPolicyInput['termCreditBounds'],
+      }),
+    ).toThrow();
+  });
+
   it('rejects an empty letter order', () => {
     expect(() => createAcademicPolicy({ ...VALID, letterGradeOrder: [] })).toThrow();
   });
@@ -162,6 +209,7 @@ describe('AcademicPolicySchema', () => {
       letterGradeOrder: ['A'],
       lowestPassingLetterGrade: null,
       repeatPolicy: null,
+      termCreditBounds: null,
     });
 
     expect(result.success).toBe(false);
@@ -175,6 +223,7 @@ describe('AcademicPolicySchema', () => {
       passSatisfiesMinimumGrade: null,
       letterGradeOrder: ['A'],
       lowestPassingLetterGrade: null,
+      termCreditBounds: null,
     });
 
     expect(result.success).toBe(false);
@@ -189,10 +238,20 @@ describe('AcademicPolicySchema', () => {
       passSatisfiesMinimumGrade: null,
       letterGradeOrder: ['A'],
       repeatPolicy: null,
+      termCreditBounds: null,
     });
 
     expect(result.success).toBe(false);
     expect(result.error?.issues.map((issue) => issue.path)).toEqual([['lowestPassingLetterGrade']]);
+  });
+
+  it('rejects omitted credit bounds, because unknown must be an explicit null', () => {
+    const { termCreditBounds: omitted, ...withoutBounds } = VALID;
+
+    expect(omitted).toBeNull();
+    expect(
+      AcademicPolicySchema.safeParse(withoutBounds).error?.issues.map((issue) => issue.path),
+    ).toEqual([['termCreditBounds']]);
   });
 
   it('rejects a string in place of a boolean switch', () => {

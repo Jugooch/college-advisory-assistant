@@ -12,11 +12,33 @@ import { RepeatPolicySchema } from '../enums/repeat-policy.enum';
 import { InstitutionIdSchema } from './institution.model';
 
 /**
+ * Schema for the institution's credit-load bounds for one term, in hundredths of a credit
+ * (1200 = 12.00 credits). Both bounds are inclusive.
+ */
+export const TermCreditBoundsSchema = z
+  .object({
+    /** Minimum credit load in hundredths of a credit. */
+    minCreditsHundredths: z.number().int().nonnegative(),
+    /** Maximum credit load in hundredths of a credit; at least the minimum. */
+    maxCreditsHundredths: z.number().int().nonnegative(),
+  })
+  // SAFETY: a minimum above the maximum would make every credit load fail, so no plan could
+  // ever pass the credit-load check.
+  .refine((bounds) => bounds.minCreditsHundredths <= bounds.maxCreditsHundredths, {
+    message: 'minCreditsHundredths must not be greater than maxCreditsHundredths',
+    path: ['minCreditsHundredths'],
+  })
+  .readonly();
+
+/** Validated, immutable per-term credit-load bounds. */
+export type TermCreditBounds = z.infer<typeof TermCreditBoundsSchema>;
+
+/**
  * Schema for the academic policy of one tenant in one ruleset version. Every value is
  * institution configuration, never a default built into code.
  *
- * Tenant term ordering is not part of this policy yet: until a Term model exists (S3), the
- * engine takes the tenant's term order as an explicit input.
+ * Tenant term ordering is not part of this policy: it comes from the tenant's term calendar
+ * (`TermCalendar`), ordered by `sequence`.
  */
 export const AcademicPolicySchema = z
   .object({
@@ -59,6 +81,12 @@ export const AcademicPolicySchema = z
      * said, and the engine returns undetermined (`REPEAT_POLICY_UNDEFINED`), never a guess.
      */
     repeatPolicy: RepeatPolicySchema.nullable(),
+    /**
+     * The institution-approved credit-load bounds for a term. `null` means the institution
+     * hasn't supplied them, and the engine's credit-load check returns UNKNOWN, never a default
+     * load such as 12 or 18 credits.
+     */
+    termCreditBounds: TermCreditBoundsSchema.nullable(),
   })
   // SAFETY: a repeated letter would give it two ranks, so a minimum-grade comparison could
   // pass or fail depending on which rank the engine found first.
@@ -98,7 +126,8 @@ export type AcademicPolicyInput = z.input<typeof AcademicPolicySchema>;
  * @param input - Raw policy fields.
  * @returns The parsed academic policy.
  * @throws {z.ZodError} When a field is invalid, `letterGradeOrder` is empty or repeats a
- *   letter, or `lowestPassingLetterGrade` is `F` or is set but missing from `letterGradeOrder`.
+ *   letter, `lowestPassingLetterGrade` is `F` or is set but missing from `letterGradeOrder`, or
+ *   `termCreditBounds` has a minimum above its maximum.
  */
 export function createAcademicPolicy(input: AcademicPolicyInput): AcademicPolicy {
   return AcademicPolicySchema.parse(input);
