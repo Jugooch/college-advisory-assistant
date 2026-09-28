@@ -1,6 +1,6 @@
 # AI review panel: each required reviewer agent (.claude/agents) reviews the PR; a trusted step validates and posts its verdict.
 # The "AI review gate" job is a required status check on main.
-# An APPROVE carries to a new head commit when the PR's own change is identical (same patch-id),
+# An APPROVE carries to a new head commit when every file the PR touches is identical (ADR-0006),
 # so updating a branch from main re-runs only the reviewers without a current or carried APPROVE.
 # Setup: run `claude setup-token` and store the result as the CLAUDE_CODE_OAUTH_TOKEN repository secret.
 name: AI review
@@ -115,7 +115,7 @@ jobs:
       pull-requests: read
       issues: read
     steps:
-      # Full history (all branches, including origin/<base>) so merge-base and patch-id resolve.
+      # Full history (all branches, including origin/<base>) so merge-base and ls-tree resolve.
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0

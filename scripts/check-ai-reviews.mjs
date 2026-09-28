@@ -1,6 +1,6 @@
 /**
  * @file AI review gate: passes only when every required reviewer's latest verdict approves the
- * PR's head commit, or approves an earlier commit whose PR change is identical (same patch-id).
+ * PR's head commit, or approves an earlier commit whose PR-touched files are byte-identical.
  *
  * Reads verdict markers of the form
  * `<!-- ai-review reviewer:<name> sha:<sha> verdict:<APPROVE|REQUEST_CHANGES> -->`
