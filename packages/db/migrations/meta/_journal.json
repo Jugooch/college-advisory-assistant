@@ -15,6 +15,13 @@
       "when": 1790608699723,
       "tag": "0001_catalog_rules_policy_term",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790610367136,
+      "tag": "0002_snapshot_attempt_audit",
+      "breakpoints": true
     }
   ]
 }
