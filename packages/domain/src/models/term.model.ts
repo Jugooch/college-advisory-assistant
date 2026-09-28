@@ -22,8 +22,8 @@ export type TermId = z.infer<typeof TermIdSchema>;
  * Terms are ordered by `sequence`, never by comparing `termCode` strings: `2026SP` sorts before
  * `2026SU` and `2026FA` sorts before both, whatever the calendar says. Within one tenant,
  * `termCode` is unique and so is `sequence`. A single term can't check that; the
- * {@link TermCalendarSchema} does for a tenant's term list, and persistence enforces it with
- * unique keys on (`tenantId`, `termCode`) and (`tenantId`, `sequence`).
+ * {@link TermCalendarSchema} does for a tenant's term list, and persistence is expected to
+ * enforce it with unique keys on (`tenantId`, `termCode`) and (`tenantId`, `sequence`) (#96).
  */
 export const TermSchema = z
   .object({
@@ -31,6 +31,8 @@ export const TermSchema = z
     tenantId: InstitutionIdSchema,
     /** Term code in the source system, for example `2026FA`. Matches `CourseAttempt.termCode`. */
     termCode: z.string().min(1),
+    // NOTE: date-only on purpose; a term boundary is a calendar date, and an offset would
+    // fabricate data (exception to docs/standards/04 rule 7, pending a tech-lead amendment).
     /** First day of the term, `YYYY-MM-DD` in the institution's calendar. */
     startsOn: z.iso.date(),
     /** Last day of the term, `YYYY-MM-DD` in the institution's calendar. Inclusive. */
