@@ -1,5 +1,6 @@
 /**
- * @file The session cookie: its name, its security attributes, and reading the token from it.
+ * @file The session cookie: its name, its security attributes, and reading, writing, and
+ * clearing the token.
  * @module @caa/web/lib/session-cookie
  * @requirement FR-01
  * @see docs/standards/09-errors-logging-and-security.md
@@ -58,4 +59,28 @@ export function sessionCookieOptions(nodeEnv: string | undefined): SessionCookie
 export function readSessionToken(store: Pick<SessionCookieStore, 'get'>): string | null {
   const value = store.get(SESSION_COOKIE_NAME)?.value ?? '';
   return value === '' ? null : value;
+}
+
+/**
+ * Writes the session token to the cookie store with the session attributes.
+ *
+ * @param store - The request's cookie store, writable in a server action.
+ * @param token - The session token.
+ * @param nodeEnv - The build's `NODE_ENV`, which decides the `secure` attribute.
+ */
+export function writeSessionToken(
+  store: Pick<SessionCookieStore, 'set'>,
+  token: string,
+  nodeEnv: string | undefined,
+): void {
+  store.set(SESSION_COOKIE_NAME, token, sessionCookieOptions(nodeEnv));
+}
+
+/**
+ * Removes the session cookie.
+ *
+ * @param store - The request's cookie store, writable in a server action.
+ */
+export function clearSessionToken(store: Pick<SessionCookieStore, 'delete'>): void {
+  store.delete(SESSION_COOKIE_NAME);
 }

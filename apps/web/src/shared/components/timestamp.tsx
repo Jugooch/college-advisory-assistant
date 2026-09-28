@@ -1,10 +1,10 @@
 /**
  * @file A machine-readable timestamp with a UTC display label.
- * @module @caa/web/features/verification-states/components/timestamp
+ * @module @caa/web/shared/components/timestamp
  */
 import type { ReactElement } from 'react';
 
-import { formatTimestamp } from '../utils/format-display';
+import { formatTimestamp } from '@/shared/utils/format-display';
 
 /** Props for {@link Timestamp}. */
 export interface TimestampProps {

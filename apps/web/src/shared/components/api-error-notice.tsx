@@ -1,7 +1,7 @@
 /**
  * @file Shows an API error envelope plainly: a fixed heading, the API's own message, a next step,
  * and the support reference.
- * @module @caa/web/features/service-errors/components/api-error-notice
+ * @module @caa/web/shared/components/api-error-notice
  * @requirement NFR-02
  * @see docs/planning/05-product-requirements.md
  */
@@ -9,7 +9,7 @@ import type { ReactElement } from 'react';
 
 import type { ApiError } from '@caa/api-contract';
 
-import { describeError } from '../utils/error-code-wording';
+import { describeError } from '@/shared/utils/error-code-wording';
 
 /** Props for {@link ApiErrorNotice}. */
 export interface ApiErrorNoticeProps {

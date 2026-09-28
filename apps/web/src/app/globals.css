@@ -34,20 +34,8 @@ body {
   position: static;
 }
 
-.site-header,
-.nav-list {
+.site-header {
   margin-bottom: 1rem;
-}
-
-.nav-list {
-  display: flex;
-  gap: 1rem;
-  padding: 0;
-  list-style: none;
-}
-
-.nav-list [aria-current='page'] {
-  font-weight: bold;
 }
 
 .status-badge {
@@ -100,6 +88,20 @@ body {
   margin: 0;
 }
 
+/* Long IDs and references wrap, so nothing scrolls sideways at 320px (WCAG 1.4.10). */
+.facts dd,
+code,
+th,
+td {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 30rem) {
+  .facts {
+    grid-template-columns: 1fr;
+  }
+}
+
 .requirement {
   margin: 0.75rem 0;
 }
@@ -112,7 +114,10 @@ body {
   color: var(--color-negative);
 }
 
+/* Fixed layout inside the page width, so the requirement table reflows instead of scrolling. */
 table {
+  width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
 }
 

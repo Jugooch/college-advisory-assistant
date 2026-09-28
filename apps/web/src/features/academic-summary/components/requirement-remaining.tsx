@@ -5,7 +5,7 @@
  */
 import type { ReactElement } from 'react';
 
-import { formatCredits } from '@/features/verification-states/utils/format-display';
+import { formatCredits } from '@/shared/utils/format-display';
 
 import type { SummaryRequirement } from '../utils/requirement-tree';
 

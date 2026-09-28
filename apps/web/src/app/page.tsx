@@ -11,8 +11,8 @@ import { getHealth } from '@/api/health.api';
 import { getMe } from '@/api/session.api';
 import { type SessionOutcome, SessionStatus } from '@/features/session/components/session-status';
 import { StudentLookupForm } from '@/features/session/components/student-lookup-form';
+import { isDevSignInEnabled } from '@/features/session/utils/dev-sign-in';
 import { SystemStatusCard } from '@/features/system-status/components/system-status-card';
-import { isDevSignInEnabled } from '@/lib/dev-sign-in';
 
 /** Render on every request so the status is always current. */
 export const dynamic = 'force-dynamic';
@@ -42,7 +42,7 @@ export default async function HomePage(): Promise<ReactElement> {
     <>
       <h1>College Advisory Assistant</h1>
       <SessionStatus session={session} devSignInHref={devSignInHref} />
-      {session.kind === 'signed-in' ? <StudentLookupForm isMissingId={false} /> : null}
+      {session.kind === 'signed-in' ? <StudentLookupForm idError={null} /> : null}
       <SystemStatusCard health={health} />
     </>
   );

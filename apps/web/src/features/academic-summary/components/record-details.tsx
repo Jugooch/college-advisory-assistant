@@ -8,7 +8,7 @@ import type { ReactElement } from 'react';
 
 import type { AcademicSummaryResponse } from '@caa/api-contract';
 
-import { Timestamp } from '@/features/verification-states/components/timestamp';
+import { Timestamp } from '@/shared/components/timestamp';
 
 /** Props for {@link RecordDetails}. */
 export interface RecordDetailsProps {

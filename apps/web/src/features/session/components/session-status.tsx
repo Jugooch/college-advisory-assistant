@@ -9,7 +9,7 @@ import type { ReactElement } from 'react';
 import type { ApiError, MeResponse } from '@caa/api-contract';
 import { ErrorCode } from '@caa/domain';
 
-import { ApiErrorNotice } from '@/features/service-errors/components/api-error-notice';
+import { ApiErrorNotice } from '@/shared/components/api-error-notice';
 
 /** The outcome of asking the API who is signed in. */
 export type SessionOutcome =

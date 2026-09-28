@@ -13,8 +13,8 @@ import type { AcademicSummaryResponse } from '@caa/api-contract';
 import { CheckState } from '@caa/domain';
 
 import { StatusBadge } from '@/components/ui/status-badge';
-import { ReasonExplanation } from '@/features/verification-states/components/reason-explanation';
-import { formatTimestamp } from '@/features/verification-states/utils/format-display';
+import { ReasonExplanation } from '@/shared/components/reason-explanation';
+import { formatTimestamp } from '@/shared/utils/format-display';
 
 import { isStandingUnverified } from '../utils/requirement-state-wording';
 
