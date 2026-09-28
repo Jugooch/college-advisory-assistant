@@ -9,7 +9,7 @@ Verified Advising Runtime: students plan next term through a conversational UI, 
 | `apps/web`                                    | `@caa/web`                    | Next.js UI: pages, feature components, API call functions    | frontend-engineer |
 | `apps/api`                                    | `@caa/api`                    | Fastify HTTP API: routes → controllers → services            | api-engineer      |
 | `apps/worker`                                 | `@caa/worker`                 | Background jobs: source imports, validation runs, solver     | data-engineer     |
-| `packages/domain`                             | `@caa/domain`                 | Data objects: Zod schemas, types, factories, enums           | domain-engineer   |
+| `packages/domain`                             | `@caa/domain`                 | Data objects (schemas, types, enums) and shared invariants   | domain-engineer   |
 | `packages/api-contract`                       | `@caa/api-contract`           | Endpoint definitions, request/response schemas, typed client | domain-engineer   |
 | `packages/engine`                             | `@caa/engine`                 | Pure, deterministic verification and scheduling              | engine-engineer   |
 | `packages/db`                                 | `@caa/db`                     | Tables, row mappers, repositories                            | data-engineer     |
