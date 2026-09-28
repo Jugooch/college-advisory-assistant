@@ -133,3 +133,84 @@ describe('CheckResultSchema allocation and credit-load checks', () => {
     expect(check.evidence).toEqual({ rulesetVersion: null, decisiveLeaves: [] });
   });
 });
+
+describe('CheckResultSchema credit-load verdicts need their arithmetic', () => {
+  const EVIDENCE_WITHOUT_LOAD = { rulesetVersion: 'demo-2026.1', decisiveLeaves: [] } as const;
+  const NULL_LOAD_EVIDENCE = { ...EVIDENCE_WITHOUT_LOAD, creditLoad: null } as const;
+
+  it('rejects a PASS with a null credit load', () => {
+    const result = CheckResultSchema.safeParse({
+      kind: 'CREDIT_LOAD',
+      state: 'PASS',
+      evidence: NULL_LOAD_EVIDENCE,
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects a PASS with an absent credit load or no evidence at all', () => {
+    expect(
+      CheckResultSchema.safeParse({
+        kind: 'CREDIT_LOAD',
+        state: 'PASS',
+        evidence: EVIDENCE_WITHOUT_LOAD,
+      }).success,
+    ).toBe(false);
+    expect(CheckResultSchema.safeParse({ kind: 'CREDIT_LOAD', state: 'PASS' }).success).toBe(false);
+  });
+
+  it.each(['CREDIT_LIMIT_EXCEEDED', 'CREDIT_BELOW_MINIMUM'])(
+    'rejects a FAIL with %s and a null or absent credit load',
+    (reasonCode) => {
+      const fail = { kind: 'CREDIT_LOAD', state: 'FAIL', reasonCode } as const;
+
+      expect(CheckResultSchema.safeParse({ ...fail, evidence: NULL_LOAD_EVIDENCE }).success).toBe(
+        false,
+      );
+      expect(
+        CheckResultSchema.safeParse({ ...fail, evidence: EVIDENCE_WITHOUT_LOAD }).success,
+      ).toBe(false);
+      expect(CheckResultSchema.safeParse(fail).success).toBe(false);
+    },
+  );
+
+  it('rejects a CONDITIONAL with a null credit load, since a load has no future condition', () => {
+    const result = CheckResultSchema.safeParse({
+      kind: 'CREDIT_LOAD',
+      state: 'CONDITIONAL',
+      reasonCode: 'VARIABLE_CREDIT_UNSELECTED',
+      evidence: NULL_LOAD_EVIDENCE,
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts an UNKNOWN with a null credit load', () => {
+    const check = createCheckResult({
+      kind: 'CREDIT_LOAD',
+      state: 'UNKNOWN',
+      reasonCode: 'VARIABLE_CREDIT_UNSELECTED',
+      evidence: NULL_LOAD_EVIDENCE,
+    });
+
+    expect(check.evidence?.creditLoad).toBeNull();
+  });
+
+  it('accepts a FAIL over the limit with its arithmetic', () => {
+    const check = createCheckResult({
+      kind: 'CREDIT_LOAD',
+      state: 'FAIL',
+      reasonCode: 'CREDIT_LIMIT_EXCEEDED',
+      evidence: {
+        ...EVIDENCE_WITHOUT_LOAD,
+        creditLoad: {
+          totalCreditsHundredths: 2100,
+          minCreditsHundredths: 1200,
+          maxCreditsHundredths: 1800,
+        },
+      },
+    });
+
+    expect(check.evidence?.creditLoad?.totalCreditsHundredths).toBe(2100);
+  });
+});

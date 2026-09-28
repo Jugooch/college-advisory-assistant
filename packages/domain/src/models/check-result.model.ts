@@ -115,6 +115,21 @@ export const CheckResultSchema = z
       path: ['evidence', 'creditLoad'],
     },
   )
+  // SAFETY: a PASS, FAIL, or CONDITIONAL load verdict is a known result about known numbers
+  // (planning/08 §Authority and result semantics: the check-state table; §Constraint
+  // formulation: L ≤ Σ credits ≤ U), so it needs its arithmetic. A null or absent creditLoad
+  // means the load is unknown, which only an UNKNOWN check may say. CONDITIONAL is excluded
+  // too: the load of a chosen candidate set depends on no future condition.
+  .refine(
+    (check) =>
+      check.kind !== CheckKind.CreditLoad ||
+      check.state === CheckState.Unknown ||
+      (check.evidence?.creditLoad ?? null) !== null,
+    {
+      message: 'A CREDIT_LOAD check that is not UNKNOWN requires creditLoad evidence',
+      path: ['evidence', 'creditLoad'],
+    },
+  )
   // SAFETY: the credit arithmetic shown beside a load check must agree with its state, so the
   // UI never shows a PASS over a total outside the bounds or an over-limit total that isn't.
   .refine((check) => creditLoadAgreesWithCheck(check), {
