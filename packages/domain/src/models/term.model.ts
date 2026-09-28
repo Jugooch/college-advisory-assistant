@@ -31,8 +31,9 @@ export const TermSchema = z
     tenantId: InstitutionIdSchema,
     /** Term code in the source system, for example `2026FA`. Matches `CourseAttempt.termCode`. */
     termCode: z.string().min(1),
-    // NOTE: date-only on purpose; a term boundary is a calendar date, and an offset would
-    // fabricate data (exception to docs/standards/04 rule 7, pending a tech-lead amendment).
+    // NOTE: date-only on purpose (docs/standards/04 rule 7): term boundaries are calendar
+    // dates in the institution's calendar, with no time of day, so an offset would fabricate
+    // data.
     /** First day of the term, `YYYY-MM-DD` in the institution's calendar. */
     startsOn: z.iso.date(),
     /** Last day of the term, `YYYY-MM-DD` in the institution's calendar. Inclusive. */
