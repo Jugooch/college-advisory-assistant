@@ -12,7 +12,7 @@ import { InstitutionIdSchema } from './institution.model';
 import { ProgramIdSchema } from './program.model';
 import { RequirementResultSchema } from './requirement-result.model';
 import { StudentIdSchema } from './student.model';
-import { StudentSnapshotIdSchema } from './student-snapshot.model';
+import { type StudentSnapshot, StudentSnapshotIdSchema } from './student-snapshot.model';
 
 /** Branded ID so an audit snapshot ID can never be passed where another ID is expected. */
 export const AuditSnapshotIdSchema = z.uuid().brand<'AuditSnapshotId'>();
@@ -153,4 +153,30 @@ export type AuditSnapshotInput = z.input<typeof AuditSnapshotSchema>;
  */
 export function createAuditSnapshot(input: AuditSnapshotInput): AuditSnapshot {
   return AuditSnapshotSchema.parse(input);
+}
+
+/**
+ * Returns whether the student record states a program and catalog and both equal the audit's.
+ *
+ * Shared invariant (ADR-0005): the academic-summary contract enforces it in a refine, and the
+ * engine's program and catalog check will call it once #107 lands, mapping `false` to UNKNOWN
+ * (`AUDIT_PROGRAM_MISMATCH`). Pure and total: it never throws.
+ *
+ * @param record - The pinned student record's program and catalog; either may be `null`.
+ * @param audit - The audit's program and catalog.
+ * @returns `false` when the record's program or catalog is `null` or differs from the audit's.
+ */
+export function isSameProgramAndCatalog(
+  record: Pick<StudentSnapshot, 'programId' | 'catalogYear'>,
+  audit: Pick<AuditSnapshot, 'programId' | 'catalogYear'>,
+): boolean {
+  // SAFETY: an audit for another program or catalog, or a record that doesn't say which it
+  // follows, is conflicting or missing data, never a match (planning/09 §Source authority
+  // matrix: block the affected claim if contradictory; planning/08 §Rule lifecycle).
+  return (
+    record.programId !== null &&
+    record.catalogYear !== null &&
+    record.programId === audit.programId &&
+    record.catalogYear === audit.catalogYear
+  );
 }

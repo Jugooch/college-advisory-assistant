@@ -51,9 +51,10 @@ describe('CheckResultSchema', () => {
           .reasonCode,
     );
 
-    expect(codes).toHaveLength(25);
+    expect(codes).toHaveLength(26);
     expect(codes).toContain('VARIABLE_CREDIT_UNSELECTED');
     expect(codes).toContain('CREDIT_BOUNDS_UNDEFINED');
+    expect(codes).toContain('AUDIT_PROGRAM_MISMATCH');
   });
 
   it('accepts PASSING_GRADE_UNDEFINED on an UNKNOWN check', () => {
