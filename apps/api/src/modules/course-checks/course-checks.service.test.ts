@@ -202,19 +202,25 @@ describe('CourseChecksService.checkCourses', () => {
   it('logs the run with opaque IDs, versions, and the aggregate only', async () => {
     const { result, logger } = check({ courseIds: [math102.id] });
 
-    const checks = await result;
+    await result;
 
     expect(logger.entries).toEqual([
       {
         level: 'info',
         message: 'course checks run',
         details: {
-          actorUserId: actor.userId,
-          tenantId: actor.tenantId,
-          studentId: student.id,
-          ...checks.pinnedInputs,
+          actorUserId: '20000000-0000-4000-8000-000000000001',
+          tenantId: '10000000-0000-4000-8000-000000000001',
+          studentId: '30000000-0000-4000-8000-000000000001',
+          studentSnapshotId: 'a0000000-0000-4000-8000-000000000001',
+          studentRecordEffectiveAt: '2026-09-01T05:00:00.000Z',
+          auditRecordEffectiveAt: '2026-09-01T05:00:00.000Z',
+          auditSource: 'demo-audit',
+          auditVersion: 'audit_demo_r1',
+          rulesetVersion: 'demo-2026.1',
           courseCount: 1,
-          aggregate: checks.aggregate,
+          // NOTE: 3.00 credits is below the 12.00 minimum, so credit load FAILs: BLOCKED.
+          aggregate: 'BLOCKED',
         },
       },
     ]);

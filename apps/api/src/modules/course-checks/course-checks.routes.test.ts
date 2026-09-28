@@ -260,6 +260,16 @@ describe('POST /v1/students/:studentId/course-checks record states', () => {
     });
   });
 
+  it('refers seeded SYN-000002 with 409 STALE_SOURCE before the engine runs (scenario 4)', async () => {
+    const response = await postChecks(STUDENTS.other.id, TOKENS.tenantAdmin, MATH_102);
+
+    expect(response.statusCode).toBe(409);
+    expect(readError(response.json())).toEqual({
+      code: ErrorCode.StaleSource,
+      message: 'Your academic record needs to be verified. Please contact your advisor.',
+    });
+  });
+
   it('reports an unselected variable credit as UNKNOWN', async () => {
     const response = await postChecks(STUDENTS.own.id, TOKENS.student, { courseIds: [ind390.id] });
 

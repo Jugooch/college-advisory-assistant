@@ -183,13 +183,18 @@ describe('verifyCourseSet on the seeded scenarios (README)', () => {
     expect(creditLoad.evidence?.creditLoad?.totalCreditsHundredths).toBe(1400);
   });
 
-  it('scenario 4: SYN-000002 applicability and allocation are UNKNOWN AUDIT_STALE', () => {
+  // NOTE: the endpoint refuses SYN-000002 first, with 409 STALE_SOURCE, because its audit's
+  // record time is 17 days old (course-checks.routes.test.ts). This covers the engine path the
+  // README describes, reached only if the audit were fresh but ran against an older snapshot.
+  it('scenario 4, engine path: SYN-000002 applicability and allocation are UNKNOWN AUDIT_STALE', () => {
     const checks = verifyCourseSet(inputsFor(STALE, [math102]));
     const stale = { state: CheckState.Unknown, reasonCode: ReasonCode.AuditStale };
 
     expect(checks.courseResults[0]?.applicability).toMatchObject(stale);
     expect(checks.setResults.allocation).toEqual([expect.objectContaining(stale)]);
-    expect(checks.aggregate).not.toBe(AggregateState.Validated);
+    // NOTE: 3.00 credits is below the 12.00 minimum, so credit load FAILs, and FAIL outranks
+    // the UNKNOWN checks: BLOCKED, never VALIDATED.
+    expect(checks.aggregate).toBe(AggregateState.Blocked);
   });
 });
 
