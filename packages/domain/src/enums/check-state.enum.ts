@@ -44,8 +44,8 @@ export const AggregateStateSchema = z.enum(AggregateState);
  * NEEDS_VERIFICATION, otherwise any CONDITIONAL is CONDITIONAL, otherwise VALIDATED.
  *
  * Shared invariant (ADR-0005): the single definition of this precedence. The course-checks
- * contract enforces it in a refine, and the engine's `aggregateCheckStates` will delegate to it
- * once #107 lands. Pure and total: it never throws.
+ * contract enforces it in a refine, and the engine's `aggregateCheckStates` delegates to it
+ * (#123). Pure and total: it never throws.
  *
  * @param states - The state of every check that applies.
  * @returns The aggregate state. An empty list is NEEDS_VERIFICATION, never VALIDATED.
