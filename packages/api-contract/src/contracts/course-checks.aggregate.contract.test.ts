@@ -42,6 +42,8 @@ const BASE = {
   },
   pinnedInputs: {
     studentSnapshotId: '3c4d5e6f-0000-4000-8000-000000000001',
+    studentRecordEffectiveAt: '2026-09-20T07:30:00.000-05:00',
+    auditRecordEffectiveAt: '2026-09-20T07:15:00.000-05:00',
     auditSource: 'demo-audit',
     auditVersion: 'audit_demo_r7',
     rulesetVersion: 'demo-2026.1',

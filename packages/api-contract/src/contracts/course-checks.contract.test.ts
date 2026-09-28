@@ -46,6 +46,8 @@ describe('CourseChecksResponseSchema', () => {
     aggregate: 'VALIDATED',
     pinnedInputs: {
       studentSnapshotId: '3c4d5e6f-0000-4000-8000-000000000001',
+      studentRecordEffectiveAt: '2026-09-20T07:30:00.000-05:00',
+      auditRecordEffectiveAt: '2026-09-20T07:15:00.000-05:00',
       auditSource: 'demo-audit',
       auditVersion: 'audit_demo_r7',
       rulesetVersion: 'demo-2026.1',
@@ -65,6 +67,36 @@ describe('CourseChecksResponseSchema', () => {
 
     expect(parsed.courseResults[1]?.prerequisite).toBeNull();
     expect(parsed.pinnedInputs.auditVersion).toBe('audit_demo_r7');
+  });
+
+  it('returns the as-of source times of the record and the audit unchanged', () => {
+    const parsed = CourseChecksResponseSchema.parse(VALID);
+
+    expect(parsed.pinnedInputs.studentRecordEffectiveAt).toBe('2026-09-20T07:30:00.000-05:00');
+    expect(parsed.pinnedInputs.auditRecordEffectiveAt).toBe('2026-09-20T07:15:00.000-05:00');
+  });
+
+  it('rejects pinned inputs without an as-of time', () => {
+    for (const missing of ['studentRecordEffectiveAt', 'auditRecordEffectiveAt']) {
+      const pinnedInputs = Object.fromEntries(
+        Object.entries(VALID.pinnedInputs).filter(([field]) => field !== missing),
+      );
+
+      expect(accepts({ ...VALID, pinnedInputs })).toBe(false);
+      expect(accepts({ ...VALID, pinnedInputs: { ...VALID.pinnedInputs, [missing]: null } })).toBe(
+        false,
+      );
+    }
+  });
+
+  it('rejects an as-of time without an offset or that is not a timestamp', () => {
+    for (const field of ['studentRecordEffectiveAt', 'auditRecordEffectiveAt']) {
+      for (const value of ['2026-09-20T07:30:00.000', '2026-09-20', 'yesterday']) {
+        expect(accepts({ ...VALID, pinnedInputs: { ...VALID.pinnedInputs, [field]: value } })).toBe(
+          false,
+        );
+      }
+    }
   });
 
   it('rejects a check of the wrong kind in each slot', () => {
