@@ -23,6 +23,10 @@ describe('syntheticId', () => {
     expect(syntheticId('equivalencyGroup', 1)).toBe('90000000-0000-4000-8000-000000000001');
   });
 
+  it('gives the S3 student snapshot kind its own prefix', () => {
+    expect(syntheticId('studentSnapshot', 1)).toBe('a0000000-0000-4000-8000-000000000001');
+  });
+
   it('rejects a seed that is negative, fractional, or too large for the final group', () => {
     expect(() => syntheticId('user', -1)).toThrow(RangeError);
     expect(() => syntheticId('user', 1.5)).toThrow(RangeError);
