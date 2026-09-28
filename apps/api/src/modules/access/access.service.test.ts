@@ -155,6 +155,7 @@ describe('AccessService.canViewStudent', () => {
 
     expect(logger.entries).toEqual([
       {
+        level: 'info',
         message: 'student access decision',
         details: {
           actorUserId: advisorActor.userId,
@@ -165,6 +166,7 @@ describe('AccessService.canViewStudent', () => {
         },
       },
       {
+        level: 'info',
         message: 'student access decision',
         details: {
           actorUserId: studentActor.userId,

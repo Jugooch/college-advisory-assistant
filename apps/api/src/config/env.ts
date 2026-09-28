@@ -2,7 +2,9 @@
  * @file Reads and validates API environment variables once at startup.
  * @module @caa/api/config/env
  * @requirement FR-01
+ * @requirement FR-04
  * @see docs/standards/09-errors-logging-and-security.md
+ * @see docs/planning/07-system-architecture-and-design.md
  */
 import { z } from 'zod';
 
@@ -20,6 +22,30 @@ const DevTokenMapSchema = z.record(
   z.string().min(1),
   z.object({ issuer: z.string().min(1), subject: z.string().min(1) }),
 );
+
+/**
+ * Default `AUDIT_RECORD_MAX_SKEW_MS`: one hour. The record and the audit it ran against normally
+ * carry the same source time, so an hour only absorbs clock and export lag between the two
+ * systems. It is far below the 17-day gap of the seeded stale scenario (SYN-000002).
+ */
+export const DEFAULT_AUDIT_RECORD_MAX_SKEW_MS = 3_600_000;
+
+/** Largest accepted `AUDIT_RECORD_MAX_SKEW_MS`: seven days. */
+export const MAX_AUDIT_RECORD_MAX_SKEW_MS = 604_800_000;
+
+/**
+ * `AUDIT_RECORD_MAX_SKEW_MS`: the partner-specific maximum skew, in milliseconds, between the
+ * pinned student record and the audit's record time (planning/07 §Consistency model). Digits
+ * only, so an empty or fractional value fails instead of coercing to 0 or rounding.
+ */
+const AuditRecordMaxSkewSchema = z
+  .string()
+  .regex(/^\d+$/, 'must be a whole number of milliseconds')
+  .default(String(DEFAULT_AUDIT_RECORD_MAX_SKEW_MS))
+  .transform(Number)
+  // SAFETY: a very wide skew would let an audit of an old record read as current, which
+  // quietly disables the staleness check, so startup refuses it.
+  .pipe(z.number().int().min(0).max(MAX_AUDIT_RECORD_MAX_SKEW_MS));
 
 /**
  * Parses a JSON string, reporting malformed JSON as a validation issue without echoing the value.
@@ -47,6 +73,7 @@ const ApiEnvSchema = z
     DATABASE_URL: z.string().min(1),
     AUTH_MODE: z.enum(AuthMode).default(AuthMode.None),
     DEV_AUTH_TOKENS: z.string().default('{}').transform(parseJson).pipe(DevTokenMapSchema),
+    AUDIT_RECORD_MAX_SKEW_MS: AuditRecordMaxSkewSchema,
   })
   // SECURITY: dev tokens are guessable shortcuts, so production refuses to start with them.
   .refine((env) => !(env.NODE_ENV === 'production' && env.AUTH_MODE === AuthMode.Dev), {
@@ -62,7 +89,8 @@ export type ApiEnv = z.infer<typeof ApiEnvSchema>;
  *
  * @param source - Raw environment, usually `process.env`.
  * @returns Validated configuration.
- * @throws {z.ZodError} When a variable is missing or invalid, or when dev auth is enabled in production.
+ * @throws {z.ZodError} When a variable is missing or invalid, when dev auth is enabled in
+ *   production, or when the audit skew isn't a whole number of milliseconds up to seven days.
  */
 export function loadApiEnv(source: NodeJS.ProcessEnv): ApiEnv {
   return ApiEnvSchema.parse(source);

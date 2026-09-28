@@ -15,8 +15,10 @@ import {
   SYNTHETIC_TENANTS,
 } from '@caa/test-kit';
 
+import type { Repositories } from '../container';
 import type { DevTokenIdentity } from '../modules/session/session.service';
 import type { LogDestination } from '../shared/logger';
+import { buildRecordAudit, buildRecordSnapshot } from './academic-fixtures';
 import type { InMemoryStore } from './in-memory-repositories';
 import { buildTestApp } from './test-app';
 
@@ -25,10 +27,11 @@ export const TEST_NOW = new Date('2026-09-01T12:00:00.000Z');
 
 /** Synthetic identities, one per case the routes must handle. */
 export const IDENTITIES: Readonly<
-  Record<'student' | 'advisor' | 'admin' | 'disabled', UserIdentity>
+  Record<'student' | 'advisor' | 'tenantAdmin' | 'admin' | 'disabled', UserIdentity>
 > = {
   student: buildUserIdentity({ roles: [Role.Student] }, 1),
   advisor: buildUserIdentity({ roles: [Role.Advisor] }, 2),
+  tenantAdmin: buildUserIdentity({ roles: [Role.Admin] }, 3),
   admin: buildUserIdentity({ tenantId: SYNTHETIC_TENANTS.b.id, roles: [Role.Admin] }, 4),
   disabled: buildUserIdentity({ status: IdentityStatus.Disabled }, 5),
 };
@@ -43,6 +46,7 @@ export const STUDENTS: Readonly<Record<'own' | 'other', Student>> = {
 export const TOKENS: Readonly<Record<keyof typeof IDENTITIES, string>> = {
   student: 'dev-token-student',
   advisor: 'dev-token-advisor',
+  tenantAdmin: 'dev-token-tenant-admin',
   admin: 'dev-token-admin',
   disabled: 'dev-token-disabled',
 };
@@ -59,11 +63,17 @@ function signInAs(identity: UserIdentity): DevTokenIdentity {
 
 /**
  * Builds the app over the synthetic world. The advisor is assigned to the `own` student only.
+ * The `own` student has one record snapshot and one audit that reflects it; `other` has neither.
  *
  * @param logStream - Captures JSON log lines. Logging is off when omitted.
+ * @param repositoryOverrides - Repositories to use instead of the in-memory ones, for example
+ *   one that ignores its tenant filter to test a backstop.
  * @returns The app and its mutable store.
  */
-export function buildWorldApp(logStream?: LogDestination): {
+export function buildWorldApp(
+  logStream?: LogDestination,
+  repositoryOverrides: Partial<Repositories> = {},
+): {
   app: FastifyInstance;
   store: InMemoryStore;
 } {
@@ -73,10 +83,13 @@ export function buildWorldApp(logStream?: LogDestination): {
     assignments: [
       buildAdvisorAssignment({ advisorUserId: IDENTITIES.advisor.id, studentId: STUDENTS.own.id }),
     ],
+    studentSnapshots: [buildRecordSnapshot({ studentId: STUDENTS.own.id })],
+    audits: [buildRecordAudit({ studentId: STUDENTS.own.id })],
   };
   const tokens = {
     [TOKENS.student]: signInAs(IDENTITIES.student),
     [TOKENS.advisor]: signInAs(IDENTITIES.advisor),
+    [TOKENS.tenantAdmin]: signInAs(IDENTITIES.tenantAdmin),
     [TOKENS.admin]: signInAs(IDENTITIES.admin),
     [TOKENS.disabled]: signInAs(IDENTITIES.disabled),
   };
@@ -84,6 +97,7 @@ export function buildWorldApp(logStream?: LogDestination): {
     store,
     tokens,
     now: () => TEST_NOW,
+    repositoryOverrides,
     ...(logStream === undefined ? {} : { logStream }),
   });
   return { app, store };

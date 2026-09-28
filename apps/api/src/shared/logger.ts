@@ -16,6 +16,14 @@ export interface Logger {
    * @param message - Short, lower-case, constant message.
    */
   info(details: Record<string, unknown>, message: string): void;
+
+  /**
+   * Writes a warn-level line, for security events a reviewer must see.
+   *
+   * @param details - Opaque IDs and flags only. Never names, source student IDs, or tokens.
+   * @param message - Short, lower-case, constant message.
+   */
+  warn(details: Record<string, unknown>, message: string): void;
 }
 
 /** Where log lines go instead of stdout. Tests pass one to capture lines. */
