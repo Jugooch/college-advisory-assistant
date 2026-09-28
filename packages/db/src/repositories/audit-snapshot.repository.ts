@@ -18,7 +18,7 @@ import { studentTable } from '../tables/student.table';
 
 /**
  * Result of {@link AuditSnapshotRepository.findLatest}. `AMBIGUOUS` means two audits share the
- * newest generation time and ingestion time, so neither is newer.
+ * newest generation time, so the source doesn't say which is newer.
  */
 export type LatestAuditSnapshot =
   { readonly status: 'FOUND'; readonly audit: AuditSnapshot } | { readonly status: 'AMBIGUOUS' };
@@ -26,10 +26,10 @@ export type LatestAuditSnapshot =
 /** Reads audit snapshots. Imported, immutable revisions, so there are no update methods. */
 export interface AuditSnapshotRepository {
   /**
-   * Finds the student's latest audit: the newest `generatedAt`, never the newest ingestion
-   * alone. At an equal generation time the later ingestion wins; when both times are equal the
-   * result is `AMBIGUOUS`, never an arbitrary pick. The audit keeps the `studentSnapshotId` it
-   * ran against, whatever snapshots arrived later.
+   * Finds the student's latest audit: the one with the strictly newest `generatedAt`. Ingestion
+   * time never decides. When two audits share the newest generation time the result is
+   * `AMBIGUOUS`, never a pick. The audit keeps the `studentSnapshotId` it ran against, whatever
+   * snapshots arrived later.
    *
    * @param tenantId - Tenant that owns the student.
    * @param studentId - Student whose audit is wanted.
@@ -45,13 +45,14 @@ export interface AuditSnapshotRepository {
  *
  * @param newest - The first row in "latest" order.
  * @param runnerUp - The second row, if any.
- * @returns `true` when both generation and ingestion times are equal.
+ * @returns `true` when both have the same generation time.
  */
 function isTied(newest: AuditSnapshotRow, runnerUp: AuditSnapshotRow | undefined): boolean {
-  return (
-    runnerUp?.generatedAt.getTime() === newest.generatedAt.getTime() &&
-    runnerUp.ingestedAt.getTime() === newest.ingestedAt.getTime()
-  );
+  // SAFETY: only the audit source orders audits (planning/07 §Consistency model: a recent import
+  // timestamp must not hide an old source audit). Ingestion time is ignored, and no source
+  // ordering field exists yet, so two audits generated at the same time conflict and the caller
+  // reports UNKNOWN rather than trusting either allocation.
+  return runnerUp?.generatedAt.getTime() === newest.generatedAt.getTime();
 }
 
 /**
@@ -80,13 +81,11 @@ export function createAuditSnapshotRepository(db: Database): AuditSnapshotReposi
             eq(studentTable.isDeleted, false),
           ),
         )
-        .orderBy(desc(audits.generatedAt), desc(audits.ingestedAt))
+        .orderBy(desc(audits.generatedAt))
         .limit(2);
       if (!newest) {
         return null;
       }
-      // SAFETY: two audits at the same generation and ingestion time give no order, so the
-      // caller gets the ambiguity instead of whichever row PostgreSQL returned first.
       if (isTied(newest.audit, runnerUp?.audit)) {
         return { status: 'AMBIGUOUS' };
       }

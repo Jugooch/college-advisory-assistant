@@ -32,7 +32,7 @@ export interface StudentSnapshotRevision {
 
 /**
  * Result of {@link StudentSnapshotRepository.findLatest}. `AMBIGUOUS` means two snapshots
- * share the newest source effective time and ingestion time, so neither is newer.
+ * share the newest source effective time, so the source doesn't say which is newer.
  */
 export type LatestStudentSnapshot =
   | { readonly status: 'FOUND'; readonly revision: StudentSnapshotRevision }
@@ -41,9 +41,9 @@ export type LatestStudentSnapshot =
 /** Reads student snapshots. Imported, immutable revisions, so there are no update methods. */
 export interface StudentSnapshotRepository {
   /**
-   * Finds the student's latest snapshot: the newest `sourceEffectiveAt`, never the newest
-   * ingestion alone. At an equal source time the later ingestion wins; when both times are
-   * equal the result is `AMBIGUOUS`, never an arbitrary pick.
+   * Finds the student's latest snapshot: the one with the strictly newest `sourceEffectiveAt`.
+   * Ingestion time never decides. When two snapshots share the newest source time the result
+   * is `AMBIGUOUS`, never a pick.
    *
    * @param tenantId - Tenant that owns the student.
    * @param studentId - Student whose record is wanted.
@@ -70,13 +70,14 @@ export interface StudentSnapshotRepository {
  *
  * @param newest - The first row in "latest" order.
  * @param runnerUp - The second row, if any.
- * @returns `true` when both source effective and ingestion times are equal.
+ * @returns `true` when both have the same source effective time.
  */
 function isTied(newest: StudentSnapshotRow, runnerUp: StudentSnapshotRow | undefined): boolean {
-  return (
-    runnerUp?.sourceEffectiveAt.getTime() === newest.sourceEffectiveAt.getTime() &&
-    runnerUp.ingestedAt.getTime() === newest.ingestedAt.getTime()
-  );
+  // SAFETY: only the source orders revisions (planning/07 §Consistency model: a recent import
+  // timestamp must not hide an old source record). Ingestion time is ignored, and no source
+  // ordering field exists yet, so an equal source time is a conflict for the caller to report
+  // as UNKNOWN, never a guess.
+  return runnerUp?.sourceEffectiveAt.getTime() === newest.sourceEffectiveAt.getTime();
 }
 
 /**
@@ -135,7 +136,7 @@ export function createStudentSnapshotRepository(db: Database): StudentSnapshotRe
       )
       // SECURITY: every read is filtered by tenant; a tombstoned student's record is invisible.
       .where(and(eq(snapshots.tenantId, tenantId), eq(studentTable.isDeleted, false), match))
-      .orderBy(desc(snapshots.sourceEffectiveAt), desc(snapshots.ingestedAt))
+      .orderBy(desc(snapshots.sourceEffectiveAt))
       .limit(limit);
     return rows.map(({ snapshot }) => snapshot);
   };
@@ -146,8 +147,6 @@ export function createStudentSnapshotRepository(db: Database): StudentSnapshotRe
       if (!newest) {
         return null;
       }
-      // SAFETY: two revisions at the same source and ingestion time give no order, so the
-      // caller gets the ambiguity instead of whichever row PostgreSQL returned first.
       if (isTied(newest, runnerUp)) {
         return { status: 'AMBIGUOUS' };
       }

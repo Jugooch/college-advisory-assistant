@@ -181,7 +181,7 @@ describe('AuditSnapshotRepository.findLatest', () => {
     expect(await latestVersion(subject)).toBe('r2');
   });
 
-  it('picks the later ingestion at an equal generation time, else reports AMBIGUOUS', async () => {
+  it('reports AMBIGUOUS at an equal generation time, whatever the ingestion', async () => {
     const subject = await setUpSubject();
     const base = {
       studentId: subject.studentId,
@@ -194,12 +194,13 @@ describe('AuditSnapshotRepository.findLatest', () => {
       auditVersion: 'r1',
       ingestedAt: '2026-09-11T07:00:00.000Z',
     });
-    await insertAudit(testDatabase.db, subject.tenantId, { ...base, auditVersion: 'r2' });
-    const beforeTie = await latestVersion(subject);
 
-    await insertAudit(testDatabase.db, subject.tenantId, { ...base, auditVersion: 'r3' });
+    await insertAudit(testDatabase.db, subject.tenantId, {
+      ...base,
+      auditVersion: 'r2',
+      ingestedAt: '2026-09-12T07:00:00.000Z',
+    });
 
-    expect(beforeTie).toBe('r2');
     expect(await latestVersion(subject)).toEqual({ status: 'AMBIGUOUS' });
   });
 

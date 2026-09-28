@@ -57,7 +57,7 @@ describe('StudentSnapshotRepository', () => {
     expect(await latestId(tenantId, studentId)).toBe(newer);
   });
 
-  it('picks the later ingestion when source effective times are equal', async () => {
+  it('reports AMBIGUOUS when source effective times are equal, whatever the ingestion', async () => {
     const { tenantId, studentId } = await setUpStudent();
     const sourceEffectiveAt = '2026-09-20T06:00:00.000Z';
     await insertSnapshot(testDatabase.db, tenantId, {
@@ -65,22 +65,26 @@ describe('StudentSnapshotRepository', () => {
       sourceEffectiveAt,
       ingestedAt: '2026-09-20T07:00:00.000Z',
     });
-    const reingested = await insertSnapshot(testDatabase.db, tenantId, {
+    await insertSnapshot(testDatabase.db, tenantId, {
       studentId,
       sourceEffectiveAt,
       ingestedAt: '2026-09-21T07:00:00.000Z',
     });
 
-    expect(await latestId(tenantId, studentId)).toBe(reingested);
+    expect(await repository().findLatest(tenantId, studentId)).toEqual({ status: 'AMBIGUOUS' });
   });
 
-  it('reports AMBIGUOUS when two snapshots share both times', async () => {
+  it('ignores a tie between older snapshots when a strictly newer one exists', async () => {
     const { tenantId, studentId } = await setUpStudent();
-    const times = { sourceEffectiveAt: '2026-09-20T06:00:00.000Z' };
-    await insertSnapshot(testDatabase.db, tenantId, { studentId, ...times });
-    await insertSnapshot(testDatabase.db, tenantId, { studentId, ...times });
+    const older = { studentId, sourceEffectiveAt: '2026-09-10T06:00:00.000Z' };
+    await insertSnapshot(testDatabase.db, tenantId, older);
+    await insertSnapshot(testDatabase.db, tenantId, older);
+    const newest = await insertSnapshot(testDatabase.db, tenantId, {
+      studentId,
+      sourceEffectiveAt: '2026-09-20T06:00:00.000Z',
+    });
 
-    expect(await repository().findLatest(tenantId, studentId)).toEqual({ status: 'AMBIGUOUS' });
+    expect(await latestId(tenantId, studentId)).toBe(newest);
   });
 
   it('round-trips every attempt status in the snapshot order', async () => {

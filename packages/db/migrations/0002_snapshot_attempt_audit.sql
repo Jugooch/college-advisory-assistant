@@ -107,5 +107,5 @@ ALTER TABLE "student_snapshot_attempt" ADD CONSTRAINT "student_snapshot_attempt_
 ALTER TABLE "student_snapshot_attempt" ADD CONSTRAINT "student_snapshot_attempt_attempt_fk" FOREIGN KEY ("tenant_id","student_id","course_attempt_id") REFERENCES "public"."course_attempt"("tenant_id","student_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "student_snapshot" ADD CONSTRAINT "student_snapshot_tenant_id_institution_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "public"."institution"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "student_snapshot" ADD CONSTRAINT "student_snapshot_student_fk" FOREIGN KEY ("tenant_id","student_id") REFERENCES "public"."student"("tenant_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-CREATE INDEX "audit_snapshot_latest_idx" ON "audit_snapshot" USING btree ("tenant_id","student_id","generated_at","ingested_at");--> statement-breakpoint
-CREATE INDEX "student_snapshot_latest_idx" ON "student_snapshot" USING btree ("tenant_id","student_id","source_effective_at","ingested_at");
+CREATE INDEX "audit_snapshot_latest_idx" ON "audit_snapshot" USING btree ("tenant_id","student_id","generated_at");--> statement-breakpoint
+CREATE INDEX "student_snapshot_latest_idx" ON "student_snapshot" USING btree ("tenant_id","student_id","source_effective_at");

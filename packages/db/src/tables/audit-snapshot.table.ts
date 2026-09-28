@@ -50,7 +50,7 @@ export const auditSnapshotTable = pgTable(
       withTimezone: true,
       precision: 3,
     }).notNull(),
-    /** When the audit was ingested. Breaks ties between equal generation times only. */
+    /** When the audit was ingested. Bookkeeping only; never used to order revisions. */
     ingestedAt: timestamp('ingested_at', { withTimezone: true, precision: 3 })
       .notNull()
       .defaultNow(),
@@ -84,12 +84,7 @@ export const auditSnapshotTable = pgTable(
       'audit_snapshot_record_before_generated',
       sql`${table.studentRecordEffectiveAt} <= ${table.generatedAt}`,
     ),
-    index('audit_snapshot_latest_idx').on(
-      table.tenantId,
-      table.studentId,
-      table.generatedAt,
-      table.ingestedAt,
-    ),
+    index('audit_snapshot_latest_idx').on(table.tenantId, table.studentId, table.generatedAt),
   ],
 );
 

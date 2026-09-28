@@ -1,5 +1,5 @@
 {
-  "id": "220fad05-e139-476b-af29-2d5d4d6038d1",
+  "id": "7d0d459b-ab29-4ef6-9935-d1e33ace157f",
   "prevId": "48883de2-bcdb-4e1b-b34c-7df6d07e1f0e",
   "version": "7",
   "dialect": "postgresql",
@@ -388,12 +388,6 @@
             },
             {
               "expression": "generated_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "ingested_at",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1618,12 +1612,6 @@
             },
             {
               "expression": "source_effective_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "ingested_at",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

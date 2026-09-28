@@ -46,7 +46,7 @@ export const studentSnapshotTable = pgTable(
       withTimezone: true,
       precision: 3,
     }).notNull(),
-    /** When the record was ingested. Breaks ties between equal source times only. */
+    /** When the record was ingested. Bookkeeping only; never used to order revisions. */
     ingestedAt: timestamp('ingested_at', { withTimezone: true, precision: 3 })
       .notNull()
       .defaultNow(),
@@ -78,7 +78,6 @@ export const studentSnapshotTable = pgTable(
       table.tenantId,
       table.studentId,
       table.sourceEffectiveAt,
-      table.ingestedAt,
     ),
   ],
 );
