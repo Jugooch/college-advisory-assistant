@@ -8,6 +8,7 @@
  */
 import {
   type AcademicPolicy,
+  AttemptStatus,
   CheckState,
   CountingState,
   type CourseAttempt,
@@ -46,9 +47,13 @@ const NO_QUALIFYING_ATTEMPT: LeafOutcome = {
   state: CheckState.Fail,
   reasonCode: ReasonCode.NoQualifyingAttempt,
 };
-const GRADE_UNRECORDED: LeafOutcome = {
+const GRADE_NOT_RECORDED: LeafOutcome = {
   state: CheckState.Unknown,
-  reasonCode: ReasonCode.GradeSchemeMismatch,
+  reasonCode: ReasonCode.GradeNotRecorded,
+};
+const INCOMPLETE_ATTEMPT: LeafOutcome = {
+  state: CheckState.Unknown,
+  reasonCode: ReasonCode.IncompleteAttempt,
 };
 const PENDING_TRANSFER: LeafOutcome = {
   state: CheckState.Unknown,
@@ -58,13 +63,15 @@ const PENDING_TRANSFER: LeafOutcome = {
  * Evaluates a required course against the attempt group that holds it and its equivalents.
  *
  * Decisions, in order:
- * 1. The group's counting attempt is UNDETERMINED: UNKNOWN with the group's reason code.
- * 2. The counting attempt meets the minimum (see `compareToMinimumGrade`): PASS, whatever
+ * 1. Any attempt in the group is INCOMPLETE: UNKNOWN (`INCOMPLETE_ATTEMPT`).
+ * 2. The group's counting attempt is UNDETERMINED: UNKNOWN with the group's reason code.
+ * 3. The counting attempt meets the minimum (see `compareToMinimumGrade`): PASS, whatever
  *    pending transfers the group also holds. With an in-progress retake, the repeat policy
  *    decides: PASS under HIGHEST_GRADE, CONDITIONAL under MOST_RECENT (see
  *    `evaluateRetakeOfPassingAttempt`).
- * 3. The comparison is UNKNOWN, or the counting attempt has no grade: UNKNOWN.
- * 4. Otherwise the current record fails (`MIN_GRADE_NOT_MET`, or `NO_QUALIFYING_ATTEMPT` when
+ * 4. The comparison is UNKNOWN, or the counting attempt has no grade (`GRADE_NOT_RECORDED`):
+ *    UNKNOWN.
+ * 5. Otherwise the current record fails (`MIN_GRADE_NOT_MET`, or `NO_QUALIFYING_ATTEMPT` when
  *    nothing counts), and in-progress and pending-transfer attempts are weighed as alternatives
  *    by `ANY` precedence: in-progress work gives CONDITIONAL or FAIL (see
  *    `evaluateInProgressPrerequisite`), and a pending transfer gives UNKNOWN.
@@ -82,6 +89,14 @@ export function evaluateCoursePrerequisite(
 ): LeafOutcome {
   if (group === null) {
     return NO_QUALIFYING_ATTEMPT;
+  }
+  // SAFETY: an INCOMPLETE attempt has a deferred grade that will be recorded later
+  // (attempt-status.enum.ts). Once recorded, it can become the counting attempt, replace a
+  // passing one, or satisfy a failing one, so no settled PASS or FAIL is possible until then
+  // (planning/08 §Authority and result semantics: missing data is UNKNOWN; §Eligibility
+  // semantics: repeated attempts use approved source semantics).
+  if (group.attempts.some((attempt) => attempt.status === AttemptStatus.Incomplete)) {
+    return INCOMPLETE_ATTEMPT;
   }
   const { counting } = group;
   // SAFETY: when the engine can't tell which attempt counts, it can't tell whether the course is
@@ -134,11 +149,10 @@ function compareCountingAttempt(
 ): LeafOutcome {
   const { grade } = attempt;
   // SAFETY: a counting attempt with no recorded grade, such as transfer credit awarded without
-  // one, can't show that it meets a minimum or is a passing completion, so it gets the same
-  // UNKNOWN as a grade of the UNKNOWN scheme (planning/08 §Candidate formation: preserve grade
-  // schemes).
+  // one, can't show that it meets a minimum or is a passing completion, so it is UNKNOWN,
+  // never PASS (planning/08 §Authority and result semantics: missing data is UNKNOWN).
   if (grade === null) {
-    return GRADE_UNRECORDED;
+    return GRADE_NOT_RECORDED;
   }
   const comparison = compareToMinimumGrade(grade, leaf.minimumGrade, policy);
   return comparison.state === CheckState.Pass ? PASS : comparison;

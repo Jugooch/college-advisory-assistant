@@ -42,7 +42,7 @@ function outcomeOf(
   policy: Partial<AcademicPolicyInput>,
   expression: PrerequisiteExpression = course(CALC_ID, letter('C')),
 ): readonly [string, string | undefined] {
-  const { check } = evaluatePrerequisite(
+  const check = evaluatePrerequisite(
     buildPrerequisiteRule({ expression }),
     { attempts, courses: COURSES },
     { academicPolicy: buildAcademicPolicy(policy), termCodesOldestFirst: ['2026SP', '2026FA'] },

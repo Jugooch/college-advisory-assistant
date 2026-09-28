@@ -32,7 +32,7 @@ const MISSING_ID = syntheticId('course', 0x999);
 const CALC_MIN_C = course(CALC_ID, letter('C'));
 
 /**
- * Evaluates a one-course rule and returns its check.
+ * Evaluates a one-course rule and returns its check without the evidence.
  *
  * @param attempts - The student's attempts.
  * @param policy - Policy switches to override.
@@ -44,11 +44,17 @@ function checkOf(
   policy: Partial<AcademicPolicyInput> = {},
   expression: PrerequisiteExpression = CALC_MIN_C,
 ): unknown {
-  return evaluatePrerequisite(
+  const check = evaluatePrerequisite(
     buildPrerequisiteRule({ expression }),
     { attempts, courses: COURSES },
     { academicPolicy: buildAcademicPolicy(policy), termCodesOldestFirst: ['2026SP', '2026FA'] },
-  ).check;
+  );
+  return {
+    kind: check.kind,
+    state: check.state,
+    sourceRef: check.sourceRef,
+    reasonCode: check.reasonCode,
+  };
 }
 
 /**
@@ -132,10 +138,8 @@ describe('evaluatePrerequisite for one required course', () => {
     expect(checkOf([transferAwardedAttempt({ grade: letter('B') })])).toEqual(expected('PASS'));
   });
 
-  it('is UNKNOWN with GRADE_SCHEME_MISMATCH when the counting attempt has no grade', () => {
-    expect(checkOf([transferAwardedAttempt()])).toEqual(
-      expected('UNKNOWN', 'GRADE_SCHEME_MISMATCH'),
-    );
+  it('is UNKNOWN with GRADE_NOT_RECORDED when the counting attempt has no grade', () => {
+    expect(checkOf([transferAwardedAttempt()])).toEqual(expected('UNKNOWN', 'GRADE_NOT_RECORDED'));
   });
 
   it('is UNKNOWN when the repeat policy cannot pick the counting attempt', () => {

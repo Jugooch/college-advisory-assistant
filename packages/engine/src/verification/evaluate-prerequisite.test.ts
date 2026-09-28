@@ -3,7 +3,13 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import type { AcademicPolicyInput, CourseAttempt, PrerequisiteExpression } from '@caa/domain';
+import type {
+  AcademicPolicyInput,
+  CheckResult,
+  CourseAttempt,
+  DecisiveLeaf,
+  PrerequisiteExpression,
+} from '@caa/domain';
 import {
   all,
   any,
@@ -19,10 +25,7 @@ import {
 } from '@caa/test-kit';
 
 import { evaluatePrerequisite } from './evaluate-prerequisite';
-import {
-  type PrerequisiteEvaluation,
-  PrerequisiteInputMismatchError,
-} from './prerequisite-evaluation';
+import { PrerequisiteInputMismatchError } from './prerequisite-evaluation';
 
 const COURSES = Object.values(SYNTHETIC_COURSES);
 const CALC_ID = SYNTHETIC_COURSES.math101.id;
@@ -38,13 +41,13 @@ const CONSENT = unsupported('or consent of the department');
  * @param expression - The rule's expression.
  * @param attempts - The student's attempts.
  * @param policy - Policy switches to override.
- * @returns The evaluation.
+ * @returns The prerequisite check.
  */
 function evaluate(
   expression: PrerequisiteExpression,
   attempts: readonly CourseAttempt[],
   policy: Partial<AcademicPolicyInput> = {},
-): PrerequisiteEvaluation {
+): CheckResult {
   return evaluatePrerequisite(
     buildPrerequisiteRule({ expression }),
     { attempts, courses: COURSES },
@@ -52,17 +55,40 @@ function evaluate(
   );
 }
 
+/**
+ * Evaluates a rule and returns only its decisive leaves.
+ *
+ * @param args - The arguments of {@link evaluate}.
+ * @returns The evidence's decisive leaves.
+ */
+function leavesOf(...args: Parameters<typeof evaluate>): readonly DecisiveLeaf[] | undefined {
+  return evaluate(...args).evidence?.decisiveLeaves;
+}
+
+/**
+ * Drops the evidence from a check, for assertions about the check alone.
+ *
+ * @param check - The check.
+ * @returns The check's kind, state, reason code, and source reference.
+ */
+function withoutEvidence(check: CheckResult): unknown {
+  return {
+    kind: check.kind,
+    state: check.state,
+    reasonCode: check.reasonCode,
+    sourceRef: check.sourceRef,
+  };
+}
+
 describe('evaluatePrerequisite combination', () => {
   it('is UNKNOWN, never FAIL or PASS, for an ANY of an UNKNOWN and a FAIL', () => {
-    expect(evaluate(any(course(CALC_ID, letter('C')), CONSENT), [CALC_D]).check.state).toBe(
-      'UNKNOWN',
-    );
+    expect(evaluate(any(course(CALC_ID, letter('C')), CONSENT), [CALC_D]).state).toBe('UNKNOWN');
   });
 
   it('fails an ALL when one child fails, even if another is UNKNOWN', () => {
     const result = evaluate(all(CONSENT, course(CALC_ID, letter('C'))), [CALC_D]);
 
-    expect(result.check).toEqual({
+    expect(withoutEvidence(result)).toEqual({
       kind: 'PREREQUISITE',
       state: 'FAIL',
       reasonCode: 'MIN_GRADE_NOT_MET',
@@ -74,13 +100,13 @@ describe('evaluatePrerequisite combination', () => {
     const expression = any(course(CALC_ID, letter('C')), course(PHYSICS_ID));
     const policy = { lowestPassingLetterGrade: 'D' } as const;
 
-    expect(evaluate(expression, [CALC_D, PHYSICS_A], policy).check.state).toBe('PASS');
+    expect(evaluate(expression, [CALC_D, PHYSICS_A], policy).state).toBe('PASS');
   });
 
   it('propagates UNKNOWN from a nested ANY through an ALL whose other child passes', () => {
     const expression = all(course(PHYSICS_ID, letter('C')), any(CONSENT, course(LAB_ID)));
 
-    expect(evaluate(expression, [PHYSICS_A]).check).toEqual({
+    expect(withoutEvidence(evaluate(expression, [PHYSICS_A]))).toEqual({
       kind: 'PREREQUISITE',
       state: 'UNKNOWN',
       reasonCode: 'UNSUPPORTED_RULE',
@@ -89,13 +115,10 @@ describe('evaluatePrerequisite combination', () => {
   });
 
   it('is UNKNOWN with the node reason code for an UNSUPPORTED root', () => {
-    const result = evaluate(unsupported('placement exam', 'AUDIT_AMBIGUOUS'), []);
-
-    expect(result.decisiveLeaves).toEqual([
+    expect(leavesOf(unsupported('placement exam', 'AUDIT_AMBIGUOUS'), [])).toEqual([
       {
         type: 'UNSUPPORTED',
         path: [],
-        state: 'UNKNOWN',
         reasonCode: 'AUDIT_AMBIGUOUS',
         sourceText: 'placement exam',
       },
@@ -109,8 +132,9 @@ describe('evaluatePrerequisite combination', () => {
     const context = { academicPolicy: buildAcademicPolicy(), termCodesOldestFirst: [] };
 
     expect(evaluatePrerequisite(rule, { attempts: [], courses: COURSES }, context)).toMatchObject({
-      check: { state: 'UNKNOWN', reasonCode: 'UNSUPPORTED_RULE' },
-      decisiveLeaves: [],
+      state: 'UNKNOWN',
+      reasonCode: 'UNSUPPORTED_RULE',
+      evidence: { decisiveLeaves: [] },
     });
   });
 });
@@ -122,25 +146,23 @@ describe('evaluatePrerequisite evidence', () => {
     const policy = { allowsInProgressPrerequisites: true, lowestPassingLetterGrade: 'D' } as const;
 
     expect(evaluate(expression, [PHYSICS_A, retake], policy)).toEqual({
-      check: {
-        kind: 'PREREQUISITE',
-        state: 'CONDITIONAL',
-        reasonCode: 'IN_PROGRESS_MIN_GRADE',
-        sourceRef: 'demo-rule-0001',
+      kind: 'PREREQUISITE',
+      state: 'CONDITIONAL',
+      reasonCode: 'IN_PROGRESS_MIN_GRADE',
+      sourceRef: 'demo-rule-0001',
+      evidence: {
+        rulesetVersion: 'demo-2026.1',
+        decisiveLeaves: [
+          {
+            type: 'COURSE',
+            path: [1],
+            courseId: CALC_ID,
+            requiredGrade: { scheme: 'LETTER', value: 'C' },
+            attemptIds: [syntheticId('attempt', 3)],
+            reasonCode: 'IN_PROGRESS_MIN_GRADE',
+          },
+        ],
       },
-      courseId: SYNTHETIC_COURSES.math102.id,
-      rulesetVersion: 'demo-2026.1',
-      decisiveLeaves: [
-        {
-          type: 'COURSE',
-          path: [1],
-          state: 'CONDITIONAL',
-          reasonCode: 'IN_PROGRESS_MIN_GRADE',
-          courseId: CALC_ID,
-          requiredGrade: { scheme: 'LETTER', value: 'C' },
-          attemptIds: [syntheticId('attempt', 3)],
-        },
-      ],
     });
   });
 
@@ -149,13 +171,10 @@ describe('evaluatePrerequisite evidence', () => {
     const retake = inProgressAttempt({ courseId: CALC_ID }, 3);
     const policy = { repeatPolicy: 'MOST_RECENT' } as const;
 
-    expect(
-      evaluate(course(CALC_ID, letter('C')), [passing, retake], policy).decisiveLeaves,
-    ).toEqual([
+    expect(leavesOf(course(CALC_ID, letter('C')), [passing, retake], policy)).toEqual([
       {
         type: 'COURSE',
         path: [],
-        state: 'CONDITIONAL',
         reasonCode: 'IN_PROGRESS_MIN_GRADE',
         courseId: CALC_ID,
         requiredGrade: { scheme: 'LETTER', value: 'C' },
@@ -168,30 +187,26 @@ describe('evaluatePrerequisite evidence', () => {
     const expression = all(course(PHYSICS_ID, letter('B')), any(CONSENT, course(PHYSICS_ID)));
     const policy = { lowestPassingLetterGrade: 'D' } as const;
 
-    expect(evaluate(expression, [PHYSICS_A], policy).decisiveLeaves).toEqual([
-      expect.objectContaining({ path: [0], state: 'PASS', reasonCode: null }),
-      expect.objectContaining({ path: [1, 1], state: 'PASS', reasonCode: null }),
+    expect(leavesOf(expression, [PHYSICS_A], policy)).toEqual([
+      expect.objectContaining({ path: [0], reasonCode: null }),
+      expect.objectContaining({ path: [1, 1], reasonCode: null }),
     ]);
   });
 
   it('omits the reason code from a passing check', () => {
-    expect(evaluate(course(PHYSICS_ID, letter('C')), [PHYSICS_A]).check).toEqual({
-      kind: 'PREREQUISITE',
-      state: 'PASS',
-      sourceRef: 'demo-rule-0001',
-    });
+    expect(evaluate(course(PHYSICS_ID, letter('C')), [PHYSICS_A])).not.toHaveProperty('reasonCode');
   });
 
   it('reports no attempt IDs for a course that is not in the catalog', () => {
     const missing = course(syntheticId('course', 0x999));
 
-    expect(evaluate(missing, [PHYSICS_A]).decisiveLeaves).toEqual([
+    expect(leavesOf(missing, [PHYSICS_A])).toEqual([
       expect.objectContaining({ reasonCode: 'COURSE_NOT_IN_CATALOG', attemptIds: [] }),
     ]);
   });
 
   it('reports no attempt IDs for a course that was never attempted', () => {
-    expect(evaluate(course(LAB_ID), [PHYSICS_A]).decisiveLeaves).toEqual([
+    expect(leavesOf(course(LAB_ID), [PHYSICS_A])).toEqual([
       expect.objectContaining({ reasonCode: 'NO_QUALIFYING_ATTEMPT', attemptIds: [] }),
     ]);
   });

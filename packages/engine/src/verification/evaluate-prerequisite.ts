@@ -8,9 +8,11 @@
  */
 import {
   CheckKind,
+  type CheckResult,
   CheckState,
   type CourseId,
   createCheckResult,
+  type DecisiveLeaf,
   type PrerequisiteExpression,
   PrerequisiteExpressionType,
   type PrerequisiteRule,
@@ -20,20 +22,19 @@ import {
 import { combineAllStates, combineAnyStates } from './combine-prerequisite-states';
 import { evaluateCoursePrerequisite, type LeafOutcome } from './evaluate-course-prerequisite';
 import {
-  type CourseLeafResult,
-  type PrerequisiteEvaluation,
   PrerequisiteInputMismatchError,
-  type PrerequisiteLeafResult,
   type StudentCourseRecord,
-  type UnsupportedLeafResult,
 } from './prerequisite-evaluation';
 import { type AttemptGroup, resolveAttempts } from './resolve-attempts';
 import type { AttemptResolutionContext } from './select-counting-attempt';
 
-/** An evaluated node: its state and the leaves that decided it. */
+/**
+ * An evaluated node: its state and the leaves that decided it. Every decisive leaf has the
+ * node's state, so the leaves carry no state of their own (check-evidence.model.ts).
+ */
 interface NodeResult {
   readonly state: CheckState;
-  readonly decisiveLeaves: readonly PrerequisiteLeafResult[];
+  readonly decisiveLeaves: readonly DecisiveLeaf[];
 }
 
 /** Finds the attempt group of a required course, or reports that the catalog can't say. */
@@ -63,7 +64,8 @@ const CATALOG_GAP: LeafOutcome = {
  * @param record - The student's attempts and the catalog covering them. Attempts are resolved
  *   here, with the same catalog used to find each required course's equivalents.
  * @param context - The academic policy of the rule's tenant and ruleset, and the term order.
- * @returns The check and its evidence.
+ * @returns A PREREQUISITE check with the rule's `sourceRef`, the first decisive leaf's reason
+ *   code, and evidence holding the rule's `rulesetVersion` and the decisive leaves.
  * @throws {PrerequisiteInputMismatchError} When the policy's tenant or ruleset differs from
  *   the rule's.
  */
@@ -71,7 +73,7 @@ export function evaluatePrerequisite(
   rule: PrerequisiteRule,
   record: StudentCourseRecord,
   context: AttemptResolutionContext,
-): PrerequisiteEvaluation {
+): CheckResult {
   // SAFETY: a rule interpreted under another ruleset's policy mixes snapshots, so the result
   // wouldn't be reproducible evidence (planning/08 §Rule lifecycle; AC09, AC10).
   if (rule.tenantId !== context.academicPolicy.tenantId) {
@@ -86,17 +88,13 @@ export function evaluatePrerequisite(
   // NOTE: an empty group is the only way a non-PASS state has no decisive leaf; the domain
   // rejects empty groups, so the fallback reason is defensive.
   const reasonCode = first?.reasonCode ?? ReasonCode.UnsupportedRule;
-  return {
-    check: createCheckResult({
-      kind: CheckKind.Prerequisite,
-      state: root.state,
-      sourceRef: rule.sourceRef,
-      ...(root.state === CheckState.Pass ? {} : { reasonCode }),
-    }),
-    courseId: rule.courseId,
-    rulesetVersion: rule.rulesetVersion,
-    decisiveLeaves: root.decisiveLeaves,
-  };
+  return createCheckResult({
+    kind: CheckKind.Prerequisite,
+    state: root.state,
+    sourceRef: rule.sourceRef,
+    ...(root.state === CheckState.Pass ? {} : { reasonCode }),
+    evidence: { rulesetVersion: rule.rulesetVersion, decisiveLeaves: root.decisiveLeaves },
+  });
 }
 
 /**
@@ -151,27 +149,26 @@ function evaluateNode(
       lookup === null
         ? CATALOG_GAP
         : evaluateCoursePrerequisite(node, lookup.group, environment.context);
-    const leaf: CourseLeafResult = {
+    const leaf: DecisiveLeaf = {
       type: node.type,
       path,
-      ...outcome,
       courseId: node.courseId,
       requiredGrade: node.minimumGrade,
       attemptIds: lookup?.group?.attempts.map((attempt) => attempt.id) ?? [],
+      reasonCode: outcome.reasonCode,
     };
-    return { state: leaf.state, decisiveLeaves: [leaf] };
+    return { state: outcome.state, decisiveLeaves: [leaf] };
   }
   if (node.type === PrerequisiteExpressionType.Unsupported) {
     // SAFETY: semantics the parser couldn't represent are UNKNOWN, never PASS (planning/08
     // §Eligibility semantics: approved source semantics).
-    const leaf: UnsupportedLeafResult = {
+    const leaf: DecisiveLeaf = {
       type: node.type,
       path,
-      state: CheckState.Unknown,
-      reasonCode: node.reasonCode,
       sourceText: node.sourceText,
+      reasonCode: node.reasonCode,
     };
-    return { state: leaf.state, decisiveLeaves: [leaf] };
+    return { state: CheckState.Unknown, decisiveLeaves: [leaf] };
   }
   const children = node.items.map((item, index) =>
     evaluateNode(item, [...path, index], environment),
