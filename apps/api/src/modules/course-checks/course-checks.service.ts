@@ -41,6 +41,7 @@ import {
   verifyCourseSet,
 } from '../course-verification/course-verification.service';
 import {
+  assertSourcesFresh,
   logRecordUnavailable,
   type PinnedRecordsService,
   type RecordScope,
@@ -61,6 +62,10 @@ export interface CourseChecksServiceDependencies {
   readonly maxSkewMs: number;
   /** Validated `ACTIVE_RULESET_VERSION`, or `null` when none is configured. */
   readonly rulesetVersion: string | null;
+  /** Validated `ACADEMIC_SOURCE_MAX_AGE_MS`: how old the record and audit may be. */
+  readonly maxSourceAgeMs: number;
+  /** Returns the current time. Read here, never in the engine. */
+  readonly now: () => Date;
 }
 
 /** What the caller asks to check: the path student and the body. Identity is never part of it. */
@@ -88,7 +93,8 @@ export interface CourseChecksService {
    *   loaded record belongs to another tenant or student.
    * @throws {SourceUnavailableError} When the student has no snapshot or no audit, or the
    *   active ruleset has no policy.
-   * @throws {StaleSourceError} When two snapshots or two audits are tied for latest.
+   * @throws {StaleSourceError} When two snapshots or two audits are tied for latest, or the
+   *   record or the audit's record time is older than the maximum source age.
    * @throws {InvalidRequestError} When a course isn't in the tenant's catalog, or the engine
    *   rejects the inputs.
    * @throws {RulesetNotConfiguredError} When no active ruleset is configured.
@@ -238,6 +244,11 @@ export function createCourseChecksService(
         dependencies.terms.findOrdered(tenantId),
       ]);
       const audit = requireAudit(scope, records.audit);
+      assertSourcesFresh(
+        scope,
+        { snapshot: records.revision.snapshot, audit },
+        { now: dependencies.now(), maxAgeMs: dependencies.maxSourceAgeMs },
+      );
       const academicPolicy = requirePolicy(scope, policy);
       const courses = resolveCourses(scope, query.courseIds, catalog);
       const rules = await Promise.all(

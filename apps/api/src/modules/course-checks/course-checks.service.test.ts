@@ -15,6 +15,7 @@ import {
   InvalidRequestError,
   NotFoundError,
   SourceUnavailableError,
+  StaleSourceError,
 } from '../../shared/domain-errors';
 import {
   createInMemoryAcademicRepositories,
@@ -23,6 +24,7 @@ import {
 import { createRecordingLogger } from '../../testing/in-memory-repositories';
 import {
   buildSeedAcademicStore,
+  SEED_AUDITS,
   SEED_COURSES,
   SEED_STUDENTS,
 } from '../../testing/seed-scenario-fixtures';
@@ -36,12 +38,20 @@ import {
 const actor = buildActor({ tenantId: SYNTHETIC_TENANTS.a.id });
 const student = SEED_STUDENTS.current;
 const { math102, ind390, engl101 } = SEED_COURSES;
+/** A fixed clock 7 hours after SYN-000001's seeded record and audit record time. */
+const NOW = '2026-09-01T12:00:00.000Z';
+/** 24 hours. */
+const MAX_AGE_MS = 86_400_000;
+
+const MATH_102_QUERY = { courseIds: [SEED_COURSES.math102.id] };
 
 /** Changes to the seeded store, the ruleset, and the access decision for one test. */
 interface Setup {
   readonly isAllowed?: boolean;
   readonly rulesetVersion?: string | null;
   readonly change?: (store: InMemoryAcademicStore) => InMemoryAcademicStore;
+  /** The clock reading; defaults to {@link NOW}. */
+  readonly now?: string;
 }
 
 /**
@@ -71,6 +81,8 @@ function check(query: Omit<CourseChecksQuery, 'studentId'>, setup: Setup = {}) {
     pinnedRecords: createPinnedRecordsService(repositories),
     maxSkewMs: 3_600_000,
     rulesetVersion: setup.rulesetVersion === undefined ? 'demo-2026.1' : setup.rulesetVersion,
+    maxSourceAgeMs: MAX_AGE_MS,
+    now: () => new Date(setup.now ?? NOW),
   });
   const result = service.checkCourses(actor, { studentId: student.id, ...query }, { logger });
   return { result, logger, ruleLookups };
@@ -207,5 +219,42 @@ describe('CourseChecksService.checkCourses', () => {
       },
     ]);
     expect(JSON.stringify(logger.entries)).not.toContain(student.sourceStudentId);
+  });
+});
+
+describe('CourseChecksService.checkCourses source freshness', () => {
+  it('accepts a record and audit exactly 24 hours old', async () => {
+    const checks = await check(MATH_102_QUERY, { now: '2026-09-02T05:00:00.000Z' }).result;
+
+    expect(checks.pinnedInputs).toMatchObject({
+      studentRecordEffectiveAt: '2026-09-01T05:00:00.000Z',
+      auditRecordEffectiveAt: '2026-09-01T05:00:00.000Z',
+    });
+  });
+
+  it('refers the student with STALE_SOURCE one millisecond past 24 hours', async () => {
+    const { result, logger } = check(MATH_102_QUERY, { now: '2026-09-02T05:00:00.001Z' });
+
+    await expect(result).rejects.toBeInstanceOf(StaleSourceError);
+    expect(logger.entries[0]?.details).toMatchObject({ reason: 'SOURCE_NOT_FRESH' });
+  });
+
+  it('refuses a fresh record whose audit ran against a record older than 24 hours', async () => {
+    const oldAudit = {
+      ...SEED_AUDITS.current,
+      studentRecordEffectiveAt: '2026-08-31T04:59:59.000Z',
+    };
+
+    const { result } = check(MATH_102_QUERY, {
+      change: (store) => ({ ...store, audits: [oldAudit] }),
+    });
+
+    await expect(result).rejects.toBeInstanceOf(StaleSourceError);
+  });
+
+  it('refuses a record dated in the future beyond the clock tolerance', async () => {
+    await expect(
+      check(MATH_102_QUERY, { now: '2026-09-01T04:54:59.999Z' }).result,
+    ).rejects.toBeInstanceOf(StaleSourceError);
   });
 });

@@ -1,12 +1,13 @@
 /**
  * @file Loads a student's latest pinned record snapshot and audit, scoped to the session, and
- * refuses missing, tied, or out-of-scope records instead of guessing.
+ * refuses missing, tied, out-of-scope, or (for validated reads) stale records instead of guessing.
  * @module @caa/api/modules/pinned-records/pinned-records.service
  * @requirement FR-04
  * @requirement FR-05
  * @requirement NFR-01
  * @requirement NFR-04
  * @see docs/planning/07-system-architecture-and-design.md
+ * @see docs/planning/09-data-model-and-integration-contracts.md
  * @see docs/standards/09-errors-logging-and-security.md
  */
 import type {
@@ -62,7 +63,8 @@ export type RecordUnavailableReason =
   | 'STUDENT_SNAPSHOT_AMBIGUOUS'
   | 'AUDIT_AMBIGUOUS'
   | 'NO_AUDIT'
-  | 'NO_ACADEMIC_POLICY';
+  | 'NO_ACADEMIC_POLICY'
+  | 'SOURCE_NOT_FRESH';
 
 /** The session's tenant and the path student every loaded record must belong to. */
 export interface RecordScope {
@@ -83,6 +85,69 @@ export function logRecordUnavailable(scope: RecordScope, reason: RecordUnavailab
     { actorUserId: actor.userId, tenantId: actor.tenantId, studentId, reason },
     'academic record unavailable',
   );
+}
+
+/**
+ * Most a source time may be ahead of the clock and still count as fresh: five minutes, for clock
+ * drift between the source system and this server. Anything further ahead is not fresh.
+ */
+export const SOURCE_TIME_FUTURE_TOLERANCE_MS = 300_000;
+
+/** The clock reading and the configured maximum age a freshness decision uses. */
+export interface FreshnessPolicy {
+  /** The injected clock's current time; read by the caller, never by the engine. */
+  readonly now: Date;
+  /** Validated `ACADEMIC_SOURCE_MAX_AGE_MS`. */
+  readonly maxAgeMs: number;
+}
+
+/**
+ * Decides whether a source time is fresh enough for a validated result.
+ *
+ * @param sourceTime - The time the source data describes, ISO 8601 with offset; may be missing.
+ * @param policy - The current time and the maximum age.
+ * @returns `true` when the time is at most `maxAgeMs` old (exactly at the limit is fresh) and
+ *   no more than the tolerance in the future; `false` when it is missing or unparseable.
+ */
+export function isSourceFresh(
+  sourceTime: string | null | undefined,
+  policy: FreshnessPolicy,
+): boolean {
+  const instant = typeof sourceTime === 'string' ? Date.parse(sourceTime) : Number.NaN;
+  // SAFETY: a missing or unreadable time can't show the data is recent, and a time far in the
+  // future is a source error; neither is treated as fresh (planning/09 §Proposed freshness
+  // policies; planning/08: missing or conflicting data is UNKNOWN or a referral).
+  if (Number.isNaN(instant)) {
+    return false;
+  }
+  const ageMs = policy.now.getTime() - instant;
+  return ageMs <= policy.maxAgeMs && ageMs >= -SOURCE_TIME_FUTURE_TOLERANCE_MS;
+}
+
+/**
+ * Refuses a validated read when the pinned record or the audit's record time is not fresh.
+ *
+ * @param scope - The actor, the path student, and the request context.
+ * @param records - The pinned snapshot and audit.
+ * @param policy - The current time and the maximum age.
+ * @throws {StaleSourceError} When either time is not fresh, after logging the reason.
+ */
+export function assertSourcesFresh(
+  scope: RecordScope,
+  records: { readonly snapshot: StudentSnapshot; readonly audit: AuditSnapshot },
+  policy: FreshnessPolicy,
+): void {
+  if (
+    isSourceFresh(records.snapshot.sourceEffectiveAt, policy) &&
+    isSourceFresh(records.audit.studentRecordEffectiveAt, policy)
+  ) {
+    return;
+  }
+  // SAFETY: a transcript, program, or audit older than the maximum age is historical only, so it
+  // never yields a PASS or a validated plan; the student is referred to refresh first
+  // (planning/09 §Proposed freshness policies; CLAUDE.md: stale data is never PASS).
+  logRecordUnavailable(scope, 'SOURCE_NOT_FRESH');
+  throw new StaleSourceError();
 }
 
 /**

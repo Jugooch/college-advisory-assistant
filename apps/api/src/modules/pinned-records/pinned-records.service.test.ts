@@ -27,7 +27,11 @@ import {
   createInMemoryRepositories,
   createRecordingLogger,
 } from '../../testing/in-memory-repositories';
-import { createPinnedRecordsService } from './pinned-records.service';
+import {
+  createPinnedRecordsService,
+  isSourceFresh,
+  SOURCE_TIME_FUTURE_TOLERANCE_MS,
+} from './pinned-records.service';
 
 const actor = buildActor();
 const student = buildStudent({ userId: actor.userId });
@@ -197,5 +201,26 @@ describe('PinnedRecordsService.loadLatest out-of-scope backstop', () => {
     expect(logger.entries.map((entry) => [entry.level, entry.details.recordId])).toEqual([
       ['warn', foreign.id],
     ]);
+  });
+});
+
+describe('isSourceFresh', () => {
+  const policy = { now: new Date('2026-09-02T00:00:00.000Z'), maxAgeMs: 86_400_000 };
+
+  it.each([
+    ['just inside the maximum age', '2026-09-01T00:00:00.001Z', true],
+    ['exactly at the maximum age', '2026-09-01T00:00:00.000Z', true],
+    ['just past the maximum age', '2026-08-31T23:59:59.999Z', false],
+    ['at the clock', '2026-09-02T00:00:00.000Z', true],
+    ['in the future within the tolerance', '2026-09-02T00:05:00.000Z', true],
+    ['in the future beyond the tolerance', '2026-09-02T00:05:00.001Z', false],
+    ['unparseable', 'not-a-time', false],
+    ['missing', null, false],
+  ])('treats a time %s as fresh: %s', (_case, time, isFresh) => {
+    expect(isSourceFresh(time, policy)).toBe(isFresh);
+  });
+
+  it('allows five minutes of clock drift into the future', () => {
+    expect(SOURCE_TIME_FUTURE_TOLERANCE_MS).toBe(300_000);
   });
 });

@@ -16,7 +16,9 @@ import {
   CheckState,
   type Course,
   type CourseId,
+  createAuditSnapshot,
   ReasonCode,
+  RequirementState,
   type StudentSnapshot,
 } from '@caa/domain';
 
@@ -34,6 +36,16 @@ import { type CourseSetInputs, verifyCourseSet } from './course-verification.ser
 /** One hour, the API's default skew. */
 const MAX_SKEW_MS = 3_600_000;
 const { math102, phys201, phys301, phys301Lab, engl101, ind390 } = SEED_COURSES;
+/** Fields every requirement of the test audit shares. */
+const ROOT = {
+  parentSourceRequirementId: null,
+  state: RequirementState.Incomplete,
+  allocatedAttemptIds: [],
+  remainingCreditsHundredths: null,
+  remainingCourseCount: null,
+  candidateCourseIds: [],
+  isReusable: false,
+} as const;
 
 /** The pinned snapshot and audit of one seeded student. */
 interface Pinned {
@@ -45,6 +57,27 @@ interface Pinned {
 const CURRENT: Pinned = { snapshot: SEED_SNAPSHOTS.current, audit: SEED_AUDITS.current };
 /** SYN-000002: the newer snapshot is latest; the audit ran against the older one. */
 const STALE: Pinned = { snapshot: SEED_SNAPSHOTS.staleNewer, audit: SEED_AUDITS.stale };
+
+/**
+ * SYN-000001's audit, changed so each candidate course has its own outstanding requirement
+ * with room for one course: applicability and allocation then pass for PHYS 301, MATH 102,
+ * ENGL 101, and IND 390, and only the PHYS 301 prerequisite stays CONDITIONAL.
+ */
+const ONE_REQUIREMENT_PER_COURSE = createAuditSnapshot({
+  ...SEED_AUDITS.current,
+  requirements: [
+    { ...ROOT, sourceRequirementId: 'REQ-ROOT', label: 'Root', sourceRef: 'test:REQ-ROOT' },
+    ...[phys301, math102, engl101, ind390].map((course, index) => ({
+      ...ROOT,
+      sourceRequirementId: `REQ-${String(index)}`,
+      parentSourceRequirementId: 'REQ-ROOT',
+      label: course.label,
+      remainingCourseCount: 1,
+      candidateCourseIds: [course.id],
+      sourceRef: `test:REQ-${String(index)}`,
+    })),
+  ],
+});
 
 /**
  * Builds the inputs the course checks service would load for a seeded student.
@@ -165,9 +198,11 @@ describe('verifyCourseSet', () => {
     expect(checkOne(CURRENT, engl101)?.prerequisite).toBeNull();
   });
 
-  it('pins the snapshot, audit, and ruleset versions', () => {
+  it('pins the snapshot, audit, and ruleset versions, and the record times they describe', () => {
     expect(verifyCourseSet(inputsFor(CURRENT, [math102])).pinnedInputs).toEqual({
       studentSnapshotId: SEED_SNAPSHOTS.current.id,
+      studentRecordEffectiveAt: '2026-09-01T05:00:00.000Z',
+      auditRecordEffectiveAt: '2026-09-01T05:00:00.000Z',
       auditSource: 'demo-audit',
       auditVersion: 'audit_demo_r1',
       rulesetVersion: 'demo-2026.1',
@@ -186,6 +221,25 @@ describe('verifyCourseSet', () => {
     expect(verifyCourseSet(inputsFor(CURRENT, [ind390])).aggregate).toBe(
       AggregateState.NeedsVerification,
     );
+  });
+
+  it('aggregates to CONDITIONAL, never VALIDATED, when the only non-PASS check is CONDITIONAL', () => {
+    const selections = [{ courseId: ind390.id, selectedCreditsHundredths: 300 }];
+    const pinned = { snapshot: SEED_SNAPSHOTS.current, audit: ONE_REQUIREMENT_PER_COURSE };
+
+    const checks = verifyCourseSet(
+      inputsFor(pinned, [phys301, math102, engl101, ind390], selections),
+    );
+    const nonPassing = [
+      ...checks.courseResults.flatMap((result) => [result.prerequisite, result.applicability]),
+      ...checks.setResults.allocation,
+      checks.setResults.creditLoad,
+    ].filter((result) => result !== null && result.state !== CheckState.Pass);
+
+    expect(nonPassing).toEqual([
+      expect.objectContaining({ kind: 'PREREQUISITE', state: 'CONDITIONAL' }),
+    ]);
+    expect(checks.aggregate).toBe('CONDITIONAL');
   });
 
   it('gives deep-equal results when the same inputs are replayed', () => {

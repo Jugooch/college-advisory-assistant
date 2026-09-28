@@ -8,11 +8,19 @@ import { ZodError } from 'zod';
 import {
   AuthMode,
   DEFAULT_AUDIT_RECORD_MAX_SKEW_MS,
+  DEV_ACADEMIC_SOURCE_MAX_AGE_MS,
   loadApiEnv,
+  MAX_ACADEMIC_SOURCE_MAX_AGE_MS,
   MAX_AUDIT_RECORD_MAX_SKEW_MS,
 } from './env';
 
 const BASE = { DATABASE_URL: 'postgres://unused.invalid/test' };
+/** The settings production requires besides the database. */
+const PRODUCTION = {
+  NODE_ENV: 'production',
+  ACTIVE_RULESET_VERSION: 'r-1',
+  ACADEMIC_SOURCE_MAX_AGE_MS: '86400000',
+};
 
 describe('loadApiEnv', () => {
   it('defaults to development with authentication mode none', () => {
@@ -30,7 +38,7 @@ describe('loadApiEnv', () => {
   });
 
   it('allows production when dev auth is off and a ruleset is active', () => {
-    const env = loadApiEnv({ ...BASE, NODE_ENV: 'production', ACTIVE_RULESET_VERSION: 'r-1' });
+    const env = loadApiEnv({ ...BASE, ...PRODUCTION });
 
     expect(env.AUTH_MODE).toBe(AuthMode.None);
   });
@@ -107,8 +115,37 @@ describe('loadApiEnv ACTIVE_RULESET_VERSION', () => {
   });
 
   it.each([undefined, '', '  '])('refuses to start in production with %j', (value) => {
-    const source = { ...BASE, NODE_ENV: 'production', ACTIVE_RULESET_VERSION: value };
+    const source = { ...BASE, ...PRODUCTION, ACTIVE_RULESET_VERSION: value };
 
     expect(() => loadApiEnv(source)).toThrow(ZodError);
   });
+});
+
+describe('loadApiEnv ACADEMIC_SOURCE_MAX_AGE_MS', () => {
+  it('defaults to 24 hours outside production', () => {
+    expect(loadApiEnv(BASE).ACADEMIC_SOURCE_MAX_AGE_MS).toBe(86_400_000);
+    expect(DEV_ACADEMIC_SOURCE_MAX_AGE_MS).toBe(86_400_000);
+  });
+
+  it('reads a configured value, up to seven days', () => {
+    const at = (value: string) =>
+      loadApiEnv({ ...BASE, ACADEMIC_SOURCE_MAX_AGE_MS: value }).ACADEMIC_SOURCE_MAX_AGE_MS;
+
+    expect([at('3600000'), at(String(MAX_ACADEMIC_SOURCE_MAX_AGE_MS))]).toEqual([
+      3_600_000, 604_800_000,
+    ]);
+  });
+
+  it('refuses to start in production without it', () => {
+    const source = { ...BASE, ...PRODUCTION, ACADEMIC_SOURCE_MAX_AGE_MS: undefined };
+
+    expect(() => loadApiEnv(source)).toThrow(/ACADEMIC_SOURCE_MAX_AGE_MS is required/);
+  });
+
+  it.each(['', '-1', '1.5', 'one-day', String(MAX_ACADEMIC_SOURCE_MAX_AGE_MS + 1)])(
+    'refuses %j instead of coercing it',
+    (value) => {
+      expect(() => loadApiEnv({ ...BASE, ACADEMIC_SOURCE_MAX_AGE_MS: value })).toThrow(ZodError);
+    },
+  );
 });

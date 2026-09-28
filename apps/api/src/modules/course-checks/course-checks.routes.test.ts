@@ -81,6 +81,8 @@ describe('POST /v1/students/:studentId/course-checks', () => {
     expect(response.statusCode).toBe(200);
     expect(checks.pinnedInputs).toEqual({
       studentSnapshotId: SEED_SNAPSHOTS.current.id,
+      studentRecordEffectiveAt: '2026-09-01T05:00:00.000Z',
+      auditRecordEffectiveAt: '2026-09-01T05:00:00.000Z',
       auditSource: 'demo-audit',
       auditVersion: 'audit_demo_r1',
       rulesetVersion: 'demo-2026.1',
@@ -186,8 +188,8 @@ describe('POST /v1/students/:studentId/course-checks record states', () => {
         {
           studentId: STUDENTS.own.id,
           attemptIds: SEED_SNAPSHOTS.current.attemptIds,
-          sourceEffectiveAt: '2026-09-10T05:00:00.000Z',
-          ingestedAt: '2026-09-10T06:00:00.000Z',
+          sourceEffectiveAt: '2026-09-01T10:00:00.000Z',
+          ingestedAt: '2026-09-01T11:00:00.000Z',
         },
         7,
       ),
@@ -198,6 +200,64 @@ describe('POST /v1/students/:studentId/course-checks record states', () => {
 
     expect(checks.courseResults[0]?.applicability).toMatchObject(stale);
     expect(checks.setResults.allocation).toEqual([expect.objectContaining(stale)]);
+  });
+
+  it('shows an in-progress prerequisite as CONDITIONAL in the 200 body, never eligible', async () => {
+    const response = await postChecks(STUDENTS.own.id, TOKENS.student, {
+      courseIds: [SEED_COURSES.phys301.id],
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(readChecks(response.json()).courseResults[0]?.prerequisite).toMatchObject({
+      state: 'CONDITIONAL',
+      reasonCode: 'IN_PROGRESS_MIN_GRADE',
+    });
+  });
+
+  it.each([
+    ['just past 24 hours old', '2026-08-31T11:59:59.999Z', 409],
+    ['exactly 24 hours old', '2026-08-31T12:00:00.000Z', 200],
+  ])('answers a record and audit %s with %i', async (_case, recordAt, status) => {
+    store.studentSnapshots = [
+      buildRecordSnapshot({
+        studentId: STUDENTS.own.id,
+        sourceEffectiveAt: recordAt,
+        ingestedAt: recordAt,
+      }),
+    ];
+    store.audits = [
+      buildRecordAudit({
+        studentId: STUDENTS.own.id,
+        studentRecordEffectiveAt: recordAt,
+        generatedAt: recordAt,
+      }),
+    ];
+
+    const response = await postChecks(STUDENTS.own.id, TOKENS.student, MATH_102);
+
+    expect(response.statusCode).toBe(status);
+  });
+
+  it('returns 409 STALE_SOURCE with a referral when the record is too old', async () => {
+    const old = '2026-08-01T00:00:00.000Z';
+    store.studentSnapshots = [
+      buildRecordSnapshot({ studentId: STUDENTS.own.id, sourceEffectiveAt: old, ingestedAt: old }),
+    ];
+    store.audits = [
+      buildRecordAudit({
+        studentId: STUDENTS.own.id,
+        studentRecordEffectiveAt: old,
+        generatedAt: old,
+      }),
+    ];
+
+    const response = await postChecks(STUDENTS.own.id, TOKENS.student, MATH_102);
+
+    expect(response.statusCode).toBe(409);
+    expect(readError(response.json())).toEqual({
+      code: ErrorCode.StaleSource,
+      message: 'Your academic record needs to be verified. Please contact your advisor.',
+    });
   });
 
   it('reports an unselected variable credit as UNKNOWN', async () => {

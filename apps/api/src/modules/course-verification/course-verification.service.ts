@@ -1,5 +1,7 @@
 /**
- * @file Runs the engine's per-course and set checks on one candidate course set, from pinned inputs only.
+ * @file Runs the engine's per-course and set checks on one candidate course set, from pinned inputs
+ * only. A pure orchestration function on purpose, not an injected service: it constructs nothing
+ * and reads no clock, so callers import it directly.
  * @module @caa/api/modules/course-verification/course-verification.service
  * @requirement FR-05
  * @requirement FR-06
@@ -74,6 +76,10 @@ export interface CourseChecks {
   readonly aggregate: AggregateState;
   readonly pinnedInputs: {
     readonly studentSnapshotId: StudentSnapshotId;
+    /** The snapshot's `sourceEffectiveAt`: the record time every result is valid as of. */
+    readonly studentRecordEffectiveAt: string;
+    /** The audit's `studentRecordEffectiveAt`: the record time the audit ran against. */
+    readonly auditRecordEffectiveAt: string;
     readonly auditSource: string;
     readonly auditVersion: string;
     readonly rulesetVersion: string;
@@ -143,6 +149,8 @@ export function verifyCourseSet(inputs: CourseSetInputs): CourseChecks {
     aggregate: aggregateCheckStates(states),
     pinnedInputs: {
       studentSnapshotId: revision.snapshot.id,
+      studentRecordEffectiveAt: revision.snapshot.sourceEffectiveAt,
+      auditRecordEffectiveAt: audit.studentRecordEffectiveAt,
       auditSource: audit.auditSource,
       auditVersion: audit.auditVersion,
       rulesetVersion: academicPolicy.rulesetVersion,
