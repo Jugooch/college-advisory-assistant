@@ -20,6 +20,7 @@ export * from './models/academic-policy.model';
 export * from './models/actor.model';
 export * from './models/advisor-assignment.model';
 export * from './models/audit-snapshot.model';
+export * from './models/check-evidence.model';
 export * from './models/check-result.model';
 export * from './models/course.model';
 export * from './models/course-attempt.model';

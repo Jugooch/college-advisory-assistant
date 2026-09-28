@@ -1,6 +1,7 @@
 /**
  * @file Tests that the merged lint config keeps the `./testing` entry points test-only and blocks
- * cross-app imports, including subpaths, whichever flat-config block matches a file last.
+ * cross-app imports, including subpaths, and keeps Node built-ins out of engine production code,
+ * whichever flat-config block matches a file last.
  * @see docs/standards/01-repository-structure.md
  */
 import { fileURLToPath } from 'node:url';
@@ -100,5 +101,48 @@ describe('app boundaries cover subpaths', () => {
     const messages = await lintImport(path, specifier);
 
     expect(messages).toHaveLength(1);
+  });
+});
+
+describe('engine production code has no Node built-ins (NFR-01)', () => {
+  const ENGINE_SOURCE = 'packages/engine/src/verification/example.ts';
+
+  it.each(['node:fs', 'fs', 'fs/promises', 'node:fs/promises', 'crypto', 'node:test', 'path'])(
+    'forbids %s in engine production code',
+    async (specifier) => {
+      const messages = await lintImport(ENGINE_SOURCE, specifier);
+
+      expect(messages.join('\n')).toContain('NFR-01');
+    },
+  );
+
+  it.each(['@caa/domain', 'zod', './domain', './path'])(
+    'still allows %s in engine production code',
+    async (specifier) => {
+      const messages = await lintImport(ENGINE_SOURCE, specifier);
+
+      expect(messages).toEqual([]);
+    },
+  );
+
+  it('keeps the other engine restrictions', async () => {
+    const messages = await lintImport(ENGINE_SOURCE, '@caa/db');
+
+    expect(messages.join('\n')).toContain('depends only on @caa/domain');
+  });
+
+  it.each([
+    ['packages/engine/src/verification/example.test.ts', 'node:fs'],
+    ['packages/engine/src/verification/example.test.ts', 'fs'],
+    ['packages/db/src/client.ts', 'node:fs'],
+    ['packages/db/src/client.ts', 'fs'],
+    ['apps/api/src/app.ts', 'node:crypto'],
+    ['apps/worker/src/main.ts', 'node:fs'],
+    ['apps/web/src/app/page.tsx', 'path'],
+    ['packages/test-kit/src/index.ts', 'node:crypto'],
+  ])('allows Node built-ins in %s (%s)', async (path, specifier) => {
+    const messages = await lintImport(path, specifier);
+
+    expect(messages).toEqual([]);
   });
 });
