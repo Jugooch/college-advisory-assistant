@@ -51,29 +51,24 @@ export interface RetakeSituation {
   readonly minimumGrade: Grade | null;
 }
 
-/** A {@link RetakeSituation} for a failing record, noting whether a transfer is pending. */
-export interface FailingRetakeSituation extends RetakeSituation {
-  /** Whether the group also holds a TRANSFER_PENDING attempt that could later be awarded. */
-  readonly hasPendingTransfer: boolean;
-}
-
 /**
  * Evaluates a group's in-progress attempts as the way to satisfy a course whose current record
- * fails. When the group already has a counting attempt, several attempts are in progress, or a
- * transfer is pending, completing them can create a repeat, so the repeat policy must make the
- * in-progress attempt the one that counts once it meets the minimum.
+ * fails. When the group already has a counting attempt, or several attempts are in progress,
+ * completing them creates a repeat, so the repeat policy must make the in-progress attempt the
+ * one that counts once it meets the minimum. The caller handles a group that also holds a
+ * pending transfer, which is never CONDITIONAL.
  *
- * @param situation - The failing counting attempt (or `null`), the in-progress attempts, the
- *   leaf's minimum grade, and whether a transfer is pending.
+ * @param situation - The failing counting attempt (or `null`), the in-progress attempts, and the
+ *   leaf's minimum grade.
  * @param context - The academic policy and the tenant's term order.
  * @returns FAIL (`PROGRESSION_NOT_PERMITTED`), UNKNOWN (`REPEAT_POLICY_UNDEFINED` or
  *   `REPEAT_ORDER_UNDETERMINED`), or CONDITIONAL (`IN_PROGRESS_MIN_GRADE`).
  */
 export function evaluateInProgressPrerequisite(
-  situation: FailingRetakeSituation,
+  situation: RetakeSituation,
   context: AttemptResolutionContext,
 ): LeafOutcome {
-  const { counted, inProgress, minimumGrade, hasPendingTransfer } = situation;
+  const { counted, inProgress, minimumGrade } = situation;
   const { academicPolicy } = context;
   // SAFETY: planning on unfinished work is conditional on the institution permitting planned
   // progression; without that permission it is a FAIL (planning/08 §Eligibility semantics:
@@ -82,23 +77,14 @@ export function evaluateInProgressPrerequisite(
     return PROGRESSION_NOT_PERMITTED;
   }
   const [retake, ...otherRetakes] = inProgress;
-  const isOnlyAttempt = counted === null && otherRetakes.length === 0;
-  if (isOnlyAttempt && !hasPendingTransfer) {
+  if (counted === null && otherRetakes.length === 0) {
     return IN_PROGRESS_MIN_GRADE;
   }
   // SAFETY: without a repeat policy, no attempt of a repeated course counts, so meeting the
-  // minimum in the retake wouldn't be enough and a CONDITIONAL would promise too much. That
-  // includes a pending transfer: if it is awarded, it competes with the in-progress attempt and
-  // nothing decides which counts (planning/08 §Eligibility semantics: repeated attempts use
-  // approved source semantics; §Authority and result semantics: CONDITIONAL states a
-  // sufficient condition; issue #89).
+  // minimum in the retake wouldn't be enough and a CONDITIONAL would promise too much
+  // (planning/08 §Eligibility semantics: repeated attempts use approved source semantics).
   if (academicPolicy.repeatPolicy === null) {
     return REPEAT_POLICY_UNDEFINED;
-  }
-  // NOTE: with a repeat policy set, a pending transfer beside a single in-progress attempt keeps
-  // the existing rule: the in-progress condition stands and the transfer is weighed separately.
-  if (isOnlyAttempt) {
-    return IN_PROGRESS_MIN_GRADE;
   }
   // SAFETY: with several attempts in progress at once, the engine can't say which will count,
   // so it states no single condition (planning/08 §Eligibility semantics).
