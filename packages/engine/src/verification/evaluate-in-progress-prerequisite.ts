@@ -16,6 +16,7 @@ import {
 
 import type { LeafOutcome } from './evaluate-course-prerequisite';
 import { type AttemptResolutionContext, haveOneGradeScheme } from './select-counting-attempt';
+import { termPositionOf } from './term-position';
 
 const PROGRESSION_NOT_PERMITTED: LeafOutcome = {
   state: CheckState.Fail,
@@ -133,7 +134,7 @@ export function evaluateRetakeOfPassingAttempt(
   // the result depends on a future grade and is never PASS. Several concurrent retakes, or
   // terms missing from the order, leave the counting attempt undetermined (planning/08
   // §Authority and result semantics: CONDITIONAL depends on an explicit future condition).
-  if (otherRetakes.length > 0 || !isLaterTerm(retake, counted, context.termCodesOldestFirst)) {
+  if (otherRetakes.length > 0 || !isLaterTerm(retake, counted, context)) {
     return REPEAT_ORDER_UNDETERMINED;
   }
   // SAFETY: the condition is on in-progress work, so it may be offered only when the
@@ -160,7 +161,7 @@ function willRetakeCount(
   context: AttemptResolutionContext,
 ): boolean {
   if (context.academicPolicy.repeatPolicy === RepeatPolicy.MostRecent) {
-    return isLaterTerm(retake, replaced.counted, context.termCodesOldestFirst);
+    return isLaterTerm(retake, replaced.counted, context);
   }
   return canRankLetterRetake(replaced.counted, replaced.minimumGrade);
 }
@@ -192,17 +193,19 @@ function canRankLetterRetake(counted: CourseAttempt, minimumGrade: Grade | null)
  *
  * @param retake - The in-progress attempt.
  * @param counted - The counting attempt.
- * @param termCodesOldestFirst - The tenant's term order.
- * @returns `true` only when both terms are in the order and the retake's is later.
+ * @param context - The academic policy, for its tenant, and the tenant's term order.
+ * @returns `true` only when both terms can be placed and the retake's is later.
  */
 function isLaterTerm(
   retake: CourseAttempt,
   counted: CourseAttempt,
-  termCodesOldestFirst: readonly string[],
+  context: AttemptResolutionContext,
 ): boolean {
-  const retakeIndex = termCodesOldestFirst.indexOf(retake.termCode);
-  const countedIndex = termCodesOldestFirst.indexOf(counted.termCode);
-  // SAFETY: MOST_RECENT counts the retake only if its term is known to be later; a term missing
-  // from the order can't be placed (planning/08 §Eligibility semantics).
-  return countedIndex !== -1 && retakeIndex > countedIndex;
+  const { tenantId } = context.academicPolicy;
+  const retakePosition = termPositionOf(context, tenantId, retake.termCode);
+  const countedPosition = termPositionOf(context, tenantId, counted.termCode);
+  // SAFETY: MOST_RECENT counts the retake only if its term is known to be later; a term that
+  // can't be placed in the tenant's order leaves it undetermined (planning/08 §Eligibility
+  // semantics).
+  return retakePosition !== null && countedPosition !== null && retakePosition > countedPosition;
 }

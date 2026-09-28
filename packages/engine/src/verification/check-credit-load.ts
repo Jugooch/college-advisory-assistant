@@ -7,6 +7,7 @@
  * @see docs/planning/08-academic-verification-and-planning.md
  */
 import {
+  type AcademicPolicy,
   CheckKind,
   type CheckResult,
   CheckState,
@@ -23,7 +24,10 @@ import {
   selectedCreditsOf,
 } from './candidate-set';
 
-/** The institution's credit-load policy for the period the candidate set is taken in. */
+/**
+ * Bounds given directly instead of read from the academic policy.
+ */
+// TODO(#122): remove once the golden and acceptance callers pass the AcademicPolicy.
 export interface CreditLoadBounds {
   /** Minimum load in hundredths of a credit (1200 = 12.00 credits). */
   readonly minCreditsHundredths: number;
@@ -34,36 +38,76 @@ export interface CreditLoadBounds {
 }
 
 /**
- * Checks the credit load of a candidate set against the caller's bounds.
+ * Checks the credit load of a candidate set against the term credit bounds of the academic
+ * policy (`policy.termCreditBounds`).
  *
  * Credits are summed as exact integer hundredths over the selections with `countsCredits`
  * (see {@link CourseSelection} for linked sections). Then:
- * 1. A credit-bearing variable-credit course has no chosen value: UNKNOWN
+ * 1. The policy has no credit bounds: UNKNOWN (`CREDIT_BOUNDS_UNDEFINED`), naming every
+ *    selection, with `creditLoad: null`.
+ * 2. A credit-bearing variable-credit course has no chosen value: UNKNOWN
  *    (`VARIABLE_CREDIT_UNSELECTED`), naming those courses, with `creditLoad: null`.
- * 2. The total is above the maximum: FAIL (`CREDIT_LIMIT_EXCEEDED`).
- * 3. The total is below the minimum: FAIL (`CREDIT_BELOW_MINIMUM`).
- * 4. Otherwise PASS. Both bounds are inclusive.
+ * 3. The total is above the maximum: FAIL (`CREDIT_LIMIT_EXCEEDED`).
+ * 4. The total is below the minimum: FAIL (`CREDIT_BELOW_MINIMUM`).
+ * 5. Otherwise PASS. Both bounds are inclusive.
  *
- * The bounds apply to the whole set as one load period. The caller passes bounds from the
- * institution's approved load policy, including for overlapping short sessions; there are no
- * defaults. The same inputs always give a deep-equal result.
+ * The bounds apply to the whole set as one load period; there are no defaults. The same inputs
+ * always give a deep-equal result.
  *
  * @param selections - The candidate set.
- * @param bounds - The minimum and maximum load and the policy they come from.
- * @returns A CREDIT_LOAD check with `sourceRef` set to the policy reference. Its evidence names
- *   the courses (all selections in input order, or the unselected ones) and, unless UNKNOWN,
- *   the total and bounds.
+ * @param limits - The academic policy, or (transitional, tests only) bounds with a reference.
+ * @returns A CREDIT_LOAD check. From a policy, its `sourceRef` is
+ *   `<rulesetVersion>:termCreditBounds` and its evidence names the ruleset version; from bounds,
+ *   the `sourceRef` is theirs and there is no ruleset version. Its evidence names the courses
+ *   (all selections in input order, or the unselected ones) and, unless UNKNOWN, the total and
+ *   bounds.
  * @throws {CandidateSetInputError} When the set is malformed (see `assertValidCandidateSet`),
  *   a bound isn't a non-negative safe integer or the minimum exceeds the maximum (`bounds`),
- *   the policy reference is empty (`boundsSourceRef`), or the total isn't a safe integer
+ *   the reference is empty (`boundsSourceRef`), or the total isn't a safe integer
  *   (`totalCredits`).
  */
 export function checkCreditLoad(
   selections: readonly CourseSelection[],
+  limits: AcademicPolicy | CreditLoadBounds,
+): CheckResult {
+  if (!('termCreditBounds' in limits)) {
+    return checkAgainstBounds(selections, limits, null);
+  }
+  const sourceRef = `${limits.rulesetVersion}:termCreditBounds`;
+  const bounds = limits.termCreditBounds;
+  // SAFETY: without institution-approved bounds there is nothing to compare the load with, so
+  // the check is UNKNOWN, never a PASS against an assumed load such as 12 or 18 credits. It is
+  // reported before an unchosen variable credit, because choosing one wouldn't settle it
+  // (planning/08 §Constraint formulation: L ≤ Σ credits ≤ U from institution policy;
+  // §Authority and result semantics: missing data is UNKNOWN).
+  if (bounds === null) {
+    assertValidCandidateSet(selections);
+    return toCheck(
+      { state: CheckState.Unknown, reasonCode: ReasonCode.CreditBoundsUndefined },
+      { sourceRef, rulesetVersion: limits.rulesetVersion },
+      { courseIds: selections.map((selection) => selection.course.id), creditLoad: null },
+    );
+  }
+  return checkAgainstBounds(selections, { ...bounds, sourceRef }, limits.rulesetVersion);
+}
+
+/**
+ * Checks the credit load against known bounds, steps 2 to 5 of {@link checkCreditLoad}.
+ *
+ * @param selections - The candidate set.
+ * @param bounds - The minimum and maximum load and their reference.
+ * @param rulesetVersion - The policy's ruleset version, or `null` for bounds given directly.
+ * @returns The CREDIT_LOAD check.
+ * @throws {CandidateSetInputError} As {@link checkCreditLoad} documents.
+ */
+function checkAgainstBounds(
+  selections: readonly CourseSelection[],
   bounds: CreditLoadBounds,
+  rulesetVersion: string | null,
 ): CheckResult {
   assertValidBounds(bounds);
   assertValidCandidateSet(selections);
+  const source = { sourceRef: bounds.sourceRef, rulesetVersion };
   const bearing = selections.filter((selection) => selection.countsCredits);
   // SAFETY: an unchosen variable credit value is unknown, never its minimum, maximum, or a
   // typical value, so the load can't be decided either way (planning/08 §Candidate formation:
@@ -73,7 +117,7 @@ export function checkCreditLoad(
   if (unselected.length > 0) {
     return toCheck(
       { state: CheckState.Unknown, reasonCode: ReasonCode.VariableCreditUnselected },
-      bounds.sourceRef,
+      source,
       { courseIds: unselected.map((selection) => selection.course.id), creditLoad: null },
     );
   }
@@ -89,7 +133,7 @@ export function checkCreditLoad(
     maxCreditsHundredths: bounds.maxCreditsHundredths,
   };
   const courseIds = selections.map((selection) => selection.course.id);
-  return toCheck(outcomeOf(creditLoad), bounds.sourceRef, { courseIds, creditLoad });
+  return toCheck(outcomeOf(creditLoad), source, { courseIds, creditLoad });
 }
 
 /** The state and reason of a load check. */
@@ -133,17 +177,24 @@ function assertValidBounds(bounds: CreditLoadBounds): void {
   }
 }
 
+/** Where a load check's bounds come from. */
+interface LoadSource {
+  readonly sourceRef: string;
+  /** The policy's ruleset version, or `null` for bounds given directly. */
+  readonly rulesetVersion: string | null;
+}
+
 /**
  * Builds the credit-load check.
  *
  * @param outcome - The check's state and reason code.
- * @param sourceRef - The policy reference.
+ * @param source - The bounds' reference and ruleset version.
  * @param evidence - The courses named and the credit arithmetic, if known.
  * @returns The validated check.
  */
 function toCheck(
   outcome: LoadOutcome,
-  sourceRef: string,
+  source: LoadSource,
   evidence: {
     readonly courseIds: readonly CourseId[];
     readonly creditLoad: CreditLoadEvidence | null;
@@ -152,8 +203,8 @@ function toCheck(
   return createCheckResult({
     kind: CheckKind.CreditLoad,
     state: outcome.state,
-    sourceRef,
+    sourceRef: source.sourceRef,
     ...(outcome.reasonCode === null ? {} : { reasonCode: outcome.reasonCode }),
-    evidence: { rulesetVersion: null, decisiveLeaves: [], ...evidence },
+    evidence: { rulesetVersion: source.rulesetVersion, decisiveLeaves: [], ...evidence },
   });
 }
