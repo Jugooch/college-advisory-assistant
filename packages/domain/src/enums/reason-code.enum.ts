@@ -39,7 +39,12 @@ import { z } from 'zod';
  * Rules and audit:
  * - `UNSUPPORTED_RULE`: the source rule has semantics the app can't represent.
  * - `AUDIT_STALE`: the degree audit is older than the student record it must reflect.
- * - `AUDIT_AMBIGUOUS`: the audit doesn't settle the requirement.
+ * - `AUDIT_AMBIGUOUS`: the audit doesn't settle the requirement, or the audit wasn't run against
+ *   the pinned student record: it is for another tenant or student, it ran against another
+ *   snapshot that isn't older than the pinned one, or the pinned record is older than the
+ *   audit's record time by more than the allowed skew. An API response never carries it for
+ *   another tenant's or student's audit: the service refuses that case and returns no audit
+ *   data (the academic-summary contract's SECURITY note).
  * - `AUDIT_PROGRAM_MISMATCH`: the audit's program or catalog differs from the student record's,
  *   or the record doesn't state one, so the audit's requirement states may not describe the
  *   student's current program and need verification.

@@ -159,7 +159,7 @@ export function createAuditSnapshot(input: AuditSnapshotInput): AuditSnapshot {
  * Returns whether the student record states a program and catalog and both equal the audit's.
  *
  * Shared invariant (ADR-0005): the academic-summary contract enforces it in a refine, and the
- * engine's program and catalog check will call it once #107 lands, mapping `false` to UNKNOWN
+ * engine's `checkAuditProgramAndCatalog` calls it (#123), mapping `false` to UNKNOWN
  * (`AUDIT_PROGRAM_MISMATCH`). Pure and total: it never throws.
  *
  * @param record - The pinned student record's program and catalog; either may be `null`.
