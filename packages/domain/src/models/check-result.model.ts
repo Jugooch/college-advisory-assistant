@@ -10,14 +10,48 @@ import { z } from 'zod';
 import { CheckKind, CheckKindSchema } from '../enums/check-kind.enum';
 import { CheckState, CheckStateSchema } from '../enums/check-state.enum';
 import { PrerequisiteExpressionType } from '../enums/prerequisite-expression-type.enum';
-import { ReasonCodeSchema } from '../enums/reason-code.enum';
-import { CheckEvidenceSchema } from './check-evidence.model';
+import { ReasonCode, ReasonCodeSchema } from '../enums/reason-code.enum';
+import { CheckEvidenceSchema, type CreditLoadEvidence } from './check-evidence.model';
 
 /** Check kinds that evaluate a course rule expression, so they can have decisive leaves. */
 const EXPRESSION_CHECK_KINDS: readonly CheckKind[] = [
   CheckKind.Prerequisite,
   CheckKind.Corequisite,
 ];
+
+/**
+ * Whether a check's credit-load evidence agrees with its state and reason code: a PASS total is
+ * within the bounds, an over-limit total exceeds the maximum, and an under-minimum total is
+ * below the minimum. Other states and reasons (for example UNKNOWN) aren't constrained.
+ *
+ * @param check - The check's state, reason code, and evidence.
+ * @returns `true` when there is no credit-load evidence or it agrees.
+ */
+function creditLoadAgreesWithCheck(check: {
+  readonly state: CheckState;
+  readonly reasonCode?: ReasonCode | undefined;
+  readonly evidence?: { readonly creditLoad?: CreditLoadEvidence | null | undefined } | undefined;
+}): boolean {
+  const load = check.evidence?.creditLoad ?? null;
+  if (load === null) {
+    return true;
+  }
+  const {
+    totalCreditsHundredths: total,
+    minCreditsHundredths: min,
+    maxCreditsHundredths: max,
+  } = load;
+  if (check.state === CheckState.Pass) {
+    return min <= total && total <= max;
+  }
+  if (check.reasonCode === ReasonCode.CreditLimitExceeded) {
+    return total > max;
+  }
+  if (check.reasonCode === ReasonCode.CreditBelowMinimum) {
+    return total < min;
+  }
+  return true;
+}
 
 /** Schema for a single validation check result. */
 export const CheckResultSchema = z
@@ -71,6 +105,22 @@ export const CheckResultSchema = z
       path: ['evidence', 'decisiveLeaves'],
     },
   )
+  // SAFETY: credit arithmetic is a consequential academic fact, so it may only appear on the
+  // check that evaluates it and never as stray numbers beside an unrelated dimension. An
+  // explicit null is held to the same rule, since it claims the load is unknown.
+  .refine(
+    (check) => check.kind === CheckKind.CreditLoad || check.evidence?.creditLoad === undefined,
+    {
+      message: 'Only CREDIT_LOAD checks may have creditLoad evidence',
+      path: ['evidence', 'creditLoad'],
+    },
+  )
+  // SAFETY: the credit arithmetic shown beside a load check must agree with its state, so the
+  // UI never shows a PASS over a total outside the bounds or an over-limit total that isn't.
+  .refine((check) => creditLoadAgreesWithCheck(check), {
+    message: 'creditLoad totals contradict the check state or reasonCode',
+    path: ['evidence', 'creditLoad'],
+  })
   .readonly();
 
 /** A validated, immutable check result. */
@@ -85,7 +135,7 @@ export type CheckResultInput = z.input<typeof CheckResultSchema>;
  * @param input - Raw check fields.
  * @returns The parsed check result.
  * @throws {z.ZodError} When a field is invalid, a non-passing check has no reasonCode, or the
- *   evidence contradicts the check's kind or state.
+ *   evidence contradicts the check's kind, state, or reasonCode.
  */
 export function createCheckResult(input: CheckResultInput): CheckResult {
   return CheckResultSchema.parse(input);
