@@ -91,14 +91,20 @@ export const SummaryAuditSchema = z
 
 /**
  * Whether the audit reflects the pinned student record, with the same shape the engine's
- * `checkAuditReflectsRecord` returns: PASS with no reason, or UNKNOWN (`AUDIT_STALE`) when the
- * record changed after the audit by more than the allowed skew. PASS says only that the audit
- * isn't stale for the record.
+ * `checkAuditReflectsRecord` returns: PASS with no reason, or UNKNOWN with one of two reasons.
+ * `AUDIT_STALE` means the record changed after the audit by more than the allowed skew.
+ * `AUDIT_AMBIGUOUS` means the audit can't be tied to the pinned record: it is for another tenant
+ * or student, it ran against another snapshot that isn't older than the pinned one, or the pinned
+ * record is older than the audit's by more than the skew. PASS says only that the audit was run
+ * against this record and isn't stale for it.
  */
 export const AuditReflectsRecordSchema = z.discriminatedUnion('state', [
   z.object({ state: z.literal(CheckState.Pass), reasonCode: z.null() }).readonly(),
   z
-    .object({ state: z.literal(CheckState.Unknown), reasonCode: z.literal(ReasonCode.AuditStale) })
+    .object({
+      state: z.literal(CheckState.Unknown),
+      reasonCode: z.enum([ReasonCode.AuditStale, ReasonCode.AuditAmbiguous]),
+    })
     .readonly(),
 ]);
 
@@ -169,7 +175,7 @@ export const AcademicSummaryResponseSchema = z
     /**
      * Whether the audit reflects the pinned record, or `null` exactly when `audit` is `null`:
      * with no audit there is nothing to compare. `null` is never a PASS. Under UNKNOWN
-     * (`AUDIT_STALE`), every requirement state is the audit's as of `audit.generatedAt` and
+     * (`AUDIT_STALE` or `AUDIT_AMBIGUOUS`), every requirement state is the audit's as of `audit.generatedAt` and
      * must be shown as needing verification, never as the student's current standing.
      */
     auditReflectsRecord: AuditReflectsRecordSchema.nullable(),
@@ -182,7 +188,7 @@ export const AcademicSummaryResponseSchema = z
     /**
      * The audit's requirements in audit order. Empty exactly when `audit` is `null`. Their
      * states are the audit's as of `audit.generatedAt`: when `auditReflectsRecord` is UNKNOWN
-     * (`AUDIT_STALE`) or `programCatalogConsistency` is UNKNOWN (`AUDIT_PROGRAM_MISMATCH`), they
+     * (`AUDIT_STALE` or `AUDIT_AMBIGUOUS`) or `programCatalogConsistency` is UNKNOWN (`AUDIT_PROGRAM_MISMATCH`), they
      * must be shown as needing verification, never as current.
      */
     requirements: z.array(SummaryRequirementSchema).readonly(),

@@ -87,6 +87,31 @@ describe('AcademicSummaryResponseSchema', () => {
     expect(accepts({ ...VALID, auditReflectsRecord: stale })).toBe(true);
   });
 
+  it('accepts an audit not tied to the record as UNKNOWN with AUDIT_AMBIGUOUS', () => {
+    const ambiguous = { state: 'UNKNOWN', reasonCode: 'AUDIT_AMBIGUOUS' };
+
+    expect(
+      AcademicSummaryResponseSchema.parse({ ...VALID, auditReflectsRecord: ambiguous }),
+    ).toEqual({ ...VALID, auditReflectsRecord: ambiguous });
+  });
+
+  it('rejects a reflection with any reason code other than AUDIT_STALE or AUDIT_AMBIGUOUS', () => {
+    for (const reasonCode of ['AUDIT_PROGRAM_MISMATCH', 'UNSUPPORTED_RULE', 'NOT_A_CODE']) {
+      expect(accepts({ ...VALID, auditReflectsRecord: { state: 'UNKNOWN', reasonCode } })).toBe(
+        false,
+      );
+    }
+  });
+
+  it('rejects AUDIT_AMBIGUOUS under PASS or FAIL', () => {
+    expect(
+      accepts({ ...VALID, auditReflectsRecord: { state: 'PASS', reasonCode: 'AUDIT_AMBIGUOUS' } }),
+    ).toBe(false);
+    expect(
+      accepts({ ...VALID, auditReflectsRecord: { state: 'FAIL', reasonCode: 'AUDIT_AMBIGUOUS' } }),
+    ).toBe(false);
+  });
+
   it('rejects a reflection that is UNKNOWN without its reason or PASS with one', () => {
     expect(accepts({ ...VALID, auditReflectsRecord: { state: 'UNKNOWN', reasonCode: null } })).toBe(
       false,
