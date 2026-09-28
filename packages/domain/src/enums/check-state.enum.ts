@@ -41,14 +41,18 @@ export const AggregateStateSchema = z.enum(AggregateState);
 /**
  * Derives the aggregate state of a set of checks with the fixed precedence of planning/08
  * §Authority and result semantics: any FAIL is BLOCKED, otherwise any UNKNOWN is
- * NEEDS_VERIFICATION, otherwise any CONDITIONAL is CONDITIONAL, otherwise VALIDATED. This is the
- * single definition of that precedence; the engine and the API contract both use it.
+ * NEEDS_VERIFICATION, otherwise any CONDITIONAL is CONDITIONAL, otherwise VALIDATED.
+ *
+ * Shared invariant (ADR-0005): the single definition of this precedence. The course-checks
+ * contract enforces it in a refine, and the engine's `aggregateCheckStates` will delegate to it
+ * once #107 lands. Pure and total: it never throws.
  *
  * @param states - The state of every check that applies.
  * @returns The aggregate state. An empty list is NEEDS_VERIFICATION, never VALIDATED.
  */
 export function deriveAggregateState(states: readonly CheckState[]): AggregateState {
-  // SAFETY: no evidence is not a pass, so an empty check list must not produce VALIDATED.
+  // SAFETY: no evidence is not a pass, so an empty check list must not produce VALIDATED
+  // (planning/08 §Authority and result semantics: aggregate precedence).
   if (states.length === 0) {
     return AggregateState.NeedsVerification;
   }

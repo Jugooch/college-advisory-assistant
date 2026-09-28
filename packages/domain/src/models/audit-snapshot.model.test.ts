@@ -8,7 +8,9 @@ import {
   type AuditSnapshotInput,
   AuditSnapshotSchema,
   createAuditSnapshot,
+  isSameProgramAndCatalog,
 } from './audit-snapshot.model';
+import { ProgramIdSchema } from './program.model';
 import type { RequirementResultInput } from './requirement-result.model';
 
 const CORE: RequirementResultInput = {
@@ -261,5 +263,22 @@ describe('AuditSnapshotSchema', () => {
 
     expect(omitted).toBe('audit_demo_r7');
     expect(AuditSnapshotSchema.safeParse(withoutVersion).success).toBe(false);
+  });
+});
+
+describe('isSameProgramAndCatalog', () => {
+  const MATH = ProgramIdSchema.parse('4d5e6f70-0000-4000-8000-000000000001');
+  const PHYSICS = ProgramIdSchema.parse('4d5e6f70-0000-4000-8000-000000000002');
+
+  it.each([
+    { record: 'the same program and catalog', programId: MATH, catalogYear: '2025-2026', is: true },
+    { record: 'a different program', programId: PHYSICS, catalogYear: '2025-2026', is: false },
+    { record: 'a different catalog', programId: MATH, catalogYear: '2024-2025', is: false },
+    { record: 'no program', programId: null, catalogYear: '2025-2026', is: false },
+    { record: 'no catalog', programId: MATH, catalogYear: null, is: false },
+  ])('given a record with $record, returns $is', ({ programId, catalogYear, is }) => {
+    const audit = { programId: MATH, catalogYear: '2025-2026' };
+
+    expect(isSameProgramAndCatalog({ programId, catalogYear }, audit)).toBe(is);
   });
 });
