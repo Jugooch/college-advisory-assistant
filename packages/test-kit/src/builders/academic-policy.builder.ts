@@ -36,9 +36,9 @@ export const SYNTHETIC_LETTER_GRADE_ORDER: readonly LetterGrade[] = [
  *
  * The defaults are the conservative ones, each stated explicitly: in-progress prerequisites are
  * not allowed, whether `P` meets a letter minimum is undefined (`null`), the repeat policy is
- * undefined (`null`), and the lowest passing letter grade is undefined (`null`). Override the
- * switch a case is about. A policy has no identity, so this
- * builder takes no seed.
+ * undefined (`null`), the lowest passing letter grade is undefined (`null`), and the term credit
+ * bounds are unsupplied (`null`). Override the switch a case is about. A policy has no identity,
+ * so this builder takes no seed.
  *
  * @param overrides - Fields to replace in the default.
  * @returns A validated academic policy.
@@ -52,6 +52,7 @@ export function buildAcademicPolicy(overrides: Partial<AcademicPolicyInput> = {}
     letterGradeOrder: SYNTHETIC_LETTER_GRADE_ORDER,
     repeatPolicy: null,
     lowestPassingLetterGrade: null,
+    termCreditBounds: null,
     ...overrides,
   });
 }
