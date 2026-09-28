@@ -69,15 +69,28 @@ describe('DEV_SEED_PLAN', () => {
     expect(linked[0]?.tenantId).toBe(student?.tenantId);
   });
 
-  it('assigns the advisor to the linked student, open-ended, approved by the admin', () => {
-    expect(DEV_SEED_PLAN.assignments).toEqual([
+  it('assigns the advisor to the linked and the stale-audit students, open-ended', () => {
+    const assigned = (sourceStudentId: string): unknown =>
       expect.objectContaining({
         advisorSubject: 'synthetic-advisor-001',
-        sourceStudentId: 'SYN-000001',
+        sourceStudentId,
         approverSubject: 'synthetic-admin-001',
         effectiveTo: null,
-      }),
-    ]);
+      });
+
+    expect(DEV_SEED_PLAN.assignments).toEqual([assigned('SYN-000001'), assigned('SYN-000002')]);
+  });
+
+  it('keeps every academic student in the seeded students', () => {
+    const planStudentIds = new Set(DEV_SEED_PLAN.students.map((student) => student.id));
+
+    const academicStudentIds = [
+      ...DEV_SEED_PLAN.academic.attempts,
+      ...DEV_SEED_PLAN.academic.snapshots,
+      ...DEV_SEED_PLAN.academic.audits,
+    ].map((record) => record.studentId);
+
+    expect(academicStudentIds.every((studentId) => planStudentIds.has(studentId))).toBe(true);
   });
 
   it('keeps every record inside a seeded tenant and uses only the synthetic issuer', () => {
