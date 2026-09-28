@@ -123,10 +123,10 @@ describe('evaluatePrerequisite with a passing grade and a retake', () => {
     ]);
   });
 
-  it('is CONDITIONAL under MOST_RECENT even when planned progression is not permitted', () => {
+  it('is UNKNOWN, not CONDITIONAL or FAIL, under MOST_RECENT when progression is forbidden', () => {
     const policy = { repeatPolicy: 'MOST_RECENT', allowsInProgressPrerequisites: false } as const;
 
-    expect(outcomeOf([passing, RETAKE], policy)).toEqual(['CONDITIONAL', 'IN_PROGRESS_MIN_GRADE']);
+    expect(outcomeOf([passing, RETAKE], policy)).toEqual(['UNKNOWN', 'PROGRESSION_NOT_PERMITTED']);
   });
 
   it('passes under HIGHEST_GRADE, because a retake cannot lower the counting grade', () => {

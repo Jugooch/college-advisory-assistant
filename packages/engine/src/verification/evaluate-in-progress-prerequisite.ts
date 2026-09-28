@@ -29,6 +29,10 @@ const REPEAT_ORDER_UNDETERMINED: LeafOutcome = {
   state: CheckState.Unknown,
   reasonCode: ReasonCode.RepeatOrderUndetermined,
 };
+const PROGRESSION_NOT_PERMITTED_UNSETTLED: LeafOutcome = {
+  state: CheckState.Unknown,
+  reasonCode: ReasonCode.ProgressionNotPermitted,
+};
 const PASS: LeafOutcome = { state: CheckState.Pass, reasonCode: null };
 const IN_PROGRESS_MIN_GRADE: LeafOutcome = {
   state: CheckState.Conditional,
@@ -51,7 +55,8 @@ export interface RetakeSituation {
  * Evaluates a group's in-progress attempts as the way to satisfy a course whose current record
  * fails. When the group already has a counting attempt, or several attempts are in progress,
  * completing them creates a repeat, so the repeat policy must make the in-progress attempt the
- * one that counts once it meets the minimum.
+ * one that counts once it meets the minimum. The caller handles a group that also holds a
+ * pending transfer, which is never CONDITIONAL.
  *
  * @param situation - The failing counting attempt (or `null`), the in-progress attempts, and the
  *   leaf's minimum grade.
@@ -98,10 +103,11 @@ export function evaluateInProgressPrerequisite(
  * @param situation - The passing counting attempt, the in-progress attempts, and the leaf's
  *   minimum grade.
  * @param context - The academic policy and the tenant's term order.
- * @returns PASS under HIGHEST_GRADE when the retake can be ranked against the passing grade,
- *   CONDITIONAL (`IN_PROGRESS_MIN_GRADE`) when a MOST_RECENT retake will replace the passing
- *   grade, or UNKNOWN (`REPEAT_POLICY_UNDEFINED` or `REPEAT_ORDER_UNDETERMINED`) when the engine
- *   can't tell which attempt will count.
+ * @returns PASS under HIGHEST_GRADE when the retake can be ranked against the passing grade;
+ *   when a MOST_RECENT retake will replace the passing grade, CONDITIONAL
+ *   (`IN_PROGRESS_MIN_GRADE`) if planned progression is permitted, otherwise UNKNOWN
+ *   (`PROGRESSION_NOT_PERMITTED`); or UNKNOWN (`REPEAT_POLICY_UNDEFINED` or
+ *   `REPEAT_ORDER_UNDETERMINED`) when the engine can't tell which attempt will count.
  */
 export function evaluateRetakeOfPassingAttempt(
   situation: RetakeSituation & { readonly counted: CourseAttempt },
@@ -124,16 +130,20 @@ export function evaluateRetakeOfPassingAttempt(
   }
   const [retake, ...otherRetakes] = inProgress;
   // SAFETY: under MOST_RECENT a later retake replaces the passing grade whatever it earns, so
-  // the result depends on a future grade: CONDITIONAL on the retake meeting the minimum, never
-  // PASS. This holds whatever `allowsInProgressPrerequisites` says, because the student already
-  // passed and the condition only warns that the retake can undo it. Several concurrent
-  // retakes, or terms missing from the order, leave the counting attempt undetermined
-  // (planning/08 §Authority and result semantics: CONDITIONAL depends on an explicit future
-  // condition).
+  // the result depends on a future grade and is never PASS. Several concurrent retakes, or
+  // terms missing from the order, leave the counting attempt undetermined (planning/08
+  // §Authority and result semantics: CONDITIONAL depends on an explicit future condition).
   if (otherRetakes.length > 0 || !isLaterTerm(retake, counted, context.termCodesOldestFirst)) {
     return REPEAT_ORDER_UNDETERMINED;
   }
-  return IN_PROGRESS_MIN_GRADE;
+  // SAFETY: the condition is on in-progress work, so it may be offered only when the
+  // institution permits planned progression. When it doesn't, the result stays UNKNOWN until
+  // the retake's grade is recorded: not FAIL, because the current record meets the
+  // prerequisite (planning/08 §Eligibility semantics: in-progress prerequisites; AC02;
+  // issue #88).
+  return context.academicPolicy.allowsInProgressPrerequisites
+    ? IN_PROGRESS_MIN_GRADE
+    : PROGRESSION_NOT_PERMITTED_UNSETTLED;
 }
 
 /**

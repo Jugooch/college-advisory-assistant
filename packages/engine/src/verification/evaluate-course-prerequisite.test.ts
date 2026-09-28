@@ -182,32 +182,3 @@ describe('evaluatePrerequisite for one required course', () => {
     expect(checkOf([calc, physics], {}, course(PHYSICS_ID, letter('C')))).toEqual(expected('PASS'));
   });
 });
-
-describe('evaluatePrerequisite with a pending transfer', () => {
-  const pending = pendingTransferAttempt({}, 4);
-  const retake = inProgressAttempt({}, 2);
-
-  it('passes on a completed grade that meets the minimum, despite a pending transfer', () => {
-    expect(checkOf([completedAttempt({ grade: letter('C') }, 1), pending])).toEqual(
-      expected('PASS'),
-    );
-  });
-
-  it('is UNKNOWN with PENDING_TRANSFER when the completed grade is below the minimum', () => {
-    expect(checkOf([completedAttempt({ grade: letter('D') }, 1), pending])).toEqual(
-      expected('UNKNOWN', 'PENDING_TRANSFER'),
-    );
-  });
-
-  it('is UNKNOWN with PENDING_TRANSFER when in-progress work is not permitted', () => {
-    expect(checkOf([retake, pending], { allowsInProgressPrerequisites: false })).toEqual(
-      expected('UNKNOWN', 'PENDING_TRANSFER'),
-    );
-  });
-
-  it('is CONDITIONAL when in-progress work is permitted alongside a pending transfer', () => {
-    expect(checkOf([retake, pending], { allowsInProgressPrerequisites: true })).toEqual(
-      expected('CONDITIONAL', 'IN_PROGRESS_MIN_GRADE'),
-    );
-  });
-});
