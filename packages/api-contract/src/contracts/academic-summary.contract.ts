@@ -29,6 +29,38 @@ const AUDIT_FIELDS = AuditSnapshotSchema.unwrap().shape;
 const REQUIREMENT_FIELDS = RequirementResultSchema.unwrap().shape;
 
 /**
+ * Returns whether a list has no repeated values.
+ *
+ * @param values - Values to check.
+ * @returns `true` when every value appears once.
+ */
+function isDistinct(values: readonly string[]): boolean {
+  return new Set(values).size === values.length;
+}
+
+/** The program and catalog fields of the record or the audit. */
+interface ProgramAndCatalog {
+  readonly programId: string | null;
+  readonly catalogYear: string | null;
+}
+
+/**
+ * Returns whether the record states a program and catalog and both equal the audit's.
+ *
+ * @param record - The pinned student record; either field may be unknown (`null`).
+ * @param audit - The audit.
+ * @returns `false` when the record's program or catalog is unknown or differs from the audit's.
+ */
+function isSameProgramAndCatalog(record: ProgramAndCatalog, audit: ProgramAndCatalog): boolean {
+  return (
+    record.programId !== null &&
+    record.catalogYear !== null &&
+    record.programId === audit.programId &&
+    record.catalogYear === audit.catalogYear
+  );
+}
+
+/**
  * Returns whether requirement IDs are unique and every parent names another listed requirement.
  *
  * @param requirements - The summary's requirements.
@@ -91,6 +123,22 @@ export const AuditReflectsRecordSchema = z.discriminatedUnion('state', [
     .readonly(),
 ]);
 
+/**
+ * Whether the audit is for the program and catalog in the student record: PASS when the record
+ * states both and they equal the audit's, otherwise UNKNOWN (`AUDIT_PROGRAM_MISMATCH`). A record
+ * that doesn't state its program or catalog can't be matched, so it is UNKNOWN too. Under
+ * UNKNOWN, every requirement state needs verification: the audit may describe another program.
+ */
+export const ProgramCatalogConsistencySchema = z.discriminatedUnion('state', [
+  z.object({ state: z.literal(CheckState.Pass), reasonCode: z.null() }).readonly(),
+  z
+    .object({
+      state: z.literal(CheckState.Unknown),
+      reasonCode: z.literal(ReasonCode.AuditProgramMismatch),
+    })
+    .readonly(),
+]);
+
 /** One requirement of the audit, as the audit reports it. The app never recomputes it. */
 export const SummaryRequirementSchema = z
   .object({
@@ -107,7 +155,8 @@ export const SummaryRequirementSchema = z
     sourceRef: REQUIREMENT_FIELDS.sourceRef,
   })
   // SAFETY: same rule as the domain model. A COMPLETE requirement that still needs credits or
-  // courses contradicts itself, so the UI must never be handed both halves to choose from.
+  // courses contradicts itself, so the UI must never be handed both halves to choose from
+  // (planning/08 §Authority and result semantics: the audit owns requirement state).
   .refine(
     (requirement) =>
       requirement.state !== RequirementState.Complete ||
@@ -118,6 +167,12 @@ export const SummaryRequirementSchema = z
       path: ['state'],
     },
   )
+  // SAFETY: same rule as the domain model. A repeated candidate would be offered twice for one
+  // requirement (planning/08 §Candidate formation and allocation).
+  .refine((requirement) => isDistinct(requirement.candidateCourseIds), {
+    message: 'candidateCourseIds must not repeat a course',
+    path: ['candidateCourseIds'],
+  })
   .readonly();
 
 /**
@@ -140,25 +195,55 @@ export const AcademicSummaryResponseSchema = z
      */
     auditReflectsRecord: AuditReflectsRecordSchema.nullable(),
     /**
+     * Whether the audit's program and catalog are the record's, or `null` exactly when `audit`
+     * is `null`. `null` is never a PASS. Under UNKNOWN (`AUDIT_PROGRAM_MISMATCH`), every
+     * requirement state must be shown as needing verification, never as current.
+     */
+    programCatalogConsistency: ProgramCatalogConsistencySchema.nullable(),
+    /**
      * The audit's requirements in audit order. Empty exactly when `audit` is `null`. Their
      * states are the audit's as of `audit.generatedAt`: when `auditReflectsRecord` is UNKNOWN
-     * (`AUDIT_STALE`), they must be shown as needing verification, never as current.
+     * (`AUDIT_STALE`) or `programCatalogConsistency` is UNKNOWN (`AUDIT_PROGRAM_MISMATCH`), they
+     * must be shown as needing verification, never as current.
      */
     requirements: z.array(SummaryRequirementSchema).readonly(),
   })
-  // SAFETY: a freshness verdict with no audit, or an audit with no verdict, would let the UI
-  // show requirement states without saying whether they reflect the record.
+  // SAFETY: a verdict with no audit, or an audit with no verdict, would let the UI show
+  // requirement states without saying whether they reflect the record (planning/07
+  // §Consistency model; planning/09 §Canonical entities: AuditSnapshot detects skew).
   .refine((summary) => (summary.audit === null) === (summary.auditReflectsRecord === null), {
     message: 'auditReflectsRecord is null exactly when audit is null',
     path: ['auditReflectsRecord'],
   })
-  // SAFETY: requirement states come only from an audit, and a degree audit always has one.
+  .refine((summary) => (summary.audit === null) === (summary.programCatalogConsistency === null), {
+    message: 'programCatalogConsistency is null exactly when audit is null',
+    path: ['programCatalogConsistency'],
+  })
+  // SAFETY: a record and an audit that disagree on program or catalog, or a record that doesn't
+  // say, are conflicting or missing data, so the verdict is UNKNOWN, never PASS; and a match is
+  // never reported as a mismatch (planning/09 §Source authority matrix: block the affected
+  // claim if contradictory; planning/08 §Rule lifecycle: suspend the affected claim).
+  .refine(
+    (summary) =>
+      summary.audit === null ||
+      summary.programCatalogConsistency?.state ===
+        (isSameProgramAndCatalog(summary.studentSnapshot, summary.audit)
+          ? CheckState.Pass
+          : CheckState.Unknown),
+    {
+      message: 'programCatalogConsistency must be UNKNOWN exactly when program or catalog differ',
+      path: ['programCatalogConsistency'],
+    },
+  )
+  // SAFETY: requirement states come only from an audit, and a degree audit always has one
+  // (planning/09 §Canonical entities: AuditSnapshot holds the requirement tree).
   .refine((summary) => (summary.audit === null) === (summary.requirements.length === 0), {
     message: 'requirements are empty exactly when audit is null',
     path: ['requirements'],
   })
   // SAFETY: a repeated ID or a dangling parent would detach a requirement from the audit tree,
-  // so its parent's state could be read without it.
+  // so its parent's state could be read without it (planning/08 §Candidate formation and
+  // allocation: the audit owns the requirement tree).
   // NOTE: cycles aren't rechecked here; the requirements come from an `AuditSnapshot`, whose
   // schema already rejects them.
   .refine((summary) => hasDistinctKnownParents(summary.requirements), {

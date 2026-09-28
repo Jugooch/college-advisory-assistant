@@ -46,9 +46,17 @@ const VALID = {
     generatedAt: '2026-08-21T10:00:00Z',
   },
   auditReflectsRecord: { state: 'PASS', reasonCode: null },
+  programCatalogConsistency: { state: 'PASS', reasonCode: null },
   requirements: [CORE, CALCULUS],
 };
-const NO_AUDIT = { ...VALID, audit: null, auditReflectsRecord: null, requirements: [] };
+const NO_AUDIT = {
+  ...VALID,
+  audit: null,
+  auditReflectsRecord: null,
+  programCatalogConsistency: null,
+  requirements: [],
+};
+const MISMATCH = { state: 'UNKNOWN', reasonCode: 'AUDIT_PROGRAM_MISMATCH' };
 
 /**
  * Returns whether the response schema accepts a payload.
@@ -95,10 +103,47 @@ describe('AcademicSummaryResponseSchema', () => {
     expect(AcademicSummaryResponseSchema.parse(NO_AUDIT).audit).toBeNull();
   });
 
-  it('accepts a record whose program and catalog are unknown', () => {
+  it('accepts a record with unknown program and catalog only as a program mismatch', () => {
     const studentSnapshot = { ...VALID.studentSnapshot, programId: null, catalogYear: null };
 
-    expect(accepts({ ...VALID, studentSnapshot })).toBe(true);
+    expect(accepts({ ...VALID, studentSnapshot })).toBe(false);
+    expect(accepts({ ...VALID, studentSnapshot, programCatalogConsistency: MISMATCH })).toBe(true);
+  });
+
+  it.each([
+    ['a different program', { programId: '4d5e6f70-0000-4000-8000-000000000002' }],
+    ['a different catalog', { catalogYear: '2024-2025' }],
+    ['an unknown program', { programId: null }],
+    ['an unknown catalog', { catalogYear: null }],
+  ])('rejects PASS and accepts UNKNOWN for a record with %s', (_case, patch) => {
+    const studentSnapshot = { ...VALID.studentSnapshot, ...patch };
+
+    expect(accepts({ ...VALID, studentSnapshot })).toBe(false);
+    expect(accepts({ ...VALID, studentSnapshot, programCatalogConsistency: MISMATCH })).toBe(true);
+  });
+
+  it('rejects a mismatch verdict when program and catalog match', () => {
+    expect(accepts({ ...VALID, programCatalogConsistency: MISMATCH })).toBe(false);
+  });
+
+  it('rejects a program verdict without an audit, or an audit without one', () => {
+    expect(
+      accepts({ ...NO_AUDIT, programCatalogConsistency: VALID.programCatalogConsistency }),
+    ).toBe(false);
+    expect(accepts({ ...VALID, programCatalogConsistency: null })).toBe(false);
+  });
+
+  it('rejects a program verdict with another reason code', () => {
+    const programCatalogConsistency = { state: 'UNKNOWN', reasonCode: 'AUDIT_STALE' };
+
+    expect(accepts({ ...VALID, programCatalogConsistency })).toBe(false);
+  });
+
+  it('rejects a requirement that repeats a candidate course', () => {
+    const [candidate] = CORE.candidateCourseIds;
+    const repeated = { ...CORE, candidateCourseIds: [candidate, candidate] };
+
+    expect(accepts({ ...VALID, requirements: [repeated, CALCULUS] })).toBe(false);
   });
 
   it('rejects a reflection or requirements without an audit', () => {

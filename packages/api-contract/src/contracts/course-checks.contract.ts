@@ -1,5 +1,6 @@
 /**
  * @file Contract for checking a candidate course set against the pinned record, audit, and rules.
+ * The request body lives in `course-checks-request.contract.ts`.
  * @module @caa/api-contract/contracts/course-checks
  * @requirement FR-01
  * @requirement FR-05
@@ -11,20 +12,18 @@
 import { z } from 'zod';
 
 import {
-  AggregateState,
   AggregateStateSchema,
   CheckKind,
   type CheckResult,
   CheckResultSchema,
   CheckState,
   CourseIdSchema,
+  deriveAggregateState,
   StudentSnapshotIdSchema,
 } from '@caa/domain';
 
 import { defineEndpoint } from '../define-endpoint';
-
-/** Most courses one course-checks request may name. */
-export const MAX_COURSE_CHECK_COURSES = 12;
+import { MAX_COURSE_CHECK_COURSES } from './course-checks-request.contract';
 
 /**
  * Returns whether a list has no repeated values.
@@ -49,57 +48,6 @@ function checkOfKind(kind: CheckKind): typeof CheckResultSchema {
   });
 }
 
-// ---- Request ----
-
-/** The credit value chosen for one variable-credit course. */
-export const CreditSelectionSchema = z
-  .strictObject({
-    courseId: CourseIdSchema,
-    /** Chosen credits in hundredths of a credit (350 = 3.5 credits). Never a float. */
-    selectedCreditsHundredths: z.number().int().nonnegative(),
-  })
-  .readonly();
-
-/**
- * Request body for `POST /v1/students/:studentId/course-checks`.
- *
- * SECURITY: strict. The body names courses and credit choices only; tenant, user, and role come
- * from the session, so any other field, such as `tenantId`, is rejected (FR-01).
- */
-export const CourseChecksRequestSchema = z
-  .strictObject({
-    /** The candidate set: 1 to 12 distinct courses, checked together. */
-    courseIds: z.array(CourseIdSchema).min(1).max(MAX_COURSE_CHECK_COURSES).readonly(),
-    /**
-     * Chosen credit values for variable-credit courses, at most one per course, each naming a
-     * course in `courseIds`. Omitted or missing for a course means no value is chosen, which the
-     * credit-load check reports as UNKNOWN, never as an assumed value.
-     */
-    creditSelections: z.array(CreditSelectionSchema).readonly().optional(),
-  })
-  .refine((body) => isDistinct(body.courseIds), {
-    message: 'courseIds must not repeat a course',
-    path: ['courseIds'],
-  })
-  // SAFETY: two values for one course would let the server pick which credits count.
-  .refine(
-    (body) => isDistinct((body.creditSelections ?? []).map((selection) => selection.courseId)),
-    { message: 'creditSelections must not repeat a course', path: ['creditSelections'] },
-  )
-  .refine(
-    (body) =>
-      (body.creditSelections ?? []).every((selection) =>
-        body.courseIds.includes(selection.courseId),
-      ),
-    { message: 'Each creditSelections course must be in courseIds', path: ['creditSelections'] },
-  )
-  .readonly();
-
-/** Request body for `POST /v1/students/:studentId/course-checks`. */
-export type CourseChecksRequest = z.infer<typeof CourseChecksRequestSchema>;
-
-// ---- Response ----
-
 /** Per-course results. Each dimension is shown separately; passing one implies nothing else. */
 export const CourseCheckResultSchema = z
   .object({
@@ -113,7 +61,7 @@ export const CourseCheckResultSchema = z
       // SAFETY: a PASS, FAIL, or CONDITIONAL prerequisite is a verdict under one ruleset; without
       // evidence it can't be tied to `pinnedInputs.rulesetVersion`, so it isn't reproducible.
       // An UNKNOWN claims no verdict, so it may come without evidence (for example when the
-      // rule couldn't be loaded).
+      // rule couldn't be loaded). See planning/08 §Rule lifecycle and §Evidence contract example.
       .refine((check) => check.state === CheckState.Unknown || check.evidence !== undefined, {
         message: 'A prerequisite check that is not UNKNOWN requires evidence',
         path: ['evidence'],
@@ -175,27 +123,6 @@ function allChecks(response: CourseChecksShape): readonly CheckResult[] {
   ];
 }
 
-/**
- * Derives the aggregate a set of checks must have, with the same fixed precedence as the
- * engine's `aggregateCheckStates` (planning/08 §Authority and result semantics): any FAIL is
- * BLOCKED, otherwise any UNKNOWN is NEEDS_VERIFICATION, otherwise any CONDITIONAL is
- * CONDITIONAL, otherwise VALIDATED. An empty list is NEEDS_VERIFICATION, never VALIDATED.
- *
- * NOTE: restated here because api-contract can't depend on the engine. Keep the two in step.
- *
- * @param checks - Every check in the response.
- * @returns The only aggregate the response may carry.
- */
-function expectedAggregate(checks: readonly CheckResult[]): AggregateState {
-  const states = new Set(checks.map((check) => check.state));
-  if (states.has(CheckState.Fail)) return AggregateState.Blocked;
-  if (checks.length === 0 || states.has(CheckState.Unknown)) {
-    return AggregateState.NeedsVerification;
-  }
-  if (states.has(CheckState.Conditional)) return AggregateState.Conditional;
-  return AggregateState.Validated;
-}
-
 /** Response body for `POST /v1/students/:studentId/course-checks`. */
 export const CourseChecksResponseSchema = z
   .object({
@@ -215,13 +142,18 @@ export const CourseChecksResponseSchema = z
   })
   // SAFETY: the aggregate must follow from the checks it summarizes, so a FAIL is never shown
   // as conditional, an UNKNOWN never as conditional or validated, and a clean set never as
-  // blocked.
-  .refine((response) => response.aggregate === expectedAggregate(allChecks(response)), {
-    message: 'aggregate must follow the FAIL, UNKNOWN, CONDITIONAL, PASS precedence',
-    path: ['aggregate'],
-  })
+  // blocked (planning/08 §Authority and result semantics: aggregate precedence).
+  .refine(
+    (response) =>
+      response.aggregate === deriveAggregateState(allChecks(response).map((check) => check.state)),
+    {
+      message: 'aggregate must follow the FAIL, UNKNOWN, CONDITIONAL, PASS precedence',
+      path: ['aggregate'],
+    },
+  )
   // SAFETY: a prerequisite evaluated under another ruleset isn't reproducible from the pinned
-  // inputs, so it must not be shown beside them.
+  // inputs, so it must not be shown beside them (planning/08 §Rule lifecycle; planning/09
+  // §Canonical entities: Validation is an immutable result for pinned inputs).
   .refine(
     (response) =>
       response.courseResults.every(
