@@ -14,6 +14,7 @@ describe('buildAuditSnapshot', () => {
       id: '70000000-0000-4000-8000-000000000001',
       tenantId: '10000000-0000-4000-8000-000000000001',
       studentId: '30000000-0000-4000-8000-000000000001',
+      studentSnapshotId: 'a0000000-0000-4000-8000-000000000001',
       programId: '80000000-0000-4000-8000-000000000001',
       auditSource: 'demo-audit',
       auditVersion: 'audit_demo_r1',

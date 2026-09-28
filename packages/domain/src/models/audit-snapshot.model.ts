@@ -12,6 +12,7 @@ import { InstitutionIdSchema } from './institution.model';
 import { ProgramIdSchema } from './program.model';
 import { RequirementResultSchema } from './requirement-result.model';
 import { StudentIdSchema } from './student.model';
+import { StudentSnapshotIdSchema } from './student-snapshot.model';
 
 /** Branded ID so an audit snapshot ID can never be passed where another ID is expected. */
 export const AuditSnapshotIdSchema = z.uuid().brand<'AuditSnapshotId'>();
@@ -70,13 +71,20 @@ function isAcyclic(nodes: readonly RequirementNode[]): boolean {
  * `audit_demo_r7` in the planning/08 evidence contract). Every `sourceRef` in its requirements
  * is resolved within that source and version.
  *
- * TODO(#62): reference the StudentSnapshot the audit was run against, once it is modeled.
+ * `studentSnapshotId` pins the student record revision the audit was run against, so a check
+ * can tell which revision it is comparing with. `studentRecordEffectiveAt` stays alongside it:
+ * the audit system reports it, and the skew check compares it with the newer record's time.
  */
 export const AuditSnapshotSchema = z
   .object({
     id: AuditSnapshotIdSchema,
     tenantId: InstitutionIdSchema,
     studentId: StudentIdSchema,
+    /**
+     * Student snapshot the audit was run against. It belongs to the same tenant and student;
+     * the persistence layer enforces that, because a schema sees only this object.
+     */
+    studentSnapshotId: StudentSnapshotIdSchema,
     programId: ProgramIdSchema,
     /** Audit system that produced this audit, for example `demo-audit`. */
     auditSource: z.string().min(1),
