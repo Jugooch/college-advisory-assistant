@@ -123,7 +123,7 @@ describe('evaluateApplicability with a closed ancestor', () => {
   it('is CONDITIONAL on an IN_PROGRESS parent above an INCOMPLETE child', () => {
     expect(checkOf(chain('IN_PROGRESS', 'INCOMPLETE'))).toEqual({
       state: 'CONDITIONAL',
-      reasonCode: 'IN_PROGRESS_MIN_GRADE',
+      reasonCode: 'REQUIREMENT_IN_PROGRESS',
       sourceRef: 'demo-audit:audit_demo_r1:demo-audit/REQ-001',
     });
   });

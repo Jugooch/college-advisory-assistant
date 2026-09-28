@@ -21,9 +21,9 @@ import {
 } from '@caa/domain';
 
 import {
-  checkSnapshotConsistency,
+  checkAuditReflectsRecord,
   type StudentRecordFreshness,
-} from './check-snapshot-consistency';
+} from './check-audit-reflects-record';
 import { createDecidingRequirementLookup } from './find-deciding-requirement';
 
 /** The applicability a requirement in one audit state gives a course it lists as a candidate. */
@@ -44,8 +44,7 @@ const OUTCOME_BY_REQUIREMENT_STATE: Readonly<Record<RequirementState, Requiremen
   // planning/08 §Eligibility semantics: in-progress work is conditional).
   [RequirementState.InProgress]: {
     state: CheckState.Conditional,
-    // TODO(#82): use REQUIREMENT_IN_PROGRESS once the domain adds it.
-    reasonCode: ReasonCode.InProgressMinGrade,
+    reasonCode: ReasonCode.RequirementInProgress,
   },
   [RequirementState.Complete]: {
     state: CheckState.Fail,
@@ -78,11 +77,11 @@ const REQUIREMENT_STATE_PRECEDENCE: readonly RequirementState[] = [
  * Each requirement listing the course is decided by the most settled state among itself and
  * its ancestors (AMBIGUOUS, then COMPLETE, then IN_PROGRESS, then INCOMPLETE; see
  * `createDecidingRequirementLookup`), naming the nearest requirement with that state. Then:
- * 1. The audit is stale for the student record (see `checkSnapshotConsistency`): UNKNOWN
+ * 1. The audit is stale for the student record (see `checkAuditReflectsRecord`): UNKNOWN
  *    (`AUDIT_STALE`), whatever the requirements say.
  * 2. Some candidate is decided AMBIGUOUS: UNKNOWN (`AUDIT_AMBIGUOUS`).
  * 3. Some candidate is decided INCOMPLETE: PASS.
- * 4. Some candidate is decided IN_PROGRESS: CONDITIONAL (`IN_PROGRESS_MIN_GRADE`).
+ * 4. Some candidate is decided IN_PROGRESS: CONDITIONAL (`REQUIREMENT_IN_PROGRESS`).
  * 5. Every candidate is decided COMPLETE: FAIL (`REQUIREMENT_ALREADY_SATISFIED`).
  * 6. No requirement lists the course: FAIL (`NOT_APPLICABLE`).
  *
@@ -96,7 +95,7 @@ const REQUIREMENT_STATE_PRECEDENCE: readonly RequirementState[] = [
  *   `<auditSource>:<auditVersion>`, followed by `:<requirement sourceRef>` of the deciding
  *   requirement (the candidate or an ancestor) when one decided the state. Its evidence has no ruleset version, because the audit applied no
  *   published ruleset of the engine's, and no decisive leaves.
- * @throws {SnapshotConsistencyInputError} When a timestamp or the maximum skew is invalid.
+ * @throws {AuditRecordInputError} When a timestamp or the maximum skew is invalid.
  */
 export function evaluateApplicability(
   courseId: CourseId,
@@ -104,15 +103,15 @@ export function evaluateApplicability(
   freshness: StudentRecordFreshness,
 ): CheckResult {
   const auditRef = `${audit.auditSource}:${audit.auditVersion}`;
-  const consistency = checkSnapshotConsistency(
+  const reflection = checkAuditReflectsRecord(
     audit,
     freshness.studentRecordEffectiveAt,
     freshness.maxSkewMs,
   );
   // SAFETY: a stale audit can't say what applies to the current record, so no requirement
   // state is read from it, and no result passes (planning/07 §Consistency model; AC10).
-  if (consistency.state !== CheckState.Pass) {
-    return toCheck({ state: consistency.state, reasonCode: consistency.reasonCode }, auditRef);
+  if (reflection.state !== CheckState.Pass) {
+    return toCheck({ state: reflection.state, reasonCode: reflection.reasonCode }, auditRef);
   }
   // SAFETY: only the exact course IDs the audit lists are candidates. Equivalents, aliases, and
   // parent or child requirements never add candidacy (planning/08 §Candidate formation).

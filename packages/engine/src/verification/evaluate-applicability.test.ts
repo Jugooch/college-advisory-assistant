@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import type { CourseId, RequirementResult } from '@caa/domain';
 import { buildAuditSnapshot, buildRequirementResult, SYNTHETIC_COURSES } from '@caa/test-kit';
 
-import { SnapshotConsistencyInputError } from './check-snapshot-consistency';
+import { AuditRecordInputError } from './check-audit-reflects-record';
 import { evaluateApplicability } from './evaluate-applicability';
 
 /** DEMO-MATH 101, equivalent to DEMO-MATH 111. */
@@ -83,7 +83,7 @@ describe('evaluateApplicability for one requirement', () => {
       expected(
         'CONDITIONAL',
         'demo-audit:audit_demo_r1:demo-audit/REQ-001',
-        'IN_PROGRESS_MIN_GRADE',
+        'REQUIREMENT_IN_PROGRESS',
       ),
     );
   });
@@ -153,7 +153,7 @@ describe('evaluateApplicability with a stale audit', () => {
     const invalid = { ...FRESH, maxSkewMs: -1 };
 
     expect(() => checkOf([calcRequirement('INCOMPLETE')], CALC_ID, invalid)).toThrow(
-      new SnapshotConsistencyInputError('maxSkewMs'),
+      new AuditRecordInputError('maxSkewMs'),
     );
   });
 });
@@ -182,7 +182,7 @@ describe('evaluateApplicability for a course listed by several requirements', ()
       expected(
         'CONDITIONAL',
         'demo-audit:audit_demo_r1:demo-audit/REQ-002',
-        'IN_PROGRESS_MIN_GRADE',
+        'REQUIREMENT_IN_PROGRESS',
       ),
     );
   });
