@@ -4,12 +4,18 @@
  */
 import type { ReactElement } from 'react';
 
+/**
+ * Visual tone of a badge. `caution` is for states that need attention but aren't failures, such
+ * as needs verification or conditional; it is never used for a pass.
+ */
+export type StatusTone = 'positive' | 'negative' | 'caution' | 'neutral';
+
 /** Props for {@link StatusBadge}. */
 export interface StatusBadgeProps {
   /** Visible label, for example "Available". */
   readonly label: string;
   /** Visual tone. The label must carry the meaning on its own. */
-  readonly tone: 'positive' | 'negative' | 'neutral';
+  readonly tone: StatusTone;
 }
 
 /**
