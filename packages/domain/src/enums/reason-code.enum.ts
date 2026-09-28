@@ -41,6 +41,8 @@ import { z } from 'zod';
  * - `AUDIT_STALE`: the degree audit is older than the student record it must reflect.
  * - `AUDIT_AMBIGUOUS`: the audit doesn't settle the requirement.
  * - `REQUIREMENT_ALREADY_SATISFIED`: the requirement is already complete.
+ * - `REQUIREMENT_IN_PROGRESS`: the requirement is in progress; this course applies only if the
+ *   in-progress work does not satisfy it.
  * - `NOT_APPLICABLE`: the course doesn't apply to the requirement.
  *
  * Candidate sets:
@@ -68,6 +70,7 @@ export const ReasonCode = {
   AuditStale: 'AUDIT_STALE',
   AuditAmbiguous: 'AUDIT_AMBIGUOUS',
   RequirementAlreadySatisfied: 'REQUIREMENT_ALREADY_SATISFIED',
+  RequirementInProgress: 'REQUIREMENT_IN_PROGRESS',
   NotApplicable: 'NOT_APPLICABLE',
   AllocationConflict: 'ALLOCATION_CONFLICT',
   CreditLimitExceeded: 'CREDIT_LIMIT_EXCEEDED',

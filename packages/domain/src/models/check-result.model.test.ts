@@ -51,7 +51,7 @@ describe('CheckResultSchema', () => {
           .reasonCode,
     );
 
-    expect(codes).toHaveLength(23);
+    expect(codes).toHaveLength(24);
     expect(codes).toContain('VARIABLE_CREDIT_UNSELECTED');
   });
 
@@ -83,6 +83,18 @@ describe('CheckResultSchema', () => {
       'COURSE_NOT_IN_CATALOG',
       'GRADE_NOT_RANKED',
     ]);
+  });
+});
+
+describe('CheckResultSchema reason codes for requirement applicability', () => {
+  it('accepts REQUIREMENT_IN_PROGRESS on a CONDITIONAL applicability check', () => {
+    expect(
+      createCheckResult({
+        kind: CheckKind.RequirementApplicability,
+        state: CheckState.Conditional,
+        reasonCode: ReasonCode.RequirementInProgress,
+      }).reasonCode,
+    ).toBe('REQUIREMENT_IN_PROGRESS');
   });
 });
 
