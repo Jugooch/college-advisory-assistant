@@ -19,10 +19,8 @@ import {
 } from '@caa/domain';
 
 import { assertValidCandidateSet, type CourseSelection } from './candidate-set';
-import {
-  checkAuditReflectsRecord,
-  type StudentRecordFreshness,
-} from './check-audit-reflects-record';
+import { checkAuditAgainstRecord } from './check-audit-against-record';
+import type { PinnedStudentRecord, StudentRecordFreshness } from './check-audit-reflects-record';
 import { type AllocationContest, findAllocationContests } from './find-allocation-contests';
 
 /**
@@ -32,8 +30,9 @@ import { type AllocationContest, findAllocationContests } from './find-allocatio
  * requirement as contested when it can't prove that every allocation the audit may choose
  * leaves each candidate counted without exceeding a requirement or reusing a course (see
  * `findAllocationContests`). Then:
- * 1. The audit is stale for the student record (see `checkAuditReflectsRecord`): one UNKNOWN
- *    check (`AUDIT_STALE`) naming every candidate.
+ * 1. The audit may not be read for the pinned record (see `checkAuditAgainstRecord`): one
+ *    UNKNOWN check (`AUDIT_STALE`, `AUDIT_AMBIGUOUS`, or `AUDIT_PROGRAM_MISMATCH`) naming every
+ *    candidate.
  * 2. Some requirement is contested: one UNKNOWN check per contested requirement, in audit order,
  *    naming its competing courses. The reason is `AUDIT_AMBIGUOUS` when the requirement is
  *    decided AMBIGUOUS (by itself or an ancestor) and `ALLOCATION_CONFLICT` otherwise.
@@ -44,7 +43,8 @@ import { type AllocationContest, findAllocationContests } from './find-allocatio
  *
  * @param candidates - The candidate set. Credits are used as upper bounds for credit room.
  * @param audit - The authoritative audit snapshot.
- * @param freshness - The student record the audit must reflect and the maximum skew allowed.
+ * @param record - The pinned student record the audit must reflect and the maximum skew
+ *   allowed, or (transitional, tests only) the record time and skew.
  * @returns REQUIREMENT_ALLOCATION checks. Each `sourceRef` pins the audit revision as
  *   `<auditSource>:<auditVersion>`, followed by `:<requirement sourceRef>` for a contested
  *   requirement (or the ancestor that decided it AMBIGUOUS). Evidence has no ruleset version
@@ -56,21 +56,18 @@ import { type AllocationContest, findAllocationContests } from './find-allocatio
 export function checkAllocation(
   candidates: readonly CourseSelection[],
   audit: AuditSnapshot,
-  freshness: StudentRecordFreshness,
+  record: PinnedStudentRecord | StudentRecordFreshness,
 ): readonly CheckResult[] {
   assertValidCandidateSet(candidates);
   const auditRef = `${audit.auditSource}:${audit.auditVersion}`;
   const allCourseIds = candidates.map((candidate) => candidate.course.id);
-  const reflection = checkAuditReflectsRecord(
-    audit,
-    freshness.studentRecordEffectiveAt,
-    freshness.maxSkewMs,
-  );
-  // SAFETY: a stale audit can't say which requirements are still open or how much room they
-  // have, so none of its allocation data is read and nothing passes (planning/07 §Consistency
-  // model; AC10).
-  if (reflection.state !== CheckState.Pass) {
-    return [toCheck(ReasonCode.AuditStale, auditRef, allCourseIds)];
+  const agreement = checkAuditAgainstRecord(audit, record);
+  // SAFETY: an audit that is stale for the record, about another record, or for another program
+  // or catalog can't say which requirements are still open or how much room they have, so none
+  // of its allocation data is read and the result is UNKNOWN, never PASS or FAIL (planning/07
+  // §Consistency model; planning/09 §Source authority matrix; AC10).
+  if (agreement.state !== CheckState.Pass) {
+    return [toCheck(agreement.reasonCode, auditRef, allCourseIds)];
   }
   const contests = findAllocationContests(candidates, audit);
   if (contests.length === 0) {
