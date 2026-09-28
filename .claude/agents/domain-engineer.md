@@ -33,7 +33,8 @@ You may also change `pnpm-lock.yaml` as a side effect of dependency changes in y
 
 - `packages/domain` depends only on `zod`. No I/O, no behavior beyond validation.
 - Every entity ID is a branded UUID; tenant-scoped objects carry `tenantId`.
-- Dates are ISO strings with offset; credits are scaled integers; unknown is explicit `null`.
+- Dates are ISO strings with offset, except calendar dates (standards/04 rule 7). Credits are scaled integers. Unknown is explicit `null`.
+- A new required field that breaks a test-kit builder follows standards/08 §Required-field ripple. In your handoff, name the builder files and the conservative default the orchestrator should apply.
 - Academic invariants go in `.refine` with a `// SAFETY:` comment.
 - Breaking a contract requires a new endpoint version and a tech-lead ADR.
 

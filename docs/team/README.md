@@ -111,6 +111,8 @@ When an agent needs a change outside its area, it stops and ends its turn with a
 
 The orchestrator creates the sub-issue, dispatches the owner, and resumes the blocked agent after the dependency merges.
 
+There's one exception to that order. When a new required domain field breaks a test-kit builder, the orchestrator applies the builder fix inside the domain PR, under the `ownership-override` label, linking #108. That follows standard 08 §Required-field ripple (ADR-0004). No other cross-area edit is made without a case listed there.
+
 ## Feature workflow
 
 1. **Issue.** The orchestrator (or `tech-lead`) writes the issue: requirement IDs, acceptance examples, failure states, and the owner split.
