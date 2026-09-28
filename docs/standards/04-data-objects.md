@@ -58,6 +58,9 @@ export function createPlanRevision(input: PlanRevisionInput): PlanRevision {
 5. **Branded IDs.** Every entity ID is `z.uuid().brand<'XxxId'>()`. Internal IDs are distinct from source-system IDs, which are plain strings named `sourceXxxId`.
 6. **Tenant field.** Every tenant-scoped object has `tenantId: InstitutionId`.
 7. **Dates and times** are ISO 8601 strings with offset (`z.iso.datetime({ offset: true })`). `Date` objects exist only inside the db layer and are converted by mappers.
+   - **Calendar dates** with no time of day, such as term boundaries, are `z.iso.date()` (`YYYY-MM-DD`). Adding a time or offset would fabricate data. A `// NOTE:` on the field says why it is date-only and whose calendar it's in, for example "the institution's calendar".
+   - `YYYY-MM-DD` strings compare correctly as strings. Turning a calendar date into an instant needs the tenant's time zone as data, never an assumed one.
+   - The db layer keeps a calendar date as a string (a `date` column in string mode), never a `Date`.
 8. **Credits and other exact quantities** are scaled integers (for example `creditsTimes100: 350` for 3.5 credits) or decimal strings. Never floating point. The unit goes in the field name or doc comment.
 9. **Enums** are `as const` objects in `enums/<name>.enum.ts`:
    ```ts
