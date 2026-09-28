@@ -40,6 +40,9 @@ import { z } from 'zod';
  * - `UNSUPPORTED_RULE`: the source rule has semantics the app can't represent.
  * - `AUDIT_STALE`: the degree audit is older than the student record it must reflect.
  * - `AUDIT_AMBIGUOUS`: the audit doesn't settle the requirement.
+ * - `AUDIT_PROGRAM_MISMATCH`: the audit's program or catalog differs from the student record's,
+ *   or the record doesn't state one, so the audit's requirement states may not describe the
+ *   student's current program and need verification.
  * - `REQUIREMENT_ALREADY_SATISFIED`: the requirement is already complete.
  * - `REQUIREMENT_IN_PROGRESS`: the requirement is in progress; this course applies only if the
  *   in-progress work does not satisfy it.
@@ -72,6 +75,7 @@ export const ReasonCode = {
   UnsupportedRule: 'UNSUPPORTED_RULE',
   AuditStale: 'AUDIT_STALE',
   AuditAmbiguous: 'AUDIT_AMBIGUOUS',
+  AuditProgramMismatch: 'AUDIT_PROGRAM_MISMATCH',
   RequirementAlreadySatisfied: 'REQUIREMENT_ALREADY_SATISFIED',
   RequirementInProgress: 'REQUIREMENT_IN_PROGRESS',
   NotApplicable: 'NOT_APPLICABLE',
