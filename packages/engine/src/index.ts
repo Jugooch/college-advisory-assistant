@@ -3,11 +3,14 @@
  * @module @caa/engine
  */
 export * from './verification/aggregate-check-states';
+export * from './verification/check-audit-reflects-record';
 export * from './verification/combine-prerequisite-states';
 export * from './verification/compare-to-minimum-grade';
+export * from './verification/evaluate-applicability';
 export * from './verification/evaluate-course-prerequisite';
 export * from './verification/evaluate-in-progress-prerequisite';
 export * from './verification/evaluate-prerequisite';
+export * from './verification/find-deciding-requirement';
 export * from './verification/prerequisite-evaluation';
 export * from './verification/resolve-attempts';
 export * from './verification/select-counting-attempt';
