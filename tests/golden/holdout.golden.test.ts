@@ -1,6 +1,6 @@
 /**
  * @file Runs the frozen holdout golden set. This is the only file allowed to import it; see
- *   packages/test-kit/src/golden/holdout/README.md.
+ *   tests/golden/holdout/README.md.
  * @requirement FR-05
  * @requirement FR-06
  * @requirement NFR-01
@@ -8,9 +8,8 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { GOLDEN_HOLDOUT_CORPUS, GOLDEN_HOLDOUT_VERSION } from '@caa/test-kit/golden-holdout';
-
 import { findGoldenMismatches } from '../support/golden-runner';
+import { GOLDEN_HOLDOUT_CORPUS, GOLDEN_HOLDOUT_VERSION } from './holdout/holdout-corpus';
 import { KNOWN_FINDINGS } from './known-findings';
 
 describe(`golden corpus holdout ${GOLDEN_HOLDOUT_VERSION}`, () => {

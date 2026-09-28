@@ -4,15 +4,15 @@ planning/13 §Golden corpus design asks for "a frozen holdout set separate from 
 
 ## How it stays separate
 
-1. **Separate entry point.** The holdout isn't exported from `@caa/test-kit`. It's reachable only through the subpath `@caa/test-kit/golden-holdout` (`holdout-corpus.ts`).
-2. **One consumer.** Only `tests/golden/holdout.golden.test.ts` imports it. `tests/golden/holdout-isolation.test.ts` scans `packages/*/src` and `apps/*/src` and fails if any file there imports the subpath or a file in this folder.
+1. **Outside every package.** The holdout lives in `tests/golden/holdout/`, in the QA-owned `@caa/tests` workspace, which no product package depends on or can import. `@caa/test-kit` exports only the shared format, builders and the development corpus; the holdout files import those from `@caa/test-kit` like any test.
+2. **One consumer.** Only `tests/golden/holdout.golden.test.ts` runs it. `tests/golden/holdout-isolation.test.ts` scans every file in `packages/`, `apps/` and `tests/` and fails if anything outside `tests/golden/` imports a holdout file.
 3. **Distinct IDs.** Holdout cases use `GH-<FAMILY>-NNN`; development cases use `GC-<FAMILY>-NNN`. The isolation test also checks that no ID appears in both sets.
-4. **Owned by QA.** Only the qa-engineer adds or changes files here (`.github/ownership.json`).
+4. **Owned by QA.** Only the qa-engineer adds or changes files here (`tests/**` in `.github/ownership.json`).
 
 ## Rules for engineers who build the engine
 
 - Don't open or read the case files in this folder, and don't use them as fixtures, examples or debugging inputs. Use the development corpus (`GOLDEN_DEVELOPMENT_CORPUS` from `@caa/test-kit`) instead.
-- Don't import `@caa/test-kit/golden-holdout` from any package, app or engine test.
+- Don't import anything from `tests/golden/holdout/` into any package, app, engine test or other test.
 - When a holdout case fails in CI, the qa-engineer files a `bug` issue that states the gap in planning terms (the rule family and the planning or decision citation), not the case's literal inputs.
 
 ## Rules for QA

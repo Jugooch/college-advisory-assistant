@@ -1,31 +1,31 @@
 /**
  * @file Frozen holdout cases for prerequisite evaluation. Kept out of engine development; see
  *   README.md in this folder before reading further.
- * @module @caa/test-kit/golden/holdout/holdout-prerequisite
+ * @module @caa/tests/golden/holdout/holdout-prerequisite
  * @requirement FR-06
  * @see docs/planning/13-test-and-evaluation-strategy.md
  */
 import { CheckState, ReasonCode } from '@caa/domain';
-
-import {
-  completedAttempt,
-  inProgressAttempt,
-  transferAwardedAttempt,
-} from '../../builders/course-attempt.builder';
-import { fail, letter } from '../../builders/grade.builder';
 import {
   all,
   any,
   buildPrerequisiteRule,
+  completedAttempt,
   course,
+  fail,
+  type GoldenCase,
+  GoldenRuleFamily,
+  inProgressAttempt,
+  letter,
+  mustNot,
+  NEVER_PASS_WHEN_UNKNOWN,
+  prerequisiteCase,
+  prerequisiteCheck,
+  prerequisiteInputs,
+  SYNTHETIC_COURSES,
+  transferAwardedAttempt,
   unsupported,
-} from '../../builders/prerequisite-rule.builder';
-import { SYNTHETIC_COURSES } from '../../fixtures/synthetic-courses';
-import { type GoldenCase } from '../golden-case.schema';
-import { prerequisiteCase } from '../golden-case-factories';
-import { mustNot, NEVER_PASS_WHEN_UNKNOWN, prerequisiteCheck } from '../golden-expectations';
-import { prerequisiteInputs } from '../golden-inputs';
-import { GoldenRuleFamily } from '../golden-rule-family';
+} from '@caa/test-kit';
 
 const PHYS = SYNTHETIC_COURSES.phys201.id;
 const NOT_ELIGIBLE = mustNot(CheckState.Pass, 'must not claim the prerequisite is met');

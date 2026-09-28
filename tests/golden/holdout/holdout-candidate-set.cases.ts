@@ -1,19 +1,26 @@
 /**
  * @file Frozen holdout cases for applicability, allocation, and credit load. Kept out of engine
  *   development; see README.md in this folder before reading further.
- * @module @caa/test-kit/golden/holdout/holdout-candidate-set
+ * @module @caa/tests/golden/holdout/holdout-candidate-set
  * @requirement FR-05
  * @requirement FR-06
  * @see docs/planning/13-test-and-evaluation-strategy.md
  */
 import { CheckKind, CheckState, RequirementState } from '@caa/domain';
-
-import { SYNTHETIC_COURSES } from '../../fixtures/synthetic-courses';
-import { type GoldenCase } from '../golden-case.schema';
-import { allocationCase, applicabilityCase, creditLoadCase } from '../golden-case-factories';
-import { expectedCheck, mustNot } from '../golden-expectations';
-import { auditRequirementRef, auditWith, FRESH_RECORD, planned } from '../golden-inputs';
-import { GoldenRuleFamily } from '../golden-rule-family';
+import {
+  allocationCase,
+  applicabilityCase,
+  auditRequirementRef,
+  auditWith,
+  creditLoadCase,
+  expectedCheck,
+  FRESH_RECORD,
+  type GoldenCase,
+  GoldenRuleFamily,
+  mustNot,
+  planned,
+  SYNTHETIC_COURSES,
+} from '@caa/test-kit';
 
 const { math101, math102, phys201, ind390 } = SYNTHETIC_COURSES;
 

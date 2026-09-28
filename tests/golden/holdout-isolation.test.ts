@@ -1,8 +1,8 @@
 /**
- * @file Keeps the frozen holdout apart from development: no package or app source imports it, and
- *   it shares no case ID or input set with the development corpus.
+ * @file Keeps the frozen holdout apart from development: nothing outside `tests/golden/` imports it,
+ *   and it shares no case ID or input set with the development corpus.
  * @requirement NFR-01
- * @see packages/test-kit/src/golden/holdout/README.md
+ * @see tests/golden/holdout/README.md
  * @see docs/planning/13-test-and-evaluation-strategy.md
  */
 import { readdirSync, readFileSync } from 'node:fs';
@@ -12,11 +12,16 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import { GOLDEN_DEVELOPMENT_CORPUS } from '@caa/test-kit';
-import { GOLDEN_HOLDOUT_CORPUS } from '@caa/test-kit/golden-holdout';
+
+import { GOLDEN_HOLDOUT_CORPUS } from './holdout/holdout-corpus';
 
 const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
-const HOLDOUT_FOLDER = 'packages/test-kit/src/golden/holdout/';
-const HOLDOUT_IMPORT = /golden-holdout|golden\/holdout/;
+/** The only folder whose files may import the holdout. */
+const ALLOWED_FOLDER = 'tests/golden/';
+/** A module specifier that points at a holdout file. */
+const HOLDOUT_SPECIFIER =
+  /['"][^'"]*(golden\/holdout|holdout-corpus|holdout-[a-z-]+\.cases)[^'"]*['"]/;
+const SKIPPED_FOLDERS = ['node_modules', 'dist', '.next', 'coverage'];
 
 /**
  * Lists the TypeScript files under a folder, skipping dependencies and build output.
@@ -28,38 +33,19 @@ function typeScriptFiles(folder: string): string[] {
   return readdirSync(folder, { withFileTypes: true }).flatMap((entry) => {
     const path = join(folder, entry.name);
     if (entry.isDirectory()) {
-      return ['node_modules', 'dist', '.next'].includes(entry.name) ? [] : typeScriptFiles(path);
+      return SKIPPED_FOLDERS.includes(entry.name) ? [] : typeScriptFiles(path);
     }
-    return /\.tsx?$/.test(entry.name) ? [path] : [];
+    return /\.(tsx?|mjs)$/.test(entry.name) ? [path] : [];
   });
 }
 
-/**
- * Lists the source folders of every package and app.
- *
- * @returns Absolute `src` folder paths.
- */
-function workspaceSourceFolders(): string[] {
-  return ['packages', 'apps'].flatMap((group) =>
-    readdirSync(join(REPO_ROOT, group), { withFileTypes: true })
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => join(REPO_ROOT, group, entry.name, 'src')),
-  );
-}
-
 describe('golden holdout isolation', () => {
-  it('is imported by no package or app source outside the holdout folder', () => {
-    const importers = workspaceSourceFolders()
-      .flatMap((folder) => {
-        try {
-          return typeScriptFiles(folder);
-        } catch {
-          return [];
-        }
-      })
+  it('is imported by nothing outside tests/golden/', () => {
+    const importers = ['packages', 'apps', 'tests']
+      .flatMap((root) => typeScriptFiles(join(REPO_ROOT, root)))
       .map((path) => relative(REPO_ROOT, path).replaceAll('\\', '/'))
-      .filter((path) => !path.startsWith(HOLDOUT_FOLDER))
-      .filter((path) => HOLDOUT_IMPORT.test(readFileSync(join(REPO_ROOT, path), 'utf8')));
+      .filter((path) => !path.startsWith(ALLOWED_FOLDER))
+      .filter((path) => HOLDOUT_SPECIFIER.test(readFileSync(join(REPO_ROOT, path), 'utf8')));
 
     expect(importers).toEqual([]);
   });

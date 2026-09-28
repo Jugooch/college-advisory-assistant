@@ -1,12 +1,13 @@
 /**
- * @file The frozen holdout golden set. It is exported only through `@caa/test-kit/golden-holdout`
- *   and run only by `tests/golden/holdout.golden.test.ts`; see README.md in this folder.
- * @module @caa/test-kit/golden/holdout/holdout-corpus
+ * @file The frozen holdout golden set. It lives in QA-owned `tests/`, which no product package can
+ *   import, and is run only by `tests/golden/holdout.golden.test.ts`; see README.md in this folder.
+ * @module @caa/tests/golden/holdout/holdout-corpus
  * @requirement FR-05
  * @requirement FR-06
  * @see docs/planning/13-test-and-evaluation-strategy.md
  */
-import { defineGoldenCorpus, type GoldenCase } from '../golden-case.schema';
+import { defineGoldenCorpus, type GoldenCase } from '@caa/test-kit';
+
 import { HOLDOUT_CANDIDATE_SET_CASES } from './holdout-candidate-set.cases';
 import { HOLDOUT_PREREQUISITE_CASES } from './holdout-prerequisite.cases';
 
