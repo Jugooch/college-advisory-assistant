@@ -24,6 +24,7 @@ import {
   checkSnapshotConsistency,
   type StudentRecordFreshness,
 } from './check-snapshot-consistency';
+import { createDecidingRequirementLookup } from './find-deciding-requirement';
 
 /** The applicability a requirement in one audit state gives a course it lists as a candidate. */
 interface RequirementOutcome {
@@ -31,10 +32,10 @@ interface RequirementOutcome {
   readonly reasonCode: ReasonCode | null;
 }
 
-// SAFETY: each requirement is judged by its own audit state, never by its parent's or its
-// children's, so a parent is never treated as satisfied or outstanding from partial children
-// (requirement-result.model.ts; planning/08 §Authority and result semantics: the audit owns
-// allocation).
+// SAFETY: a candidate is decided by the audit's own states for it and its ancestors (see
+// find-deciding-requirement.ts), never by its children's, so a parent is never treated as
+// satisfied from partial children (requirement-result.model.ts; planning/08 §Authority and
+// result semantics: the audit owns allocation).
 const OUTCOME_BY_REQUIREMENT_STATE: Readonly<Record<RequirementState, RequirementOutcome>> = {
   [RequirementState.Incomplete]: { state: CheckState.Pass, reasonCode: null },
   // SAFETY: an IN_PROGRESS requirement is satisfied if its in-progress attempts finish as
@@ -43,6 +44,7 @@ const OUTCOME_BY_REQUIREMENT_STATE: Readonly<Record<RequirementState, Requiremen
   // planning/08 §Eligibility semantics: in-progress work is conditional).
   [RequirementState.InProgress]: {
     state: CheckState.Conditional,
+    // TODO(#82): use REQUIREMENT_IN_PROGRESS once the domain adds it.
     reasonCode: ReasonCode.InProgressMinGrade,
   },
   [RequirementState.Complete]: {
@@ -73,24 +75,26 @@ const REQUIREMENT_STATE_PRECEDENCE: readonly RequirementState[] = [
 /**
  * Decides whether the audit lists a course as applying to an outstanding requirement.
  *
- * Decisions, in order:
+ * Each requirement listing the course is decided by the most settled state among itself and
+ * its ancestors (AMBIGUOUS, then COMPLETE, then IN_PROGRESS, then INCOMPLETE; see
+ * `createDecidingRequirementLookup`), naming the nearest requirement with that state. Then:
  * 1. The audit is stale for the student record (see `checkSnapshotConsistency`): UNKNOWN
  *    (`AUDIT_STALE`), whatever the requirements say.
- * 2. The course is a candidate for an AMBIGUOUS requirement: UNKNOWN (`AUDIT_AMBIGUOUS`).
- * 3. It is a candidate for an INCOMPLETE requirement: PASS.
- * 4. It is a candidate for an IN_PROGRESS requirement: CONDITIONAL (`IN_PROGRESS_MIN_GRADE`).
- * 5. It is a candidate only for COMPLETE requirements: FAIL (`REQUIREMENT_ALREADY_SATISFIED`).
- * 6. It is a candidate for no requirement: FAIL (`NOT_APPLICABLE`).
+ * 2. Some candidate is decided AMBIGUOUS: UNKNOWN (`AUDIT_AMBIGUOUS`).
+ * 3. Some candidate is decided INCOMPLETE: PASS.
+ * 4. Some candidate is decided IN_PROGRESS: CONDITIONAL (`IN_PROGRESS_MIN_GRADE`).
+ * 5. Every candidate is decided COMPLETE: FAIL (`REQUIREMENT_ALREADY_SATISFIED`).
+ * 6. No requirement lists the course: FAIL (`NOT_APPLICABLE`).
  *
- * Within a step the first matching requirement in audit order is reported. The same inputs
- * always give a deep-equal result.
+ * Within a step the first candidate in audit order is reported. The same inputs always give a
+ * deep-equal result.
  *
  * @param courseId - The course to place. Only this exact ID matches a candidate.
  * @param audit - The authoritative audit snapshot.
  * @param freshness - The student record the audit must reflect and the maximum skew allowed.
  * @returns A REQUIREMENT_APPLICABILITY check. Its `sourceRef` pins the audit revision as
- *   `<auditSource>:<auditVersion>`, followed by `:<requirement sourceRef>` when a requirement
- *   decided the state. Its evidence has no ruleset version, because the audit applied no
+ *   `<auditSource>:<auditVersion>`, followed by `:<requirement sourceRef>` of the deciding
+ *   requirement (the candidate or an ancestor) when one decided the state. Its evidence has no ruleset version, because the audit applied no
  *   published ruleset of the engine's, and no decisive leaves.
  * @throws {SnapshotConsistencyInputError} When a timestamp or the maximum skew is invalid.
  */
@@ -112,15 +116,16 @@ export function evaluateApplicability(
   }
   // SAFETY: only the exact course IDs the audit lists are candidates. Equivalents, aliases, and
   // parent or child requirements never add candidacy (planning/08 §Candidate formation).
-  const candidates = audit.requirements.filter((requirement) =>
-    requirement.candidateCourseIds.includes(courseId),
-  );
+  const findDeciding = createDecidingRequirementLookup(audit);
+  const decided = audit.requirements
+    .filter((requirement) => requirement.candidateCourseIds.includes(courseId))
+    .map(findDeciding);
   for (const requirementState of REQUIREMENT_STATE_PRECEDENCE) {
-    const requirement = candidates.find((candidate) => candidate.state === requirementState);
-    if (requirement !== undefined) {
+    const deciding = decided.find((candidate) => candidate.state === requirementState);
+    if (deciding !== undefined) {
       return toCheck(
         OUTCOME_BY_REQUIREMENT_STATE[requirementState],
-        `${auditRef}:${requirement.sourceRef}`,
+        `${auditRef}:${deciding.requirement.sourceRef}`,
       );
     }
   }

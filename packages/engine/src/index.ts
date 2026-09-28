@@ -10,6 +10,7 @@ export * from './verification/evaluate-applicability';
 export * from './verification/evaluate-course-prerequisite';
 export * from './verification/evaluate-in-progress-prerequisite';
 export * from './verification/evaluate-prerequisite';
+export * from './verification/find-deciding-requirement';
 export * from './verification/prerequisite-evaluation';
 export * from './verification/resolve-attempts';
 export * from './verification/select-counting-attempt';
