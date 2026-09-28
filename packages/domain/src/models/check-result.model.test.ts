@@ -51,7 +51,7 @@ describe('CheckResultSchema', () => {
           .reasonCode,
     );
 
-    expect(codes).toHaveLength(21);
+    expect(codes).toHaveLength(23);
     expect(codes).toContain('VARIABLE_CREDIT_UNSELECTED');
   });
 
@@ -83,5 +83,163 @@ describe('CheckResultSchema', () => {
       'COURSE_NOT_IN_CATALOG',
       'GRADE_NOT_RANKED',
     ]);
+  });
+});
+
+describe('CheckResultSchema reason codes for unsettled grades', () => {
+  it('accepts GRADE_NOT_RECORDED on an UNKNOWN check', () => {
+    expect(
+      createCheckResult({
+        kind: CheckKind.Prerequisite,
+        state: CheckState.Unknown,
+        reasonCode: ReasonCode.GradeNotRecorded,
+      }).reasonCode,
+    ).toBe('GRADE_NOT_RECORDED');
+  });
+
+  it('accepts INCOMPLETE_ATTEMPT on an UNKNOWN check', () => {
+    expect(
+      createCheckResult({
+        kind: CheckKind.Prerequisite,
+        state: CheckState.Unknown,
+        reasonCode: ReasonCode.IncompleteAttempt,
+      }).reasonCode,
+    ).toBe('INCOMPLETE_ATTEMPT');
+  });
+});
+
+describe('CheckResultSchema evidence', () => {
+  const COURSE_LEAF = {
+    type: 'COURSE',
+    path: [1],
+    courseId: '00000000-0000-4000-8000-000000000101',
+    requiredGrade: { scheme: 'LETTER', value: 'C' },
+    attemptIds: ['00000000-0000-4000-8000-000000000201'],
+    reasonCode: ReasonCode.InProgressMinGrade,
+  } as const;
+
+  const UNSUPPORTED_LEAF = {
+    type: 'UNSUPPORTED',
+    path: [0],
+    sourceText: 'Consent of the demo department',
+    reasonCode: ReasonCode.UnsupportedRule,
+  } as const;
+
+  const conditional = {
+    kind: CheckKind.Prerequisite,
+    state: CheckState.Conditional,
+    reasonCode: ReasonCode.InProgressMinGrade,
+    sourceRef: 'rule_demo_calc1_to_calc2',
+  } as const;
+
+  it('stays optional, so a check without evidence is still valid', () => {
+    expect(createCheckResult(conditional).evidence).toBeUndefined();
+  });
+
+  it('keeps the planning/08 prerequisite evidence: ruleset, required grade, and attempts', () => {
+    const check = createCheckResult({
+      ...conditional,
+      evidence: { rulesetVersion: 'demo-2026.1', decisiveLeaves: [COURSE_LEAF] },
+    });
+
+    expect(check.evidence?.rulesetVersion).toBe('demo-2026.1');
+    expect(check.evidence?.decisiveLeaves[0]).toEqual(COURSE_LEAF);
+  });
+
+  it('accepts evidence without leaves on a kind that has no rule expression', () => {
+    const check = createCheckResult({
+      kind: CheckKind.SeatEligibility,
+      state: CheckState.Unknown,
+      reasonCode: ReasonCode.UnsupportedRule,
+      evidence: { rulesetVersion: null, decisiveLeaves: [] },
+    });
+
+    expect(check.evidence).toEqual({ rulesetVersion: null, decisiveLeaves: [] });
+  });
+
+  it('rejects decisive leaves on a kind that has no rule expression', () => {
+    const result = CheckResultSchema.safeParse({
+      ...conditional,
+      kind: CheckKind.ScheduleFeasibility,
+      evidence: { rulesetVersion: 'demo-2026.1', decisiveLeaves: [COURSE_LEAF] },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts decisive leaves on a corequisite check', () => {
+    const check = createCheckResult({
+      ...conditional,
+      kind: CheckKind.Corequisite,
+      evidence: { rulesetVersion: 'demo-2026.1', decisiveLeaves: [COURSE_LEAF] },
+    });
+
+    expect(check.evidence?.decisiveLeaves).toHaveLength(1);
+  });
+
+  it('rejects a leaf reason code on a passing check', () => {
+    const result = CheckResultSchema.safeParse({
+      kind: CheckKind.Prerequisite,
+      state: CheckState.Pass,
+      evidence: { rulesetVersion: 'demo-2026.1', decisiveLeaves: [COURSE_LEAF] },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects a leaf without a reason code on a non-passing check', () => {
+    const result = CheckResultSchema.safeParse({
+      ...conditional,
+      evidence: {
+        rulesetVersion: 'demo-2026.1',
+        decisiveLeaves: [{ ...COURSE_LEAF, reasonCode: null }],
+      },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts a passing leaf without a reason code on a passing check', () => {
+    const check = createCheckResult({
+      kind: CheckKind.Prerequisite,
+      state: CheckState.Pass,
+      evidence: {
+        rulesetVersion: 'demo-2026.1',
+        decisiveLeaves: [{ ...COURSE_LEAF, reasonCode: null }],
+      },
+    });
+
+    expect(check.evidence?.decisiveLeaves[0]?.reasonCode).toBeNull();
+  });
+
+  it('accepts an unsupported leaf on an UNKNOWN check', () => {
+    const check = createCheckResult({
+      kind: CheckKind.Prerequisite,
+      state: CheckState.Unknown,
+      reasonCode: ReasonCode.UnsupportedRule,
+      evidence: { rulesetVersion: 'demo-2026.1', decisiveLeaves: [UNSUPPORTED_LEAF] },
+    });
+
+    expect(check.evidence?.decisiveLeaves[0]?.type).toBe('UNSUPPORTED');
+  });
+
+  it('rejects an unsupported leaf deciding a non-UNKNOWN check', () => {
+    const result = CheckResultSchema.safeParse({
+      kind: CheckKind.Prerequisite,
+      state: CheckState.Fail,
+      reasonCode: ReasonCode.UnsupportedRule,
+      evidence: { rulesetVersion: 'demo-2026.1', decisiveLeaves: [UNSUPPORTED_LEAF] },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects malformed evidence', () => {
+    const result = CheckResultSchema.safeParse({
+      ...conditional,
+      evidence: { rulesetVersion: 'demo-2026.1' },
+    });
+
+    expect(result.success).toBe(false);
   });
 });
