@@ -80,7 +80,7 @@ export function createPlanRevision(input: PlanRevisionInput): PlanRevision {
 | API contract | `XxxResponse` / `CreateXxxRequest` in `packages/api-contract`         | `apps/api/src/modules/*/*.mapper.ts` when the shapes differ; otherwise the contract composes the domain schema directly |
 | Web          | Uses the contract types only                                          | —                                                                                                                       |
 
-Rows never leave `packages/db`. Web code never imports domain _factories_ or shared invariants (it may import types and enums for display).
+Rows never leave `packages/db`. Web code never imports domain _factories_ or shared invariants. It may import types, enums, constants, and, where standard 06 §Layers allows, schemas for parsing input.
 
 ## Contract DTO naming
 

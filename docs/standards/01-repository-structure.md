@@ -8,11 +8,14 @@ The codebase is layered like MVC, with each concern in its own place.
 | --------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------ |
 | **Pages** (routes and screens)                      | `apps/web/src/app/**/page.tsx`                                  | Business rules, `fetch`, data transformation           |
 | **UI components**                                   | `apps/web/src/features/*/components`, `apps/web/src/components` | API calls (receive data via props or hooks)            |
+| **Shared display code** (used by several features)  | `apps/web/src/shared/{components,utils}`                        | Feature knowledge, API calls, hooks, actions           |
+| **Server actions** (form posts that change state)   | `apps/web/src/features/*/actions/*.action.ts`                   | UI code, business rules                                |
 | **Frontend API calls**                              | `apps/web/src/api/*.api.ts`                                     | UI code                                                |
 | **HTTP contract** (endpoints, DTOs, client)         | `packages/api-contract`                                         | Business logic                                         |
 | **Routes** (path → controller)                      | `apps/api/src/modules/*/*.routes.ts`                            | Logic of any kind                                      |
 | **Controllers** (HTTP ↔ service translation)        | `apps/api/src/modules/*/*.controller.ts`                        | SQL, repositories, engine calls, business rules        |
 | **Services** (business logic, orchestration)        | `apps/api/src/modules/*/*.service.ts`                           | HTTP types, SQL                                        |
+| **Logic** (pure API-side functions)                 | `apps/api/src/modules/*/*.logic.ts`                             | I/O, clocks, randomness, logging, HTTP, SQL            |
 | **Data objects** (models, enums, shared invariants) | `packages/domain`                                               | I/O of any kind, clocks, randomness, engine-only rules |
 | **Academic rules**                                  | `packages/engine`                                               | I/O, clocks, randomness, a copy of a shared invariant  |
 | **Persistence** (tables, mappers, repositories)     | `packages/db`                                                   | Business rules, HTTP                                   |
@@ -55,6 +58,7 @@ apps/api/src/
     <module>.controller.ts
     <module>.service.ts
     <module>.mapper.ts    optional: domain ↔ contract DTO mapping
+    <module>.logic.ts     optional: pure functions the services call (standard 05 §Logic)
     <module>.service.test.ts
 
 apps/web/src/
@@ -63,8 +67,11 @@ apps/web/src/
   features/<feature>/components/*.tsx
   features/<feature>/hooks/use-*.ts
   features/<feature>/utils/*.ts
-  components/ui/*.tsx               shared, presentational, feature-agnostic
-  lib/*.ts                          app-wide singletons (API client)
+  features/<feature>/actions/*.action.ts   server actions ('use server')
+  shared/components/*.tsx           app-specific display used by more than one feature or page
+  shared/utils/*.ts                 app-specific pure helpers used by more than one feature or page
+  components/ui/*.tsx               generic presentational primitives, no app knowledge
+  lib/*.ts                          server infrastructure: API client, session cookie
 
 packages/domain/src/
   enums/<name>.enum.ts
@@ -112,8 +119,10 @@ packages/test-kit/src/golden/
 | `.enum.ts`                                      | One `as const` enum object, its type, schema, and any shared invariants over its values (§Shared invariants)   |
 | `.contract.ts`                                  | Endpoint definitions and request/response schemas for one API module                                           |
 | `.routes.ts` / `.controller.ts` / `.service.ts` | One API module's layers                                                                                        |
+| `.logic.ts`                                     | Pure functions for one API module: no I/O, clock, randomness, or logging (standard 05 §Logic)                  |
 | `.table.ts` / `.mapper.ts` / `.repository.ts`   | One entity's persistence                                                                                       |
 | `.api.ts`                                       | Frontend functions that call one API module                                                                    |
+| `.action.ts`                                    | One Next.js server action (standard 06 §Server actions)                                                        |
 | `.job.ts` / `.adapter.ts`                       | One background job / one source adapter                                                                        |
 | `.plugin.ts`                                    | One Fastify plugin                                                                                             |
 | `.schema.ts`                                    | Zod schema for a test-data format (for example golden cases)                                                   |
