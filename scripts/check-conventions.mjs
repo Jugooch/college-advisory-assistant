@@ -3,10 +3,12 @@
  * @module scripts/check-conventions
  * @see docs/standards/01-repository-structure.md
  * @see docs/standards/03-comments.md
+ * @see docs/standards/06-frontend.md
  */
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
+import { checkServerDirective } from './lib/server-directive-rules.mjs';
 import { checkStructure } from './lib/structure-rules.mjs';
 
 // ---- Comment rules ----
@@ -53,9 +55,10 @@ const problems = files.flatMap((path) => {
   const structure = checkStructure(path);
   const found = structure ? [`${path}: ${structure}`] : [];
   if (/\.(ts|tsx|mjs|css)$/.test(path) && path !== SELF) {
-    found.push(
-      ...checkComments(readFileSync(path, 'utf8')).map((problem) => `${path}: ${problem}`),
-    );
+    const source = readFileSync(path, 'utf8');
+    found.push(...checkComments(source).map((problem) => `${path}: ${problem}`));
+    const directive = checkServerDirective(path, source);
+    if (directive) found.push(`${path}: ${directive}`);
   }
   return found;
 });

@@ -32,6 +32,24 @@ const NODE_PREFIX = '^node:';
 /** Why the engine may not import Node built-ins. */
 const NODE_BUILTIN_MESSAGE =
   'engine is pure (NFR-01): no Node built-ins, so no I/O, clock, or randomness.';
+/** Why an api `.logic.ts` file may not import Node built-ins. */
+const LOGIC_NODE_BUILTIN_MESSAGE =
+  '.logic.ts is pure (ADR-0008): no Node built-ins, so no I/O, clock, or randomness.';
+
+/** Clock and randomness reads that make code nondeterministic (NFR-01). */
+const NONDETERMINISTIC_PROPERTIES = [
+  { object: 'Math', property: 'random', message: 'The engine must be deterministic (NFR-01).' },
+  { object: 'Date', property: 'now', message: 'Pass the time in as an argument (NFR-01).' },
+];
+
+/** Syntax banned in every file (standards/02 and /04); blocks that add bans must repeat these. */
+export const LANGUAGE_SYNTAX_BANS = [
+  {
+    selector: 'TSEnumDeclaration',
+    message: 'Use an `as const` object plus z.enum (standards/04).',
+  },
+  { selector: 'ExportDefaultDeclaration', message: 'Use named exports (standards/02).' },
+];
 
 /** Deployable apps; no workspace imports another app, by name or by subpath. */
 const APPS = ['api', 'web', 'worker'];
@@ -51,6 +69,19 @@ const TEST_ONLY_RESTRICTION = {
   group: TEST_ONLY,
   message: 'The ./testing entry points are for tests only (tests/** and *.test.ts files).',
 };
+
+/**
+ * Adds pattern entries, such as `importNamePattern` or `regex` restrictions, to a rule entry
+ * built by `forbid`.
+ *
+ * @param {import('eslint').Linter.RuleEntry} entry - A `forbid` result.
+ * @param {object[]} extra - Additional `patterns` entries, each with its own message.
+ * @returns {import('eslint').Linter.RuleEntry} The combined rule entry.
+ */
+export function withPatterns(entry, extra) {
+  const [severity, options] = entry;
+  return [severity, { ...options, patterns: [...options.patterns, ...extra] }];
+}
 
 /**
  * Builds a no-restricted-imports rule entry from package names and path patterns. The entry
@@ -107,15 +138,7 @@ export const layerBoundaries = [
         'engine is pure: it depends only on @caa/domain.',
         { paths: NODE_BUILTINS, regex: NODE_PREFIX, message: NODE_BUILTIN_MESSAGE },
       ),
-      'no-restricted-properties': [
-        'error',
-        {
-          object: 'Math',
-          property: 'random',
-          message: 'The engine must be deterministic (NFR-01).',
-        },
-        { object: 'Date', property: 'now', message: 'Pass the time in as an argument (NFR-01).' },
-      ],
+      'no-restricted-properties': ['error', ...NONDETERMINISTIC_PROPERTIES],
     },
   },
   {
@@ -149,7 +172,15 @@ export const layerBoundaries = [
     files: ['apps/api/src/**/*.controller.ts'],
     rules: {
       'no-restricted-imports': forbid(
-        ['@caa/db', '@caa/engine', 'drizzle-orm', 'pg', '**/*.repository', ...otherApps('api')],
+        [
+          '@caa/db',
+          '@caa/engine',
+          'drizzle-orm',
+          'pg',
+          '**/*.repository',
+          '**/*.logic',
+          ...otherApps('api'),
+        ],
         'Controllers call services only.',
       ),
     },
@@ -167,9 +198,53 @@ export const layerBoundaries = [
     files: ['apps/api/src/**/*.routes.ts'],
     rules: {
       'no-restricted-imports': forbid(
-        ['@caa/db', '@caa/engine', '**/*.service', ...otherApps('api')],
+        ['@caa/db', '@caa/engine', '**/*.service', '**/*.logic', ...otherApps('api')],
         'Routes only wire paths to controllers.',
       ),
+    },
+  },
+  {
+    // SAFETY: logic runs the engine's determinism rules, so identical inputs give identical results.
+    files: ['apps/api/src/**/*.logic.ts'],
+    rules: {
+      'no-restricted-imports': withPatterns(
+        forbid(
+          [
+            'fastify',
+            'drizzle-orm',
+            'drizzle-orm/*',
+            'pg',
+            '@caa/assistant',
+            '**/*.service',
+            '**/*.controller',
+            '**/*.routes',
+            '**/*.repository',
+            '**/container',
+            '**/config/*',
+            '**/plugins/*',
+            '**/request-context',
+            ...otherApps('api'),
+          ],
+          'Logic is pure (ADR-0008): no I/O, services, request context, or configuration.',
+          { paths: NODE_BUILTINS, regex: NODE_PREFIX, message: LOGIC_NODE_BUILTIN_MESSAGE },
+        ),
+        [
+          {
+            group: ['@caa/db'],
+            importNamePattern: '^[a-z]',
+            message: 'Logic may import only types from @caa/db (ADR-0008).',
+          },
+        ],
+      ),
+      'no-restricted-properties': ['error', ...NONDETERMINISTIC_PROPERTIES],
+      'no-restricted-syntax': [
+        'error',
+        ...LANGUAGE_SYNTAX_BANS,
+        {
+          selector: "NewExpression[callee.name='Date'][arguments.length=0]",
+          message: "Pass the time in from the service's injected clock.",
+        },
+      ],
     },
   },
   {
