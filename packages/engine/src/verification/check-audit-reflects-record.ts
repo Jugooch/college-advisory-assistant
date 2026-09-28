@@ -1,5 +1,5 @@
 /**
- * @file Detects a degree audit older than the student record it must reflect, beyond the skew.
+ * @file Decides whether a degree audit reflects the pinned student record: same student, same revision, same time.
  * @module @caa/engine/verification/check-audit-reflects-record
  * @requirement FR-04
  * @requirement FR-09
@@ -9,33 +9,46 @@
  * @see docs/planning/08-academic-verification-and-planning.md
  * @see docs/planning/09-data-model-and-integration-contracts.md
  */
-import { type AuditSnapshot, CheckState, ReasonCode } from '@caa/domain';
+import { type AuditSnapshot, CheckState, ReasonCode, type StudentSnapshot } from '@caa/domain';
 
-/**
- * Whether the audit is not older than the student record beyond the skew. PASS says nothing
- * about the reverse direction. Anything short of PASS says why.
- */
+/** Whether the audit reflects the pinned student record. Anything short of PASS says why. */
 export type AuditRecordReflection =
   | { readonly state: typeof CheckState.Pass; readonly reasonCode: null }
   | {
       readonly state: typeof CheckState.Unknown;
-      readonly reasonCode: typeof ReasonCode.AuditStale;
+      readonly reasonCode: typeof ReasonCode.AuditStale | typeof ReasonCode.AuditAmbiguous;
     };
 
-/** Inputs that say which student record the audit is compared with, and how much skew is allowed. */
+/** The pinned student record the audit is compared with, and how much skew is allowed. */
+export interface PinnedStudentRecord {
+  /** The student record revision every other check reads. */
+  readonly studentSnapshot: StudentSnapshot;
+  /**
+   * The partner-specific maximum skew, in milliseconds, between the snapshot's
+   * `sourceEffectiveAt` and the audit's `studentRecordEffectiveAt`, in either direction. A
+   * non-negative safe integer; there is no default.
+   */
+  readonly maxSkewMs: number;
+}
+
+/**
+ * The record time alone, without the pinned snapshot. It can't check which student or revision
+ * the audit ran against, so only tests may use it.
+ */
+// TODO(#122): remove once the golden and acceptance callers pass a PinnedStudentRecord.
 export interface StudentRecordFreshness {
   /** When the student record the other checks read took effect. ISO 8601 with offset. */
   readonly studentRecordEffectiveAt: string;
-  /**
-   * The partner-specific maximum skew, in milliseconds, that the record may be newer than the
-   * audit's record. A non-negative safe integer; there is no default.
-   */
+  /** The maximum skew, in milliseconds, that the record may be newer than the audit's. */
   readonly maxSkewMs: number;
 }
 
 /** Input fields whose values {@link checkAuditReflectsRecord} can reject. */
 export type AuditRecordInputField =
-  'audit.studentRecordEffectiveAt' | 'studentRecordEffectiveAt' | 'maxSkewMs';
+  | 'audit.studentRecordEffectiveAt'
+  | 'studentSnapshot.sourceEffectiveAt'
+  | 'studentRecordEffectiveAt'
+  | 'maxSkewMs';
 
 /** Thrown when a timestamp or the maximum skew can't be compared. */
 export class AuditRecordInputError extends Error {
@@ -58,32 +71,40 @@ const AUDIT_STALE: AuditRecordReflection = {
   state: CheckState.Unknown,
   reasonCode: ReasonCode.AuditStale,
 };
+const AUDIT_AMBIGUOUS: AuditRecordReflection = {
+  state: CheckState.Unknown,
+  reasonCode: ReasonCode.AuditAmbiguous,
+};
 
 /**
- * Checks that the audit is not older than the student record the other checks read, beyond the
- * allowed skew. The record may be newer than the audit's `studentRecordEffectiveAt` by at most
- * `maxSkewMs`: exactly `maxSkewMs` still passes, one millisecond more is stale.
+ * Checks that the audit was run against the pinned student record. In order:
+ * 1. The audit is for another tenant or student: UNKNOWN (`AUDIT_AMBIGUOUS`).
+ * 2. The audit ran against another snapshot: UNKNOWN, `AUDIT_STALE` when the pinned record's
+ *    `sourceEffectiveAt` is later than the audit's `studentRecordEffectiveAt`, otherwise
+ *    `AUDIT_AMBIGUOUS`. The skew doesn't apply.
+ * 3. Same snapshot, but the pinned record is later than the audit's record time by more than
+ *    `maxSkewMs`: UNKNOWN (`AUDIT_STALE`).
+ * 4. Same snapshot, but the pinned record is earlier than the audit's record time by more than
+ *    `maxSkewMs`: UNKNOWN (`AUDIT_AMBIGUOUS`).
+ * 5. Otherwise PASS. Exactly `maxSkewMs` apart still passes, one millisecond more doesn't.
  *
- * This is one direction only, not full mutual consistency of the two snapshots. A record older
- * than the audit's passes here, because the audit reflects at least that record; whether such
- * a record may be combined with the audit for other checks is not decided here (planning/07
- * §Consistency model, planning/09). Don't use this as a general snapshot-consistency gate.
+ * PASS says nothing about the program and catalog; see `checkAuditProgramAndCatalog`. Times are
+ * compared as instants, so `08:00-05:00` and `13:00Z` are the same time.
  *
- * Times are compared as instants, so `08:00-05:00` and `13:00Z` are the same time.
+ * The transitional string form compares times only, in one direction: a record newer than the
+ * audit's beyond the skew is `AUDIT_STALE`, anything else passes.
  *
- * @param audit - The audit snapshot, with the time of the student record it ran against.
- * @param studentRecordEffectiveAt - When the student record the other checks read took effect.
- *   ISO 8601 with seconds and an offset.
+ * @param audit - The audit snapshot, with the snapshot and record time it ran against.
+ * @param record - The pinned student snapshot, or (transitional, tests only) the record time.
  * @param maxSkewMs - The partner-specific maximum skew in milliseconds. Required: the engine has
  *   no safe default.
- * @returns PASS when the audit is not older than the record beyond the skew, or UNKNOWN (`AUDIT_STALE`) when the record
- *   changed after the audit by more than the skew.
- * @throws {AuditRecordInputError} When a timestamp has no offset or isn't a valid
- *   instant, or `maxSkewMs` isn't a non-negative safe integer.
+ * @returns PASS, or UNKNOWN with `AUDIT_STALE` or `AUDIT_AMBIGUOUS`.
+ * @throws {AuditRecordInputError} When a timestamp has no offset or isn't a valid instant, or
+ *   `maxSkewMs` isn't a non-negative safe integer.
  */
 export function checkAuditReflectsRecord(
   audit: AuditSnapshot,
-  studentRecordEffectiveAt: string,
+  record: StudentSnapshot | string,
   maxSkewMs: number,
 ): AuditRecordReflection {
   // SAFETY: a missing, negative, fractional, or infinite skew would silently widen or disable
@@ -93,14 +114,65 @@ export function checkAuditReflectsRecord(
     throw new AuditRecordInputError('maxSkewMs');
   }
   const auditRecordAt = toInstant(audit.studentRecordEffectiveAt, 'audit.studentRecordEffectiveAt');
-  const recordAt = toInstant(studentRecordEffectiveAt, 'studentRecordEffectiveAt');
-  // SAFETY: a record newer than the audit's record by more than the skew means the audit
-  // doesn't reflect it, so audit-derived checks are UNKNOWN rather than a mixed-snapshot PASS
-  // (planning/07 §Consistency model; AC10). A record older than the audit's is not audit
-  // staleness: the audit reflects at least that record.
-  // TODO(#62): decide the reverse direction, a record older than the audit's, in the student
-  // snapshot freshness check; this function deliberately doesn't.
-  return recordAt - auditRecordAt > maxSkewMs ? AUDIT_STALE : REFLECTS_RECORD;
+  if (typeof record === 'string') {
+    // TODO(#122): remove the time-only form once no caller passes a bare record time.
+    const newerByMs = toInstant(record, 'studentRecordEffectiveAt') - auditRecordAt;
+    return newerByMs > maxSkewMs ? AUDIT_STALE : REFLECTS_RECORD;
+  }
+  const newerByMs =
+    toInstant(record.sourceEffectiveAt, 'studentSnapshot.sourceEffectiveAt') - auditRecordAt;
+  return reflectSnapshot(audit, record, { newerByMs, maxSkewMs });
+}
+
+/** How far the pinned record's time is from the audit's record time, and the allowed skew. */
+interface RecordTimeGap {
+  /** The pinned record's time minus the audit's record time; negative when it is older. */
+  readonly newerByMs: number;
+  readonly maxSkewMs: number;
+}
+
+/**
+ * Compares the pinned snapshot with the audit, in the order {@link checkAuditReflectsRecord}
+ * documents.
+ *
+ * @param audit - The audit snapshot.
+ * @param record - The pinned student snapshot.
+ * @param gap - The record's time relative to the audit's record, and the allowed skew.
+ * @returns PASS, or UNKNOWN with `AUDIT_STALE` or `AUDIT_AMBIGUOUS`.
+ */
+function reflectSnapshot(
+  audit: AuditSnapshot,
+  record: StudentSnapshot,
+  { newerByMs, maxSkewMs }: RecordTimeGap,
+): AuditRecordReflection {
+  // SAFETY: an audit of another tenant's or student's record says nothing about this student,
+  // so its requirement states are never read as theirs (planning/09 §Canonical entities:
+  // AuditSnapshot references its student snapshot; §Source authority matrix).
+  if (audit.tenantId !== record.tenantId || audit.studentId !== record.studentId) {
+    return AUDIT_AMBIGUOUS;
+  }
+  // SAFETY: an audit run against another revision of the record is a mixed snapshot, which
+  // blocks validation whatever the times say (planning/07 §Consistency model: mismatched
+  // dependent snapshots block validated recommendations; AC10). A later pinned record means the
+  // audit is older than what it must reflect; otherwise the audit reflects a revision other
+  // than the pinned one and the two conflict.
+  if (audit.studentSnapshotId !== record.id) {
+    return newerByMs > 0 ? AUDIT_STALE : AUDIT_AMBIGUOUS;
+  }
+  // SAFETY: the record changed after the audit's record by more than the skew, so the audit
+  // doesn't reflect it (planning/07 §Consistency model: transcript newer than the audit is
+  // UNKNOWN; AC10).
+  if (newerByMs > maxSkewMs) {
+    return AUDIT_STALE;
+  }
+  // SAFETY: the audit reports a record time later than the snapshot it names, by more than the
+  // skew. The two sources disagree about which record the audit saw, so neither is taken as
+  // right (planning/09 §Proposed freshness policies: transcript and audit mutually consistent;
+  // planning/08 §Rule lifecycle: a disagreement suspends the affected claim).
+  if (-newerByMs > maxSkewMs) {
+    return AUDIT_AMBIGUOUS;
+  }
+  return REFLECTS_RECORD;
 }
 
 /**

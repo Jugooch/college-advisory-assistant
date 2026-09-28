@@ -20,10 +20,8 @@ import {
   RequirementState,
 } from '@caa/domain';
 
-import {
-  checkAuditReflectsRecord,
-  type StudentRecordFreshness,
-} from './check-audit-reflects-record';
+import { checkAuditAgainstRecord } from './check-audit-against-record';
+import type { PinnedStudentRecord, StudentRecordFreshness } from './check-audit-reflects-record';
 import { createDecidingRequirementLookup } from './find-deciding-requirement';
 
 /** The applicability a requirement in one audit state gives a course it lists as a candidate. */
@@ -77,8 +75,9 @@ const REQUIREMENT_STATE_PRECEDENCE: readonly RequirementState[] = [
  * Each requirement listing the course is decided by the most settled state among itself and
  * its ancestors (AMBIGUOUS, then COMPLETE, then IN_PROGRESS, then INCOMPLETE; see
  * `createDecidingRequirementLookup`), naming the nearest requirement with that state. Then:
- * 1. The audit is stale for the student record (see `checkAuditReflectsRecord`): UNKNOWN
- *    (`AUDIT_STALE`), whatever the requirements say.
+ * 1. The audit may not be read for the pinned record (see `checkAuditAgainstRecord`): UNKNOWN
+ *    (`AUDIT_STALE`, `AUDIT_AMBIGUOUS`, or `AUDIT_PROGRAM_MISMATCH`), whatever the requirements
+ *    say.
  * 2. Some candidate is decided AMBIGUOUS: UNKNOWN (`AUDIT_AMBIGUOUS`).
  * 3. Some candidate is decided INCOMPLETE: PASS.
  * 4. Some candidate is decided IN_PROGRESS: CONDITIONAL (`REQUIREMENT_IN_PROGRESS`).
@@ -90,7 +89,8 @@ const REQUIREMENT_STATE_PRECEDENCE: readonly RequirementState[] = [
  *
  * @param courseId - The course to place. Only this exact ID matches a candidate.
  * @param audit - The authoritative audit snapshot.
- * @param freshness - The student record the audit must reflect and the maximum skew allowed.
+ * @param record - The pinned student record the audit must reflect and the maximum skew
+ *   allowed, or (transitional, tests only) the record time and skew.
  * @returns A REQUIREMENT_APPLICABILITY check. Its `sourceRef` pins the audit revision as
  *   `<auditSource>:<auditVersion>`, followed by `:<requirement sourceRef>` of the deciding
  *   requirement (the candidate or an ancestor) when one decided the state. Its evidence has no ruleset version, because the audit applied no
@@ -100,18 +100,16 @@ const REQUIREMENT_STATE_PRECEDENCE: readonly RequirementState[] = [
 export function evaluateApplicability(
   courseId: CourseId,
   audit: AuditSnapshot,
-  freshness: StudentRecordFreshness,
+  record: PinnedStudentRecord | StudentRecordFreshness,
 ): CheckResult {
   const auditRef = `${audit.auditSource}:${audit.auditVersion}`;
-  const reflection = checkAuditReflectsRecord(
-    audit,
-    freshness.studentRecordEffectiveAt,
-    freshness.maxSkewMs,
-  );
-  // SAFETY: a stale audit can't say what applies to the current record, so no requirement
-  // state is read from it, and no result passes (planning/07 §Consistency model; AC10).
-  if (reflection.state !== CheckState.Pass) {
-    return toCheck({ state: reflection.state, reasonCode: reflection.reasonCode }, auditRef);
+  const agreement = checkAuditAgainstRecord(audit, record);
+  // SAFETY: an audit that is stale for the record, about another record, or for another program
+  // or catalog can't say what applies to the student, so no requirement state is read from it
+  // and the result is UNKNOWN, never PASS or FAIL (planning/07 §Consistency model; planning/09
+  // §Source authority matrix; AC10).
+  if (agreement.state !== CheckState.Pass) {
+    return toCheck({ state: agreement.state, reasonCode: agreement.reasonCode }, auditRef);
   }
   // SAFETY: only the exact course IDs the audit lists are candidates. Equivalents, aliases, and
   // parent or child requirements never add candidacy (planning/08 §Candidate formation).
