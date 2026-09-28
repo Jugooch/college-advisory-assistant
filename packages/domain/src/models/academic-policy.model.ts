@@ -83,8 +83,8 @@ export const AcademicPolicySchema = z
     repeatPolicy: RepeatPolicySchema.nullable(),
     /**
      * The institution-approved credit-load bounds for a term. `null` means the institution
-     * hasn't supplied them, and the engine's credit-load check returns UNKNOWN, never a default
-     * load such as 12 or 18 credits.
+     * hasn't supplied them, and the engine's credit-load check returns UNKNOWN
+     * (`CREDIT_BOUNDS_UNDEFINED`), never a default load such as 12 or 18 credits.
      */
     termCreditBounds: TermCreditBoundsSchema.nullable(),
   })

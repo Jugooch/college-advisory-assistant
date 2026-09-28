@@ -50,6 +50,9 @@ import { z } from 'zod';
  * - `CREDIT_LIMIT_EXCEEDED`: the plan exceeds the term's maximum credit load.
  * - `CREDIT_BELOW_MINIMUM`: the plan is under the term's minimum credit load.
  * - `VARIABLE_CREDIT_UNSELECTED`: a variable-credit course has no chosen credit value.
+ * - `CREDIT_BOUNDS_UNDEFINED`: the credit-load check can't compare the plan with the term's
+ *   load limits, because the institution hasn't supplied them (`AcademicPolicy.termCreditBounds`
+ *   is `null`). The check is UNKNOWN, never a PASS against an assumed default load.
  */
 export const ReasonCode = {
   MinGradeNotMet: 'MIN_GRADE_NOT_MET',
@@ -76,6 +79,7 @@ export const ReasonCode = {
   CreditLimitExceeded: 'CREDIT_LIMIT_EXCEEDED',
   CreditBelowMinimum: 'CREDIT_BELOW_MINIMUM',
   VariableCreditUnselected: 'VARIABLE_CREDIT_UNSELECTED',
+  CreditBoundsUndefined: 'CREDIT_BOUNDS_UNDEFINED',
 } as const;
 
 /** Union of every {@link ReasonCode} value. */

@@ -196,6 +196,29 @@ describe('CheckResultSchema credit-load verdicts need their arithmetic', () => {
     expect(check.evidence?.creditLoad).toBeNull();
   });
 
+  it('accepts an UNKNOWN with CREDIT_BOUNDS_UNDEFINED and a null credit load', () => {
+    const check = createCheckResult({
+      kind: 'CREDIT_LOAD',
+      state: 'UNKNOWN',
+      reasonCode: 'CREDIT_BOUNDS_UNDEFINED',
+      evidence: NULL_LOAD_EVIDENCE,
+    });
+
+    expect(check.reasonCode).toBe(ReasonCode.CreditBoundsUndefined);
+    expect(check.evidence?.creditLoad).toBeNull();
+  });
+
+  it('rejects a PASS with CREDIT_BOUNDS_UNDEFINED, since unknown bounds have no arithmetic', () => {
+    const result = CheckResultSchema.safeParse({
+      kind: 'CREDIT_LOAD',
+      state: 'PASS',
+      reasonCode: 'CREDIT_BOUNDS_UNDEFINED',
+      evidence: NULL_LOAD_EVIDENCE,
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   it('accepts a FAIL over the limit with its arithmetic', () => {
     const check = createCheckResult({
       kind: 'CREDIT_LOAD',
