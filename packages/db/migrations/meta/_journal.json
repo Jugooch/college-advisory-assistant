@@ -8,6 +8,13 @@
       "when": 1790459067535,
       "tag": "0000_identity_access_import",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790608699723,
+      "tag": "0001_catalog_rules_policy_term",
+      "breakpoints": true
     }
   ]
 }
