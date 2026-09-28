@@ -20,6 +20,11 @@ export type { LogDestination, Logger } from './shared/logger';
 export type { RequestContext } from './shared/request-context';
 export type {
   AdvisorAssignmentRepository,
+  AuditSnapshotRepository,
+  LatestAuditSnapshot,
+  LatestStudentSnapshot,
   StudentRepository,
+  StudentSnapshotRepository,
+  StudentSnapshotRevision,
   UserIdentityRepository,
 } from '@caa/db';
