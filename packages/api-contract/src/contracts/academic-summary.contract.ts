@@ -13,6 +13,7 @@ import { z } from 'zod';
 import {
   AuditSnapshotSchema,
   CheckState,
+  isSameProgramAndCatalog,
   ReasonCode,
   RequirementResultSchema,
   RequirementState,
@@ -36,28 +37,6 @@ const REQUIREMENT_FIELDS = RequirementResultSchema.unwrap().shape;
  */
 function isDistinct(values: readonly string[]): boolean {
   return new Set(values).size === values.length;
-}
-
-/** The program and catalog fields of the record or the audit. */
-interface ProgramAndCatalog {
-  readonly programId: string | null;
-  readonly catalogYear: string | null;
-}
-
-/**
- * Returns whether the record states a program and catalog and both equal the audit's.
- *
- * @param record - The pinned student record; either field may be unknown (`null`).
- * @param audit - The audit.
- * @returns `false` when the record's program or catalog is unknown or differs from the audit's.
- */
-function isSameProgramAndCatalog(record: ProgramAndCatalog, audit: ProgramAndCatalog): boolean {
-  return (
-    record.programId !== null &&
-    record.catalogYear !== null &&
-    record.programId === audit.programId &&
-    record.catalogYear === audit.catalogYear
-  );
 }
 
 /**
