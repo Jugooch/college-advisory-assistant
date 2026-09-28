@@ -1,6 +1,6 @@
 # ADR-0002: Agent team with enforced file ownership and a review panel
 
-- **Status:** Accepted
+- **Status:** Accepted. Amended by ADR-0006 (review approvals carry across base merges).
 - **Date:** 2026-09-25
 - **Deciders:** Product owner, tech lead
 - **Related:** planning doc 04 (rule authors must not self-approve), doc 06 definition of done
@@ -13,7 +13,7 @@ Development is done largely by Claude Code subagents. Without boundaries, agents
 
 - Each builder agent owns a disjoint set of paths in `.github/ownership.json`.
 - Ownership is enforced by a Claude Code PreToolUse hook, a pre-push hook, and a required CI check keyed on the branch prefix.
-- Read-only reviewer agents post verdicts on every PR; a required "AI review gate" check blocks merging until every required reviewer approves the current head commit.
+- Read-only reviewer agents post verdicts on every PR; a required "AI review gate" check blocks merging until every required reviewer approves the current head commit. ADR-0006 amends this: an approval also counts for a head whose PR change is byte-identical.
 - `main` is protected by a GitHub ruleset.
 
 ## Consequences
