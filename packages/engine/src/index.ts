@@ -18,3 +18,4 @@ export * from './verification/find-deciding-requirement';
 export * from './verification/prerequisite-evaluation';
 export * from './verification/resolve-attempts';
 export * from './verification/select-counting-attempt';
+export * from './verification/term-position';

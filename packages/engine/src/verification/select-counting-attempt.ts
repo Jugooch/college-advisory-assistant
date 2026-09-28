@@ -17,17 +17,15 @@ import {
 } from '@caa/domain';
 
 import { rankLetterGrade } from './rank-letter-grade';
+import { type TermOrder, termPositionOf } from './term-position';
 
-/** Institution inputs needed to decide which attempt of a repeated course counts. */
-export interface AttemptResolutionContext {
-  /** Supplies `repeatPolicy` (`null` = undetermined) and the letter order for HIGHEST_GRADE. */
-  readonly academicPolicy: AcademicPolicy;
-  /**
-   * The tenant's term codes, oldest first, used only by MOST_RECENT. Term codes don't sort
-   * lexically across tenants, and there is no Term model yet (S3), so the order is explicit.
-   */
-  readonly termCodesOldestFirst: readonly string[];
-}
+/**
+ * Institution inputs needed to decide which attempt of a repeated course counts: the academic
+ * policy, which supplies `repeatPolicy` (`null` = undetermined) and the letter order for
+ * HIGHEST_GRADE, and the tenant's term order, used by MOST_RECENT. Term codes are never
+ * compared as strings: `termCalendar` orders terms by `sequence` (see `termPositionOf`).
+ */
+export type AttemptResolutionContext = { readonly academicPolicy: AcademicPolicy } & TermOrder;
 
 /** Why a group's counting attempt is undetermined. */
 export type UndeterminedCountingReason =
@@ -93,7 +91,8 @@ export function selectCountingAttempt(
   }
   const rank =
     repeatPolicy === RepeatPolicy.MostRecent
-      ? (attempt: CourseAttempt): number | null => rankByTerm(attempt, context.termCodesOldestFirst)
+      ? (attempt: CourseAttempt): number | null =>
+          termPositionOf(context, context.academicPolicy.tenantId, attempt.termCode)
       : gradeRanker(completed, context.academicPolicy);
   const best = pickUniqueBest(completed, rank);
   return best === null ? undeterminedCounting(ReasonCode.RepeatOrderUndetermined) : counted(best);
@@ -124,21 +123,6 @@ function counted(attempt: CourseAttempt): CountingResolution {
     attempt,
     earnedCreditsHundredths: attempt.creditsEarnedHundredths,
   };
-}
-
-/**
- * Ranks an attempt by its term's position; later terms rank higher.
- *
- * @param attempt - The attempt to rank.
- * @param termCodesOldestFirst - The tenant's term order.
- * @returns The rank, or `null` when the term isn't in the order.
- */
-function rankByTerm(
-  attempt: CourseAttempt,
-  termCodesOldestFirst: readonly string[],
-): number | null {
-  const index = termCodesOldestFirst.indexOf(attempt.termCode);
-  return index === -1 ? null : index;
 }
 
 /**
@@ -192,7 +176,8 @@ function pickUniqueBest(
   rank: (attempt: CourseAttempt) => number | null,
 ): CourseAttempt | null {
   let best: CourseAttempt | null = null;
-  let bestRank = -1;
+  // NOTE: term sequences may be negative, so no finite starting rank is below every rank.
+  let bestRank = Number.NEGATIVE_INFINITY;
   let isTied = false;
   for (const attempt of attempts) {
     const attemptRank = rank(attempt);
