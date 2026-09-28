@@ -10,9 +10,10 @@ import { institutionTable } from '../tables/institution.table';
 import { studentTable } from '../tables/student.table';
 import { userIdentityTable } from '../tables/user-identity.table';
 import type { DevSeedPlan, SeedAssignment, SeedIdentity, SeedStudent } from './dev-seed-plan';
+import { type AcademicSeedCounts, seedAcademicData } from './seed-academic-data';
 
 /** How many records of each kind the seed wrote. Counts only, safe to log. */
-export interface SeedCounts {
+export interface SeedCounts extends AcademicSeedCounts {
   readonly institutions: number;
   readonly identities: number;
   readonly students: number;
@@ -31,7 +32,9 @@ type IdByKey = ReadonlyMap<string, string>;
  * @param db - Typed database handle.
  * @param plan - Synthetic records to write.
  * @returns How many records of each kind were written.
- * @throws {Error} When the plan links to an identity or student it does not contain.
+ * @throws {Error} When the plan links to an identity or student it does not contain, or its
+ *   academic records refer to something the plan doesn't hold (`AcademicSeedReferenceError`).
+ *   Nothing is written in that case.
  */
 export async function seedDevData(db: Database, plan: DevSeedPlan): Promise<SeedCounts> {
   return db.transaction(async (tx) => {
@@ -47,7 +50,15 @@ export async function seedDevData(db: Database, plan: DevSeedPlan): Promise<Seed
     const userIds = await upsertIdentities(tx, plan.identities);
     const studentIds = await upsertStudents(tx, plan.students, userIds);
     await upsertAssignments(tx, plan.assignments, { userIds, studentIds });
+    const academicCounts = await seedAcademicData(tx, plan.academic, (planStudentId) => {
+      const student = plan.students.find((candidate) => candidate.id === planStudentId);
+      if (!student) {
+        throw new Error('Dev seed plan links to a record it does not contain');
+      }
+      return lookup(studentIds, studentKey(student.tenantId, student.sourceStudentId));
+    });
     return {
+      ...academicCounts,
       institutions: plan.institutions.length,
       identities: plan.identities.length,
       students: plan.students.length,

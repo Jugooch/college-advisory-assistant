@@ -6,6 +6,8 @@
  */
 import { IdentityStatus, Role } from '@caa/domain';
 
+import { DEV_SEED_ACADEMIC_PLAN, type DevSeedAcademicPlan } from './dev-seed-academic-plan';
+
 /** A synthetic institution (tenant). Upserted by `id`. */
 export interface SeedInstitution {
   readonly id: string;
@@ -56,6 +58,8 @@ export interface DevSeedPlan {
   readonly identities: readonly SeedIdentity[];
   readonly students: readonly SeedStudent[];
   readonly assignments: readonly SeedAssignment[];
+  /** Catalog, rules, policy, terms, snapshots, and audits; written after the students. */
+  readonly academic: DevSeedAcademicPlan;
 }
 
 /** Issuer of every seeded identity; matches `DEV_AUTH_TOKENS` in `infra/env.example`. */
@@ -142,5 +146,16 @@ export const DEV_SEED_PLAN: DevSeedPlan = {
       effectiveFrom: '2026-08-15T00:00:00.000Z',
       effectiveTo: null,
     },
+    // NOTE: lets the advisor open SYN-000002, whose audit is deliberately stale (UNKNOWN).
+    {
+      id: '40000000-0000-4000-8000-000000000002',
+      tenantId: TENANT_A,
+      advisorSubject: 'synthetic-advisor-001',
+      sourceStudentId: 'SYN-000002',
+      approverSubject: 'synthetic-admin-001',
+      effectiveFrom: '2026-08-15T00:00:00.000Z',
+      effectiveTo: null,
+    },
   ],
+  academic: DEV_SEED_ACADEMIC_PLAN,
 };
