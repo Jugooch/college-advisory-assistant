@@ -1,5 +1,6 @@
 /**
- * @file Check evidence data object: the ruleset and the decisive rule leaves behind one check.
+ * @file Check evidence data object: the ruleset, decisive rule leaves, courses, and credit
+ *   arithmetic behind one check.
  * @module @caa/domain/models/check-evidence
  * @requirement FR-09
  * @requirement FR-10
@@ -58,10 +59,40 @@ export const DecisiveLeafSchema = z
 /** A validated, immutable decisive leaf. */
 export type DecisiveLeaf = z.infer<typeof DecisiveLeafSchema>;
 
+/** Schema for a credit amount in hundredths of a credit (350 = 3.5 credits). Never a float. */
+const CreditsHundredthsSchema = z.number().int().nonnegative();
+
+/**
+ * Schema for the credit arithmetic behind a `CREDIT_LOAD` check, in hundredths of a credit.
+ * The total may fall outside the bounds: that is exactly what a failing check reports. Whether
+ * the total agrees with the check's state is enforced by `CheckResultSchema`.
+ */
+export const CreditLoadEvidenceSchema = z
+  .object({
+    /** Credits of the candidate set, counted under the institution's approved load policy. */
+    totalCreditsHundredths: CreditsHundredthsSchema,
+    /** The term's minimum load the total was compared against. */
+    minCreditsHundredths: CreditsHundredthsSchema,
+    /** The term's maximum load the total was compared against. */
+    maxCreditsHundredths: CreditsHundredthsSchema,
+  })
+  // SAFETY: inverted bounds admit no load at all, so any state shown beside them would be
+  // unexplainable arithmetic.
+  .refine((load) => load.minCreditsHundredths <= load.maxCreditsHundredths, {
+    message: 'minCreditsHundredths must not exceed maxCreditsHundredths',
+    path: ['minCreditsHundredths'],
+  })
+  .readonly();
+
+/** Validated, immutable credit-load evidence. */
+export type CreditLoadEvidence = z.infer<typeof CreditLoadEvidenceSchema>;
+
 /**
  * Schema for the evidence behind one check (planning/08 §Evidence contract). The fields are
  * common to every check kind, so one shape serves the engine, the API contract, and the golden
  * corpus. Consistency with the check's own kind and state is enforced by `CheckResultSchema`.
+ * `courseIds` and `creditLoad` are optional so evidence from producers that predate them parses
+ * unchanged; each documents what omission means.
  */
 export const CheckEvidenceSchema = z
   .object({
@@ -76,6 +107,19 @@ export const CheckEvidenceSchema = z
      * the check doesn't evaluate a rule expression, or no single leaf decided it.
      */
     decisiveLeaves: z.array(DecisiveLeafSchema).readonly(),
+    /**
+     * The courses the check is about, in input order. For `ALLOCATION_CONFLICT`, the competing
+     * courses; for `VARIABLE_CREDIT_UNSELECTED`, the course missing a credit value. Omitted or
+     * empty when the check names no particular course; the two mean the same. Allowed on every
+     * kind: naming a course makes no academic claim, the state and reason code do.
+     */
+    courseIds: z.array(CourseIdSchema).readonly().optional(),
+    /**
+     * The credit arithmetic of a `CREDIT_LOAD` check, or `null` when that check's total or a
+     * bound is unknown (for example an unselected variable credit value). Omitted when the
+     * check carries no credit arithmetic; `CheckResultSchema` allows it only on `CREDIT_LOAD`.
+     */
+    creditLoad: CreditLoadEvidenceSchema.nullable().optional(),
   })
   .readonly();
 
@@ -90,8 +134,8 @@ export type CheckEvidenceInput = z.input<typeof CheckEvidenceSchema>;
  *
  * @param input - Raw evidence fields.
  * @returns The parsed check evidence.
- * @throws {z.ZodError} When a field is invalid, a path index is negative or fractional, or a
- *   leaf type is unknown.
+ * @throws {z.ZodError} When a field is invalid, a path index is negative or fractional, a
+ *   leaf type is unknown, or credit-load bounds are inverted.
  */
 export function createCheckEvidence(input: CheckEvidenceInput): CheckEvidence {
   return CheckEvidenceSchema.parse(input);
