@@ -4,20 +4,20 @@
 
 The codebase is layered like MVC, with each concern in its own place.
 
-| Concern                                         | Lives in                                                        | Never contains                                  |
-| ----------------------------------------------- | --------------------------------------------------------------- | ----------------------------------------------- |
-| **Pages** (routes and screens)                  | `apps/web/src/app/**/page.tsx`                                  | Business rules, `fetch`, data transformation    |
-| **UI components**                               | `apps/web/src/features/*/components`, `apps/web/src/components` | API calls (receive data via props or hooks)     |
-| **Frontend API calls**                          | `apps/web/src/api/*.api.ts`                                     | UI code                                         |
-| **HTTP contract** (endpoints, DTOs, client)     | `packages/api-contract`                                         | Business logic                                  |
-| **Routes** (path → controller)                  | `apps/api/src/modules/*/*.routes.ts`                            | Logic of any kind                               |
-| **Controllers** (HTTP ↔ service translation)    | `apps/api/src/modules/*/*.controller.ts`                        | SQL, repositories, engine calls, business rules |
-| **Services** (business logic, orchestration)    | `apps/api/src/modules/*/*.service.ts`                           | HTTP types, SQL                                 |
-| **Data objects** (models, enums)                | `packages/domain`                                               | I/O of any kind                                 |
-| **Academic rules**                              | `packages/engine`                                               | I/O, clocks, randomness                         |
-| **Persistence** (tables, mappers, repositories) | `packages/db`                                                   | Business rules, HTTP                            |
-| **Background jobs and source adapters**         | `apps/worker`                                                   | HTTP, UI                                        |
-| **AI tools, prompts, templates**                | `packages/assistant`                                            | Direct database access                          |
+| Concern                                             | Lives in                                                        | Never contains                                         |
+| --------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------ |
+| **Pages** (routes and screens)                      | `apps/web/src/app/**/page.tsx`                                  | Business rules, `fetch`, data transformation           |
+| **UI components**                                   | `apps/web/src/features/*/components`, `apps/web/src/components` | API calls (receive data via props or hooks)            |
+| **Frontend API calls**                              | `apps/web/src/api/*.api.ts`                                     | UI code                                                |
+| **HTTP contract** (endpoints, DTOs, client)         | `packages/api-contract`                                         | Business logic                                         |
+| **Routes** (path → controller)                      | `apps/api/src/modules/*/*.routes.ts`                            | Logic of any kind                                      |
+| **Controllers** (HTTP ↔ service translation)        | `apps/api/src/modules/*/*.controller.ts`                        | SQL, repositories, engine calls, business rules        |
+| **Services** (business logic, orchestration)        | `apps/api/src/modules/*/*.service.ts`                           | HTTP types, SQL                                        |
+| **Data objects** (models, enums, shared invariants) | `packages/domain`                                               | I/O of any kind, clocks, randomness, engine-only rules |
+| **Academic rules**                                  | `packages/engine`                                               | I/O, clocks, randomness, a copy of a shared invariant  |
+| **Persistence** (tables, mappers, repositories)     | `packages/db`                                                   | Business rules, HTTP                                   |
+| **Background jobs and source adapters**             | `apps/worker`                                                   | HTTP, UI                                               |
+| **AI tools, prompts, templates**                    | `packages/assistant`                                            | Direct database access                                 |
 
 Dependencies point one way:
 
@@ -28,6 +28,17 @@ worker ──► engine, db ──► domain
 ```
 
 ESLint `no-restricted-imports` blocks every other direction. `packages/domain` depends on nothing but `zod`.
+
+### Shared invariants
+
+Academic rules live in the engine, with one exception (ADR-0005). A **shared invariant** is a rule that the engine must produce and a domain or contract schema must also enforce in a `.refine`. It's defined once, as an exported function in `@caa/domain`, because the contract can't import the engine. The limits:
+
+- It's pure and total over domain types or `Pick`s of them, and returns a boolean or a domain enum value. It has no I/O, no clock, no randomness, and no module state, and it never throws.
+- It encodes one rule from a planning doc, with a `// SAFETY:` comment citing the section. Loading policy, attaching evidence, and composing rules stay in the engine.
+- It sits in the file that owns the type it's about: the `.enum.ts` for a rule over one enum's values, or the `.model.ts` of the model being checked. Adding a folder or a role suffix for it isn't allowed.
+- The engine calls it and never restates it. Services get results from the engine, not from the function. Web never calls it to recompute a state.
+
+A rule that only the engine needs stays in the engine. Generic helpers such as `isDistinct` aren't shared invariants and stay private to their file.
 
 ## Folder layout per workspace
 
@@ -95,23 +106,23 @@ packages/test-kit/src/golden/
 - **kebab-case** for every file and folder: `plan-revision.model.ts`, `system-status-card.tsx`.
 - **Role suffix** before the extension says what the file is. `scripts/check-conventions.mjs` enforces the suffix per folder:
 
-| Suffix                                          | Contains                                                             |
-| ----------------------------------------------- | -------------------------------------------------------------------- |
-| `.model.ts`                                     | Zod schema, inferred type, factory for one data object               |
-| `.enum.ts`                                      | One `as const` enum object, its type, and schema                     |
-| `.contract.ts`                                  | Endpoint definitions and request/response schemas for one API module |
-| `.routes.ts` / `.controller.ts` / `.service.ts` | One API module's layers                                              |
-| `.table.ts` / `.mapper.ts` / `.repository.ts`   | One entity's persistence                                             |
-| `.api.ts`                                       | Frontend functions that call one API module                          |
-| `.job.ts` / `.adapter.ts`                       | One background job / one source adapter                              |
-| `.plugin.ts`                                    | One Fastify plugin                                                   |
-| `.schema.ts`                                    | Zod schema for a test-data format (for example golden cases)         |
-| `.cases.ts`                                     | Golden cases for one rule family                                     |
-| `.test.ts(x)`                                   | Tests, colocated with the file under test                            |
+| Suffix                                          | Contains                                                                                                       |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `.model.ts`                                     | Zod schema, inferred type, factory for one data object, and any shared invariants over it (§Shared invariants) |
+| `.enum.ts`                                      | One `as const` enum object, its type, schema, and any shared invariants over its values (§Shared invariants)   |
+| `.contract.ts`                                  | Endpoint definitions and request/response schemas for one API module                                           |
+| `.routes.ts` / `.controller.ts` / `.service.ts` | One API module's layers                                                                                        |
+| `.table.ts` / `.mapper.ts` / `.repository.ts`   | One entity's persistence                                                                                       |
+| `.api.ts`                                       | Frontend functions that call one API module                                                                    |
+| `.job.ts` / `.adapter.ts`                       | One background job / one source adapter                                                                        |
+| `.plugin.ts`                                    | One Fastify plugin                                                                                             |
+| `.schema.ts`                                    | Zod schema for a test-data format (for example golden cases)                                                   |
+| `.cases.ts`                                     | Golden cases for one rule family                                                                               |
+| `.test.ts(x)`                                   | Tests, colocated with the file under test                                                                      |
 
 - React component files are kebab-case and export one PascalCase component: `plan-card.tsx` → `PlanCard`.
 - Hooks: `use-plan-revisions.ts` → `usePlanRevisions`.
-- **One primary export per file.** Supporting types for that export may sit beside it.
+- **One primary export per file.** Supporting types for that export may sit beside it, and so may the shared invariants of a `.enum.ts` or `.model.ts`.
 - **Barrels:** only `<package>/src/index.ts`. Other packages import only from the package root (`@caa/domain`), never deep paths.
 - **Test entry points:** the one exception is a documented `./testing` subpath export. It is a single file `apps/<app>/src/testing.ts` (no nested `index.ts`), exported as `"./testing"` in the app's `package.json`, used only by tests (`@caa/api/testing`, `@caa/worker/testing`), and never bundled into the production entry. Anything else under `src/` stays private.
 

@@ -32,6 +32,7 @@ You are the **Architecture Reviewer** on the College Advisory Assistant team. Yo
 6. Files and functions are cohesive and short. Flag a file near 250 lines or a function near 60 that should be split by responsibility.
 7. Anything that changes structure, adds a package, or contradicts a planning ADR has an ADR in `docs/adr/`.
 8. Composition happens only in `container.ts` (API) / `main.ts` (worker).
+9. Each academic rule has one implementation. A function exported from `@caa/domain` other than a factory or schema must meet every limit in ADR-0005 and standard 01 §Shared invariants. It must be needed by both the engine and a schema, be pure and total, and live in the `.enum.ts` or `.model.ts` that owns its type. An engine function or contract refine that restates a rule instead of calling the shared invariant is a MAJOR finding. So is a new domain function outside those limits.
 
 ## Not your job
 

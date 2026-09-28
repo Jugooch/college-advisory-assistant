@@ -69,7 +69,7 @@ export function createPlanRevision(input: PlanRevisionInput): PlanRevision {
    export const CheckStateSchema = z.enum(CheckState);
    ```
 10. **Unknown is explicit.** A value the source didn't supply is `null` with a documented meaning, never an empty string, `0`, or an omitted field that readers must guess about.
-11. **No behavior in models.** Models are data plus validation. Logic that interprets data belongs in the engine or a service.
+11. **No behavior in models.** Models are data plus validation. Logic that interprets data belongs in the engine or a service. The one exception is a shared invariant: a single pure rule that the engine produces and a schema must also enforce. It lives beside its type, and the engine calls it instead of restating it (standard 01 §Shared invariants, ADR-0005).
 
 ## The same object across layers
 
@@ -80,7 +80,7 @@ export function createPlanRevision(input: PlanRevisionInput): PlanRevision {
 | API contract | `XxxResponse` / `CreateXxxRequest` in `packages/api-contract`         | `apps/api/src/modules/*/*.mapper.ts` when the shapes differ; otherwise the contract composes the domain schema directly |
 | Web          | Uses the contract types only                                          | —                                                                                                                       |
 
-Rows never leave `packages/db`. Web code never imports domain _factories_ (it may import types and enums for display).
+Rows never leave `packages/db`. Web code never imports domain _factories_ or shared invariants (it may import types and enums for display).
 
 ## Contract DTO naming
 
