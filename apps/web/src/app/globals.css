@@ -129,3 +129,19 @@ td {
     transition: none;
   }
 }
+
+.check-list {
+  padding-left: 1rem;
+}
+
+.check {
+  margin: 0.75rem 0;
+}
+
+.choice {
+  margin: 0.25rem 0;
+}
+
+.facts__row {
+  display: contents;
+}

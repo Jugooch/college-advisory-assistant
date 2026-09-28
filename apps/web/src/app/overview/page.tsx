@@ -17,6 +17,7 @@ import { RecordDetails } from '@/features/academic-summary/components/record-det
 import { RequirementOverview } from '@/features/academic-summary/components/requirement-overview';
 import { ApiErrorNotice } from '@/features/service-errors/components/api-error-notice';
 import { StudentLookupForm } from '@/features/session/components/student-lookup-form';
+import { StudentNav } from '@/features/student-navigation/components/student-nav';
 
 /** Render on every request: the summary is the student's current pinned data. */
 export const dynamic = 'force-dynamic';
@@ -62,6 +63,7 @@ export default async function OverviewPage({
   const summary = await loadSummary(studentId.trim());
   return (
     <>
+      <StudentNav studentId={studentId.trim()} current="overview" />
       <h1>Overview</h1>
       {summary instanceof ApiError ? (
         <ApiErrorNotice error={summary} />
