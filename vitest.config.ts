@@ -24,6 +24,13 @@ const UNIT_WORKSPACES = [
   'config',
 ];
 
+/**
+ * Per-test timeouts, in ms, for workspaces whose tests scan the repository. The `tests`
+ * holdout-isolation check reads every source file and ran past the 5 s default in combined
+ * runs. Other workspaces keep the default.
+ */
+const WORKSPACE_TEST_TIMEOUTS: Partial<Record<string, number>> = { tests: 15_000 };
+
 const integration = resolveIntegrationMode(process.env);
 if (integration.mode === 'fail') {
   throw new Error(integration.reason);
@@ -39,6 +46,9 @@ export default defineConfig({
           name: root,
           root,
           exclude: [...configDefaults.exclude, INTEGRATION_TEST_PATTERN],
+          ...(root in WORKSPACE_TEST_TIMEOUTS
+            ? { testTimeout: WORKSPACE_TEST_TIMEOUTS[root] }
+            : {}),
         },
       })),
       {
