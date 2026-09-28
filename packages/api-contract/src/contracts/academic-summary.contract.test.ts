@@ -87,7 +87,7 @@ describe('AcademicSummaryResponseSchema', () => {
     expect(accepts({ ...VALID, auditReflectsRecord: stale })).toBe(true);
   });
 
-  it('accepts an audit not tied to the record as UNKNOWN with AUDIT_AMBIGUOUS', () => {
+  it("accepts the student's audit from another snapshot as UNKNOWN with AUDIT_AMBIGUOUS", () => {
     const ambiguous = { state: 'UNKNOWN', reasonCode: 'AUDIT_AMBIGUOUS' };
 
     expect(

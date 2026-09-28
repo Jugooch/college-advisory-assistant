@@ -92,11 +92,18 @@ export const SummaryAuditSchema = z
 /**
  * Whether the audit reflects the pinned student record, with the same shape the engine's
  * `checkAuditReflectsRecord` returns: PASS with no reason, or UNKNOWN with one of two reasons.
- * `AUDIT_STALE` means the record changed after the audit by more than the allowed skew.
- * `AUDIT_AMBIGUOUS` means the audit can't be tied to the pinned record: it is for another tenant
- * or student, it ran against another snapshot that isn't older than the pinned one, or the pinned
- * record is older than the audit's by more than the skew. PASS says only that the audit was run
- * against this record and isn't stale for it.
+ * `AUDIT_STALE` means the record changed after the audit by more than the allowed skew, or the
+ * audit ran against an earlier snapshot of the record. `AUDIT_AMBIGUOUS` means the student's
+ * audit can't be tied to the pinned record: it ran against another snapshot of the same student
+ * that isn't older than the pinned one, or the pinned record is older than the audit's by more
+ * than the skew. PASS says only that the audit was run against this record and isn't stale for it.
+ *
+ * SECURITY: tenant isolation (standards/09). The service loads the audit and the snapshot scoped
+ * to the session's tenant and the path student only, and never puts another tenant's or
+ * student's audit or requirements in this response. The engine also returns `AUDIT_AMBIGUOUS`
+ * for a tenant or student mismatch; that is a defense-in-depth backstop, not a result this
+ * response carries. If it ever fires, the service returns no audit data (`NOT_FOUND`, or
+ * `INTERNAL_ERROR`) and logs a security event with opaque IDs only.
  */
 export const AuditReflectsRecordSchema = z.discriminatedUnion('state', [
   z.object({ state: z.literal(CheckState.Pass), reasonCode: z.null() }).readonly(),
@@ -165,6 +172,13 @@ export const SummaryRequirementSchema = z
  *
  * SECURITY: data minimization. Carries no tenant, login, or attempt data; the student is the
  * same minimal shape as `GET /v1/students/:studentId`.
+ *
+ * SECURITY: tenant isolation (standards/09). Every part of the response, including the audit and
+ * its requirements, belongs to the session's tenant and the path student. The service loads the
+ * audit and snapshot scoped to both and never returns another tenant's or student's audit or
+ * requirements. If the engine's identity check reports a mismatch, that is a defense-in-depth
+ * backstop: the service returns no audit data (`NOT_FOUND`, or `INTERNAL_ERROR`) and logs a
+ * security event with opaque IDs only.
  */
 export const AcademicSummaryResponseSchema = z
   .object({
