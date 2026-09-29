@@ -7,7 +7,7 @@ Status as of 2026-09-29 (#103):
 - The development corpus has 113 cases across 20 rule families (`GOLDEN_DEVELOPMENT_CORPUS` in `@caa/test-kit`).
 - The holdout has 15 cases, version v0.2.
 - Every case is `pending-academic-review`.
-- One open finding: GC-PF-004 (#183).
+- No open findings. #183 was settled by tech-lead ruling GR-01 (planning/13 §Golden corpus design, Adjudication rulings), and GC-PF-004 was re-adjudicated from it.
 
 Keep this file current in the same PR that adds, burns or re-adjudicates a case.
 
@@ -76,7 +76,7 @@ Each interaction lists its development cases, its holdout count, and the gaps st
 - **Development:** GC-PF-004–006, GC-CUT-005, GC-CUT-006.
 - **Holdout:** 1.
 - **Open gaps:**
-  - a P under "any passing completion" with no cutoff, which waits for the #183 decision;
+  - a P under "any passing completion" with no cutoff at all (GR-01 settles it as PASS; no case yet);
   - HIGHEST_GRADE mixing P and letters under a cutoff.
 
 ### Applicability × ancestor states × staleness

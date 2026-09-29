@@ -1,6 +1,7 @@
 /**
  * @file Golden cases: the policy's passing cutoff combined with pass/fail grades and with a
- *   minimum grade. A letter cutoff never defines what a P is worth, and never lowers a minimum.
+ *   minimum grade. A letter cutoff says only which letters pass: it never raises "any passing
+ *   completion" for a P (GR-01), never defines P equivalence, and never lowers a minimum.
  * @module @caa/test-kit/golden/cases/cutoff-pass-fail
  * @requirement FR-06
  * @see docs/planning/08-academic-verification-and-planning.md
@@ -22,6 +23,8 @@ const ANY_PASSING = buildPrerequisiteRule({ expression: course(SYNTHETIC_COURSES
 const P_IS_NOT_C =
   'planning/08 §Candidate formation and allocation ("P" is not a numeric C unless policy explicitly provides equivalence)';
 const CUTOFF_DECISION = 'issue #69 (tech-lead decision: lowestPassingLetterGrade contract)';
+const GR_01 =
+  'planning/13 ruling GR-01 (#183: a P meets a rule with no minimum; P equivalence applies only to a letter minimum)';
 const NOT_ELIGIBLE = mustNot(CheckState.Pass, 'must not claim the prerequisite is met');
 const P_NOT_FAILED = mustNot(CheckState.Fail, 'must not treat a P as a failing grade');
 const EQUIVALENCE_UNDEFINED = prerequisiteCheck(
@@ -34,27 +37,24 @@ export const CUTOFF_PASS_FAIL_CASES: readonly GoldenCase[] = [
   prerequisiteCase({
     id: 'GC-PF-004',
     family: GoldenRuleFamily.PassFailEquivalence,
-    title: 'A P under "any passing completion" is unknown when only a letter cutoff is set',
-    requirementIds: ['FR-06', 'T04', 'AC19'],
+    title: 'A P meets "any passing completion" whatever the letter cutoff',
+    requirementIds: ['FR-06', 'T04'],
     inputs: prerequisiteInputs({
       policy: { lowestPassingLetterGrade: LetterGrade.C },
       rule: ANY_PASSING,
       attempts: [completedAttempt({ grade: pass() })],
     }),
-    expected: [EQUIVALENCE_UNDEFINED],
-    prohibitedClaims: [
-      mustNot(CheckState.Pass, 'must not presume a P meets a C cutoff'),
-      P_NOT_FAILED,
-    ],
+    expected: [prerequisiteCheck(CheckState.Pass, null)],
+    prohibitedClaims: [P_NOT_FAILED],
     rationale:
-      'The institution says C is its lowest passing letter. Whether a P was earned at C or better is not stated, and the policy grants no P equivalence, so the P is not presumed passing.',
-    citations: [P_IS_NOT_C, CUTOFF_DECISION, 'planning/13 AC19'],
+      'A P is a passing completion in its own scheme. The C cutoff says which letters pass; it does not turn "any passing completion" into "C or better". The rule sets no minimum, so there is no C for P equivalence to be measured against (GR-01).',
+    citations: [GR_01, P_IS_NOT_C, CUTOFF_DECISION],
     adjudicatedOn: S3_INTERACTIONS_ADJUDICATED_ON,
   }),
   prerequisiteCase({
     id: 'GC-PF-005',
     family: GoldenRuleFamily.PassFailEquivalence,
-    title: 'A P under "any passing completion" passes when policy grants equivalence',
+    title: 'P equivalence plays no part when the rule sets no minimum',
     requirementIds: ['FR-06', 'T04'],
     inputs: prerequisiteInputs({
       policy: { lowestPassingLetterGrade: LetterGrade.C, passSatisfiesMinimumGrade: true },
@@ -64,8 +64,8 @@ export const CUTOFF_PASS_FAIL_CASES: readonly GoldenCase[] = [
     expected: [prerequisiteCheck(CheckState.Pass, null)],
     prohibitedClaims: [P_NOT_FAILED],
     rationale:
-      'The policy explicitly lets a P satisfy a minimum grade, so it meets the C cutoff as well.',
-    citations: [P_IS_NOT_C, CUTOFF_DECISION, 'GC-PF-002 (equivalence against a C minimum)'],
+      'The P passes because it is a passing completion (GR-01), as in GC-PF-004. The equivalence switch applies only when the rule sets a letter minimum, so granting it changes nothing here.',
+    citations: [GR_01, CUTOFF_DECISION, 'GC-PF-004 (the same P, equivalence undefined)'],
     adjudicatedOn: S3_INTERACTIONS_ADJUDICATED_ON,
   }),
   prerequisiteCase({
@@ -80,8 +80,8 @@ export const CUTOFF_PASS_FAIL_CASES: readonly GoldenCase[] = [
     expected: [EQUIVALENCE_UNDEFINED],
     prohibitedClaims: [NEVER_PASS_WHEN_UNKNOWN, P_NOT_FAILED],
     rationale:
-      'The cutoff says which letters pass a course; it says nothing about whether a P equals a C. With equivalence undefined, the P against a C minimum stays UNKNOWN (AC19).',
-    citations: ['planning/13 AC19', P_IS_NOT_C, CUTOFF_DECISION],
+      'The cutoff says which letters pass a course; it says nothing about whether a P equals a C. The rule sets a C minimum and equivalence is undefined, so the P stays UNKNOWN (AC19). Contrast GC-PF-004, where the rule sets no minimum.',
+    citations: ['planning/13 AC19', GR_01, P_IS_NOT_C, CUTOFF_DECISION],
     adjudicatedOn: S3_INTERACTIONS_ADJUDICATED_ON,
   }),
   prerequisiteCase({
