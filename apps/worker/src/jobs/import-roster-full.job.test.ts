@@ -103,6 +103,7 @@ describe('import-roster job with FULL batches', () => {
     expect(tenantId).toBe(TENANT_ID);
     expect(publication.batch.operation).toBe(ImportOperation.Full);
     expect(publication.quarantined).toEqual([]);
+    expect(publication.shouldReconcileMissing).toBe(true);
   });
 
   it('publishes a FULL batch with a quarantined row but reports the reconciliation skipped', async () => {
@@ -116,7 +117,9 @@ describe('import-roster job with FULL batches', () => {
       counts: { validCount: 3, quarantinedCount: 1 },
       reconciliation: 'SKIPPED_QUARANTINED_ROWS',
     });
-    expect(publishRoster).toHaveBeenCalledTimes(1);
+    expect(
+      publishRoster.mock.calls.map(([, { shouldReconcileMissing }]) => shouldReconcileMissing),
+    ).toEqual([false]);
   });
 
   it('publishes an empty FULL batch but reports the reconciliation skipped', async () => {
@@ -129,7 +132,9 @@ describe('import-roster job with FULL batches', () => {
       counts: { recordCount: 0 },
       reconciliation: 'SKIPPED_EMPTY_SNAPSHOT',
     });
-    expect(publishRoster).toHaveBeenCalledTimes(1);
+    expect(
+      publishRoster.mock.calls.map(([, { shouldReconcileMissing }]) => shouldReconcileMissing),
+    ).toEqual([false]);
   });
 
   it('quarantines a FULL batch above the threshold and reconciles nothing', async () => {

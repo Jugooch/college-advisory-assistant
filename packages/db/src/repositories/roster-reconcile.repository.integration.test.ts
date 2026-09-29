@@ -52,6 +52,7 @@ describe('RosterRepository FULL reconciliation', () => {
       readonly ids: readonly string[];
       readonly sourceId?: string;
       readonly quarantined?: readonly QuarantinedRow[];
+      readonly shouldReconcileMissing?: boolean;
     },
   ) => {
     batchNumber += 1;
@@ -66,6 +67,7 @@ describe('RosterRepository FULL reconciliation', () => {
       }),
       rows: options.ids.map(active),
       quarantined,
+      shouldReconcileMissing: options.shouldReconcileMissing ?? false,
     });
   };
   const delta = (tenantId: InstitutionId, at: string, ids: readonly string[]) =>
@@ -73,7 +75,7 @@ describe('RosterRepository FULL reconciliation', () => {
   const deltaFrom = (sourceId: string, tenantId: InstitutionId, at: string) =>
     publish(tenantId, { operation: ImportOperation.Delta, at, ids: ['SYN-0009'], sourceId });
   const full = (tenantId: InstitutionId, at: string, ids: readonly string[]) =>
-    publish(tenantId, { operation: ImportOperation.Full, at, ids });
+    publish(tenantId, { operation: ImportOperation.Full, at, ids, shouldReconcileMissing: true });
 
   const readStudents = async (tenantId: InstitutionId) => {
     const rows = await testDatabase.db
@@ -122,26 +124,40 @@ describe('RosterRepository FULL reconciliation', () => {
     expect((await readStudents(tenantId))['SYN-0003']?.sourceEffectiveAt).toBe(T3);
   });
 
-  it('publishes a FULL batch with a quarantined row without deleting anyone', async () => {
+  it('publishes a FULL batch without deleting anyone unless told to reconcile', async () => {
     const tenantId = await insertTenant(testDatabase.db);
     await delta(tenantId, T1, ['SYN-0001', 'SYN-0002']);
 
-    await publish(tenantId, {
-      operation: ImportOperation.Full,
-      at: T2,
-      ids: ['SYN-0001'],
-      quarantined: [{ rowIndex: 1, sourceRecordId: null, reason: 'invalid_field:sourceStudentId' }],
-    });
+    await publish(tenantId, { operation: ImportOperation.Full, at: T2, ids: ['SYN-0001'] });
 
     expect(await deletedIds(tenantId)).toEqual([]);
   });
 
-  it('publishes an empty FULL batch without deleting anyone', async () => {
+  it('refuses to reconcile a DELTA and writes nothing', async () => {
     const tenantId = await insertTenant(testDatabase.db);
     await delta(tenantId, T1, ['SYN-0001', 'SYN-0002']);
 
-    await full(tenantId, T2, []);
+    const publication = publish(tenantId, {
+      operation: ImportOperation.Delta,
+      at: T2,
+      ids: ['SYN-0001'],
+      shouldReconcileMissing: true,
+    });
 
+    await expect(publication).rejects.toThrow('Only a FULL roster batch can delete students');
+    expect(await deletedIds(tenantId)).toEqual([]);
+    expect((await readStudents(tenantId))['SYN-0001']?.sourceEffectiveAt).toBe(T1);
+  });
+
+  it("leaves a student stored at the batch's own source time alone", async () => {
+    const tenantId = await insertTenant(testDatabase.db);
+    await delta(tenantId, T1, ['SYN-0001']);
+    await delta(tenantId, T2, ['SYN-0002']);
+
+    await full(tenantId, T2, ['SYN-0001']);
+
+    // NOTE: pins the strict "older than the batch" rule: at an equal time the source gives no
+    // order, so the omission isn't applied even though the job reports COMPLETED.
     expect(await deletedIds(tenantId)).toEqual([]);
   });
 

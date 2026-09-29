@@ -7,15 +7,9 @@
  */
 import { z } from 'zod';
 
-import {
-  type ImportBatchRepository,
-  isReconcilable,
-  type QuarantinedRow,
-  type RosterRepository,
-} from '@caa/db';
+import type { ImportBatchRepository, QuarantinedRow, RosterRepository } from '@caa/db';
 import {
   type ImportBatch,
-  ImportOperation,
   type InstitutionId,
   InstitutionIdSchema,
   type RosterRow,
@@ -27,6 +21,7 @@ import {
 } from '../adapters/synthetic/synthetic-roster.adapter';
 import type { JobDefinition } from '../shared/job-definition';
 import type { JobLogger } from '../shared/job-logger';
+import { decideReconciliation, type RosterReconciliation } from '../shared/roster-reconciliation';
 
 /** Queue name of the roster import job. */
 export const IMPORT_ROSTER_JOB_NAME = 'import-roster';
@@ -61,19 +56,6 @@ export interface ImportRosterCounts {
  */
 export type ImportRosterOutcome =
   'PUBLISHED' | 'ALREADY_IMPORTED' | 'CONFLICT' | 'QUARANTINED' | 'REJECTED_STALE';
-
-/**
- * What a published `FULL` batch did about students it no longer contains.
- *
- * - `COMPLETED`: no row was quarantined, so every student of the tenant last written by this
- *   source, older than the batch, and missing from it, was marked deleted.
- * - `SKIPPED_QUARANTINED_ROWS`: a row was quarantined, so the snapshot is incomplete and nobody
- *   was deleted. A quarantined row may be a student the batch still contains.
- * - `SKIPPED_EMPTY_SNAPSHOT`: the batch had no rows, which is more likely a failed extract than
- *   a source with no students, so nobody was deleted.
- */
-export type RosterReconciliation =
-  'COMPLETED' | 'SKIPPED_QUARANTINED_ROWS' | 'SKIPPED_EMPTY_SNAPSHOT';
 
 /** Fields of every result whose envelope was valid. */
 interface ParsedBatchResult {
@@ -178,7 +160,14 @@ async function writeRoster(
       await dependencies.rosters.quarantineRoster(tenantId, { batch, quarantined });
       return 'QUARANTINED';
     }
-    await dependencies.rosters.publishRoster(tenantId, { batch, rows, quarantined });
+    // NOTE: the import rule decides; the repository only applies the deletion it is told to.
+    const shouldReconcileMissing = decideReconciliation(roster) === 'COMPLETED';
+    await dependencies.rosters.publishRoster(tenantId, {
+      batch,
+      rows,
+      quarantined,
+      shouldReconcileMissing,
+    });
     return 'PUBLISHED';
   } catch (error) {
     // NOTE: a second delivery of the same job can record the key between the lookup and this
@@ -235,7 +224,8 @@ async function importRoster(
 }
 
 /**
- * Reports what the repository did about missing students, from the same rule it applies.
+ * Reports what publishing did about missing students, from the same decision `writeRoster`
+ * passed to the repository.
  *
  * @param outcome - What happened to the batch.
  * @param parsed - The parsed batch.
@@ -245,11 +235,7 @@ function toReconciliation(
   outcome: ImportRosterOutcome,
   parsed: Pick<ParsedRoster, 'batch' | 'rows' | 'quarantined'>,
 ): RosterReconciliation | null {
-  const { batch, rows, quarantined } = parsed;
-  if (outcome !== 'PUBLISHED' || batch.operation !== ImportOperation.Full) return null;
-  // NOTE: the repository decides with the same function, so the report can't disagree with it.
-  if (isReconcilable(batch, rows, quarantined)) return 'COMPLETED';
-  return quarantined.length > 0 ? 'SKIPPED_QUARANTINED_ROWS' : 'SKIPPED_EMPTY_SNAPSHOT';
+  return outcome === 'PUBLISHED' ? decideReconciliation(parsed) : null;
 }
 
 /**
