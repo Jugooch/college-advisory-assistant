@@ -5,9 +5,12 @@
  * @requirement FR-03
  * @see docs/planning/09-data-model-and-integration-contracts.md
  */
+import { sql } from 'drizzle-orm';
 import {
   boolean,
+  check,
   foreignKey,
+  index,
   integer,
   pgTable,
   text,
@@ -32,6 +35,13 @@ export const studentTable = pgTable(
       .notNull()
       .references(() => institutionTable.id),
     sourceStudentId: text('source_student_id').notNull(),
+    /**
+     * Roster source whose batch last changed this row. A `FULL` batch from that source may mark
+     * the student deleted when it's missing (#30). Null when the row wasn't written by a roster
+     * import (seed data, or rows from before sources were recorded); such a row is never
+     * reconciled, so it's removed only by a tombstone.
+     */
+    sourceId: text('source_id'),
     /** Linked login, or null until the student signs in. */
     userId: uuid('user_id'),
     /** Source record version, or null when the source does not supply one. */
@@ -51,6 +61,12 @@ export const studentTable = pgTable(
       columns: [table.tenantId, table.userId],
       foreignColumns: [userIdentityTable.tenantId, userIdentityTable.id],
     }),
+    check(
+      'student_source_id_not_empty',
+      sql`${table.sourceId} IS NULL OR length(${table.sourceId}) > 0`,
+    ),
+    // PERF: a FULL batch reconciles the students of one tenant and source.
+    index('student_tenant_id_source_id_idx').on(table.tenantId, table.sourceId),
   ],
 );
 
