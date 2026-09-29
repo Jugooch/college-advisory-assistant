@@ -26,13 +26,21 @@ const AC03 = 'planning/13 AC03 (UNKNOWN until approved equivalency/credit exists
 const CONDITIONAL_TEXT =
   'planning/08 §Authority and result semantics (CONDITIONAL: "If you earn C or higher …")';
 const DECISION_TABLE = 'PR #76 decision table (prospects combine by ANY precedence)';
+const TRANSFER_UNKNOWN =
+  "issue #89 (a pending transfer's eventual grade, scheme and term are unknown; once awarded it can become the counting attempt)";
+const NOT_SUFFICIENT = mustNot(
+  CheckState.Conditional,
+  '"If you earn C" is not sufficient: the awarded transfer could become the counting attempt',
+);
 const NOT_SETTLED_FAIL = mustNot(
   CheckState.Fail,
   'must not settle as failed while a transfer that could satisfy it is pending',
 );
-/** A transfer of DEMO-MATH 101 pending evaluation, from a term before every institutional one. */
+/**
+ * A transfer of DEMO-MATH 101 pending evaluation, recorded with term 2025FA. The recorded term is
+ * not evidence of the term it will count in once awarded (issue #89).
+ */
 const PENDING_2025FA = pendingTransferAttempt({ termCode: '2025FA' }, 3);
-const EARN_C = prerequisiteCheck(CheckState.Conditional, ReasonCode.InProgressMinGrade);
 const STILL_PENDING = prerequisiteCheck(CheckState.Unknown, ReasonCode.PendingTransfer);
 
 /** Pending transfer × repeat policy × in-progress × progression cases. */
@@ -40,21 +48,22 @@ export const PENDING_TRANSFER_REPEAT_CASES: readonly GoldenCase[] = [
   prerequisiteCase({
     id: 'GC-PT-004',
     family: GoldenRuleFamily.PendingTransfer,
-    title: 'Under MOST_RECENT, earning C in a later course is sufficient beside a pending transfer',
+    title: 'Under MOST_RECENT, earning C is not sufficient beside a pending transfer',
     requirementIds: ['FR-06', 'T04', 'AC02', 'AC03'],
     inputs: prerequisiteInputs({
       policy: { repeatPolicy: RepeatPolicy.MostRecent, allowsInProgressPrerequisites: true },
       attempts: [inProgressAttempt({}, 1), pendingTransferAttempt({}, 2)],
     }),
-    expected: [EARN_C],
-    allowedAlternatives: [[STILL_PENDING]],
-    prohibitedClaims: [
-      mustNot(CheckState.Pass, 'must not claim eligibility before the grade or the transfer'),
-      NOT_SETTLED_FAIL,
-    ],
+    expected: [STILL_PENDING],
+    prohibitedClaims: [NEVER_PASS_WHEN_UNKNOWN, NOT_SUFFICIENT, NOT_SETTLED_FAIL],
     rationale:
-      'The in-progress attempt (2026FA) is later than the pending transfer (2026SP). Under MOST_RECENT it counts even if the transfer is awarded, so "if you earn C" is a sufficient condition. UNKNOWN PENDING_TRANSFER is also safe. Contrast GC-PT-003, where no repeat policy decides.',
-    citations: [ELIGIBILITY, CONDITIONAL_TEXT, AC03, 'GC-PT-003 (the same attempts, no policy)'],
+      'Progression is permitted, but the pending transfer’s eventual term is unknown: once awarded it may be the most recent attempt and count instead of the 2026FA course. "If you earn C" is therefore not a sufficient condition, and the rule stays UNKNOWN until the transfer is decided. A repeat policy does not change that; contrast GC-PT-003, which has none.',
+    citations: [
+      AC03,
+      CONDITIONAL_TEXT,
+      TRANSFER_UNKNOWN,
+      'GC-PT-003 (the same attempts, no policy)',
+    ],
     adjudicatedOn: S3_INTERACTIONS_ADJUDICATED_ON,
   }),
   prerequisiteCase({
@@ -96,7 +105,7 @@ export const PENDING_TRANSFER_REPEAT_CASES: readonly GoldenCase[] = [
   prerequisiteCase({
     id: 'GC-PT-007',
     family: GoldenRuleFamily.PendingTransfer,
-    title: 'Under MOST_RECENT, an earlier pending transfer does not unsettle a later B',
+    title: 'Under MOST_RECENT, a pending transfer does not unsettle a completed B',
     requirementIds: ['FR-06', 'T04'],
     inputs: prerequisiteInputs({
       policy: { repeatPolicy: RepeatPolicy.MostRecent },
@@ -105,10 +114,12 @@ export const PENDING_TRANSFER_REPEAT_CASES: readonly GoldenCase[] = [
     expected: [prerequisiteCheck(CheckState.Pass, null)],
     prohibitedClaims: [mustNot(CheckState.Fail, 'must not block a student who met the minimum')],
     rationale:
-      'The B (2026SP) is later than the pending transfer (2025FA), so under MOST_RECENT it keeps counting even if the transfer is awarded. It passes by current evidence.',
+      'The completed B meets C, and a pending transfer is not evidence until it is awarded, so the rule passes as of the current record. The PASS is not a condition on future work: an award would be a new record revision that is checked again. Its recorded term plays no part (issue #89).',
     citations: [
       'planning/08 §Authority and result semantics (PASS: satisfied by current evidence)',
+      'planning/08 §Eligibility semantics (pending transfers never become earned credit automatically)',
       'PR #76 decision table (pending transfer never replaces a grade)',
+      'GC-PT-002 (the same attempts, no repeat policy)',
     ],
     adjudicatedOn: S3_INTERACTIONS_ADJUDICATED_ON,
   }),
@@ -140,28 +151,33 @@ export const PENDING_TRANSFER_REPEAT_CASES: readonly GoldenCase[] = [
       CONDITIONAL_TEXT,
       AC03,
       'GC-REP-007 (HIGHEST_GRADE cannot rank a P against a D)',
-      'GC-PT-003 (a CONDITIONAL must be sufficient beside a pending transfer)',
+      TRANSFER_UNKNOWN,
     ],
     adjudicatedOn: S3_INTERACTIONS_ADJUDICATED_ON,
   }),
   prerequisiteCase({
     id: 'GC-REP-013',
     family: GoldenRuleFamily.Repeat,
-    title: 'A MOST_RECENT retake of a passed course is conditional beside a pending transfer',
-    requirementIds: ['FR-06', 'T04', 'AC02'],
+    title: 'A MOST_RECENT retake of a passed course is unknown beside a pending transfer',
+    requirementIds: ['FR-06', 'T04', 'AC02', 'AC03'],
     inputs: prerequisiteInputs({
       policy: { repeatPolicy: RepeatPolicy.MostRecent, allowsInProgressPrerequisites: true },
       attempts: [completedAttempt({}, 1), inProgressAttempt({}, 2), PENDING_2025FA],
     }),
-    expected: [EARN_C],
-    allowedAlternatives: [[STILL_PENDING]],
+    expected: [STILL_PENDING],
     prohibitedClaims: [
       mustNot(CheckState.Pass, 'must not keep a B the retake will replace'),
+      NOT_SUFFICIENT,
       mustNot(CheckState.Fail, 'must not block a student who can still meet the minimum'),
     ],
     rationale:
-      'The 2026FA retake is the most recent attempt, later than both the B and the pending transfer (2025FA), so its grade will decide. "If you earn C" is sufficient; the B no longer is. As in GC-PT-004, UNKNOWN PENDING_TRANSFER is also safe.',
-    citations: [CONDITIONAL_TEXT, 'GC-REP-008 (the same retake, no transfer)', DECISION_TABLE],
+      'Without the transfer this is GC-REP-008: the retake replaces the B, so "if you earn C" would be the condition. But the pending transfer’s eventual term is unknown, so once awarded it may be the most recent attempt and decide instead. No condition on the retake alone is sufficient, so the rule stays UNKNOWN until the transfer is decided.',
+    citations: [
+      AC03,
+      CONDITIONAL_TEXT,
+      TRANSFER_UNKNOWN,
+      'GC-REP-008 (the same retake, no transfer)',
+    ],
     adjudicatedOn: S3_INTERACTIONS_ADJUDICATED_ON,
   }),
 ];

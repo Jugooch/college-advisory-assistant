@@ -77,8 +77,8 @@ export const HOLDOUT_INTERACTION_CASES: readonly GoldenCase[] = [
   prerequisiteCase({
     id: 'GH-REP-001',
     family: GoldenRuleFamily.Repeat,
-    title: 'Under MOST_RECENT, a latest retake after a D is conditional beside a pending transfer',
-    requirementIds: ['FR-06', 'T04', 'AC02'],
+    title: 'Under MOST_RECENT, a retake after a D is not sufficient beside a pending transfer',
+    requirementIds: ['FR-06', 'T04', 'AC02', 'AC03'],
     inputs: prerequisiteInputs({
       policy: { repeatPolicy: RepeatPolicy.MostRecent, allowsInProgressPrerequisites: true },
       attempts: [
@@ -87,17 +87,21 @@ export const HOLDOUT_INTERACTION_CASES: readonly GoldenCase[] = [
         pendingTransferAttempt({ termCode: '2026SP' }, 3),
       ],
     }),
-    expected: [prerequisiteCheck(CheckState.Conditional, ReasonCode.InProgressMinGrade)],
-    allowedAlternatives: [[prerequisiteCheck(CheckState.Unknown, ReasonCode.PendingTransfer)]],
+    expected: [prerequisiteCheck(CheckState.Unknown, ReasonCode.PendingTransfer)],
     prohibitedClaims: [
-      mustNot(CheckState.Pass, 'must not claim eligibility before the retake is graded'),
+      NEVER_PASS_WHEN_UNKNOWN,
+      mustNot(
+        CheckState.Conditional,
+        '"If you earn C" is not sufficient: the awarded transfer could become the counting attempt',
+      ),
       mustNot(CheckState.Fail, 'must not block a retake that can still satisfy the rule'),
     ],
     rationale:
-      'The 2026FA retake is later than the D (2025FA) and the pending transfer (2026SP), so under MOST_RECENT its grade decides: "if you earn C" is sufficient. UNKNOWN is also safe.',
+      'The pending transfer’s eventual term is unknown, so once awarded it may be the most recent attempt and decide instead of the 2026FA retake. No condition on the retake alone is sufficient; the rule stays UNKNOWN until the transfer is decided.',
     citations: [
       'planning/08 §Authority and result semantics (CONDITIONAL: "If you earn C or higher …")',
-      'planning/08 §Eligibility semantics',
+      'planning/13 AC03',
+      "issue #89 (a pending transfer's eventual term is unknown)",
     ],
     adjudicatedOn: ON,
   }),

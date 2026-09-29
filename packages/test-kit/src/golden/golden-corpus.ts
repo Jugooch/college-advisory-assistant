@@ -1,7 +1,7 @@
 /**
  * @file The development golden corpus: every rule family (v0 from S2, extended in S3 for pinned
- *   inputs and for interactions between families), independently adjudicated from the planning docs. The frozen holdout lives apart, in
- *   `tests/golden/holdout/` (see its README).
+ *   inputs and for interactions between families), independently adjudicated from the planning
+ *   docs. The frozen holdout lives apart, in `tests/golden/holdout/` (see its README).
  * @module @caa/test-kit/golden/golden-corpus
  * @requirement FR-04
  * @requirement FR-05
