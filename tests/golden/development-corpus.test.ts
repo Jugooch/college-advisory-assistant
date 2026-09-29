@@ -29,10 +29,10 @@ describe('golden corpus, development set', () => {
     }
   }
 
-  it('has at least 90 cases covering every rule family', () => {
+  it('has at least 113 cases covering every rule family', () => {
     const families = new Set(GOLDEN_DEVELOPMENT_CORPUS.map((golden) => golden.family));
 
-    expect(GOLDEN_DEVELOPMENT_CORPUS.length).toBeGreaterThanOrEqual(90);
+    expect(GOLDEN_DEVELOPMENT_CORPUS.length).toBeGreaterThanOrEqual(113);
     expect([...families].sort()).toEqual(Object.values(GoldenRuleFamily).sort());
   });
 
@@ -40,7 +40,7 @@ describe('golden corpus, development set', () => {
     const unreviewed = GOLDEN_DEVELOPMENT_CORPUS.filter(
       (golden) =>
         golden.reviewer !== 'pending-academic-review' ||
-        !['2026-09-27', '2026-09-28'].includes(golden.adjudicatedOn),
+        !['2026-09-27', '2026-09-28', '2026-09-29'].includes(golden.adjudicatedOn),
     );
 
     expect(unreviewed.map((golden) => golden.id)).toEqual([]);
