@@ -29,11 +29,18 @@ Start with at least 200 deliberately distinct synthetic cases across the support
 
 Each case records source versions, complete input, expected per-check state, expected evidence, allowed alternatives, prohibited claims, rationale, reviewer, and adjudication date. Keep a frozen holdout set separate from development fixtures. De-identified historical cases require institutional authorization and a re-identification risk review; synthetic cases are the default.
 
-**Status (sprint S2, v0):**
-- The corpus holds 69 development cases across 17 rule families, plus 8 holdout cases.
+**Status (sprint S3):**
+- The corpus holds 113 development cases across 20 rule families. Holdout v0.2 (frozen 2026-09-29) holds 15 cases.
+- [`tests/golden/coverage-map.md`](../../tests/golden/coverage-map.md) lists each family's cases, the interactions covered, open gaps, and the path to the 200-case gate. It gives holdout counts only.
 - The format, layout, finding workflow and holdout rules are in `docs/standards/07-testing.md` §Golden corpus.
 - Every case is currently marked `pending-academic-review`. The 200-case gate and academic sign-off remain open for G1.
-- v0 surfaced two engine defects (#88, #89), both fixed before the sprint closed.
+- v0 surfaced two engine defects (#88, #89), both fixed in S2. S3 raised one finding, #183, settled by ruling GR-01 below.
+
+**Adjudication rulings.** When the planning docs leave a golden expectation open, the tech lead rules on the issue and records it here. A ruling is adopted for the synthetic prototype only. It needs academic-owner approval before G1, as every case does (planning/04 §Decision process).
+
+| ID | Question | Ruling | Evidence | Status | Revisit when |
+|---|---|---|---|---|---|
+| GR-01 (#183, 2026-09-29) | A rule with no minimum grade ("any passing completion") meets a completed pass/fail `P`. The policy sets `lowestPassingLetterGrade` and leaves `passSatisfiesMinimumGrade` null. Is it PASS or UNKNOWN? | **PASS.** A `P` is a passing completion in its own scheme. `lowestPassingLetterGrade` says which *letters* pass. It doesn't turn "any passing completion" into "C or better". `passSatisfiesMinimumGrade` and `PASS_EQUIVALENCE_UNDEFINED` apply only when the rule sets a letter minimum (AC19). An institution that needs C or better puts that minimum on the rule. A pass/fail `F` is still FAIL. | planning/08 §Candidate formation and allocation (a `P` is not a C *for a check that requires one*); `AcademicPolicySchema` field contracts (#69); AC19 | Adopted for prototype; pending academic review | An institution defines a `P` that is not a passing completion, or asks that "no minimum" mean its lowest passing letter for every scheme |
 
 ## Representative acceptance cases
 
