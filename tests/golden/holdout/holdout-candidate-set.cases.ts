@@ -17,6 +17,7 @@ import {
   FRESH_RECORD,
   type GoldenCase,
   GoldenRuleFamily,
+  loadPolicy,
   mustNot,
   planned,
   SYNTHETIC_COURSES,
@@ -90,11 +91,7 @@ export const HOLDOUT_CANDIDATE_SET_CASES: readonly GoldenCase[] = [
     requirementIds: ['FR-06', 'T04'],
     inputs: {
       selections: [planned(math101), planned(phys201), planned(math102), planned(ind390, 100)],
-      bounds: {
-        minCreditsHundredths: 1100,
-        maxCreditsHundredths: 1100,
-        sourceRef: 'demo-load-policy-fixed',
-      },
+      academicPolicy: loadPolicy(1100, 1100),
     },
     expected: [
       expectedCheck(CheckKind.CreditLoad, {

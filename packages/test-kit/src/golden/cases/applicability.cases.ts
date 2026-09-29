@@ -13,7 +13,13 @@ import { SYNTHETIC_COURSES } from '../../fixtures/synthetic-courses';
 import { type GoldenCase } from '../golden-case.schema';
 import { applicabilityCase } from '../golden-case-factories';
 import { expectedCheck, mustNot, NEVER_PASS_WHEN_UNKNOWN } from '../golden-expectations';
-import { auditRequirementRef, auditWith, FRESH_RECORD } from '../golden-inputs';
+import {
+  auditRequirementRef,
+  auditWith,
+  FRESH_RECORD,
+  pinnedRecord,
+  S3_ADJUDICATED_ON,
+} from '../golden-inputs';
 import { GoldenRuleFamily } from '../golden-rule-family';
 
 const MATH102 = SYNTHETIC_COURSES.math102.id;
@@ -30,6 +36,8 @@ const NOT_APPLIES = mustNot(
   'must not claim the course advances an outstanding requirement',
 );
 const ONE_HOUR_MS = 3_600_000;
+const CONSISTENCY =
+  'planning/07 §Consistency model (record newer than the audit → UNKNOWN; partner skew)';
 
 /** Applicability and stale-audit cases. The course placed is DEMO-MATH 102. */
 export const APPLICABILITY_CASES: readonly GoldenCase[] = [
@@ -191,15 +199,19 @@ export const APPLICABILITY_CASES: readonly GoldenCase[] = [
   applicabilityCase({
     id: 'GC-STALE-001',
     family: GoldenRuleFamily.AuditStale,
-    title: 'A record changed after the audit beyond the skew is unknown',
+    title: 'A record revised after the audit is unknown',
     requirementIds: ['FR-04', 'NFR-04', 'T03', 'AC10'],
     inputs: {
       courseId: MATH102,
       audit: auditWith({}),
-      freshness: {
-        studentRecordEffectiveAt: '2026-09-20T09:00:00.000-05:00',
-        maxSkewMs: ONE_HOUR_MS,
-      },
+      freshness: pinnedRecord(
+        {
+          sourceEffectiveAt: '2026-09-20T09:00:00.000-05:00',
+          ingestedAt: '2026-09-20T09:05:00.000-05:00',
+        },
+        ONE_HOUR_MS,
+        2,
+      ),
     },
     expected: [
       expectedCheck(APPLIES, { state: CheckState.Unknown, reasonCode: ReasonCode.AuditStale }),
@@ -209,8 +221,14 @@ export const APPLICABILITY_CASES: readonly GoldenCase[] = [
       mustNot(CheckState.Fail, 'must not decide from a mixed snapshot'),
     ],
     rationale:
-      "The record moved 90 minutes past the audit's record with 60 allowed; no mixed-snapshot validation.",
-    citations: ['planning/13 AC10', 'issue #56 (beyond maxSkew → AUDIT_STALE)'],
+      'The SIS record was revised (snapshot 2, 09:00) 90 minutes after the revision the audit ran against (snapshot 1, 07:30). The audit does not reflect the pinned record; no mixed-snapshot validation.',
+    citations: [
+      'planning/13 AC10',
+      CONSISTENCY,
+      'issue #56 (a record newer than the audit → AUDIT_STALE)',
+      'PR #123 (a later revision → AUDIT_STALE)',
+    ],
+    adjudicatedOn: S3_ADJUDICATED_ON,
   }),
   applicabilityCase({
     id: 'GC-STALE-002',
@@ -220,12 +238,20 @@ export const APPLICABILITY_CASES: readonly GoldenCase[] = [
     inputs: {
       courseId: MATH102,
       audit: auditWith({}),
-      freshness: { studentRecordEffectiveAt: '2026-09-20T13:30:00.000Z', maxSkewMs: ONE_HOUR_MS },
+      freshness: pinnedRecord(
+        { sourceEffectiveAt: '2026-09-20T13:30:00.000Z', ingestedAt: '2026-09-20T13:45:00.000Z' },
+        ONE_HOUR_MS,
+      ),
     },
     expected: [expectedCheck(APPLIES, { state: CheckState.Pass, reasonCode: null })],
     prohibitedClaims: [mustNot(CheckState.Unknown, 'must not call an audit stale within the skew')],
     rationale:
-      '13:30Z is 08:30-05:00, exactly 60 minutes after 07:30-05:00: not beyond the skew. Times are instants.',
-    citations: ['issue #56 (beyond maxSkew; compared as instants)', 'planning/13 AC10'],
+      "The audit ran against this snapshot. Its source time 13:30Z is 08:30-05:00, exactly 60 minutes after the audit's recorded 07:30-05:00: not beyond the skew. Times are instants.",
+    citations: [
+      'issue #56 (beyond maxSkew; compared as instants)',
+      CONSISTENCY,
+      'planning/13 AC10',
+    ],
+    adjudicatedOn: S3_ADJUDICATED_ON,
   }),
 ];

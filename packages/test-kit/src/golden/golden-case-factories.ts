@@ -7,17 +7,25 @@
 import { CheckKind } from '@caa/domain';
 
 import { defineGoldenCase, type GoldenCase, type GoldenCaseInput } from './golden-case.schema';
-import { AUDIT_SOURCES, GOLDEN_REVIEW, PREREQUISITE_SOURCES } from './golden-inputs';
+import {
+  AUDIT_SOURCES,
+  CREDIT_LOAD_SOURCES,
+  GOLDEN_REVIEW,
+  PREREQUISITE_SOURCES,
+} from './golden-inputs';
 
 /** Input of a case with a given check, as the schema accepts it. */
 type CaseOf<K extends GoldenCaseInput['check']> = Extract<GoldenCaseInput, { check: K }>;
 
-/** Fields a case author writes; the factory fills in the rest. */
+/**
+ * Fields a case author writes; the factory fills in the rest. `adjudicatedOn` defaults to the v0
+ * date; a case written or adjudicated again later states its own.
+ */
 type AuthoredCase<K extends GoldenCaseInput['check']> = Omit<
   CaseOf<K>,
   'check' | 'sourceVersions' | 'reviewer' | 'adjudicatedOn' | 'allowedAlternatives'
 > &
-  Partial<Pick<CaseOf<K>, 'allowedAlternatives' | 'sourceVersions'>>;
+  Partial<Pick<CaseOf<K>, 'allowedAlternatives' | 'sourceVersions' | 'adjudicatedOn'>>;
 
 /**
  * Defines a case that evaluates a prerequisite rule.
@@ -29,8 +37,8 @@ export function prerequisiteCase(authored: AuthoredCase<'PREREQUISITE'>): Golden
   return defineGoldenCase({
     allowedAlternatives: [],
     sourceVersions: [...PREREQUISITE_SOURCES],
-    ...authored,
     ...GOLDEN_REVIEW,
+    ...authored,
     check: CheckKind.Prerequisite,
   });
 }
@@ -45,8 +53,8 @@ export function applicabilityCase(authored: AuthoredCase<'REQUIREMENT_APPLICABIL
   return defineGoldenCase({
     allowedAlternatives: [],
     sourceVersions: [...AUDIT_SOURCES],
-    ...authored,
     ...GOLDEN_REVIEW,
+    ...authored,
     check: CheckKind.RequirementApplicability,
   });
 }
@@ -61,8 +69,8 @@ export function allocationCase(authored: AuthoredCase<'REQUIREMENT_ALLOCATION'>)
   return defineGoldenCase({
     allowedAlternatives: [],
     sourceVersions: [...AUDIT_SOURCES],
-    ...authored,
     ...GOLDEN_REVIEW,
+    ...authored,
     check: CheckKind.RequirementAllocation,
   });
 }
@@ -76,9 +84,9 @@ export function allocationCase(authored: AuthoredCase<'REQUIREMENT_ALLOCATION'>)
 export function creditLoadCase(authored: AuthoredCase<'CREDIT_LOAD'>): GoldenCase {
   return defineGoldenCase({
     allowedAlternatives: [],
-    sourceVersions: ['catalog SYNTHETIC_COURSES v0'],
-    ...authored,
+    sourceVersions: [...CREDIT_LOAD_SOURCES],
     ...GOLDEN_REVIEW,
+    ...authored,
     check: CheckKind.CreditLoad,
   });
 }

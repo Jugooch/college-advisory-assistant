@@ -12,7 +12,7 @@ import { resolveAttempts } from '@caa/engine';
 import {
   buildAcademicPolicy,
   GOLDEN_CATALOG,
-  GOLDEN_TERM_ORDER,
+  GOLDEN_TERM_CALENDAR,
   letter,
   pendingTransferAttempt,
   transferAwardedAttempt,
@@ -33,7 +33,7 @@ describe('AC03 pending transfer credit is not earned credit', () => {
   it('earns no credit while pending', () => {
     const [group] = resolveAttempts([pendingTransferAttempt()], GOLDEN_CATALOG, {
       academicPolicy: buildAcademicPolicy(),
-      termCodesOldestFirst: GOLDEN_TERM_ORDER,
+      termCalendar: GOLDEN_TERM_CALENDAR,
     });
 
     expect(group?.counting).toEqual({ state: CountingState.None, earnedCreditsHundredths: 0 });

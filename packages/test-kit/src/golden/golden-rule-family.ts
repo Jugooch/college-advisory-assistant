@@ -23,10 +23,16 @@ import { z } from 'zod';
  * - `UNSUPPORTED_RULE`: source rule text the app can't represent.
  * - `CATALOG_GAP`: a required or attempted course the catalog doesn't contain.
  * - `APPLICABILITY`: whether the audit lists a course for an outstanding requirement.
- * - `AUDIT_STALE`: an audit older than the student record beyond the allowed skew.
+ * - `AUDIT_STALE`: the pinned snapshot's time against the audit's record time, newer or older,
+ *   beyond or exactly at the allowed skew.
+ * - `AUDIT_RECORD_MISMATCH`: an audit run against another tenant's, student's, or snapshot
+ *   revision's record than the one pinned.
+ * - `PROGRAM_CATALOG`: a pinned record and audit that disagree on program or catalog, or a
+ *   record that states neither.
  * - `ALLOCATION`: candidate courses competing for audit requirements.
  * - `CREDIT_BOUNDS`: a candidate set's credit total against the load bounds.
  * - `VARIABLE_CREDIT`: a variable-credit course inside a candidate set.
+ * - `TERM_ORDER`: repeated attempts ordered by the tenant's term calendar.
  */
 export const GoldenRuleFamily = {
   MinimumGrade: 'MINIMUM_GRADE',
@@ -43,9 +49,12 @@ export const GoldenRuleFamily = {
   CatalogGap: 'CATALOG_GAP',
   Applicability: 'APPLICABILITY',
   AuditStale: 'AUDIT_STALE',
+  AuditRecordMismatch: 'AUDIT_RECORD_MISMATCH',
+  ProgramCatalog: 'PROGRAM_CATALOG',
   Allocation: 'ALLOCATION',
   CreditBounds: 'CREDIT_BOUNDS',
   VariableCredit: 'VARIABLE_CREDIT',
+  TermOrder: 'TERM_ORDER',
 } as const;
 
 /** Union of every {@link GoldenRuleFamily} value. */

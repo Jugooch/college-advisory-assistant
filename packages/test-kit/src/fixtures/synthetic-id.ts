@@ -15,7 +15,8 @@ export type SyntheticIdKind =
   | 'audit'
   | 'program'
   | 'equivalencyGroup'
-  | 'studentSnapshot';
+  | 'studentSnapshot'
+  | 'term';
 
 /** First UUID group per kind, so the kind is visible when an ID shows up in a failing test. */
 const KIND_PREFIX: Readonly<Record<SyntheticIdKind, string>> = {
@@ -29,6 +30,7 @@ const KIND_PREFIX: Readonly<Record<SyntheticIdKind, string>> = {
   program: '80000000',
   equivalencyGroup: '90000000',
   studentSnapshot: 'a0000000',
+  term: 'b0000000',
 };
 
 /** Largest seed that fits the 12-hex-digit final UUID group. */

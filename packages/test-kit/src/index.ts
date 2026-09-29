@@ -16,6 +16,8 @@ export * from './builders/requirement-result.builder';
 export * from './builders/roster-batch.builder';
 export * from './builders/roster-row.builder';
 export * from './builders/student.builder';
+export * from './builders/student-snapshot.builder';
+export * from './builders/term.builder';
 export * from './builders/user-identity.builder';
 export * from './fixtures/synthetic-courses';
 export * from './fixtures/synthetic-id';
