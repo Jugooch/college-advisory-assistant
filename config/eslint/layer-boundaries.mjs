@@ -6,6 +6,8 @@
  */
 import { builtinModules } from 'node:module';
 
+import { determinismBans } from './determinism.mjs';
+
 /** Packages that only the API and worker may import. */
 export const SERVER_ONLY = [
   '@caa/db',
@@ -43,31 +45,6 @@ const DOMAIN_NODE_BUILTIN_MESSAGE =
 const LOGIC_NODE_BUILTIN_MESSAGE =
   '.logic.ts is pure (ADR-0008): no Node built-ins, so no I/O, clock, or randomness.';
 
-/** Clock and randomness reads that make code nondeterministic (NFR-01). */
-const NONDETERMINISTIC_PROPERTIES = [
-  { object: 'Math', property: 'random', message: 'Pure code must be deterministic (NFR-01).' },
-  { object: 'Date', property: 'now', message: 'Pass the time in as an argument (NFR-01).' },
-];
-
-/** Globals that read the environment, the clock, or randomness without an import (NFR-01). */
-const NONDETERMINISTIC_GLOBALS = [
-  { name: 'process', message: 'Pure code reads no environment or process state (NFR-01).' },
-  { name: 'crypto', message: 'Pure code uses no randomness (NFR-01).' },
-  { name: 'performance', message: 'Pure code reads no clock; pass the time in (NFR-01).' },
-];
-
-/** `Date()` called without `new` returns the current time as a string. */
-const DATE_CALL = {
-  selector: "CallExpression[callee.name='Date']",
-  message: 'Date() reads the clock; pass the time in as an argument (NFR-01).',
-};
-
-/** `new Date()` (or `new Date`) with no arguments is the current time; `new Date(value)` is fine. */
-const NEW_DATE_NOW = {
-  selector: "NewExpression[callee.name='Date'][arguments.length=0]",
-  message: 'new Date() reads the clock; pass the time in as an argument (NFR-01).',
-};
-
 /** Syntax banned in every file (standards/02 and /04); blocks that add bans must repeat these. */
 export const LANGUAGE_SYNTAX_BANS = [
   {
@@ -78,14 +55,13 @@ export const LANGUAGE_SYNTAX_BANS = [
 ];
 
 /**
- * Clock, randomness, and environment bans for pure packages: the engine and the domain's shared
- * invariants (NFR-01, ADR-0005). Test files keep them too, like engine tests always have.
+ * Clock, timer, randomness, locale, environment, and unordered-sort bans for the engine and the
+ * domain's shared invariants (standards/01 §Determinism in pure code, NFR-01, ADR-0005).
  */
-const DETERMINISM_BANS = {
-  'no-restricted-properties': ['error', ...NONDETERMINISTIC_PROPERTIES],
-  'no-restricted-globals': ['error', ...NONDETERMINISTIC_GLOBALS],
-  'no-restricted-syntax': ['error', ...LANGUAGE_SYNTAX_BANS, DATE_CALL, NEW_DATE_NOW],
-};
+const DETERMINISM_BANS = determinismBans(
+  LANGUAGE_SYNTAX_BANS,
+  'new Date() reads the clock; pass the time in as an argument (NFR-01).',
+);
 
 /** Deployable apps; no workspace imports another app, by name or by subpath. */
 const APPS = ['api', 'web', 'worker'];
@@ -295,17 +271,10 @@ export const layerBoundaries = [
         ['@caa/api-contract'],
         'Logic may import only types from @caa/api-contract (ADR-0008).',
       ),
-      'no-restricted-properties': ['error', ...NONDETERMINISTIC_PROPERTIES],
-      'no-restricted-globals': ['error', ...NONDETERMINISTIC_GLOBALS],
-      'no-restricted-syntax': [
-        'error',
-        ...LANGUAGE_SYNTAX_BANS,
-        DATE_CALL,
-        {
-          selector: "NewExpression[callee.name='Date'][arguments.length=0]",
-          message: "Pass the time in from the service's injected clock.",
-        },
-      ],
+      ...determinismBans(
+        LANGUAGE_SYNTAX_BANS,
+        "Pass the time in from the service's injected clock.",
+      ),
     },
   },
   {
