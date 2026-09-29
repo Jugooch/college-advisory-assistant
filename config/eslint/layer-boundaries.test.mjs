@@ -159,10 +159,15 @@ describe('api .logic.ts files are pure (ADR-0008)', () => {
     ['Date.now()', 'NFR-01'],
     ['Math.random()', 'NFR-01'],
     ['new Date()', "service's injected clock"],
+    ['Date()', 'reads the clock'],
+    ['crypto.randomUUID()', 'no randomness'],
+    ['performance.now()', 'reads no clock'],
+    ['process.env.X', 'no environment'],
   ])('forbids %s', async (expression, message) => {
     const messages = await lintWithRules(LOGIC, `export const x = ${expression};`, [
       'no-restricted-properties',
       'no-restricted-syntax',
+      'no-restricted-globals',
     ]);
 
     expect(messages.join('\n')).toContain(message);
@@ -185,5 +190,31 @@ describe('api .logic.ts files are pure (ADR-0008)', () => {
     const statement = "import { decide } from './x.logic';";
 
     expect(await lintImport('apps/api/src/modules/x/x.service.ts', statement)).toEqual([]);
+  });
+});
+
+describe('engine production code reads no clock, randomness, or environment (NFR-01)', () => {
+  const ENGINE_SOURCE = 'packages/engine/src/verification/example.ts';
+  const RULES = ['no-restricted-properties', 'no-restricted-syntax', 'no-restricted-globals'];
+
+  it.each([
+    ['Date.now()', 'NFR-01'],
+    ['Math.random()', 'NFR-01'],
+    ['Date()', 'reads the clock'],
+    ['crypto.randomUUID()', 'no randomness'],
+    ['performance.now()', 'reads no clock'],
+    ['process.env.X', 'no environment'],
+  ])('forbids %s', async (expression, message) => {
+    const messages = await lintWithRules(ENGINE_SOURCE, `export const x = ${expression};`, RULES);
+
+    expect(messages.join('\n')).toContain(message);
+  });
+
+  it('allows parsing a given time and keeps the language syntax bans', async () => {
+    const allowed = await lintWithRules(ENGINE_SOURCE, 'export const at = new Date(value);', RULES);
+    const banned = await lintWithRules(ENGINE_SOURCE, 'enum Color { Red }', RULES);
+
+    expect(allowed).toEqual([]);
+    expect(banned.join('\n')).toContain('as const');
   });
 });

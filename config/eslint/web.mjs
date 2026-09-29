@@ -32,10 +32,21 @@ const SCHEMAS = {
   importNamePattern: 'Schema$',
   message: 'Pages and components import no schemas; parse in a util (standard 06 §Layers).',
 };
-/** Relative paths that climb out of a feature or `src/shared`. */
-const LEAVES_FOLDER = {
-  regex: String.raw`^(\.\./){2,}`,
-  message: 'Reach other folders through @/ aliases; features never import other features.',
+/**
+ * A `.` or `..` segment anywhere but the start of a path (`../../x`, `./../x`, `../a/../../x`,
+ * `@/shared/../lib/x`). With it banned, a relative import climbs at most one folder. Structure
+ * rules put every feature and shared file at least one folder below its feature or `src/shared`,
+ * so one `../` can't leave it, and alias paths can't dodge the folder bans.
+ */
+const DOT_SEGMENTS = {
+  regex: String.raw`^(?:\.\.?/(?:.*/)?|[^.].*/)\.\.?(?:/|$)`,
+  message:
+    'Relative imports climb at most one folder; reach other folders through @/ aliases (ADR-0007).',
+};
+/** Any `../` import, for folders whose files reach other folders only through @/ aliases. */
+const PARENT_RELATIVE = {
+  regex: String.raw`^\.\./`,
+  message: 'Import other folders through @/ aliases so the folder rules apply (ADR-0007).',
 };
 /** Frameworks that pure utils and server actions must not pull in. */
 const REACT = ['react', 'react-dom'];
@@ -57,7 +68,7 @@ function webForbid(extraGroups, message, extraPatterns = []) {
       [...SERVER_ONLY, 'fastify', ...otherApps('web')],
       'The web app reaches data only through the API.',
     ),
-    [DOMAIN_FUNCTIONS, ...folder, ...extraPatterns],
+    [DOMAIN_FUNCTIONS, DOT_SEGMENTS, ...folder, ...extraPatterns],
   );
 }
 
@@ -79,6 +90,7 @@ const folderImportRules = [
     webForbid(['@/lib/*', '@/features/*/hooks/*'], 'Pages use src/api, features, and shared.', [
       CONTRACT_FUNCTIONS,
       SCHEMAS,
+      PARENT_RELATIVE,
     ]),
   ),
   folderBlock(
@@ -86,7 +98,7 @@ const folderImportRules = [
     webForbid(
       ['@/api/*', '@/lib/*', '@/features/*', '../actions/*'],
       'Components receive data via props or hooks and never import actions (ADR-0007).',
-      [CONTRACT_FUNCTIONS, SCHEMAS, LEAVES_FOLDER],
+      [CONTRACT_FUNCTIONS, SCHEMAS],
     ),
   ),
   folderBlock(
@@ -94,7 +106,7 @@ const folderImportRules = [
     webForbid(
       ['@/lib/*', '@/features/*', '../actions/*', '../components/*'],
       'Hooks use src/api, shared utils, and their own utils.',
-      [CONTRACT_FUNCTIONS, LEAVES_FOLDER],
+      [CONTRACT_FUNCTIONS],
     ),
   ),
   folderBlock(
@@ -112,7 +124,7 @@ const folderImportRules = [
         '../actions/*',
       ],
       'Feature utils are pure helpers: no React, Next, API calls, or UI.',
-      [CONTRACT_FUNCTIONS, LEAVES_FOLDER],
+      [CONTRACT_FUNCTIONS],
     ),
   ),
   folderBlock(
@@ -120,7 +132,7 @@ const folderImportRules = [
     webForbid(
       [...REACT, '@/features/*', '@/shared/components/*', '../components/*', '../hooks/*'],
       'Server actions use src/api, src/lib, shared utils, and their own utils (ADR-0007).',
-      [CONTRACT_FUNCTIONS, LEAVES_FOLDER],
+      [CONTRACT_FUNCTIONS],
     ),
   ),
   folderBlock(
@@ -128,7 +140,7 @@ const folderImportRules = [
     webForbid(
       ['@/api/*', '@/lib/*', '@/features/*'],
       'Shared components know no feature and fetch nothing (ADR-0007).',
-      [CONTRACT_FUNCTIONS, SCHEMAS, LEAVES_FOLDER],
+      [CONTRACT_FUNCTIONS, SCHEMAS],
     ),
   ),
   folderBlock(
@@ -144,7 +156,7 @@ const folderImportRules = [
         '../components/*',
       ],
       'Shared utils are pure helpers that know no feature (ADR-0007).',
-      [CONTRACT_FUNCTIONS, LEAVES_FOLDER],
+      [CONTRACT_FUNCTIONS],
     ),
   ),
   folderBlock(
@@ -154,6 +166,7 @@ const folderImportRules = [
         regex: '^@/(?!components/ui/)',
         message: 'components/ui imports only other components/ui files (ADR-0007).',
       },
+      PARENT_RELATIVE,
     ]),
   ),
   folderBlock(
@@ -161,6 +174,7 @@ const folderImportRules = [
     webForbid(
       ['@/features/*', '@/shared/*', '@/components/*', ...REACT],
       'src/api holds backend calls only.',
+      [PARENT_RELATIVE],
     ),
   ),
   folderBlock(
@@ -168,6 +182,7 @@ const folderImportRules = [
     webForbid(
       ['@/api/*', '@/features/*', '@/shared/*', '@/components/*', ...REACT],
       'src/lib is server infrastructure: the API client and the session cookie.',
+      [PARENT_RELATIVE],
     ),
   ),
 ];

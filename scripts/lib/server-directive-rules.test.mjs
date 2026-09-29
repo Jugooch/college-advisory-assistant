@@ -21,6 +21,12 @@ describe('checkServerDirective', () => {
     expect(checkServerDirective(ACTION, source)).toBeNull();
   });
 
+  it('accepts a trailing line comment after the directive', () => {
+    const source = `${HEADER}'use server'; // server actions\nexport async function a() {}\n`;
+
+    expect(checkServerDirective(ACTION, source)).toBeNull();
+  });
+
   it('rejects an action file without the directive', () => {
     const source = `${HEADER}import { redirect } from 'next/navigation';\n`;
 

@@ -42,6 +42,19 @@ const NONDETERMINISTIC_PROPERTIES = [
   { object: 'Date', property: 'now', message: 'Pass the time in as an argument (NFR-01).' },
 ];
 
+/** Globals that read the environment, the clock, or randomness without an import (NFR-01). */
+const NONDETERMINISTIC_GLOBALS = [
+  { name: 'process', message: 'Pure code reads no environment or process state (NFR-01).' },
+  { name: 'crypto', message: 'Pure code uses no randomness (NFR-01).' },
+  { name: 'performance', message: 'Pure code reads no clock; pass the time in (NFR-01).' },
+];
+
+/** `Date()` called without `new` returns the current time as a string. */
+const DATE_CALL = {
+  selector: "CallExpression[callee.name='Date']",
+  message: 'Date() reads the clock; pass the time in as an argument (NFR-01).',
+};
+
 /** Syntax banned in every file (standards/02 and /04); blocks that add bans must repeat these. */
 export const LANGUAGE_SYNTAX_BANS = [
   {
@@ -139,6 +152,8 @@ export const layerBoundaries = [
         { paths: NODE_BUILTINS, regex: NODE_PREFIX, message: NODE_BUILTIN_MESSAGE },
       ),
       'no-restricted-properties': ['error', ...NONDETERMINISTIC_PROPERTIES],
+      'no-restricted-globals': ['error', ...NONDETERMINISTIC_GLOBALS],
+      'no-restricted-syntax': ['error', ...LANGUAGE_SYNTAX_BANS, DATE_CALL],
     },
   },
   {
@@ -237,9 +252,11 @@ export const layerBoundaries = [
         ],
       ),
       'no-restricted-properties': ['error', ...NONDETERMINISTIC_PROPERTIES],
+      'no-restricted-globals': ['error', ...NONDETERMINISTIC_GLOBALS],
       'no-restricted-syntax': [
         'error',
         ...LANGUAGE_SYNTAX_BANS,
+        DATE_CALL,
         {
           selector: "NewExpression[callee.name='Date'][arguments.length=0]",
           message: "Pass the time in from the service's injected clock.",

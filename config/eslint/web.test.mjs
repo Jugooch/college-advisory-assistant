@@ -171,3 +171,36 @@ describe('web-wide bans stay in every folder block', () => {
     expect(await lintImport(path, named('createCourse', '@caa/domain'))).toEqual([]);
   });
 });
+
+describe('relative paths cannot bypass the folder rules', () => {
+  it.each([
+    ['apps/web/src/app/overview/page.tsx', named('readSessionToken', '../../lib/session-cookie')],
+    [
+      'apps/web/src/components/ui/status-badge.tsx',
+      named('describeReason', '../../shared/utils/reason-code-wording'),
+    ],
+    ['apps/web/src/api/session.api.ts', named('x', '../shared/utils/x')],
+    ['apps/web/src/api/session.api.ts', named('y', '../features/x/utils/y')],
+    ['apps/web/src/lib/session-cookie.ts', named('x', '../shared/utils/x')],
+    ['apps/web/src/lib/session-cookie.ts', named('y', '../features/x/utils/y')],
+    ['apps/web/src/app/overview/page.tsx', named('x', '../x')],
+    ['apps/web/src/features/x/components/y.tsx', named('z', './../../lib/api-client')],
+    ['apps/web/src/features/x/components/y.tsx', named('z', '../utils/../../../lib/api-client')],
+    ['apps/web/src/features/x/components/y.tsx', named('z', '@/shared/../lib/api-client')],
+    ['apps/web/src/shared/utils/x.ts', named('y', '../../lib/api-client')],
+    ['apps/web/src/features/x/hooks/use-y.ts', named('z', '../../z/utils/w')],
+  ])('forbids %s importing %s', async (path, statement) => {
+    expect(await lintImport(path, statement)).not.toEqual([]);
+  });
+
+  it.each([
+    ['apps/web/src/components/ui/status-badge.tsx', named('x', './other')],
+    ['apps/web/src/lib/api-client.ts', named('x', './session-cookie')],
+    ['apps/web/src/app/layout.tsx', "import './globals.css';"],
+    ['apps/web/src/features/x/components/y.tsx', named('z', '../utils/z')],
+    ['apps/web/src/features/x/components/y.tsx', named('z', './z')],
+    ['apps/web/src/shared/components/x.tsx', named('y', '../utils/y')],
+  ])('allows %s importing %s', async (path, statement) => {
+    expect(await lintImport(path, statement)).toEqual([]);
+  });
+});
