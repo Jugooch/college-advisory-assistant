@@ -37,6 +37,8 @@ SHALL statements are proposed acceptance requirements. Must requirements block s
 | NFR-09 | Achieve 99.5% monthly app availability during the pilot, measured independently of source freshness | Target | T09 monitoring |
 | NFR-10 | Target restoration within 8 hours and ≤24 hours data loss for app-owned state | Target | T09 restore drill |
 
+_Decision note (2026-09-29, ADR-0010, #209; change control per planning/04):_ NFR-07's "configured 15-second budget" is met by a fixed work cap, not a clock. A wall-clock cutoff would let identical pinned inputs give different results under load, which breaks NFR-01. The solver counts its search attempts and stops at a cap that is passed in and pinned in the result. The default is calibrated so that the worst S4 input finishes in 2 seconds or less. A capped search is reported as "search incomplete", or as SEARCH_TIMEOUT when it found no candidate (AC12), and never as infeasible. Approved by the repo owner for the synthetic prototype; institutional approval is pending.
+
 ## Traceability from business goals
 
 | Goal | Requirements | Main risks | Release evidence |
