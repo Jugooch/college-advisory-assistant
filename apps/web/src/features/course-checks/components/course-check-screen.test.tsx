@@ -8,10 +8,14 @@ import { ApiError, type CourseChecksResponse, CourseChecksResponseSchema } from 
 import { AggregateState, CheckKind, CheckState, ErrorCode, ReasonCode } from '@caa/domain';
 import { buildCheckResult, SYNTHETIC_COURSES, syntheticId } from '@caa/test-kit';
 
+import { indexCourses } from '@/shared/utils/course-display';
+
 import type { CourseCheckView } from '../utils/course-check-view';
+import type { CreditChoices } from '../utils/credit-choice';
 import { CourseCheckScreen } from './course-check-screen';
 
 const STUDENT_ID = syntheticId('student', 1);
+const NO_CREDITS: CreditChoices = { inputs: new Map(), errors: new Map() };
 const { math101, math102 } = SYNTHETIC_COURSES;
 
 /** A NEEDS_VERIFICATION result for two courses that are also picker candidates. */
@@ -75,6 +79,8 @@ describe('CourseCheckScreen', () => {
       candidates: CANDIDATES,
       isCandidateListUnavailable: false,
       selectionError: 'Choose at least one course.',
+      courses: indexCourses(),
+      credits: NO_CREDITS,
     };
 
     const html = renderToStaticMarkup(
@@ -97,6 +103,8 @@ describe('CourseCheckScreen', () => {
       candidates: [{ courseId: math101.id, requirementLabels: [] }],
       isCandidateListUnavailable: true,
       selectionError: null,
+      courses: indexCourses(),
+      credits: NO_CREDITS,
     };
 
     const html = renderToStaticMarkup(

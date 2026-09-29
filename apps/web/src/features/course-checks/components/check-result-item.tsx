@@ -13,6 +13,7 @@ import type { CheckResult } from '@caa/domain';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { ReasonExplanation } from '@/shared/components/reason-explanation';
 import { describeCheckState } from '@/shared/utils/check-state-wording';
+import type { CourseLookup } from '@/shared/utils/course-display';
 
 import { CheckEvidence } from './check-evidence';
 
@@ -24,15 +25,22 @@ export interface CheckResultItemProps {
   readonly check: CheckResult | null;
   /** The as-of text a PASS holds for. */
   readonly asOf: string;
+  /** Catalog display entries by course ID, to name the courses in the evidence. */
+  readonly courses: CourseLookup;
 }
 
 /**
  * Renders one dimension as a list item with its own heading.
  *
- * @param props - The dimension, its check, and the as-of text.
+ * @param props - The dimension, its check, the as-of text, and the display entries.
  * @returns The list item.
  */
-export function CheckResultItem({ dimension, check, asOf }: CheckResultItemProps): ReactElement {
+export function CheckResultItem({
+  dimension,
+  check,
+  asOf,
+  courses,
+}: CheckResultItemProps): ReactElement {
   if (check === null) {
     return (
       <li className="check">
@@ -48,7 +56,7 @@ export function CheckResultItem({ dimension, check, asOf }: CheckResultItemProps
       <h4>{dimension}</h4>
       <StatusBadge label={display.label} tone={display.tone} />
       {check.reasonCode === undefined ? null : <ReasonExplanation code={check.reasonCode} />}
-      <CheckEvidence dimension={dimension} check={check} />
+      <CheckEvidence dimension={dimension} check={check} courses={courses} />
     </li>
   );
 }

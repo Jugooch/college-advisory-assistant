@@ -13,7 +13,9 @@ import type { ReactElement } from 'react';
 import type { CourseChecksResponse } from '@caa/api-contract';
 
 import { StatusBadge } from '@/components/ui/status-badge';
+import { CourseLabel } from '@/shared/components/course-label';
 import { describeAggregate } from '@/shared/utils/check-state-wording';
+import type { CourseLookup } from '@/shared/utils/course-display';
 
 import { describeAsOf } from '../utils/decisive-leaf-wording';
 import { CheckResultItem } from './check-result-item';
@@ -21,15 +23,55 @@ import { CheckResultItem } from './check-result-item';
 /** Props for {@link CourseCheckResults}. */
 export interface CourseCheckResultsProps {
   readonly result: CourseChecksResponse;
+  /** Catalog display entries by course ID, to name every course shown. */
+  readonly courses: CourseLookup;
+}
+
+/** Props for the per-course section. */
+interface CourseResultProps {
+  readonly course: CourseChecksResponse['courseResults'][number];
+  readonly asOf: string;
+  readonly courses: CourseLookup;
+}
+
+/**
+ * Renders one course's dimensions under its catalog name.
+ *
+ * @param props - The course result, the as-of text, and the display entries.
+ * @returns The course section.
+ */
+function CourseResult({ course, asOf, courses }: CourseResultProps): ReactElement {
+  const headingId = `result-course-${course.courseId}`;
+  return (
+    <section aria-labelledby={headingId}>
+      <h3 id={headingId}>
+        <CourseLabel courseId={course.courseId} courses={courses} />
+      </h3>
+      <ul className="check-list">
+        <CheckResultItem
+          dimension="Prerequisite"
+          check={course.prerequisite}
+          asOf={asOf}
+          courses={courses}
+        />
+        <CheckResultItem
+          dimension="Requirement applicability"
+          check={course.applicability}
+          asOf={asOf}
+          courses={courses}
+        />
+      </ul>
+    </section>
+  );
 }
 
 /**
  * Renders every result exactly as the API returned it.
  *
- * @param props - The course-checks response.
+ * @param props - The course-checks response and the display entries.
  * @returns The results section.
  */
-export function CourseCheckResults({ result }: CourseCheckResultsProps): ReactElement {
+export function CourseCheckResults({ result, courses }: CourseCheckResultsProps): ReactElement {
   const { pinnedInputs: pinned, setResults } = result;
   const asOf = describeAsOf(pinned);
   const aggregate = describeAggregate(result.aggregate);
@@ -49,19 +91,7 @@ export function CourseCheckResults({ result }: CourseCheckResultsProps): ReactEl
         .
       </p>
       {result.courseResults.map((course) => (
-        <section key={course.courseId} aria-labelledby={`result-course-${course.courseId}`}>
-          <h3 id={`result-course-${course.courseId}`}>
-            Course <code>{course.courseId}</code>
-          </h3>
-          <ul className="check-list">
-            <CheckResultItem dimension="Prerequisite" check={course.prerequisite} asOf={asOf} />
-            <CheckResultItem
-              dimension="Requirement applicability"
-              check={course.applicability}
-              asOf={asOf}
-            />
-          </ul>
-        </section>
+        <CourseResult key={course.courseId} course={course} asOf={asOf} courses={courses} />
       ))}
       <section aria-labelledby="set-heading">
         <h3 id="set-heading">The courses together</h3>
@@ -76,9 +106,15 @@ export function CourseCheckResults({ result }: CourseCheckResultsProps): ReactEl
               }
               check={check}
               asOf={asOf}
+              courses={courses}
             />
           ))}
-          <CheckResultItem dimension="Credit load" check={setResults.creditLoad} asOf={asOf} />
+          <CheckResultItem
+            dimension="Credit load"
+            check={setResults.creditLoad}
+            asOf={asOf}
+            courses={courses}
+          />
         </ul>
       </section>
     </section>

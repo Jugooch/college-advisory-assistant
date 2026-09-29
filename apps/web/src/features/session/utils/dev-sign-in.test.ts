@@ -3,7 +3,9 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { isDevSignInEnabled, parseDevToken } from './dev-sign-in';
+import { AuthMode } from '@caa/domain';
+
+import { isDevSignInEnabled, isDevSignInOffered, parseDevToken } from './dev-sign-in';
 
 /**
  * Builds a submitted form with one token field.
@@ -25,6 +27,20 @@ describe('isDevSignInEnabled', () => {
 
   it('is disabled in production builds', () => {
     expect(isDevSignInEnabled('production')).toBe(false);
+  });
+});
+
+describe('isDevSignInOffered', () => {
+  it('is offered in a development build whose API reports dev mode', () => {
+    expect(isDevSignInOffered('development', AuthMode.Dev)).toBe(true);
+  });
+
+  it.each([
+    ['development', AuthMode.None],
+    ['development', undefined],
+    ['production', AuthMode.Dev],
+  ])('is not offered for a %s build with mode %j', (nodeEnv, authMode) => {
+    expect(isDevSignInOffered(nodeEnv, authMode)).toBe(false);
   });
 });
 

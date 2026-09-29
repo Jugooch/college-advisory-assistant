@@ -7,6 +7,7 @@
  */
 import type { CreditLoadEvidence, DecisiveLeaf, Grade } from '@caa/domain';
 
+import { type CourseLookup, describeCourse } from '@/shared/utils/course-display';
 import { formatCredits, formatTimestamp } from '@/shared/utils/format-display';
 
 /**
@@ -30,15 +31,16 @@ function describeRequiredGrade(grade: Grade): string {
  * Describes what one decisive leaf requires.
  *
  * @param leaf - A decisive leaf from check evidence.
- * @returns For example `Requires C or higher in course <id>`.
+ * @param courses - Catalog display entries by course ID.
+ * @returns For example `Requires C or higher in DEMO-MATH 101`.
  */
-export function describeLeaf(leaf: DecisiveLeaf): string {
+export function describeLeaf(leaf: DecisiveLeaf, courses: CourseLookup): string {
   if (leaf.type === 'UNSUPPORTED') {
     return `Rule text the planner can’t interpret: “${leaf.sourceText}”`;
   }
   const grade =
     leaf.requiredGrade === null ? 'a passing grade' : describeRequiredGrade(leaf.requiredGrade);
-  return `Requires ${grade} in course ${leaf.courseId}`;
+  return `Requires ${grade} in ${describeCourse(leaf.courseId, courses)}`;
 }
 
 /**

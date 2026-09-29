@@ -11,9 +11,11 @@ import type { ReactElement } from 'react';
 import type { AcademicSummaryResponse } from '@caa/api-contract';
 
 import { StatusBadge } from '@/components/ui/status-badge';
+import type { CourseLookup } from '@/shared/utils/course-display';
 
 import { describeRequirementState } from '../utils/requirement-state-wording';
 import type { RequirementNode } from '../utils/requirement-tree';
+import { CandidateCourseList } from './candidate-course-list';
 import { RequirementRemaining } from './requirement-remaining';
 
 /** Props for {@link RequirementTreeItem}. */
@@ -23,18 +25,21 @@ export interface RequirementTreeItemProps {
   readonly audit: NonNullable<AcademicSummaryResponse['audit']>;
   /** Whether every state must be shown as needing verification. */
   readonly isUnverified: boolean;
+  /** Catalog display entries by course ID, to name the candidate courses. */
+  readonly courses: CourseLookup;
 }
 
 /**
  * Renders one requirement and, nested, its children.
  *
- * @param props - The node, its audit, and the verification flag.
+ * @param props - The node, its audit, the verification flag, and the display entries.
  * @returns The list item.
  */
 export function RequirementTreeItem({
   node,
   audit,
   isUnverified,
+  courses,
 }: RequirementTreeItemProps): ReactElement {
   const { requirement, children } = node;
   const display = describeRequirementState(requirement.state, {
@@ -63,7 +68,9 @@ export function RequirementTreeItem({
             <code>{requirement.sourceRef}</code>
           </dd>
           <dt>Courses the audit lists for it</dt>
-          <dd>{requirement.candidateCourseIds.length}</dd>
+          <dd>
+            <CandidateCourseList courseIds={requirement.candidateCourseIds} courses={courses} />
+          </dd>
         </dl>
       </details>
       {children.length === 0 ? null : (
@@ -74,6 +81,7 @@ export function RequirementTreeItem({
               node={child}
               audit={audit}
               isUnverified={isUnverified}
+              courses={courses}
             />
           ))}
         </ul>

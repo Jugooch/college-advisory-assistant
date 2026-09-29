@@ -8,6 +8,8 @@ import type { ReactElement } from 'react';
 
 import type { AcademicSummaryResponse } from '@caa/api-contract';
 
+import { indexCourses } from '@/shared/utils/course-display';
+
 import { isStandingUnverified } from '../utils/requirement-state-wording';
 import { buildRequirementTree } from '../utils/requirement-tree';
 import { RequirementTable } from './requirement-table';
@@ -30,6 +32,7 @@ export function RequirementOverview({ summary }: RequirementOverviewProps): Reac
     return null;
   }
   const isUnverified = isStandingUnverified(summary);
+  const courses = indexCourses(summary.courses);
   return (
     <section aria-labelledby="requirements-heading">
       <h2 id="requirements-heading">Degree requirements</h2>
@@ -44,6 +47,7 @@ export function RequirementOverview({ summary }: RequirementOverviewProps): Reac
             node={node}
             audit={audit}
             isUnverified={isUnverified}
+            courses={courses}
           />
         ))}
       </ul>

@@ -7,11 +7,12 @@ import { describe, expect, it } from 'vitest';
 
 import { type AcademicSummaryResponse, AcademicSummaryResponseSchema } from '@caa/api-contract';
 import { CheckState, ReasonCode, RequirementState } from '@caa/domain';
-import { buildRequirementResult, syntheticId } from '@caa/test-kit';
+import { buildRequirementResult, SYNTHETIC_COURSES, syntheticId } from '@caa/test-kit';
 
 import { RequirementOverview } from './requirement-overview';
 
 const PROGRAM_ID = syntheticId('program', 1);
+const { math101, math102 } = SYNTHETIC_COURSES;
 
 /**
  * Builds a contract-valid summary with a two-level requirement tree.
@@ -48,10 +49,22 @@ function treeSummary(
           state: RequirementState.Complete,
           remainingCreditsHundredths: 0,
           remainingCourseCount: 0,
+          candidateCourseIds: [math101.id, math102.id],
         },
         2,
       ),
-      buildRequirementResult({ label: 'Calculus II', parentSourceRequirementId: 'REQ-001' }, 3),
+      buildRequirementResult(
+        { label: 'Calculus II', parentSourceRequirementId: 'REQ-001', candidateCourseIds: [] },
+        3,
+      ),
+    ],
+    courses: [
+      {
+        courseId: math101.id,
+        code: 'DEMO-MATH 101',
+        title: 'Demo Calculus I',
+        credits: { kind: 'FIXED', creditsHundredths: 300 },
+      },
     ],
   });
 }
@@ -84,6 +97,18 @@ describe('RequirementOverview', () => {
 
     expect(html).toContain('<summary>Evidence for Calculus I</summary>');
     expect(html).toContain('<code>demo-audit/REQ-002</code>');
+  });
+
+  it('lists the courses the audit names by catalog code, or by ID when there is no entry', () => {
+    const summary = treeSummary({ state: CheckState.Pass, reasonCode: null });
+
+    const html = renderToStaticMarkup(<RequirementOverview summary={summary} />);
+
+    expect(html).toContain(
+      '<dt>Courses the audit lists for it</dt><dd><ul><li>DEMO-MATH 101 (Demo Calculus I)</li>' +
+        `<li>Course <code>${math102.id}</code> (no catalog details available)</li></ul></dd>`,
+    );
+    expect(html).toContain('<dt>Courses the audit lists for it</dt><dd>None</dd>');
   });
 
   it('shows every state as needing verification when the audit is stale', () => {

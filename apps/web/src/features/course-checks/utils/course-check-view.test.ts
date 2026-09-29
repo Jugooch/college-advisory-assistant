@@ -18,12 +18,17 @@ import {
   syntheticId,
 } from '@caa/test-kit';
 
+import { planCheckRequest } from './check-request-plan';
 import { type CourseCheckQuery, readCourseCheckQuery } from './course-check-query';
-import { planCourseCheckView } from './course-check-view';
+import {
+  type CourseCheckView,
+  CREDIT_ERROR_SUMMARY,
+  planCourseCheckView,
+} from './course-check-view';
 
 const STUDENT_ID = syntheticId('student', 1);
 const PROGRAM_ID = syntheticId('program', 1);
-const { math101, math102 } = SYNTHETIC_COURSES;
+const { math101, math102, ind390 } = SYNTHETIC_COURSES;
 
 const SUMMARY: AcademicSummaryResponse = AcademicSummaryResponseSchema.parse({
   student: { id: STUDENT_ID, sourceStudentId: 'SYN-000001' },
@@ -42,7 +47,17 @@ const SUMMARY: AcademicSummaryResponse = AcademicSummaryResponseSchema.parse({
   },
   auditReflectsRecord: { state: CheckState.Pass, reasonCode: null },
   programCatalogConsistency: { state: CheckState.Pass, reasonCode: null },
-  requirements: [buildRequirementResult({ label: 'Core', candidateCourseIds: [math102.id] })],
+  requirements: [
+    buildRequirementResult({ label: 'Core', candidateCourseIds: [math102.id, ind390.id] }),
+  ],
+  courses: [
+    {
+      courseId: ind390.id,
+      code: 'DEMO-IND 390',
+      title: null,
+      credits: { kind: 'VARIABLE', minCreditsHundredths: 100, maxCreditsHundredths: 300 },
+    },
+  ],
 });
 
 const RESULT: CourseChecksResponse = CourseChecksResponseSchema.parse({
@@ -77,6 +92,14 @@ const RESULT: CourseChecksResponse = CourseChecksResponseSchema.parse({
     auditVersion: 'audit_demo_r7',
     rulesetVersion: 'demo-2026.1',
   },
+  courses: [
+    {
+      courseId: math101.id,
+      code: 'DEMO-MATH 101',
+      title: null,
+      credits: { kind: 'FIXED', creditsHundredths: 300 },
+    },
+  ],
 });
 
 const UNAVAILABLE = new ApiError({
@@ -91,20 +114,44 @@ const CHECKED: CourseCheckQuery = readCourseCheckQuery({
   course: math101.id,
 });
 
+/**
+ * Plans the view with the request the page would plan from the same query and summary.
+ *
+ * @param query - The parsed query.
+ * @param summary - The summary outcome.
+ * @param result - The check outcome.
+ * @returns The view.
+ */
+function plan(
+  query: CourseCheckQuery,
+  summary: AcademicSummaryResponse | ApiError,
+  result: CourseChecksResponse | ApiError | null,
+): CourseCheckView {
+  return planCourseCheckView({ query, summary, plan: planCheckRequest(query, summary), result });
+}
+
 describe('planCourseCheckView', () => {
   it('shows results and offers the audit candidates when both calls succeed', () => {
-    expect(planCourseCheckView({ query: CHECKED, summary: SUMMARY, result: RESULT })).toEqual({
+    expect(plan(CHECKED, SUMMARY, RESULT)).toMatchObject({
       result: RESULT,
       resultError: null,
       summaryError: null,
-      candidates: [{ courseId: math102.id, requirementLabels: ['Core'] }],
+      candidates: [{ courseId: math102.id, requirementLabels: ['Core'] }, { courseId: ind390.id }],
       isCandidateListUnavailable: false,
       selectionError: null,
     });
   });
 
+  it('names courses from both responses, so checked and candidate courses show their codes', () => {
+    const { courses } = plan(CHECKED, SUMMARY, RESULT);
+
+    expect(courses.get(math101.id)?.code).toBe('DEMO-MATH 101');
+    expect(courses.get(ind390.id)?.code).toBe('DEMO-IND 390');
+    expect(courses.has(math102.id)).toBe(false);
+  });
+
   it('shows the summary error beside the results and offers the checked courses again', () => {
-    expect(planCourseCheckView({ query: CHECKED, summary: UNAVAILABLE, result: RESULT })).toEqual({
+    expect(plan(CHECKED, UNAVAILABLE, RESULT)).toMatchObject({
       result: RESULT,
       resultError: null,
       summaryError: UNAVAILABLE,
@@ -115,15 +162,17 @@ describe('planCourseCheckView', () => {
   });
 
   it('shows the check error and still offers the audit candidates', () => {
-    expect(
-      planCourseCheckView({ query: CHECKED, summary: SUMMARY, result: UNAVAILABLE }),
-    ).toMatchObject({ result: null, resultError: UNAVAILABLE, summaryError: null });
+    expect(plan(CHECKED, SUMMARY, UNAVAILABLE)).toMatchObject({
+      result: null,
+      resultError: UNAVAILABLE,
+      summaryError: null,
+    });
   });
 
   it('shows no results and no candidates when the summary fails before any check', () => {
     const query = readCourseCheckQuery({ studentId: STUDENT_ID });
 
-    expect(planCourseCheckView({ query, summary: UNAVAILABLE, result: null })).toEqual({
+    expect(plan(query, UNAVAILABLE, null)).toMatchObject({
       result: null,
       resultError: null,
       summaryError: UNAVAILABLE,
@@ -136,8 +185,20 @@ describe('planCourseCheckView', () => {
   it('passes the selection error to the picker', () => {
     const query = readCourseCheckQuery({ studentId: STUDENT_ID, submitted: '1' });
 
-    expect(planCourseCheckView({ query, summary: SUMMARY, result: null }).selectionError).toBe(
-      'Choose at least one course.',
-    );
+    expect(plan(query, SUMMARY, null).selectionError).toBe('Choose at least one course.');
+  });
+
+  it('asks for the credit value to be fixed and keeps the typed text and its error', () => {
+    const query = readCourseCheckQuery({
+      studentId: STUDENT_ID,
+      course: ind390.id,
+      [`credits-${ind390.id}`]: '5',
+    });
+
+    const view = plan(query, SUMMARY, null);
+
+    expect(view.selectionError).toBe(CREDIT_ERROR_SUMMARY);
+    expect(view.credits.inputs.get(ind390.id)).toBe('5');
+    expect(view.credits.errors.get(ind390.id)).toBe('Enter a number from 1 to 3.');
   });
 });

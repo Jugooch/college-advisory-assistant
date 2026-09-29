@@ -17,6 +17,27 @@ export interface RecordDetailsProps {
 
 const NOT_STATED = 'Not stated in your record';
 
+/** Props for {@link ProgramName}. */
+interface ProgramNameProps {
+  readonly programId: string;
+  /** The catalog name, or null or absent when the API didn't supply one. */
+  readonly programName: string | null | undefined;
+}
+
+/**
+ * Names a program by its catalog name, or by its ID when no name was supplied.
+ *
+ * @param props - The program ID and its name.
+ * @returns The name, or the ID as code.
+ */
+function ProgramName({ programId, programName }: ProgramNameProps): ReactElement {
+  return programName === null || programName === undefined ? (
+    <code>{programId}</code>
+  ) : (
+    <>{programName}</>
+  );
+}
+
 /**
  * Renders the record and audit facts as a description list.
  *
@@ -34,7 +55,13 @@ export function RecordDetails({ summary }: RecordDetailsProps): ReactElement {
           <code>{summary.student.sourceStudentId}</code>
         </dd>
         <dt>Program in your record</dt>
-        <dd>{record.programId === null ? NOT_STATED : <code>{record.programId}</code>}</dd>
+        <dd>
+          {record.programId === null ? (
+            NOT_STATED
+          ) : (
+            <ProgramName programId={record.programId} programName={record.programName} />
+          )}
+        </dd>
         <dt>Catalog in your record</dt>
         <dd>{record.catalogYear ?? NOT_STATED}</dd>
         <dt>Record data as of</dt>
@@ -52,7 +79,8 @@ export function RecordDetails({ summary }: RecordDetailsProps): ReactElement {
             </dd>
             <dt>Program and catalog in the audit</dt>
             <dd>
-              <code>{audit.programId}</code>, catalog {audit.catalogYear}
+              <ProgramName programId={audit.programId} programName={audit.programName} />, catalog{' '}
+              {audit.catalogYear}
             </dd>
           </>
         )}

@@ -16,7 +16,24 @@ describe('readCourseCheckQuery', () => {
       student: { kind: 'valid', studentId: STUDENT_ID },
       selectedCourseIds: [],
       selection: { kind: 'not-submitted' },
+      creditInputs: new Map(),
     });
+  });
+
+  it('reads typed credit values by course, joining a repeated field so it fails parsing', () => {
+    const query = readCourseCheckQuery({
+      studentId: STUDENT_ID,
+      course: math101.id,
+      [`credits-${math101.id}`]: '2.5',
+      [`credits-${math102.id}`]: ['1', '2'],
+    });
+
+    expect(query.creditInputs).toEqual(
+      new Map([
+        [math101.id, '2.5'],
+        [math102.id, '1,2'],
+      ]),
+    );
   });
 
   it('reports an empty submission when the picker was submitted with nothing selected', () => {

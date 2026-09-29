@@ -1,8 +1,10 @@
 /**
- * @file Home page: API status, who is signed in, and a way to open a student record.
+ * @file Home page: API status, who is signed in, and a way to open a student record. A student
+ * whose sign-in is linked to a record goes straight to their own overview.
  * @module @caa/web/app/page
  * @requirement FR-01
  */
+import { redirect } from 'next/navigation';
 import type { ReactElement } from 'react';
 
 import { ApiError } from '@caa/api-contract';
@@ -11,7 +13,8 @@ import { getHealth } from '@/api/health.api';
 import { getMe } from '@/api/session.api';
 import { type SessionOutcome, SessionStatus } from '@/features/session/components/session-status';
 import { StudentLookupForm } from '@/features/session/components/student-lookup-form';
-import { isDevSignInEnabled } from '@/features/session/utils/dev-sign-in';
+import { isDevSignInOffered } from '@/features/session/utils/dev-sign-in';
+import { ownOverviewPath } from '@/features/session/utils/own-record';
 import { SystemStatusCard } from '@/features/system-status/components/system-status-card';
 
 /** Render on every request so the status is always current. */
@@ -31,13 +34,18 @@ async function loadSession(): Promise<SessionOutcome> {
 }
 
 /**
- * Renders the home page.
+ * Renders the home page, or sends a signed-in student with a linked record to their overview.
  *
  * @returns The page element.
  */
 export default async function HomePage(): Promise<ReactElement> {
   const [health, session] = await Promise.all([getHealth().catch(() => null), loadSession()]);
-  const devSignInHref = isDevSignInEnabled(process.env.NODE_ENV) ? '/dev/sign-in' : null;
+  const ownPath = session.kind === 'signed-in' ? ownOverviewPath(session.me) : null;
+  if (ownPath !== null) {
+    redirect(ownPath);
+  }
+  const isOffered = isDevSignInOffered(process.env.NODE_ENV, health?.authMode);
+  const devSignInHref = isOffered ? '/dev/sign-in' : null;
   return (
     <>
       <h1>College Advisory Assistant</h1>
