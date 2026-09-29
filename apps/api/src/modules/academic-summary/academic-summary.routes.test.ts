@@ -1,7 +1,7 @@
 /**
  * @file HTTP-level tests for `GET /v1/students/:studentId/academic-summary`: each role, 401,
  * NOT_FOUND that doesn't reveal existence, stale and missing audits, tied records, the source
- * freshness gate (#114), the out-of-scope backstop, and request-scoped logs with opaque IDs only.
+ * freshness gate (ADR-0008 Amendment 1), the out-of-scope backstop, and request-scoped logs with opaque IDs only.
  * @requirement FR-02
  * @requirement FR-04
  * @requirement FR-05

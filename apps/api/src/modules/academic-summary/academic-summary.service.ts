@@ -141,7 +141,7 @@ export function createAcademicSummaryService(
       const studentSnapshot = revision.snapshot;
       const scope: RecordScope = { actor, studentId: student.id, context };
       // SAFETY: a summary is served only from fresh sources, so a stale record or audit is never
-      // shown as current standing; the student is referred instead (ADR-0008, #114).
+      // shown as current standing; the student is referred instead (ADR-0008 Amendment 1).
       pinnedRecords.assertFresh(scope, { snapshot: studentSnapshot, audit });
       const summarized = summarizeAudit(audit, { studentSnapshot, maxSkewMs });
       logRead(scope, studentSnapshot, summarized);
