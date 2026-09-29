@@ -25,6 +25,12 @@ const UNIT_WORKSPACES = [
 ];
 
 /**
+ * Workspaces with their own Vitest config, loaded as-is. The web app needs its JSX runtime and
+ * `@/` alias, and has no integration tests.
+ */
+const CONFIGURED_WORKSPACES = ['apps/web/vitest.config.ts'];
+
+/**
  * Per-test timeouts, in ms, for workspaces whose tests scan the repository. The `tests`
  * holdout-isolation check reads every source file and ran past the 5 s default in combined
  * runs. Other workspaces keep the default.
@@ -66,6 +72,7 @@ export default defineConfig({
             : {}),
         },
       })),
+      ...CONFIGURED_WORKSPACES,
       {
         test: {
           name: isIntegrationSkipped
