@@ -1,13 +1,14 @@
 /**
  * @file Integration tests for the prerequisite rule repository against PostgreSQL.
  */
+import { and, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ZodError } from 'zod';
 
 import type { CourseId, InstitutionId } from '@caa/domain';
 
 import { prerequisiteRuleTable } from '../tables/prerequisite-rule.table';
-import { insertCourse, violationOf } from '../testing/catalog-fixtures';
+import { immutableRowRejectionOf, insertCourse, violationOf } from '../testing/catalog-fixtures';
 import { insertTenant, openTestDatabase, type TestDatabase } from '../testing/integration-fixtures';
 import { createPrerequisiteRuleRepository } from './prerequisite-rule.repository';
 
@@ -99,6 +100,49 @@ describe('PrerequisiteRuleRepository.findRule', () => {
 
   it('exposes no method that changes a published rule', () => {
     expect(Object.keys(repository())).toEqual(['findRule']);
+  });
+
+  const publishedRule = () =>
+    and(
+      eq(prerequisiteRuleTable.tenantId, tenantId),
+      eq(prerequisiteRuleTable.courseId, math102),
+      eq(prerequisiteRuleTable.rulesetVersion, 'demo-2026.1'),
+    );
+
+  it('refuses to update a published rule and keeps it unchanged', async () => {
+    const update = testDatabase.db
+      .update(prerequisiteRuleTable)
+      .set({ expression: courseExpression(math101, 'A') })
+      .where(publishedRule());
+
+    await expect(update).rejects.toMatchObject(immutableRowRejectionOf('prerequisite_rule'));
+    const rule = await repository().findRule(tenantId, math102, 'demo-2026.1');
+    expect(rule?.expression).toEqual(courseExpression(math101, 'C'));
+  });
+
+  it('refuses to delete a published rule', async () => {
+    const remove = testDatabase.db.delete(prerequisiteRuleTable).where(publishedRule());
+
+    await expect(remove).rejects.toMatchObject(immutableRowRejectionOf('prerequisite_rule'));
+    expect(await repository().findRule(tenantId, math102, 'demo-2026.1')).not.toBeNull();
+  });
+
+  it('refuses to truncate the rule table', async () => {
+    // NOTE: rolled back either way, so a missing trigger fails this test without emptying
+    // the table that other test files share.
+    const truncate = testDatabase.db.transaction(async (tx) => {
+      await tx.execute(sql`TRUNCATE TABLE prerequisite_rule`);
+      tx.rollback();
+    });
+
+    await expect(truncate).rejects.toMatchObject(immutableRowRejectionOf('prerequisite_rule'));
+  });
+
+  it('still publishes a new version as an insert', async () => {
+    await insertRule('demo-2026.4', courseExpression(math101, 'D'));
+
+    const rule = await repository().findRule(tenantId, math102, 'demo-2026.4');
+    expect(rule?.expression).toEqual(courseExpression(math101, 'D'));
   });
 
   it('rejects a second rule for the same course and version', async () => {

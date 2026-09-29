@@ -39,6 +39,19 @@ export function violationOf(constraint: string): {
 }
 
 /**
+ * Describes a failed query that the `reject_published_row_change` trigger refused, for
+ * `rejects.toMatchObject`, so a test proves the immutability trigger fired on that table.
+ *
+ * @param table - Table whose published rows were being changed.
+ * @returns The partial error shape to match: SQLSTATE 23001 (`restrict_violation`) and the table.
+ */
+export function immutableRowRejectionOf(table: string): {
+  readonly cause: { readonly code: string; readonly table: string };
+} {
+  return { cause: { code: '23001', table } };
+}
+
+/**
  * Inserts a synthetic equivalency group.
  *
  * @param db - Database handle.
