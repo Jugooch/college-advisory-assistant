@@ -9,8 +9,6 @@
 import {
   type Course,
   createAuditSnapshot,
-  createStudentSnapshot,
-  createTermCalendar,
   LetterGrade,
   type PrerequisiteRule,
   RepeatPolicy,
@@ -24,6 +22,8 @@ import {
   buildCourse,
   buildPrerequisiteRule,
   buildStudent,
+  buildStudentSnapshot,
+  buildTermCalendar,
   completedAttempt,
   course,
   inProgressAttempt,
@@ -100,27 +100,9 @@ function seedRule(target: Course, expression: PrerequisiteRule['expression']): P
 
 const C = letter('C');
 
-/**
- * Builds one seeded term.
- *
- * @param sequence - Position in the calendar; also the number in the term ID.
- * @param termCode - Term code such as `2026FA`.
- * @param dates - First and last day, `YYYY-MM-DD`.
- * @returns The term input.
- */
-function seedTerm(sequence: number, termCode: string, dates: readonly [string, string]) {
-  const [startsOn, endsOn] = dates;
-  const id = `b0000000-0000-4000-8000-${sequence.toString(16).padStart(12, '0')}`;
-  return { id, tenantId: SYNTHETIC_TENANTS.a.id, termCode, startsOn, endsOn, sequence };
-}
+/** The seeded term calendar, oldest first: the test-kit default, the same four terms as the seed. */
+export const SEED_TERMS = buildTermCalendar();
 
-/** The seeded term calendar, oldest first. */
-export const SEED_TERMS = createTermCalendar([
-  seedTerm(1, '2025FA', ['2025-08-25', '2025-12-19']),
-  seedTerm(2, '2026SP', ['2026-01-12', '2026-05-08']),
-  seedTerm(3, '2026FA', ['2026-08-24', '2026-12-18']),
-  seedTerm(4, '2027SP', ['2027-01-11', '2027-05-07']),
-]);
 const PROGRAM_ID = syntheticId('program', 1);
 
 /** The seeded attempts: SYN-000001's three, then SYN-000002's one. */
@@ -160,7 +142,7 @@ export const SEED_ATTEMPTS = [
 ] as const;
 
 /**
- * Builds a seeded snapshot on the seeded program and catalog.
+ * Builds a seeded snapshot on the seeded program and catalog (the test-kit defaults).
  *
  * @param seed - Number in the snapshot ID.
  * @param fields - Student, source time, ingestion time, and attempts.
@@ -170,13 +152,7 @@ function seedSnapshot(
   seed: number,
   fields: Pick<StudentSnapshot, 'studentId' | 'sourceEffectiveAt' | 'ingestedAt' | 'attemptIds'>,
 ): StudentSnapshot {
-  return createStudentSnapshot({
-    id: syntheticId('studentSnapshot', seed),
-    tenantId: SYNTHETIC_TENANTS.a.id,
-    programId: PROGRAM_ID,
-    catalogYear: '2025-2026',
-    ...fields,
-  });
+  return buildStudentSnapshot(fields, seed);
 }
 
 /** The seeded snapshots: SYN-000001's, and SYN-000002's older and newer ones. */
