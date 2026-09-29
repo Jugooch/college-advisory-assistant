@@ -15,6 +15,7 @@ import {
   createCheckResult,
   type CreditLoadEvidence,
   ReasonCode,
+  type TermCreditBounds,
 } from '@caa/domain';
 
 import {
@@ -24,17 +25,10 @@ import {
   selectedCreditsOf,
 } from './candidate-set';
 
-/**
- * Bounds given directly instead of read from the academic policy.
- */
-// TODO(#122): remove once the golden and acceptance callers pass the AcademicPolicy.
-export interface CreditLoadBounds {
-  /** Minimum load in hundredths of a credit (1200 = 12.00 credits). */
-  readonly minCreditsHundredths: number;
-  /** Maximum load in hundredths of a credit; at least the minimum. */
-  readonly maxCreditsHundredths: number;
-  /** Reference to the policy the bounds come from, shown as the check's `sourceRef`. */
+/** Where a load check's bounds come from: the policy's reference and ruleset version. */
+interface LoadSource {
   readonly sourceRef: string;
+  readonly rulesetVersion: string;
 }
 
 /**
@@ -55,26 +49,23 @@ export interface CreditLoadBounds {
  * always give a deep-equal result.
  *
  * @param selections - The candidate set.
- * @param limits - The academic policy, or (transitional, tests only) bounds with a reference.
- * @returns A CREDIT_LOAD check. From a policy, its `sourceRef` is
- *   `<rulesetVersion>:termCreditBounds` and its evidence names the ruleset version; from bounds,
- *   the `sourceRef` is theirs and there is no ruleset version. Its evidence names the courses
- *   (all selections in input order, or the unselected ones) and, unless UNKNOWN, the total and
- *   bounds.
+ * @param policy - The academic policy that supplies the term credit bounds.
+ * @returns A CREDIT_LOAD check whose `sourceRef` is `<rulesetVersion>:termCreditBounds` and
+ *   whose evidence names the ruleset version, the courses (all selections in input order, or
+ *   the unselected ones) and, unless UNKNOWN, the total and bounds.
  * @throws {CandidateSetInputError} When the set is malformed (see `assertValidCandidateSet`),
- *   a bound isn't a non-negative safe integer or the minimum exceeds the maximum (`bounds`),
- *   the reference is empty (`boundsSourceRef`), or the total isn't a safe integer
- *   (`totalCredits`).
+ *   a bound isn't a non-negative safe integer or the minimum exceeds the maximum (`bounds`), or
+ *   the total isn't a safe integer (`totalCredits`).
  */
 export function checkCreditLoad(
   selections: readonly CourseSelection[],
-  limits: AcademicPolicy | CreditLoadBounds,
+  policy: AcademicPolicy,
 ): CheckResult {
-  if (!('termCreditBounds' in limits)) {
-    return checkAgainstBounds(selections, limits, null);
-  }
-  const sourceRef = `${limits.rulesetVersion}:termCreditBounds`;
-  const bounds = limits.termCreditBounds;
+  const source: LoadSource = {
+    sourceRef: `${policy.rulesetVersion}:termCreditBounds`,
+    rulesetVersion: policy.rulesetVersion,
+  };
+  const bounds = policy.termCreditBounds;
   // SAFETY: without institution-approved bounds there is nothing to compare the load with, so
   // the check is UNKNOWN, never a PASS against an assumed load such as 12 or 18 credits. It is
   // reported before an unchosen variable credit, because choosing one wouldn't settle it
@@ -84,30 +75,29 @@ export function checkCreditLoad(
     assertValidCandidateSet(selections);
     return toCheck(
       { state: CheckState.Unknown, reasonCode: ReasonCode.CreditBoundsUndefined },
-      { sourceRef, rulesetVersion: limits.rulesetVersion },
+      source,
       { courseIds: selections.map((selection) => selection.course.id), creditLoad: null },
     );
   }
-  return checkAgainstBounds(selections, { ...bounds, sourceRef }, limits.rulesetVersion);
+  return checkAgainstBounds(selections, bounds, source);
 }
 
 /**
  * Checks the credit load against known bounds, steps 2 to 5 of {@link checkCreditLoad}.
  *
  * @param selections - The candidate set.
- * @param bounds - The minimum and maximum load and their reference.
- * @param rulesetVersion - The policy's ruleset version, or `null` for bounds given directly.
+ * @param bounds - The minimum and maximum load.
+ * @param source - The bounds' reference and ruleset version.
  * @returns The CREDIT_LOAD check.
  * @throws {CandidateSetInputError} As {@link checkCreditLoad} documents.
  */
 function checkAgainstBounds(
   selections: readonly CourseSelection[],
-  bounds: CreditLoadBounds,
-  rulesetVersion: string | null,
+  bounds: TermCreditBounds,
+  source: LoadSource,
 ): CheckResult {
   assertValidBounds(bounds);
   assertValidCandidateSet(selections);
-  const source = { sourceRef: bounds.sourceRef, rulesetVersion };
   const bearing = selections.filter((selection) => selection.countsCredits);
   // SAFETY: an unchosen variable credit value is unknown, never its minimum, maximum, or a
   // typical value, so the load can't be decided either way (planning/08 §Candidate formation:
@@ -159,12 +149,12 @@ function outcomeOf(load: CreditLoadEvidence): LoadOutcome {
 }
 
 /**
- * Checks the caller's bounds.
+ * Checks the policy's bounds, which may have bypassed the schema.
  *
  * @param bounds - The bounds to check.
- * @throws {CandidateSetInputError} When a bound is invalid or the reference is empty.
+ * @throws {CandidateSetInputError} When a bound is invalid.
  */
-function assertValidBounds(bounds: CreditLoadBounds): void {
+function assertValidBounds(bounds: TermCreditBounds): void {
   const { minCreditsHundredths: min, maxCreditsHundredths: max } = bounds;
   // SAFETY: a missing, fractional, negative, or inverted bound would silently disable or
   // invert the load rule, so it is rejected instead of defaulted (planning/08 §Constraint
@@ -172,16 +162,6 @@ function assertValidBounds(bounds: CreditLoadBounds): void {
   if (!Number.isSafeInteger(min) || !Number.isSafeInteger(max) || min < 0 || min > max) {
     throw new CandidateSetInputError('bounds');
   }
-  if (bounds.sourceRef.length === 0) {
-    throw new CandidateSetInputError('boundsSourceRef');
-  }
-}
-
-/** Where a load check's bounds come from. */
-interface LoadSource {
-  readonly sourceRef: string;
-  /** The policy's ruleset version, or `null` for bounds given directly. */
-  readonly rulesetVersion: string | null;
 }
 
 /**

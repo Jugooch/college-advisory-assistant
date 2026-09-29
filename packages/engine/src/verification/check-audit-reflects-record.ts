@@ -31,24 +31,9 @@ export interface PinnedStudentRecord {
   readonly maxSkewMs: number;
 }
 
-/**
- * The record time alone, without the pinned snapshot. It can't check which student or revision
- * the audit ran against, so only tests may use it.
- */
-// TODO(#122): remove once the golden and acceptance callers pass a PinnedStudentRecord.
-export interface StudentRecordFreshness {
-  /** When the student record the other checks read took effect. ISO 8601 with offset. */
-  readonly studentRecordEffectiveAt: string;
-  /** The maximum skew, in milliseconds, that the record may be newer than the audit's. */
-  readonly maxSkewMs: number;
-}
-
 /** Input fields whose values {@link checkAuditReflectsRecord} can reject. */
 export type AuditRecordInputField =
-  | 'audit.studentRecordEffectiveAt'
-  | 'studentSnapshot.sourceEffectiveAt'
-  | 'studentRecordEffectiveAt'
-  | 'maxSkewMs';
+  'audit.studentRecordEffectiveAt' | 'studentSnapshot.sourceEffectiveAt' | 'maxSkewMs';
 
 /** Thrown when a timestamp or the maximum skew can't be compared. */
 export class AuditRecordInputError extends Error {
@@ -91,11 +76,8 @@ const AUDIT_AMBIGUOUS: AuditRecordReflection = {
  * PASS says nothing about the program and catalog; see `checkAuditProgramAndCatalog`. Times are
  * compared as instants, so `08:00-05:00` and `13:00Z` are the same time.
  *
- * The transitional string form compares times only, in one direction: a record newer than the
- * audit's beyond the skew is `AUDIT_STALE`, anything else passes.
- *
  * @param audit - The audit snapshot, with the snapshot and record time it ran against.
- * @param record - The pinned student snapshot, or (transitional, tests only) the record time.
+ * @param record - The pinned student snapshot.
  * @param maxSkewMs - The partner-specific maximum skew in milliseconds. Required: the engine has
  *   no safe default.
  * @returns PASS, or UNKNOWN with `AUDIT_STALE` or `AUDIT_AMBIGUOUS`.
@@ -104,7 +86,7 @@ const AUDIT_AMBIGUOUS: AuditRecordReflection = {
  */
 export function checkAuditReflectsRecord(
   audit: AuditSnapshot,
-  record: StudentSnapshot | string,
+  record: StudentSnapshot,
   maxSkewMs: number,
 ): AuditRecordReflection {
   // SAFETY: a missing, negative, fractional, or infinite skew would silently widen or disable
@@ -114,11 +96,6 @@ export function checkAuditReflectsRecord(
     throw new AuditRecordInputError('maxSkewMs');
   }
   const auditRecordAt = toInstant(audit.studentRecordEffectiveAt, 'audit.studentRecordEffectiveAt');
-  if (typeof record === 'string') {
-    // TODO(#122): remove the time-only form once no caller passes a bare record time.
-    const newerByMs = toInstant(record, 'studentRecordEffectiveAt') - auditRecordAt;
-    return newerByMs > maxSkewMs ? AUDIT_STALE : REFLECTS_RECORD;
-  }
   const newerByMs =
     toInstant(record.sourceEffectiveAt, 'studentSnapshot.sourceEffectiveAt') - auditRecordAt;
   return reflectSnapshot(audit, record, { newerByMs, maxSkewMs });

@@ -21,7 +21,7 @@ import {
 } from '@caa/domain';
 
 import { checkAuditAgainstRecord } from './check-audit-against-record';
-import type { PinnedStudentRecord, StudentRecordFreshness } from './check-audit-reflects-record';
+import type { PinnedStudentRecord } from './check-audit-reflects-record';
 import { createDecidingRequirementLookup } from './find-deciding-requirement';
 
 /** The applicability a requirement in one audit state gives a course it lists as a candidate. */
@@ -90,7 +90,7 @@ const REQUIREMENT_STATE_PRECEDENCE: readonly RequirementState[] = [
  * @param courseId - The course to place. Only this exact ID matches a candidate.
  * @param audit - The authoritative audit snapshot.
  * @param record - The pinned student record the audit must reflect and the maximum skew
- *   allowed, or (transitional, tests only) the record time and skew.
+ *   allowed.
  * @returns A REQUIREMENT_APPLICABILITY check. Its `sourceRef` pins the audit revision as
  *   `<auditSource>:<auditVersion>`, followed by `:<requirement sourceRef>` of the deciding
  *   requirement (the candidate or an ancestor) when one decided the state. Its evidence has no ruleset version, because the audit applied no
@@ -100,7 +100,7 @@ const REQUIREMENT_STATE_PRECEDENCE: readonly RequirementState[] = [
 export function evaluateApplicability(
   courseId: CourseId,
   audit: AuditSnapshot,
-  record: PinnedStudentRecord | StudentRecordFreshness,
+  record: PinnedStudentRecord,
 ): CheckResult {
   const auditRef = `${audit.auditSource}:${audit.auditVersion}`;
   const agreement = checkAuditAgainstRecord(audit, record);

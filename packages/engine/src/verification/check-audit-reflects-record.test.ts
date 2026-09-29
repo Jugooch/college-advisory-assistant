@@ -3,13 +3,13 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import { type AuditSnapshot, type StudentSnapshot, type StudentSnapshotInput } from '@caa/domain';
 import {
-  type AuditSnapshot,
-  createStudentSnapshot,
-  type StudentSnapshot,
-  type StudentSnapshotInput,
-} from '@caa/domain';
-import { buildAuditSnapshot, SYNTHETIC_TENANTS, syntheticId } from '@caa/test-kit';
+  buildAuditSnapshot,
+  buildStudentSnapshot,
+  SYNTHETIC_TENANTS,
+  syntheticId,
+} from '@caa/test-kit';
 
 import { AuditRecordInputError, checkAuditReflectsRecord } from './check-audit-reflects-record';
 
@@ -21,23 +21,14 @@ const STALE = { state: 'UNKNOWN', reasonCode: 'AUDIT_STALE' };
 const AMBIGUOUS = { state: 'UNKNOWN', reasonCode: 'AUDIT_AMBIGUOUS' };
 
 /**
- * Builds the pinned snapshot the default audit ran against, with the given fields replaced.
+ * Builds the snapshot the default audit ran against, ingested late enough for any record time
+ * the tests use, with the given fields replaced.
  *
  * @param overrides - Fields to replace.
  * @returns The student snapshot.
  */
 function snapshotWith(overrides: Partial<StudentSnapshotInput> = {}): StudentSnapshot {
-  return createStudentSnapshot({
-    id: syntheticId('studentSnapshot', 1),
-    tenantId: SYNTHETIC_TENANTS.a.id,
-    studentId: syntheticId('student', 1),
-    programId: syntheticId('program', 1),
-    catalogYear: '2025-2026',
-    attemptIds: [],
-    sourceEffectiveAt: '2026-09-20T07:30:00.000-05:00',
-    ingestedAt: '2026-09-21T00:00:00.000-05:00',
-    ...overrides,
-  });
+  return buildStudentSnapshot({ ingestedAt: '2026-09-21T00:00:00.000-05:00', ...overrides });
 }
 
 /**
@@ -132,41 +123,12 @@ describe('checkAuditReflectsRecord with another record', () => {
   });
 });
 
-describe('checkAuditReflectsRecord with a record time only (transitional, #122)', () => {
-  it('passes an older record, a direction the time-only form does not judge', () => {
-    expect(checkAuditReflectsRecord(AUDIT, '2026-09-19T07:30:00.000-05:00', 0)).toEqual(
-      REFLECTS_RECORD,
-    );
-  });
-
-  it('passes when the record is newer by exactly the skew', () => {
-    expect(
-      checkAuditReflectsRecord(AUDIT, '2026-09-20T07:35:00.000-05:00', FIVE_MINUTES_MS),
-    ).toEqual(REFLECTS_RECORD);
-  });
-
-  it('is UNKNOWN AUDIT_STALE when the record is newer by one millisecond more', () => {
-    expect(
-      checkAuditReflectsRecord(AUDIT, '2026-09-20T07:35:00.001-05:00', FIVE_MINUTES_MS),
-    ).toEqual(STALE);
-  });
-});
-
 describe('checkAuditReflectsRecord input errors', () => {
   it.each([-1, 0.5, Number.NaN, Number.POSITIVE_INFINITY, Number.MAX_SAFE_INTEGER + 1])(
     'rejects a maximum skew of %s',
     (maxSkewMs) => {
       expect(() => checkAuditReflectsRecord(AUDIT, snapshotWith(), maxSkewMs)).toThrow(
         new AuditRecordInputError('maxSkewMs'),
-      );
-    },
-  );
-
-  it.each(['2026-09-20T07:30:00', '2026-09-20', '2026-13-40T07:30:00Z', '', 'Sep 20 2026 07:30'])(
-    'rejects the record time %j',
-    (studentRecordEffectiveAt) => {
-      expect(() => checkAuditReflectsRecord(AUDIT, studentRecordEffectiveAt, 0)).toThrow(
-        new AuditRecordInputError('studentRecordEffectiveAt'),
       );
     },
   );

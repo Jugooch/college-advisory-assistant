@@ -201,9 +201,10 @@ function isLaterTerm(
   counted: CourseAttempt,
   context: AttemptResolutionContext,
 ): boolean {
+  const { termCalendar } = context;
   const { tenantId } = context.academicPolicy;
-  const retakePosition = termPositionOf(context, tenantId, retake.termCode);
-  const countedPosition = termPositionOf(context, tenantId, counted.termCode);
+  const retakePosition = termPositionOf(termCalendar, tenantId, retake.termCode);
+  const countedPosition = termPositionOf(termCalendar, tenantId, counted.termCode);
   // SAFETY: MOST_RECENT counts the retake only if its term is known to be later; a term that
   // can't be placed in the tenant's order leaves it undetermined (planning/08 §Eligibility
   // semantics).

@@ -15,6 +15,7 @@ import {
   any,
   buildAcademicPolicy,
   buildPrerequisiteRule,
+  buildTermCalendar,
   completedAttempt,
   course,
   inProgressAttempt,
@@ -51,7 +52,10 @@ function evaluate(
   return evaluatePrerequisite(
     buildPrerequisiteRule({ expression }),
     { attempts, courses: COURSES },
-    { academicPolicy: buildAcademicPolicy(policy), termCodesOldestFirst: ['2026SP', '2026FA'] },
+    {
+      academicPolicy: buildAcademicPolicy(policy),
+      termCalendar: buildTermCalendar([{ termCode: '2026SP' }, { termCode: '2026FA' }]),
+    },
   );
 }
 
@@ -129,7 +133,7 @@ describe('evaluatePrerequisite combination', () => {
     // NOTE: the domain rejects empty groups, so the rule is spread past the factory to reach
     // the engine's defensive path.
     const rule = { ...buildPrerequisiteRule(), expression: { type: 'ALL', items: [] } } as const;
-    const context = { academicPolicy: buildAcademicPolicy(), termCodesOldestFirst: [] };
+    const context = { academicPolicy: buildAcademicPolicy(), termCalendar: [] };
 
     expect(evaluatePrerequisite(rule, { attempts: [], courses: COURSES }, context)).toMatchObject({
       state: 'UNKNOWN',
