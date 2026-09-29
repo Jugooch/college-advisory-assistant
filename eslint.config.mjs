@@ -110,7 +110,10 @@ export default tseslint.config(
       'check-file/folder-naming-convention': [
         'error',
         {
-          '{apps,packages}/*/src/**/': 'KEBAB_CASE',
+          'packages/*/src/**/': 'KEBAB_CASE',
+          'apps/!(web)/src/**/': 'KEBAB_CASE',
+          // NOTE: Next.js route folders (`[studentId]`, `(group)`) follow the App Router case only.
+          'apps/web/src/!(app)/**/': 'KEBAB_CASE',
           'apps/web/src/app/**/': 'NEXT_JS_APP_ROUTER_CASE',
         },
       ],
