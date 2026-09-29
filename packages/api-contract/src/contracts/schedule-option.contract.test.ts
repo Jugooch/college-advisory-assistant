@@ -100,6 +100,17 @@ describe('ScheduleOptionSchema credit load', () => {
     expect(messages(option)).toEqual(['An option never has a FAIL creditLoad']);
   });
 
+  it('rejects a CONDITIONAL credit load, which no credit-load check should produce', () => {
+    const conditionalLoad = {
+      ...creditLoadCheck(400),
+      state: 'CONDITIONAL',
+      reasonCode: 'VARIABLE_CREDIT_UNSELECTED',
+    };
+    const option = buildOption({ creditLoad: conditionalLoad, aggregate: 'CONDITIONAL' });
+
+    expect(messages(option)).toEqual(['An option never has a CONDITIONAL creditLoad']);
+  });
+
   it('requires an UNKNOWN credit load to make the schedule UNKNOWN (ADR-0010 §3)', () => {
     const unknownLoad = { creditLoad: UNKNOWN_CREDIT_LOAD, aggregate: 'NEEDS_VERIFICATION' };
 
