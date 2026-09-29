@@ -2,11 +2,10 @@
  * @file Tests for carrying AI review approvals across commits whose PR-touched files are
  * identical, using a throwaway git repository built in a temporary directory.
  */
-import { rmSync } from 'node:fs';
-
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { buildScenarioRepo, UNKNOWN_SHA } from '../test/review-scenario-repo.mjs';
+import { removeTempDir } from '../test/temp-git-repo.mjs';
 import {
   computeChangeFingerprint,
   formatStatus,
@@ -48,7 +47,7 @@ beforeAll(() => {
 });
 
 afterAll(() => {
-  rmSync(dir, { recursive: true, force: true });
+  removeTempDir(dir);
 });
 
 describe('computeChangeFingerprint', () => {
