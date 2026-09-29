@@ -28,6 +28,19 @@ export const ACCEPTANCE_NOW = new Date('2026-09-01T12:00:00.000Z');
 /** The ruleset version the harness's API runs course checks under. */
 export const ACCEPTANCE_RULESET_VERSION = 'demo-2026.1';
 
+/**
+ * How old the pinned record and the audit's record time may be for course checks: 24 hours, the
+ * proposed maximum age of a transcript, program, or audit (planning/09 §Proposed freshness
+ * policies). Set explicitly so cases don't depend on the API's development default.
+ */
+export const ACCEPTANCE_SOURCE_MAX_AGE_MS = 86_400_000;
+
+/**
+ * The allowed skew between a record and the audit run against it: one hour, the skew the golden
+ * AC10 cases use (planning/07 §Consistency model). Set explicitly, like the maximum age.
+ */
+export const ACCEPTANCE_AUDIT_SKEW_MS = 3_600_000;
+
 /** The API app, not yet listening. */
 export type AcceptanceApp = ReturnType<typeof buildApp>;
 
@@ -117,7 +130,8 @@ function createAssignments(world: AcceptanceWorld): AdvisorAssignmentRepository 
 
 /**
  * Builds the API with dev auth over the world, at {@link ACCEPTANCE_NOW}, running course checks
- * under {@link ACCEPTANCE_RULESET_VERSION}. Every repository the API has, the academic ones
+ * under {@link ACCEPTANCE_RULESET_VERSION}, with {@link ACCEPTANCE_SOURCE_MAX_AGE_MS} and
+ * {@link ACCEPTANCE_AUDIT_SKEW_MS}. Every repository the API has, the academic ones
  * included, reads the world, so no endpoint hits a missing repository. Call it once per file at
  * module scope and mutate the world between cases: the first build in a worker loads Fastify's
  * schema compilers, which can take seconds on a slow disk and would count against a case's timeout.
@@ -143,6 +157,8 @@ export function buildAcceptanceApp(
     AUTH_MODE: AuthMode.Dev,
     DEV_AUTH_TOKENS: JSON.stringify(tokenMap),
     ACTIVE_RULESET_VERSION: ACCEPTANCE_RULESET_VERSION,
+    ACADEMIC_SOURCE_MAX_AGE_MS: String(ACCEPTANCE_SOURCE_MAX_AGE_MS),
+    AUDIT_RECORD_MAX_SKEW_MS: String(ACCEPTANCE_AUDIT_SKEW_MS),
   });
   const repositories: Repositories = {
     userIdentities: createIdentities(world),
