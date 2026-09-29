@@ -163,11 +163,15 @@ export const ScheduleOptionSchema = z
     /** Aggregate of every check of the option, by the fixed precedence. */
     aggregate: AggregateStateSchema,
   })
-  // SAFETY: a candidate that breaks a hard rule is removed, never offered (ADR-0010 §3).
-  .refine((option) => option.scheduleFeasibility.state !== CheckState.Fail, {
-    message: 'An option never has a FAIL scheduleFeasibility',
-    path: ['scheduleFeasibility'],
-  })
+  // SAFETY: a candidate that breaks a hard rule is removed, never offered, and each hard rule
+  // gives PASS, FAIL or UNKNOWN (ADR-0010 §3). So an option's schedule is PASS or UNKNOWN only:
+  // a CONDITIONAL would be a state no schedule check produces, ranked as if it were UNKNOWN.
+  .refine(
+    (option) =>
+      option.scheduleFeasibility.state === CheckState.Pass ||
+      option.scheduleFeasibility.state === CheckState.Unknown,
+    { message: 'scheduleFeasibility must be PASS or UNKNOWN', path: ['scheduleFeasibility'] },
+  )
   // SAFETY: the credit load within the policy bounds and the student's hard credit range is a
   // hard rule too, so a candidate whose load FAILs is removed, never offered (ADR-0010 §3). It
   // belongs in `conflictSet`, which accepts CREDIT_LOAD FAILs for this reason.

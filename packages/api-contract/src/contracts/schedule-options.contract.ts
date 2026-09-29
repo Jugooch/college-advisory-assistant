@@ -23,18 +23,18 @@ import {
   ScheduleLimitationSchema,
   ScheduleOutcome,
   ScheduleOutcomeSchema,
-  SectionSnapshotIdSchema,
 } from '@caa/domain';
 
 import { defineEndpoint } from '../define-endpoint';
-import { PinnedInputsSchema } from './course-checks.contract';
 import { CourseDisplayListSchema } from './course-display.contract';
+import { ConflictSetSchema } from './schedule-conflict-set.contract';
 import {
   MAX_SCHEDULE_OPTIONS,
   type ScheduleOption,
   ScheduleOptionSchema,
 } from './schedule-option.contract';
 import { MAX_SCHEDULE_OPTION_COURSES } from './schedule-options-request.contract';
+import { SchedulePinnedInputsSchema } from './schedule-pinned-inputs.contract';
 
 /**
  * Returns whether a list has no repeated values.
@@ -134,58 +134,6 @@ function isRankedAndDistinct(response: { readonly options: readonly ScheduleOpti
     isDistinct(sectionSets)
   );
 }
-
-/** Most solver work units a request may use (ADR-0010 §1). */
-export const MAX_SOLVER_WORK_CAP = 3_000_000;
-
-/** Most conflicts a `conflictSet` lists; the rest are counted in `omittedCount`. */
-export const MAX_CONFLICT_SET_ITEMS = 20;
-
-/**
- * The inputs every option was computed from, so the response can be reproduced: the course
- * checks' pinned inputs plus the section data, the transition table, the work cap, and the
- * request itself (ADR-0010 §7). The same pinned inputs and cap give a deep-equal response.
- */
-export const SchedulePinnedInputsSchema = PinnedInputsSchema.unwrap()
-  .extend({
-    sectionSnapshotId: SectionSnapshotIdSchema,
-    /**
-     * Version of the tenant's campus transition table, or `null` when the tenant has none, in
-     * which case every pair of different campuses is unknown, never zero minutes.
-     */
-    campusTransitionVersion: z.string().min(1).nullable(),
-    /** The solver work cap the search ran under (ADR-0010 §1). */
-    solverWorkCap: z.number().int().min(1).max(MAX_SOLVER_WORK_CAP),
-    /** `sha256:` and the lowercase hex SHA-256 of the normalized request's canonical JSON. */
-    constraintHash: z.string().regex(/^sha256:[0-9a-f]{64}$/),
-  })
-  .readonly();
-
-/**
- * Verified conflicts behind `NO_FEASIBLE_PLAN`: distinct FAIL results the solver's checks
- * produced on the pinned inputs. It is never described as minimal, because minimality isn't
- * checked (planning/08 §Constraint formulation).
- */
-export const ConflictSetSchema = z
-  .object({
-    items: z
-      .array(
-        CheckResultSchema.refine(
-          (check) =>
-            check.state === CheckState.Fail &&
-            (check.kind === CheckKind.ScheduleFeasibility || check.kind === CheckKind.CreditLoad),
-          { message: 'A conflict is a FAIL SCHEDULE_FEASIBILITY or CREDIT_LOAD check' },
-        ),
-      )
-      .min(1)
-      .max(MAX_CONFLICT_SET_ITEMS)
-      .readonly(),
-    /** Always `false` in S4: the set is verified, not proven minimal. */
-    isMinimal: z.literal(false),
-    /** Conflicts left out after the first {@link MAX_CONFLICT_SET_ITEMS}. */
-    omittedCount: z.number().int().nonnegative(),
-  })
-  .readonly();
 
 /** Response body for `POST /v1/students/:studentId/schedule-options`. */
 export const ScheduleOptionsResponseSchema = z

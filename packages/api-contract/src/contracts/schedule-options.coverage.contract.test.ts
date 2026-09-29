@@ -1,5 +1,6 @@
 /**
- * @file Tests that every schedule option covers every requested course with exactly one bundle.
+ * @file Tests that every schedule option covers every requested course with exactly one bundle,
+ *   and that option prerequisites use the pinned ruleset.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -30,13 +31,17 @@ const bundle = (courseId: string, sectionId: string): object => ({
 const PHYS_BUNDLE = bundle(PHYS_301, '5ec71010-0000-4000-8000-000000000001');
 const CHEM_BUNDLE = bundle(CHEM_101, '5ec71010-0000-4000-8000-000000000002');
 
-const optionFor = (courseIds: readonly string[], bundles: readonly object[]): object => ({
+const optionFor = (
+  courseIds: readonly string[],
+  bundles: readonly object[],
+  prerequisite: object | null = null,
+): object => ({
   rank: 1,
   bundles,
   scheduleFeasibility: { kind: 'SCHEDULE_FEASIBILITY', state: 'PASS' },
   courseResults: courseIds.map((courseId) => ({
     courseId,
-    prerequisite: null,
+    prerequisite,
     applicability: PASS_APPLICABILITY,
   })),
   setResults: {
@@ -111,5 +116,31 @@ describe('ScheduleOptionsResponseSchema requested-course coverage', () => {
     const result = ScheduleOptionsResponseSchema.safeParse(response(swapped));
 
     expect(result.error?.issues.map((issue) => issue.message)).toEqual([COVERAGE_MESSAGE]);
+  });
+});
+
+describe('ScheduleOptionsResponseSchema ruleset pinning', () => {
+  const prerequisiteUnder = (rulesetVersion: string): object => ({
+    kind: 'PREREQUISITE',
+    state: 'PASS',
+    sourceRef: 'demo-rules:PHYS-301',
+    evidence: { rulesetVersion, decisiveLeaves: [] },
+  });
+  const BOTH = [PHYS_301, CHEM_101];
+  const BUNDLES = [PHYS_BUNDLE, CHEM_BUNDLE];
+
+  it('accepts option prerequisites evaluated under the pinned ruleset', () => {
+    const pinned = optionFor(BOTH, BUNDLES, prerequisiteUnder('demo-2026.1'));
+
+    expect(ScheduleOptionsResponseSchema.safeParse(response(pinned)).success).toBe(true);
+  });
+
+  it('rejects an option prerequisite evaluated under another ruleset', () => {
+    const stale = optionFor(BOTH, BUNDLES, prerequisiteUnder('demo-2025.9'));
+    const result = ScheduleOptionsResponseSchema.safeParse(response(stale));
+
+    expect(result.error?.issues.map((issue) => issue.message)).toEqual([
+      'Prerequisite evidence must use the pinned rulesetVersion',
+    ]);
   });
 });

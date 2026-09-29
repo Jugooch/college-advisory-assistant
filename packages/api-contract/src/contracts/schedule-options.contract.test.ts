@@ -171,6 +171,17 @@ describe('ScheduleOptionsResponseSchema outcomes', () => {
   ])('rejects %s', (_name, payload) => {
     expect(accepts(payload)).toBe(false);
   });
+
+  it('rejects a repeated requested course even when there are no options', () => {
+    const result = ScheduleOptionsResponseSchema.safeParse({
+      ...SEARCH_TIMEOUT,
+      courseIds: [PHYS_301, PHYS_301],
+    });
+
+    expect(result.error?.issues.map((issue) => issue.message)).toEqual([
+      'courseIds must not repeat a course',
+    ]);
+  });
 });
 
 describe('ScheduleOptionsResponseSchema options', () => {

@@ -138,6 +138,23 @@ describe('ScheduleOptionSchema', () => {
     expect(accepts({ ...OPTION, scheduleFeasibility: fail, aggregate: 'BLOCKED' })).toBe(false);
   });
 
+  it('rejects a CONDITIONAL schedule, which no schedule check produces', () => {
+    const conditional = {
+      kind: 'SCHEDULE_FEASIBILITY',
+      state: 'CONDITIONAL',
+      reasonCode: 'IN_PROGRESS_MIN_GRADE',
+    };
+    const result = ScheduleOptionSchema.safeParse({
+      ...OPTION,
+      scheduleFeasibility: conditional,
+      aggregate: 'CONDITIONAL',
+    });
+
+    expect(result.error?.issues.map((issue) => issue.message)).toEqual([
+      'scheduleFeasibility must be PASS or UNKNOWN',
+    ]);
+  });
+
   it('rejects a FAIL credit load, because the credit range is a hard rule too', () => {
     const overLoad = {
       kind: 'CREDIT_LOAD',
@@ -211,8 +228,24 @@ describe('ScheduleOptionSchema', () => {
     expect(accepts({ ...OPTION, courseResults: [otherCourse] })).toBe(false);
   });
 
-  it('rejects two bundles for one course, or one section in two bundles', () => {
+  it('rejects two bundles for one course', () => {
     expect(accepts({ ...OPTION, bundles: [BUNDLE, BUNDLE] })).toBe(false);
+  });
+
+  it('rejects one section in two bundles', () => {
+    const labCourse = { ...OPTION.courseResults[0], courseId: PHYS_301L };
+    const result = ScheduleOptionSchema.safeParse({
+      ...OPTION,
+      bundles: [
+        { courseId: PHYS_301, sections: [LECTURE, LAB], creditsCountedHundredths: 400 },
+        { courseId: PHYS_301L, sections: [LAB], creditsCountedHundredths: 0 },
+      ],
+      courseResults: [...OPTION.courseResults, labCourse],
+    });
+
+    expect(result.error?.issues.map((issue) => issue.message)).toEqual([
+      'A section may appear in only one bundle',
+    ]);
   });
 
   it('rejects a rank outside 1 to 3', () => {
