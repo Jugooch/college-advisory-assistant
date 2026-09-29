@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { MAX_CARRY_PATHS } from '../lib/review-carryover.mjs';
+import { disableBackgroundGit } from './temp-git-repo.mjs';
 
 /** A well-formed sha that no scenario repository contains. */
 export const UNKNOWN_SHA = 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeef';
@@ -78,6 +79,7 @@ function commit(files, message) {
  */
 function buildApprovedPr() {
   git('init', '-q', '-b', 'main');
+  disableBackgroundGit(dir);
   commit({ 'a.txt': `${LINES.join('\n')}\n`, 'b.txt': 'base\n' }, 'base');
   git('switch', '-q', '-c', 'feature');
   const approved = commit(
