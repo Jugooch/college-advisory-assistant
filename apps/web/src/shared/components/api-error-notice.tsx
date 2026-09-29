@@ -15,20 +15,25 @@ import { describeError } from '@/shared/utils/error-code-wording';
 export interface ApiErrorNoticeProps {
   /** The error the API returned. Its message is safe to show and is shown unchanged. */
   readonly error: Pick<ApiError, 'code' | 'message' | 'requestId'>;
+  /** Id of the notice heading. Give each notice on one page its own. */
+  readonly headingId?: string;
 }
 
 /**
  * Renders an API error without turning it into a generic failure. Nothing is retried for the
  * student; any retry is theirs to start.
  *
- * @param props - The API error.
+ * @param props - The API error and its heading id.
  * @returns The notice section.
  */
-export function ApiErrorNotice({ error }: ApiErrorNoticeProps): ReactElement {
+export function ApiErrorNotice({
+  error,
+  headingId = 'api-error-heading',
+}: ApiErrorNoticeProps): ReactElement {
   const wording = describeError(error.code);
   return (
-    <section className="notice notice--problem" aria-labelledby="api-error-heading">
-      <h2 id="api-error-heading">{wording.heading}</h2>
+    <section className="notice notice--problem" aria-labelledby={headingId}>
+      <h2 id={headingId}>{wording.heading}</h2>
       <p>{error.message}</p>
       <p>{wording.nextStep}</p>
       {error.requestId === null ? null : (
