@@ -9,13 +9,20 @@
 import { defineGoldenCorpus, type GoldenCase } from '@caa/test-kit';
 
 import { HOLDOUT_CANDIDATE_SET_CASES } from './holdout-candidate-set.cases';
+import { HOLDOUT_INTERACTION_CASES } from './holdout-interactions.cases';
 import { HOLDOUT_PREREQUISITE_CASES } from './holdout-prerequisite.cases';
 
-/** Version of the frozen holdout. A new version is cut only as README.md describes. */
-export const GOLDEN_HOLDOUT_VERSION = 'v0.1 (frozen 2026-09-27; pinned-input format 2026-09-28)';
+/**
+ * Version of the frozen holdout. A new version is cut only as README.md describes.
+ *
+ * - v0.1: 8 cases, frozen 2026-09-27; moved to the pinned-input format 2026-09-28.
+ * - v0.2: adds 7 interaction cases (#103), frozen 2026-09-29. No case was burned or replaced.
+ */
+export const GOLDEN_HOLDOUT_VERSION = 'v0.2 (frozen 2026-09-29; 15 cases)';
 
 /** Frozen holdout cases, kept out of engine development (planning/13 §Golden corpus design). */
 export const GOLDEN_HOLDOUT_CORPUS: readonly GoldenCase[] = defineGoldenCorpus([
   ...HOLDOUT_PREREQUISITE_CASES,
   ...HOLDOUT_CANDIDATE_SET_CASES,
+  ...HOLDOUT_INTERACTION_CASES,
 ]);
