@@ -96,7 +96,7 @@ const MIXED: CourseChecksResponse = CourseChecksResponseSchema.parse({
   ],
 });
 
-/** A result where every check passed, from an API that sent no catalog entries. */
+/** A result where every check passed, with no catalog entry for its course. */
 const ALL_PASSED: CourseChecksResponse = CourseChecksResponseSchema.parse({
   courseResults: [
     {
@@ -124,6 +124,7 @@ const ALL_PASSED: CourseChecksResponse = CourseChecksResponseSchema.parse({
   },
   aggregate: AggregateState.Validated,
   pinnedInputs: PINNED,
+  courses: [],
 });
 
 /**

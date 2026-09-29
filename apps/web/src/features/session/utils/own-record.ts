@@ -15,8 +15,10 @@ import type { MeResponse } from '@caa/api-contract';
  */
 export function ownOverviewPath(me: MeResponse): string | null {
   // SECURITY: the student comes from the server-resolved session, never from the request.
-  if (me.studentId === null || me.studentId === undefined) {
+  // NOTE: one check covers both a `null` ID and one an older API doesn't send.
+  const studentId = me.studentId ?? null;
+  if (studentId === null) {
     return null;
   }
-  return `/overview?${new URLSearchParams({ studentId: me.studentId }).toString()}`;
+  return `/overview?${new URLSearchParams({ studentId }).toString()}`;
 }
