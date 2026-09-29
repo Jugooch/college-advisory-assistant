@@ -10,6 +10,7 @@ import { readFileSync } from 'node:fs';
 
 import { checkServerDirective } from './lib/server-directive-rules.mjs';
 import { checkStructure } from './lib/structure-rules.mjs';
+import { checkTestingExport } from './lib/testing-entry-rules.mjs';
 
 // ---- Comment rules ----
 
@@ -59,6 +60,10 @@ const problems = files.flatMap((path) => {
     found.push(...checkComments(source).map((problem) => `${path}: ${problem}`));
     const directive = checkServerDirective(path, source);
     if (directive) found.push(`${path}: ${directive}`);
+  }
+  if (path === 'package.json' || path.endsWith('/package.json')) {
+    const testingExport = checkTestingExport(path, JSON.parse(readFileSync(path, 'utf8')));
+    if (testingExport) found.push(`${path}: ${testingExport}`);
   }
   return found;
 });
