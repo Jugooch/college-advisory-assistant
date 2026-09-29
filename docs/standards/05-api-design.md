@@ -55,15 +55,15 @@ Every response is one of two shapes:
 - `message` is safe to show a student: no stack traces, SQL, vendor payloads, or student identifiers.
 - Controllers send success through `sendData(reply, ResponseSchema, data)`, which validates the payload against the contract before sending.
 
-| Situation                                  | Status                        | Code                                                   |
-| ------------------------------------------ | ----------------------------- | ------------------------------------------------------ |
-| Body/params fail validation                | 400                           | `INVALID_REQUEST`                                      |
-| Not signed in / no access to the object    | 401 / 404                     | `UNAUTHORIZED` / `NOT_FOUND` (don't reveal existence)  |
-| Program or catalog not qualified           | 422                           | `OUT_OF_SCOPE`                                         |
-| Source down / stale / semantic gap         | 503 / 409 / 422               | `SOURCE_UNAVAILABLE` / `STALE_SOURCE` / `SEMANTIC_GAP` |
-| Optimistic concurrency failure             | 409                           | `REVISION_CONFLICT`                                    |
-| Solver budget exceeded / proven infeasible | 200 with result state, or 422 | `SEARCH_TIMEOUT` / `NO_FEASIBLE_PLAN`                  |
-| Anything else                              | 500                           | `INTERNAL_ERROR`                                       |
+| Situation                               | Status                        | Code                                                   |
+| --------------------------------------- | ----------------------------- | ------------------------------------------------------ |
+| Body/params fail validation             | 400                           | `INVALID_REQUEST`                                      |
+| Not signed in / no access to the object | 401 / 404                     | `UNAUTHORIZED` / `NOT_FOUND` (don't reveal existence)  |
+| Program or catalog not qualified        | 422                           | `OUT_OF_SCOPE`                                         |
+| Source down / stale / semantic gap      | 503 / 409 / 422               | `SOURCE_UNAVAILABLE` / `STALE_SOURCE` / `SEMANTIC_GAP` |
+| Optimistic concurrency failure          | 409                           | `REVISION_CONFLICT`                                    |
+| Solver cap reached / proven infeasible  | 200 with `outcome` (ADR-0010) | `SEARCH_TIMEOUT` / `NO_FEASIBLE_PLAN`, never an error  |
+| Anything else                           | 500                           | `INTERNAL_ERROR`                                       |
 
 ## Services
 
@@ -107,7 +107,7 @@ A validated result is built only from sources that are fresh (planning/09 §Prop
 - The 24-hour default is planning/09's proposed age. Each deployment sets the production value from the institution's approved policy. A production value above 24 hours needs that approval on record (planning/04 §Change control).
 - The future tolerance absorbs clock drift between the source system and the API. A time more than 5 minutes ahead is a source error, not fresh data.
 - The service reads the injected clock. The comparison is a `.logic.ts` function, so every endpoint that returns validated results applies the same check.
-- **Gated endpoints:** `POST /v1/students/:studentId/course-checks` and `GET /v1/students/:studentId/academic-summary` (ADR-0008 Amendment 1). The summary has no 200 historical variant, and every 200 from either endpoint is fresh. A new endpoint that returns record- or audit-derived verdicts uses the same gate.
+- **Gated endpoints:** `POST /v1/students/:studentId/course-checks` and `GET /v1/students/:studentId/academic-summary` (ADR-0008 Amendment 1). The summary has no 200 historical variant, and every 200 from either endpoint is fresh. `POST /v1/students/:studentId/schedule-options` also gates the term's section snapshot by its `sourceEffectiveAt` (ADR-0010). A new endpoint that returns record-, audit-, or section-derived verdicts uses the same gate.
 
 ## Controllers
 

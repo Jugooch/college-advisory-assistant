@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   type CampusTransitionPolicyInput,
+  CampusTransitionPolicySchema,
   createCampusTransitionPolicy,
 } from './campus-transition-policy.model';
 
@@ -14,25 +15,46 @@ const SOUTH_CAMPUS_ID = 'c4a1b2c3-0000-4000-8000-000000000002';
 
 const POLICY: CampusTransitionPolicyInput = {
   tenantId: TENANT_ID,
-  rulesetVersion: 'demo-2026.1',
+  version: 'demo-2026.1',
   transitions: [
     { fromCampusId: NORTH_CAMPUS_ID, toCampusId: SOUTH_CAMPUS_ID, minutes: 30 },
     { fromCampusId: SOUTH_CAMPUS_ID, toCampusId: NORTH_CAMPUS_ID, minutes: 40 },
-    { fromCampusId: NORTH_CAMPUS_ID, toCampusId: NORTH_CAMPUS_ID, minutes: 0 },
   ],
 };
 
 describe('createCampusTransitionPolicy', () => {
-  it('accepts asymmetric ordered pairs and a same-campus pair of zero minutes', () => {
-    expect(createCampusTransitionPolicy(POLICY).transitions).toEqual([
-      { fromCampusId: NORTH_CAMPUS_ID, toCampusId: SOUTH_CAMPUS_ID, minutes: 30 },
-      { fromCampusId: SOUTH_CAMPUS_ID, toCampusId: NORTH_CAMPUS_ID, minutes: 40 },
-      { fromCampusId: NORTH_CAMPUS_ID, toCampusId: NORTH_CAMPUS_ID, minutes: 0 },
-    ]);
+  it('accepts asymmetric ordered pairs of different campuses', () => {
+    expect(createCampusTransitionPolicy(POLICY)).toEqual({
+      tenantId: TENANT_ID,
+      version: 'demo-2026.1',
+      transitions: [
+        { fromCampusId: NORTH_CAMPUS_ID, toCampusId: SOUTH_CAMPUS_ID, minutes: 30 },
+        { fromCampusId: SOUTH_CAMPUS_ID, toCampusId: NORTH_CAMPUS_ID, minutes: 40 },
+      ],
+    });
   });
 
-  it('accepts an empty policy, which leaves every pair unknown', () => {
+  it('accepts a zero-minute pair, which the institution must state explicitly', () => {
+    const transitions = [
+      { fromCampusId: NORTH_CAMPUS_ID, toCampusId: SOUTH_CAMPUS_ID, minutes: 0 },
+    ];
+
+    expect(createCampusTransitionPolicy({ ...POLICY, transitions }).transitions[0]?.minutes).toBe(
+      0,
+    );
+  });
+
+  it('accepts an empty table, which leaves every pair of different campuses unknown', () => {
     expect(createCampusTransitionPolicy({ ...POLICY, transitions: [] }).transitions).toEqual([]);
+  });
+
+  it('rejects a same-campus pair, because the same campus needs no transition', () => {
+    expect(() =>
+      createCampusTransitionPolicy({
+        ...POLICY,
+        transitions: [{ fromCampusId: NORTH_CAMPUS_ID, toCampusId: NORTH_CAMPUS_ID, minutes: 0 }],
+      }),
+    ).toThrow(/must be different campuses/);
   });
 
   it('rejects a repeated ordered pair', () => {
@@ -56,7 +78,20 @@ describe('createCampusTransitionPolicy', () => {
     ).toThrow();
   });
 
-  it('rejects an empty ruleset version', () => {
-    expect(() => createCampusTransitionPolicy({ ...POLICY, rulesetVersion: '' })).toThrow();
+  it('rejects an empty version', () => {
+    expect(() => createCampusTransitionPolicy({ ...POLICY, version: '' })).toThrow();
+  });
+});
+
+describe('CampusTransitionPolicySchema', () => {
+  it('reports a same-campus pair on its toCampusId field', () => {
+    const result = CampusTransitionPolicySchema.safeParse({
+      ...POLICY,
+      transitions: [{ fromCampusId: SOUTH_CAMPUS_ID, toCampusId: SOUTH_CAMPUS_ID, minutes: 5 }],
+    });
+
+    expect(result.error?.issues.map((issue) => issue.path)).toEqual([
+      ['transitions', 0, 'toCampusId'],
+    ]);
   });
 });

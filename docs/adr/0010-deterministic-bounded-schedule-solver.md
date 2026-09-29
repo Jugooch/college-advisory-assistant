@@ -1,0 +1,163 @@
+# ADR-0010: Deterministic bounded schedule solver
+
+- **Status:** Accepted
+- **Date:** 2026-09-29
+- **Deciders:** Repo owner (budget, course choice, travel time, sprint size), orchestrator (endpoint, outcome field, deferrals), tech lead
+- **Related:** FR-07, FR-08, FR-18, NFR-01, NFR-07, AC06, AC07, AC08, AC12, planning/07 §Request lifecycle, planning/08 §Schedule model and §Constraint formulation, planning/09 §Logical app interfaces, ADR-0005, ADR-0008, issues #209, #210, #212, #213, #218, #219, #220, #221
+
+## Context
+
+S4 builds the scheduling half of planning/14's first vertical slice. The solver has to be deterministic (NFR-01) and bounded (NFR-07), and the planning docs pull against each other:
+
+- NFR-07 asks the solver to stop after a configured 15-second budget. A wall-clock cutoff stops at a different point on a loaded machine than on an idle one, so identical pinned inputs could give different options. That breaks NFR-01.
+- planning/08 §Constraint formulation lets the solver choose courses by requirement progress. Doing that needs audit-backed candidate applicability for combinations, which S4 doesn't have.
+- planning/09 lists an asynchronous `POST /v1/planning/requests` with a polled `GET`, but nothing in S4 stores a request or a plan draft (FR-11).
+- Standard 05 allows a solver timeout or infeasibility as either a 200 or a 422.
+
+The repo owner decided the budget, course choice, travel time and sprint size on #209. The orchestrator decided the endpoint, the outcome field and the deferrals, using the tech lead's proposed defaults. This ADR records those decisions in enough detail for #212, #213, #218, #219, #220 and #221 to build from.
+
+## Decision
+
+### 1. Budget: a fixed work cap, not a clock
+
+Options: (a) a wall-clock cutoff, (b) a wall-clock guard in the API on top of a cap, (c) a counted work cap only. **Option (c).**
+
+- **Unit of work:** one attempt to add one bundle to a partial schedule. The solver counts the attempt before it checks hard rules, so rejected attempts count too. Pre-search work isn't counted: building bundles (#219) and checking bundle pairs and single bundles against hard rules (#218). It is bounded by the input size, and it runs once per request.
+- **Default:** `3_000_000` units. An exhaustive search of the worst S4 input, 8 courses with 6 bundles each, takes 6 + 6² + … + 6⁸ = 2,015,538 attempts, so the default finishes it with room to spare.
+- **Stopping:** the search is complete when it runs out of attempts. If it needs an attempt beyond the cap, it stops and reports `searchComplete: false`. A search that needs exactly the cap is complete. The solver never uses more than the cap.
+- **Where it's set:** the engine takes the cap as an argument and returns it, with the units used, in its result. The API reads it from `SCHEDULE_SOLVER_WORK_CAP` in `apps/api/src/config/env.ts`. It defaults to `3000000` in every environment, because it is an engineering calibration, not institutional policy. Accepted values are whole numbers from 1 to 3,000,000, and startup refuses anything else. Raising the ceiling needs an amendment to this ADR with a new measurement.
+- **Recorded:** the response pins the cap in `pinnedInputs.solverWorkCap` (section 7).
+- **Calibration:** the #220 PR measures the worst S4 input at the default cap on the CI runner and records the time. The target is 2 seconds or less. That is well under NFR-07's 15 seconds and leaves room under NFR-06's 10-second planning p95. A CI test asserts the units used (at most the cap) and never the elapsed time. If the measurement is over 2 seconds, the engine-engineer stops and hands back to the tech lead; the default isn't changed in the PR.
+- **No wall-clock guard in the API.** A guard that returned a different outcome under load would break NFR-01 in the same way. The solver runs synchronously and can't be interrupted without a worker thread anyway. The service reads the injected clock around the solver call and logs `solverDurationMs`, `workUsed` and `workCap`, with no student data. A solve over 15 seconds is a calibration defect to fix, not a different answer.
+
+### 2. Scope: the student picks the courses
+
+The request names 1–8 courses, and all are required. The solver chooses exactly one bundle per course (a section plus its required linked sections, #219). Solver-chosen courses ("improve requirement progress", planning/08 §Constraint formulation, step 2) are **deferred**.
+
+The academic course-set checks (prerequisite, applicability, allocation) don't depend on sections. The API runs them once through `verifyCourseSet` and attaches them to every option, and each option's aggregate follows the usual precedence. So a prerequisite FAIL makes every option BLOCKED. It doesn't change the outcome field, because the solver can't choose around a course the student requires.
+
+### 3. Hard rules
+
+A candidate is one bundle per requested course. Hard rules are never relaxed:
+
+- no meeting conflict and no transition conflict between any two of its sections (#218);
+- credit load within the policy bounds and the student's hard credit range (`checkCreditLoad`, counting only bundle members with `countsCredits`, #219);
+- hard unavailable times, allowed modalities and allowed campuses (#212).
+
+Each check gives PASS, FAIL or UNKNOWN. A FAIL removes the candidate. An UNKNOWN keeps it as an option whose schedule feasibility is UNKNOWN, and never PASS. A TBA meeting never satisfies a hard unavailable time (planning/08 §Schedule model).
+
+### 4. Ranking and tie-break
+
+Options are ordered by these keys, lexicographically, and the solver keeps the best 3. There's no weighted sum, so a student can inspect why one option ranks above another.
+
+1. **Schedule feasibility:** PASS before UNKNOWN.
+2. **Soft preferences, in the student's priority order** (rank 1 first; ranks are unique, #212). Each preference scores 0 if the option meets it and 1 if not. A preference that depends on a TBA meeting counts as not met. The vectors are compared element by element, and the smaller one ranks higher.
+3. **Tie-break:** take all internal `SectionId`s in the option and sort them ascending by UTF-16 code unit (`<`, never `localeCompare`). Compare the two lists element by element; the first difference decides, and a proper prefix ranks first.
+
+Nothing ranks by labels, section codes, instructors, or "easy courses".
+
+Options are distinct: each differs from every other in at least one section. Two different candidates always differ, provided that #219 never returns two bundles with the same sections for one course.
+
+**Search order.** Courses are searched fewest bundles first, then by course ID. Within a course, bundles are tried by their own ranking key (feasibility, then the preferences the bundle alone misses, then the tie-break). The order only affects which options a capped search finds. A complete search returns the top 3 by the ranking key, whatever the order. Shuffling the input gives a deep-equal result either way. The engine may prune a branch only when no completion of it could enter the top 3.
+
+### 5. Outcomes: a 200 with an `outcome` field
+
+Options: error envelopes (422 `NO_FEASIBLE_PLAN`, a 4xx or 5xx `SEARCH_TIMEOUT`), or **a 200 with a structured outcome.** We chose the 200. These are valid, verified answers about the student's request, and they carry evidence an error envelope can't.
+
+| `outcome`            | `searchComplete`  | `options` | Evidence                       |
+| -------------------- | ----------------- | --------- | ------------------------------ |
+| `OPTIONS_FOUND`      | `true` or `false` | 1–3       | Each option's checks           |
+| `NO_FEASIBLE_PLAN`   | `true`            | 0         | `conflictSet`                  |
+| `SEARCH_TIMEOUT`     | `false`           | 0         | none                           |
+| `NEEDS_VERIFICATION` | `false`           | 0         | `unresolved` (UNKNOWN results) |
+
+- **`OPTIONS_FOUND`, complete:** the search finished and found candidates. The options are the best 3 by the ranking key.
+- **`OPTIONS_FOUND`, incomplete:** the cap was reached after finding candidates. The UI says "search incomplete" and claims neither that the options are the best nor that no others exist.
+- **`NO_FEASIBLE_PLAN`:** proven on known data. Either the search finished and every candidate broke a hard rule, or a requested course has no bundle because every one of its bundles failed.
+- **`SEARCH_TIMEOUT`:** the cap was reached with no candidate (AC12). It's never reported as infeasible.
+- **`NEEDS_VERIFICATION`:** a requested course has no bundle, and missing data is part of the reason. Either it has no sections in the snapshot (`SECTION_DATA_MISSING`), or at least one section was dropped because a required linked component has no permitted section (`LINKED_SECTION_UNAVAILABLE`). The search doesn't run.
+- **Precedence before the search:** if any course has no bundle and all of its bundles failed, the outcome is `NO_FEASIBLE_PLAN`. Otherwise, if any course has no bundle because data is missing, it is `NEEDS_VERIFICATION`. This mirrors the aggregate precedence: FAIL, then UNKNOWN.
+- **`conflictSet`:** the distinct FAIL results the solver's checks produced on the pinned inputs, deduplicated by reason code and sections. They're sorted by reason code, then by the tie-break key of their sections, and capped at 20 items with an `omittedCount`. Each item is a real engine result, so the set is verified. `isMinimal` is always `false` in S4, because minimality isn't checked (planning/08).
+- **Limitations:** every response lists the fixed codes `SEAT_AVAILABILITY_NOT_CHECKED`, `REGISTRATION_READINESS_NOT_CHECKED` and `NOT_REGISTERED`. They are contract enum values, not free text.
+- The existing `ErrorCode` values `SEARCH_TIMEOUT` and `NO_FEASIBLE_PLAN` stay for other uses. The schedule-options endpoint never sends them as an error envelope.
+
+### 6. Endpoint: synchronous
+
+`POST /v1/students/:studentId/schedule-options` answers synchronously on pinned inputs, bounded by the cap, like course checks. The body has `termId`, `courseIds` (1–8, unique), `creditSelections` and `constraints`, and never a tenant, user or role. Access follows course checks. planning/09's request-and-poll shape (`POST /v1/planning/requests`) is deferred until plan drafts (FR-11) need a stored request.
+
+**Freshness:** the term's latest published section snapshot goes through the ADR-0008 gate (`PinnedRecordsService.assertFresh`) with the student snapshot and the audit, using `ACADEMIC_SOURCE_MAX_AGE_MS` (planning/09's 24 hours for published section structure).
+
+| Case                                    | Response                                                                        |
+| --------------------------------------- | ------------------------------------------------------------------------------- |
+| Snapshot past the maximum age           | 409 `STALE_SOURCE` with a referral, before any engine call                      |
+| No published snapshot for the term      | 503 `SOURCE_UNAVAILABLE`                                                        |
+| Two snapshots tie for latest            | 409 `STALE_SOURCE`                                                              |
+| A requested course has no section in it | 200 `NEEDS_VERIFICATION`, `SECTION_DATA_MISSING` (settles #221's open question) |
+
+Missing data inside a fresh snapshot is UNKNOWN in the engine, and never PASS. That covers a TBA meeting time, a linked group with no permitted partner, and a campus pair with no configured transition time.
+
+### 7. Pinning
+
+The response pins, in `pinnedInputs`, the course-checks fields (student snapshot, record and audit times, audit source and version, ruleset version) plus:
+
+- `sectionSnapshotId`;
+- `campusTransitionVersion`, the version of the tenant's transition table;
+- `solverWorkCap`;
+- `constraintHash`: `sha256:` and the lowercase hex SHA-256 of the canonical JSON of the normalized request. The request is normalized as `termId`, `courseIds` sorted, `creditSelections` sorted by course ID, hard constraints sorted by their canonical JSON, and preferences sorted by rank. The engine exports the pure normalizer. The API service computes the hash, because the engine may not use `crypto`.
+
+The same pinned inputs and cap give a deep-equal response.
+
+### 8. Travel time is in S4
+
+Each tenant has a versioned campus transition table: the minutes needed from campus X to campus Y, for ordered pairs of different campuses. It has synthetic seed data (#215, #217). The same campus needs no transition. A meeting with no campus (online) isn't subject to one.
+
+For two timed meetings on different campuses that share at least one active date and don't overlap:
+
+- the gap is the later start minus the earlier end, in local wall-clock minutes;
+- the required time is the table's entry from the earlier meeting's campus to the later one's;
+- no entry for the pair gives UNKNOWN `TRANSITION_TIME_UNDEFINED`, whatever the gap, and never an assumed PASS;
+- a gap under the required time gives FAIL `TRANSITION_TIME_INSUFFICIENT` (AC08);
+- otherwise the pair passes.
+
+The rule applies to every such pair in the option, not just consecutive meetings. That can be conservative when the table isn't metric, but it is never unsafe.
+
+### 9. Deferred
+
+- **Registrar section feed import** (the E02 worker). S4 persists and seeds section snapshots (#215, #217).
+- **Seat availability and registration.** They're out of scope, and every response says so through the limitation codes above.
+- **Solver-chosen courses** (requirement progress as a ranking key).
+- **Request-and-poll planning requests** (planning/09), until FR-11.
+
+### Change control (planning/04)
+
+Interpreting NFR-07 this way is a planning deviation, so it's logged here and in a decision note in planning/06:
+
+| Field                  | Record                                                                                                                                       |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Problem                | NFR-07's wall-clock budget contradicts NFR-01 for identical pinned inputs                                                                    |
+| Requirements affected  | NFR-07 (the budget is a calibrated work cap), NFR-01 (unchanged, now satisfiable), AC12 ("times out" means the cap was reached)              |
+| Data classes, versions | None. No student data, adapter or rule version changes                                                                                       |
+| Tests                  | #220 (the worst input within the cap, cap outcomes, shuffle determinism), #221 (a cap hit is the documented outcome, not a 500), #225 (AC12) |
+| Migration and rollback | None to migrate. Rolling back to a clock would reintroduce the NFR-01 conflict, so it would need a new ADR                                   |
+| Delivery impact        | None; the change is part of S4                                                                                                               |
+| Approval               | Repo owner on #209, 2026-09-29, for the synthetic prototype. Institutional approval is still pending, as with every planning baseline        |
+
+## Consequences
+
+- The solver's result depends only on its inputs and the cap, so replay, golden cases and AC12 are exact and testable without timing.
+- The cap is honest about its limit. A capped search says "search incomplete" or `SEARCH_TIMEOUT`, and never claims infeasibility or optimality it didn't prove.
+- A request can block the API's event loop for up to the calibrated time (2 seconds or less). That's acceptable for the prototype's load, and it's the main reason to revisit.
+- Contract (#212, #213): the outcome enum, `searchComplete`, `conflictSet` (`items`, `isMinimal`, `omittedCount`), `unresolved`, the limitation codes, and the pinned fields above. Invariants from the table become `.refine`s, for example `SEARCH_TIMEOUT` has no options and `NO_FEASIBLE_PLAN` has a `conflictSet`.
+- Engine (#218, #219, #220): the transition rule, deduplicated bundles, the ranking key, the search order, and the counted cap, with a test that the worst S4 input finishes within the default cap.
+- API (#221): `SCHEDULE_SOLVER_WORK_CAP` in `env.ts`, the freshness gate on the section snapshot, the constraint hash, and duration logging.
+- Standard 01 gains §Determinism in pure code, and standard 05's error table and freshness list name this endpoint. The devops-engineer adds the matching lint (handoff on #209).
+
+## Revisit when
+
+- The #220 measurement, or a later one, puts the worst S4 input over 2 seconds, or planning p95 exceeds NFR-06's 10 seconds.
+- Seeded or pilot section data regularly exceeds 8 courses × 6 bundles, so real requests hit the cap.
+- Plan drafts (FR-11) need a stored planning request. Then move to request-and-poll, and run the solver off the API's event loop.
+- Solver-chosen courses are scheduled. Requirement progress then becomes a ranking key between feasibility and preferences.
+- A registrar feed or a seat source is qualified, which ends the deferral for the import or the seat claims.
+- Students need a degree of violation for a preference (for example "two early classes is worse than one"), not just met or unmet.
+- An institution's transition table needs consecutive-meeting semantics instead of every pair on a shared date.
