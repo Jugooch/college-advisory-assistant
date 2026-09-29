@@ -1,7 +1,9 @@
 /**
  * @file Proves the API acceptance harness serves academic data from its own in-memory stores:
  * snapshots and audits, catalog, prerequisite rules, policy, and terms. A missing record reaches
- * the API's documented referral, never the not-configured 500.
+ * the API's documented referral, never the not-configured 500. Its student-user link store finds
+ * a signed-in user's own student in that tenant only, and never picks between two links.
+ * @requirement FR-01
  * @requirement FR-03
  * @requirement FR-09
  * @see docs/planning/07-system-architecture-and-design.md
@@ -20,11 +22,13 @@ import {
   buildUserIdentity,
   completedAttempt,
   SYNTHETIC_COURSES,
+  SYNTHETIC_TENANTS,
 } from '@caa/test-kit';
 
 import {
   type AcceptanceWorld,
   buildAcceptanceApp,
+  createStudentUserLinks,
   getAs,
   postAs,
   summarizeError,
@@ -148,5 +152,43 @@ describe('buildAcceptanceApp academic stores', () => {
     const response = await getAs(app, SUMMARY_URL, AUTH);
 
     expect(summarizeError(response)).toMatchObject({ statusCode: 409, code: 'STALE_SOURCE' });
+  });
+});
+
+describe('createStudentUserLinks', () => {
+  const USER_1 = buildUserIdentity({}, 1);
+  const LINKED = buildStudent({ userId: USER_1.id }, 1);
+  const links = createStudentUserLinks({
+    identities: [USER_1],
+    students: [LINKED, buildStudent({ userId: null }, 2)],
+    assignments: [],
+  });
+
+  it('finds the student linked to the user in that tenant', async () => {
+    await expect(links.findByUserId(SYNTHETIC_TENANTS.a.id, USER_1.id)).resolves.toMatchObject({
+      id: '30000000-0000-4000-8000-000000000001',
+    });
+  });
+
+  it('returns null for a user with no link', async () => {
+    const unlinked = buildUserIdentity({}, 9);
+
+    await expect(links.findByUserId(SYNTHETIC_TENANTS.a.id, unlinked.id)).resolves.toBeNull();
+  });
+
+  it('never returns another tenant’s student', async () => {
+    await expect(links.findByUserId(SYNTHETIC_TENANTS.b.id, USER_1.id)).resolves.toBeNull();
+  });
+
+  it('rejects rather than picking when two students are linked to the user', async () => {
+    const ambiguous = createStudentUserLinks({
+      identities: [USER_1],
+      students: [LINKED, buildStudent({ userId: USER_1.id }, 2)],
+      assignments: [],
+    });
+
+    await expect(ambiguous.findByUserId(SYNTHETIC_TENANTS.a.id, USER_1.id)).rejects.toThrow(
+      'More than one student is linked to the user',
+    );
   });
 });
