@@ -138,6 +138,48 @@ describe('ScheduleOptionSchema', () => {
     expect(accepts({ ...OPTION, scheduleFeasibility: fail, aggregate: 'BLOCKED' })).toBe(false);
   });
 
+  it('rejects a FAIL credit load, because the credit range is a hard rule too', () => {
+    const overLoad = {
+      kind: 'CREDIT_LOAD',
+      state: 'FAIL',
+      reasonCode: 'CREDIT_LIMIT_EXCEEDED',
+      evidence: {
+        rulesetVersion: 'demo-2026.1',
+        decisiveLeaves: [],
+        creditLoad: {
+          totalCreditsHundredths: 2000,
+          minCreditsHundredths: 0,
+          maxCreditsHundredths: 1800,
+        },
+      },
+    };
+    const result = ScheduleOptionSchema.safeParse({
+      ...OPTION,
+      setResults: { ...OPTION.setResults, creditLoad: overLoad },
+      aggregate: 'BLOCKED',
+    });
+
+    expect(result.error?.issues.map((issue) => issue.message)).toEqual([
+      'An option never has a FAIL creditLoad',
+    ]);
+  });
+
+  it('accepts an UNKNOWN credit load with a NEEDS_VERIFICATION aggregate', () => {
+    const unknownLoad = {
+      kind: 'CREDIT_LOAD',
+      state: 'UNKNOWN',
+      reasonCode: 'VARIABLE_CREDIT_UNSELECTED',
+    };
+
+    expect(
+      accepts({
+        ...OPTION,
+        setResults: { ...OPTION.setResults, creditLoad: unknownLoad },
+        aggregate: 'NEEDS_VERIFICATION',
+      }),
+    ).toBe(true);
+  });
+
   it('rejects a schedule check of another kind', () => {
     expect(
       accepts({ ...OPTION, scheduleFeasibility: { kind: 'CREDIT_LOAD', state: 'PASS' } }),

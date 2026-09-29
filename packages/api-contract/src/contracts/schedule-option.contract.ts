@@ -140,7 +140,10 @@ export const ScheduleOptionSchema = z
   .object({
     /** Position in the ranking, 1 first (ADR-0010 §4). */
     rank: z.number().int().min(1).max(MAX_SCHEDULE_OPTIONS),
-    /** One bundle per requested course. */
+    /**
+     * One bundle per requested course. This schema checks the bundles are distinct and match
+     * `courseResults`; `ScheduleOptionsResponseSchema` checks they cover every requested course.
+     */
     bundles: z.array(SectionBundleSchema).min(1).max(MAX_SCHEDULE_OPTION_COURSES).readonly(),
     /**
      * The SCHEDULE_FEASIBILITY check of the whole option: PASS, or UNKNOWN when missing data
@@ -164,6 +167,13 @@ export const ScheduleOptionSchema = z
   .refine((option) => option.scheduleFeasibility.state !== CheckState.Fail, {
     message: 'An option never has a FAIL scheduleFeasibility',
     path: ['scheduleFeasibility'],
+  })
+  // SAFETY: the credit load within the policy bounds and the student's hard credit range is a
+  // hard rule too, so a candidate whose load FAILs is removed, never offered (ADR-0010 §3). It
+  // belongs in `conflictSet`, which accepts CREDIT_LOAD FAILs for this reason.
+  .refine((option) => option.setResults.creditLoad.state !== CheckState.Fail, {
+    message: 'An option never has a FAIL creditLoad',
+    path: ['setResults', 'creditLoad'],
   })
   // SAFETY: the solver picks exactly one bundle per requested course, and the academic checks
   // must be about the same courses as the sections shown.

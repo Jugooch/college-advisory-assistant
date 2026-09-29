@@ -234,12 +234,24 @@ export const ScheduleOptionsResponseSchema = z
     message: 'options must be distinct, ranked 1 to n, with PASS schedules before UNKNOWN ones',
     path: ['options'],
   })
+  // SAFETY: every requested course is required, so each option schedules exactly the requested
+  // courses, one bundle each (ADR-0010 §2 and §3). An option that dropped a course would also
+  // drop that course's checks, so a FAIL or UNKNOWN prerequisite could vanish from its
+  // aggregate. The option schema already makes its bundles and `courseResults` distinct and
+  // equal as sets, so matching the bundles against `courseIds` covers both.
   .refine(
     (response) =>
-      response.options.every((option) =>
-        option.bundles.every((bundle) => response.courseIds.includes(bundle.courseId)),
+      response.options.every(
+        (option) =>
+          option.bundles.length === response.courseIds.length &&
+          response.courseIds.every((courseId) =>
+            option.bundles.some((bundle) => bundle.courseId === courseId),
+          ),
       ),
-    { message: 'Every option must schedule only the requested courses', path: ['options'] },
+    {
+      message: 'Every option must schedule every requested course, one bundle each',
+      path: ['options'],
+    },
   )
   // SAFETY: seats and registration are never checked here, and every response says so with
   // fixed codes, never free text (ADR-0010 §5).
