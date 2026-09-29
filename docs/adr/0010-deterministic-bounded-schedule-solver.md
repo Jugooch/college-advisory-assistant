@@ -162,6 +162,33 @@ Interpreting NFR-07 this way is a planning deviation, so it's logged here and in
 - Students need a degree of violation for a preference (for example "two early classes is worse than one"), not just met or unmet.
 - An institution's transition table needs consecutive-meeting semantics instead of every pair on a shared date.
 
+## Amendment 1 (2026-09-29, issue #226): a TBA time conflicts only on a possible shared date
+
+**Related:** #218, #226, PR #247, ruling GR-02 (planning/13 §Golden corpus design, Adjudication rulings).
+
+**Context.** Section 6 makes a TBA meeting time UNKNOWN, and #218 says "a TBA meeting against any timed meeting on overlapping dates is UNKNOWN". Neither says what "overlapping dates" means when the TBA meeting's weekdays are known. Take a MW meeting with TBA times and a TTh 09:00–09:50 meeting over the same term. Their date intervals overlap, but they never meet on the same date. qa's scheduling golden planning (PR #247) couldn't write a case for it without a ruling.
+
+**Decision.** For the meeting-conflict check between two meetings where either time is TBA:
+
+- A meeting's possible dates are the dates from `startsOn` to `endsOn`, less its `excludedDates`, that fall on its weekdays. When its weekdays are TBA (`null`), every weekday counts.
+- If the two sets of possible dates don't intersect, the pair is PASS. No meeting instance can overlap, whatever the times (planning/08 §Schedule model).
+- If they share at least one possible date, the pair is UNKNOWN `MEETING_TIME_UNKNOWN`. It is never PASS, and never FAIL, because a TBA time can't prove a conflict.
+
+"Overlapping dates" in #218 therefore means a shared possible date, not overlapping date intervals. Nothing else changes:
+
+- A TBA time never satisfies a hard unavailable time (section 3).
+- A preference that depends on a TBA meeting counts as not met (section 4).
+- The transition rule applies only to two timed meetings (section 8).
+
+This interprets planning/08; it doesn't deviate from it, so it needs no change-control record.
+
+**Consequences.**
+
+- Engine (#218): when either meeting's time is TBA, the conflict check compares possible dates first. It returns PASS on no shared date, and UNKNOWN `MEETING_TIME_UNKNOWN` otherwise. Its tests include a known-weekday TBA meeting against a timed meeting on other weekdays (PASS), and one sharing a weekday (UNKNOWN).
+- QA (#226): a golden case for each of the two results, citing GR-02.
+
+**Revisit when** a source publishes weekdays that can still change after publication. A known weekday would then no longer prove a disjoint date set.
+
 ## Amendment 2 (2026-09-29, issue #261): a TBA location decides travel as UNKNOWN
 
 **Related:** #218, #261, PR #260. Amendment 1 (GR-02, PR #249) covers TBA times.
