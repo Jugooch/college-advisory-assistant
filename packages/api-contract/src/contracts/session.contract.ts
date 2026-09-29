@@ -22,13 +22,12 @@ export const MeResponseSchema = z
     userId: UserIdSchema,
     tenantId: InstitutionIdSchema,
     roles: RoleSetSchema,
-    // TODO(#169): make required
     /**
      * The student record linked to the signed-in user, so a student can be taken to their own
      * record, or `null` when the user has no linked student (for example an advisor). Resolved
      * from the session on the server, never from the request.
      */
-    studentId: StudentIdSchema.nullable().optional(),
+    studentId: StudentIdSchema.nullable(),
   })
   .readonly();
 

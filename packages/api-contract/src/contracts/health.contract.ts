@@ -13,12 +13,8 @@ export const HealthResponseSchema = z.object({
   status: z.literal('ok'),
   version: z.string().min(1),
   checkedAt: z.iso.datetime({ offset: true }),
-  // TODO(#169): make required
-  /**
-   * How the API authenticates requests. The web offers dev sign-in only when this is `dev`; an
-   * omitted value means the mode isn't reported, and the web offers no dev sign-in.
-   */
-  authMode: AuthModeSchema.optional(),
+  /** How the API authenticates requests. The web offers dev sign-in only when this is `dev`. */
+  authMode: AuthModeSchema,
 });
 
 /** Response body for `GET /v1/health`. */

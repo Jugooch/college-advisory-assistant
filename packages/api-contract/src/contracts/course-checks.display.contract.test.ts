@@ -66,8 +66,11 @@ describe('CourseChecksResponseSchema course display fields', () => {
     expect(accepts({ ...VALID, courses: [CALCULUS] })).toBe(true);
   });
 
-  it('accepts omitted courses while they are still optional (#169)', () => {
-    expect(CourseChecksResponseSchema.parse(WITHOUT_COURSES).courses).toBeUndefined();
+  it('rejects a response without courses, and accepts an empty list', () => {
+    expect(accepts(WITHOUT_COURSES)).toBe(false);
+    expect(CourseChecksResponseSchema.parse({ ...WITHOUT_COURSES, courses: [] }).courses).toEqual(
+      [],
+    );
   });
 
   it('rejects a course that was not checked', () => {

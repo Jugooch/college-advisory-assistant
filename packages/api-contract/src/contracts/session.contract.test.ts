@@ -7,11 +7,12 @@ import { Role } from '@caa/domain';
 
 import { getMeEndpoint, MeResponseSchema } from './session.contract';
 
-const VALID = {
+const WITHOUT_STUDENT = {
   userId: '1a2b3c4d-0000-4000-8000-000000000001',
   tenantId: '0b8f6a36-3f7e-4a53-9c1e-8f1b2c3d4e5f',
   roles: [Role.Student],
 };
+const VALID = { ...WITHOUT_STUDENT, studentId: null };
 
 describe('getMeEndpoint', () => {
   it('declares GET /v1/me', () => {
@@ -49,8 +50,8 @@ describe('MeResponseSchema', () => {
     expect(MeResponseSchema.parse({ ...VALID, studentId: null }).studentId).toBeNull();
   });
 
-  it('accepts an omitted studentId while it is still optional (#169)', () => {
-    expect(MeResponseSchema.parse(VALID).studentId).toBeUndefined();
+  it('rejects a response without studentId', () => {
+    expect(MeResponseSchema.safeParse(WITHOUT_STUDENT).success).toBe(false);
   });
 
   it('rejects a non-UUID studentId', () => {

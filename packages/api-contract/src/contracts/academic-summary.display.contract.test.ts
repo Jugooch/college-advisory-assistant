@@ -34,6 +34,7 @@ const AUDIT = {
   catalogYear: '2025-2026',
   programName: 'BS Mathematics',
   generatedAt: '2026-08-21T10:00:00Z',
+  studentRecordEffectiveAt: '2026-08-20T09:00:00-05:00',
 };
 const VALID = {
   student: { id: '2b3c4d5e-0000-4000-8000-000000000001', sourceStudentId: 'DEMO-S-0001' },
@@ -73,6 +74,16 @@ const NO_AUDIT = {
 const accepts = (payload: unknown): boolean =>
   AcademicSummaryResponseSchema.safeParse(payload).success;
 
+/**
+ * Copies an object without one of its fields.
+ *
+ * @param source - Object to copy.
+ * @param field - Field to leave out.
+ * @returns The copy.
+ */
+const without = (source: object, field: string): object =>
+  Object.fromEntries(Object.entries(source).filter(([key]) => key !== field));
+
 describe('AcademicSummaryResponseSchema display fields', () => {
   it('returns program names and candidate courses unchanged', () => {
     const parsed = AcademicSummaryResponseSchema.parse(VALID);
@@ -94,30 +105,12 @@ describe('AcademicSummaryResponseSchema display fields', () => {
     expect(AcademicSummaryResponseSchema.parse(NO_AUDIT).courses).toEqual([]);
   });
 
-  it('accepts omitted display fields while they are still optional (#169)', () => {
-    const studentSnapshot = {
-      id: SNAPSHOT.id,
-      programId: PROGRAM_ID,
-      catalogYear: '2025-2026',
-      sourceEffectiveAt: SNAPSHOT.sourceEffectiveAt,
-    };
-    const audit = {
-      auditSource: 'demo-audit',
-      auditVersion: 'audit_demo_r7',
-      programId: PROGRAM_ID,
-      catalogYear: '2025-2026',
-      generatedAt: AUDIT.generatedAt,
-    };
-    const withoutDisplay = {
-      student: VALID.student,
-      studentSnapshot,
-      audit,
-      auditReflectsRecord: VALID.auditReflectsRecord,
-      programCatalogConsistency: VALID.programCatalogConsistency,
-      requirements: VALID.requirements,
-    };
-
-    expect(accepts(withoutDisplay)).toBe(true);
+  it.each([
+    ['the record program name', { ...VALID, studentSnapshot: without(SNAPSHOT, 'programName') }],
+    ['the audit program name', { ...VALID, audit: without(AUDIT, 'programName') }],
+    ['the courses', without(VALID, 'courses')],
+  ])('rejects a summary without %s', (_case, summary) => {
+    expect(accepts(summary)).toBe(false);
   });
 
   it('rejects a program name for a record that states no program', () => {

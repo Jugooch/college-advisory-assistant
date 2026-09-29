@@ -37,16 +37,20 @@ const VALID = {
     programId: PROGRAM_ID,
     catalogYear: '2025-2026',
     sourceEffectiveAt: '2026-08-20T09:00:00-05:00',
+    programName: null,
   },
   audit: {
     auditSource: 'demo-audit',
     auditVersion: 'audit_demo_r7',
     programId: PROGRAM_ID,
     catalogYear: '2025-2026',
+    programName: null,
     generatedAt: '2026-08-21T10:00:00Z',
+    studentRecordEffectiveAt: '2026-08-20T09:00:00-05:00',
   },
   auditReflectsRecord: { state: 'PASS', reasonCode: null },
   programCatalogConsistency: { state: 'PASS', reasonCode: null },
+  courses: [],
   requirements: [CORE, CALCULUS],
 };
 const NO_AUDIT = {
