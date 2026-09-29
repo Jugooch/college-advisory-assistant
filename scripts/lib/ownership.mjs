@@ -6,6 +6,8 @@ import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { findCheckoutRoot } from './worktree-root.mjs';
+
 /** Absolute path of the repository root. */
 export const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -35,16 +37,20 @@ export function globToRegExp(glob) {
 
 /**
  * Resolves a path (including `..` segments and symlinks) to a repository-relative POSIX path.
+ * A path inside a registered `git worktree` of the repository is relative to that worktree's
+ * root, so the ownership map applies there as in the main checkout.
  *
- * @param {string} filePath - Path to normalize.
- * @returns {string} Repository-relative path using forward slashes.
+ * @param {string} filePath - Path to normalize; a relative path is resolved against `repoRoot`.
+ * @param {string} [repoRoot] - Root of a checkout of the repository; defaults to this one.
+ * @returns {string} Repository-relative path using forward slashes. A path in no checkout of
+ *   the repository starts with `../` or is absolute (see {@link isOutsideRepo}).
  */
-export function toRepoPath(filePath) {
-  const relativePath = relative(
-    realpathSync(REPO_ROOT),
-    resolveRealPath(resolve(REPO_ROOT, filePath)),
-  );
-  return relativePath.split('\\').join('/');
+export function toRepoPath(filePath, repoRoot = REPO_ROOT) {
+  const target = resolveRealPath(resolve(repoRoot, filePath));
+  // SECURITY: fail closed; unreadable git metadata falls back to the given root, where a path
+  // in another directory stays outside the repository.
+  const checkoutRoot = findCheckoutRoot(target, repoRoot) ?? realpathSync(repoRoot);
+  return relative(checkoutRoot, target).split('\\').join('/');
 }
 
 /**
