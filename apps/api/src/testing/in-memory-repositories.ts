@@ -36,9 +36,9 @@ export interface RecordingLogger extends Logger {
  * PostgreSQL repositories.
  *
  * @param store - Backing data. Read on every call.
- * @returns Every repository, including the optional academic ones, for the container.
+ * @returns Every repository the container needs.
  */
-export function createInMemoryRepositories(store: InMemoryStore): Required<Repositories> {
+export function createInMemoryRepositories(store: InMemoryStore): Repositories {
   return {
     userIdentities: {
       findByIssuerSubject: (issuer, subject) =>
