@@ -3,9 +3,11 @@
  * @module @caa/domain
  */
 export * from './enums/attempt-status.enum';
+export * from './enums/auth-mode.enum';
 export * from './enums/check-kind.enum';
 export * from './enums/check-state.enum';
 export * from './enums/counting-state.enum';
+export * from './enums/credit-rule-kind.enum';
 export * from './enums/error-code.enum';
 export * from './enums/grade-scheme.enum';
 export * from './enums/identity-status.enum';
