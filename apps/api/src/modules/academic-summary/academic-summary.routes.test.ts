@@ -18,6 +18,7 @@ import {
   buildRecordSnapshot,
   RECORD_TIMES,
 } from '../../testing/academic-fixtures';
+import { readLogLines } from '../../testing/course-checks-harness';
 import { bearer, buildWorldApp, readError, STUDENTS, TOKENS } from '../../testing/fixtures';
 
 const lines: string[] = [];
@@ -45,6 +46,7 @@ beforeEach(() => {
   lines.length = 0;
   store.studentSnapshots = [snapshot];
   store.audits = [audit];
+  store.courses = Object.values(SYNTHETIC_COURSES);
 });
 
 /**
@@ -85,6 +87,7 @@ describe('GET /v1/students/:studentId/academic-summary', () => {
           programId: syntheticId('program', 1),
           catalogYear: '2025-2026',
           sourceEffectiveAt: RECORD_TIMES.sourceEffectiveAt,
+          programName: null,
         },
         audit: {
           auditSource: 'demo-audit',
@@ -92,6 +95,7 @@ describe('GET /v1/students/:studentId/academic-summary', () => {
           programId: syntheticId('program', 1),
           catalogYear: '2025-2026',
           generatedAt: RECORD_TIMES.auditGeneratedAt,
+          programName: null,
         },
         auditReflectsRecord: { state: CheckState.Pass, reasonCode: null },
         programCatalogConsistency: { state: CheckState.Pass, reasonCode: null },
@@ -105,6 +109,14 @@ describe('GET /v1/students/:studentId/academic-summary', () => {
             remainingCourseCount: 1,
             candidateCourseIds: [SYNTHETIC_COURSES.math102.id],
             sourceRef: 'demo-audit/REQ-001',
+          },
+        ],
+        courses: [
+          {
+            courseId: SYNTHETIC_COURSES.math102.id,
+            code: SYNTHETIC_COURSES.math102.label,
+            title: null,
+            credits: { kind: 'FIXED', creditsHundredths: 300 },
           },
         ],
       },
@@ -240,26 +252,10 @@ describe('GET /v1/students/:studentId/academic-summary record states', () => {
   });
 });
 
-/** The fields of a pino JSON line these tests read; other fields pass through. */
-const LogLineSchema = z.looseObject({
-  msg: z.string(),
-  level: z.number(),
-  reqId: z.string().optional(),
-});
-
-/**
- * Parses the captured log lines.
- *
- * @returns Every captured line.
- */
-function readLines() {
-  return lines.map((line) => LogLineSchema.parse(JSON.parse(line)));
-}
-
 describe('academic summary logs', () => {
   it('carry the request ID on the read line and hold no personal data', async () => {
     const response = await getSummary(STUDENTS.own.id, TOKENS.student);
-    const parsed = readLines();
+    const parsed = readLogLines(lines);
     const completed = parsed.find((line) => line.msg === 'request completed');
 
     expect(response.statusCode).toBe(200);
@@ -284,9 +280,9 @@ describe('academic summary logs', () => {
       .object({ error: z.object({ requestId: z.string() }) })
       .parse(response.json()).error;
 
-    expect(readLines().filter((line) => line.msg === 'academic record unavailable')).toEqual([
-      expect.objectContaining({ reqId: requestId, reason: 'NO_STUDENT_SNAPSHOT' }),
-    ]);
+    expect(
+      readLogLines(lines).filter((line) => line.msg === 'academic record unavailable'),
+    ).toEqual([expect.objectContaining({ reqId: requestId, reason: 'NO_STUDENT_SNAPSHOT' })]);
   });
 });
 
@@ -297,9 +293,9 @@ describe('academic summary out-of-scope backstop', () => {
       url: `/v1/students/${STUDENTS.own.id}/academic-summary`,
       headers: bearer(TOKENS.student),
     });
-    const events = leakyLines
-      .map((line) => LogLineSchema.parse(JSON.parse(line)))
-      .filter((line) => line.msg === 'academic record out of scope');
+    const events = readLogLines(leakyLines).filter(
+      (line) => line.msg === 'academic record out of scope',
+    );
 
     expect(response.statusCode).toBe(404);
     expect(readError(response.json()).code).toBe(ErrorCode.NotFound);

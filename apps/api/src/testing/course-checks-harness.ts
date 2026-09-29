@@ -14,9 +14,9 @@ import { buildActor, SYNTHETIC_TENANTS } from '@caa/test-kit';
 import type { Repositories } from '../container';
 import {
   type CourseChecksQuery,
+  type CourseChecksResult,
   createCourseChecksService,
 } from '../modules/course-checks/course-checks.service';
-import type { CourseChecks } from '../modules/course-verification/course-verification.logic';
 import { createPinnedRecordsService } from '../modules/pinned-records/pinned-records.service';
 import { NotFoundError } from '../shared/domain-errors';
 import { bearer, buildWorldApp } from './fixtures';
@@ -53,7 +53,7 @@ export interface CheckSetup {
 
 /** A started check, and what it recorded. */
 export interface CheckRun {
-  readonly result: Promise<CourseChecks>;
+  readonly result: Promise<CourseChecksResult>;
   readonly logger: RecordingLogger;
   readonly ruleLookups: readonly unknown[];
 }

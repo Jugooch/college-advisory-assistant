@@ -112,7 +112,11 @@ function createSessionResolver(env: ApiEnv, identities: UserIdentityRepository):
  */
 export function createContainer(options: ContainerOptions): AppDependencies {
   const { env, repositories, now } = options;
-  const healthService = createHealthService({ version: env.APP_VERSION, now });
+  const healthService = createHealthService({
+    version: env.APP_VERSION,
+    now,
+    authMode: env.AUTH_MODE,
+  });
   const accessService = createAccessService({
     students: repositories.students,
     advisorAssignments: repositories.advisorAssignments,
@@ -132,6 +136,7 @@ export function createContainer(options: ContainerOptions): AppDependencies {
     students: studentsService,
     pinnedRecords,
     maxSkewMs: env.AUDIT_RECORD_MAX_SKEW_MS,
+    courseCatalog: repositories.courseCatalog,
   });
   const courseChecksService = createCourseChecksService({
     courseCatalog: repositories.courseCatalog,

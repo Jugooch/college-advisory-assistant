@@ -80,6 +80,7 @@ describe('POST /v1/students/:studentId/course-checks', () => {
       rulesetVersion: 'demo-2026.1',
     });
     expect(checks.courseResults[0]?.prerequisite?.state).toBe(CheckState.Pass);
+    expect(checks.courses).toEqual([expect.objectContaining({ code: 'DEMO-MATH 102' })]);
   });
 
   it.each([

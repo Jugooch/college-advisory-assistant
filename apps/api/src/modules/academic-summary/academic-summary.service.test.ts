@@ -9,8 +9,15 @@
 import { describe, expect, it } from 'vitest';
 
 import type { AuditSnapshotRepository, StudentSnapshotRepository } from '@caa/db';
-import { type AuditSnapshot, CheckState, ReasonCode, type StudentSnapshot } from '@caa/domain';
-import { buildActor, buildStudent } from '@caa/test-kit';
+import {
+  type AuditSnapshot,
+  CheckState,
+  type Course,
+  CreditRuleKind,
+  ReasonCode,
+  type StudentSnapshot,
+} from '@caa/domain';
+import { buildActor, buildStudent, SYNTHETIC_COURSES, SYNTHETIC_TENANTS } from '@caa/test-kit';
 
 import { NotFoundError, SourceUnavailableError } from '../../shared/domain-errors';
 import { buildRecordAudit, buildRecordSnapshot } from '../../testing/academic-fixtures';
@@ -32,6 +39,8 @@ interface Setup {
   readonly isAllowed?: boolean;
   readonly studentSnapshots?: readonly StudentSnapshot[];
   readonly audits?: readonly AuditSnapshot[];
+  /** The catalog; defaults to every synthetic course of tenant A. */
+  readonly courses?: readonly Course[];
   readonly repositories?: {
     readonly studentSnapshots?: StudentSnapshotRepository;
     readonly auditSnapshots?: AuditSnapshotRepository;
@@ -52,6 +61,7 @@ function read(setup: Setup = {}) {
     assignments: [],
     studentSnapshots: setup.studentSnapshots ?? [snapshot],
     audits: setup.audits ?? [audit],
+    courses: setup.courses ?? Object.values(SYNTHETIC_COURSES),
   });
   const logger = createRecordingLogger();
   const service = createAcademicSummaryService({
@@ -67,6 +77,7 @@ function read(setup: Setup = {}) {
       maxSourceAgeMs: 0,
     }),
     maxSkewMs: MAX_SKEW_MS,
+    courseCatalog: store.courseCatalog,
   });
   return { result: service.getAcademicSummary(actor, student.id, { logger }), logger };
 }
@@ -83,13 +94,27 @@ describe('AcademicSummaryService.getAcademicSummary', () => {
         reflectsRecord: { state: CheckState.Pass, reasonCode: null },
         programCatalogConsistency: { state: CheckState.Pass, reasonCode: null },
       },
+      courses: [
+        {
+          courseId: SYNTHETIC_COURSES.math102.id,
+          code: SYNTHETIC_COURSES.math102.label,
+          title: null,
+          credits: { kind: CreditRuleKind.Fixed, creditsHundredths: 300 },
+        },
+      ],
     });
+  });
+
+  it("lists no display entry for a candidate outside the session tenant's catalog", async () => {
+    const foreign = { ...SYNTHETIC_COURSES.math102, tenantId: SYNTHETIC_TENANTS.b.id };
+
+    expect((await read({ courses: [foreign] }).result).courses).toEqual([]);
   });
 
   it('returns and logs no audit, never a fabricated one, when the student has none', async () => {
     const { result, logger } = read({ audits: [] });
 
-    expect((await result).audit).toBeNull();
+    expect(await result).toMatchObject({ audit: null, courses: [] });
     expect(logger.entries[0]?.details).toMatchObject({
       auditSnapshotId: null,
       auditReflectsRecord: null,

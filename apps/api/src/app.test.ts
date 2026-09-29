@@ -3,19 +3,24 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { ErrorCode } from '@caa/domain';
+import { AuthMode, ErrorCode } from '@caa/domain';
 
 import { buildWorldApp } from './testing/fixtures';
 
 const { app } = buildWorldApp();
 
 describe('GET /v1/health', () => {
-  it('returns the health payload inside the data envelope without a session', async () => {
+  it('returns the health payload and the auth mode inside the data envelope without a session', async () => {
     const response = await app.inject({ method: 'GET', url: '/v1/health' });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({
-      data: { status: 'ok', version: 'test', checkedAt: '2026-09-01T12:00:00.000Z' },
+    expect(response.json()).toEqual({
+      data: {
+        status: 'ok',
+        version: 'test',
+        checkedAt: '2026-09-01T12:00:00.000Z',
+        authMode: AuthMode.Dev,
+      },
     });
   });
 });
