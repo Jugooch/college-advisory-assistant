@@ -7,7 +7,12 @@
  */
 import { z } from 'zod';
 
-import type { ImportBatchRepository, QuarantinedRow, RosterRepository } from '@caa/db';
+import {
+  type ImportBatchRepository,
+  isReconcilable,
+  type QuarantinedRow,
+  type RosterRepository,
+} from '@caa/db';
 import {
   type ImportBatch,
   ImportOperation,
@@ -53,24 +58,41 @@ export interface ImportRosterCounts {
  * - `CONFLICT`: the key was recorded with a different checksum; nothing written.
  * - `QUARANTINED`: too many invalid rows; the batch is recorded as quarantined, no student changes.
  * - `REJECTED_STALE`: older than the newest published batch from the source; nothing written.
- * - `REJECTED_UNSUPPORTED`: a `FULL` snapshot, which is not reconciled yet; nothing written.
  */
 export type ImportRosterOutcome =
-  | 'PUBLISHED'
-  | 'ALREADY_IMPORTED'
-  | 'CONFLICT'
-  | 'QUARANTINED'
-  | 'REJECTED_STALE'
-  | 'REJECTED_UNSUPPORTED';
+  'PUBLISHED' | 'ALREADY_IMPORTED' | 'CONFLICT' | 'QUARANTINED' | 'REJECTED_STALE';
 
-/** Result of one run of the roster import job. */
+/**
+ * What a published `FULL` batch did about students it no longer contains.
+ *
+ * - `COMPLETED`: no row was quarantined, so every student of the tenant last written by this
+ *   source, older than the batch, and missing from it, was marked deleted.
+ * - `SKIPPED_QUARANTINED_ROWS`: a row was quarantined, so the snapshot is incomplete and nobody
+ *   was deleted. A quarantined row may be a student the batch still contains.
+ * - `SKIPPED_EMPTY_SNAPSHOT`: the batch had no rows, which is more likely a failed extract than
+ *   a source with no students, so nobody was deleted.
+ */
+export type RosterReconciliation =
+  'COMPLETED' | 'SKIPPED_QUARANTINED_ROWS' | 'SKIPPED_EMPTY_SNAPSHOT';
+
+/** Fields of every result whose envelope was valid. */
+interface ParsedBatchResult {
+  readonly outcome: ImportRosterOutcome;
+  /** Source-supplied batch identifier. */
+  readonly batchId: string;
+  readonly counts: ImportRosterCounts;
+}
+
+/**
+ * Result of one run of the roster import job. Only a run that published a `FULL` batch reports
+ * a reconciliation; a `DELTA` never deletes by omission, so its result has none.
+ */
 export type ImportRosterResult =
-  | {
-      readonly outcome: ImportRosterOutcome;
-      /** Source-supplied batch identifier. */
-      readonly batchId: string;
-      readonly counts: ImportRosterCounts;
-    }
+  | ParsedBatchResult
+  | (ParsedBatchResult & {
+      readonly outcome: 'PUBLISHED';
+      readonly reconciliation: RosterReconciliation;
+    })
   | {
       /** The payload, envelope, count, or checksum was invalid; nothing written. */
       readonly outcome: 'REJECTED_INVALID';
@@ -178,11 +200,6 @@ async function importParsedRoster(
   dependencies: ImportRosterJobDependencies,
   roster: ParsedRoster,
 ): Promise<ImportRosterOutcome> {
-  if (roster.batch.operation === ImportOperation.Full) {
-    // TODO(#30): reconcile FULL snapshots. Until then a FULL batch changes nothing, so a missing
-    // student is never deleted and a quarantined row is never read as a removal.
-    return 'REJECTED_UNSUPPORTED';
-  }
   const replay = await findReplay(dependencies.importBatches, roster);
   if (replay !== null) return replay;
   if (await isStale(dependencies.importBatches, roster)) return 'REJECTED_STALE';
@@ -204,7 +221,7 @@ async function importRoster(
   const parsed = parseSyntheticRoster(document, { tenantId, sourceId });
   if (!parsed.isValid) return { outcome: 'REJECTED_INVALID', reason: parsed.reason };
   const outcome = await importParsedRoster(dependencies, { tenantId, ...parsed });
-  return {
+  const result: ParsedBatchResult = {
     outcome,
     batchId: parsed.batch.batchId,
     counts: {
@@ -213,6 +230,26 @@ async function importRoster(
       quarantinedCount: parsed.quarantined.length,
     },
   };
+  const reconciliation = toReconciliation(outcome, parsed);
+  return reconciliation === null ? result : { ...result, outcome: 'PUBLISHED', reconciliation };
+}
+
+/**
+ * Reports what the repository did about missing students, from the same rule it applies.
+ *
+ * @param outcome - What happened to the batch.
+ * @param parsed - The parsed batch.
+ * @returns The reconciliation, or null when no `FULL` batch was published in this run.
+ */
+function toReconciliation(
+  outcome: ImportRosterOutcome,
+  parsed: Pick<ParsedRoster, 'batch' | 'rows' | 'quarantined'>,
+): RosterReconciliation | null {
+  const { batch, rows, quarantined } = parsed;
+  if (outcome !== 'PUBLISHED' || batch.operation !== ImportOperation.Full) return null;
+  // NOTE: the repository decides with the same function, so the report can't disagree with it.
+  if (isReconcilable(batch, rows, quarantined)) return 'COMPLETED';
+  return quarantined.length > 0 ? 'SKIPPED_QUARANTINED_ROWS' : 'SKIPPED_EMPTY_SNAPSHOT';
 }
 
 /**
@@ -224,7 +261,9 @@ async function importRoster(
 function toLogFields(result: ImportRosterResult): Readonly<Record<string, unknown>> {
   // SECURITY: opaque IDs and counts only; source student IDs are never logged.
   if ('reason' in result) return { outcome: result.outcome, reason: result.reason };
-  return { outcome: result.outcome, batchId: result.batchId, ...result.counts };
+  const { outcome, batchId, counts } = result;
+  const reconciliation = 'reconciliation' in result ? result.reconciliation : null;
+  return { outcome, batchId, ...counts, reconciliation };
 }
 
 /**

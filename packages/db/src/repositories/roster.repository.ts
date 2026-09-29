@@ -4,11 +4,12 @@
  * @requirement FR-03
  * @see docs/planning/09-data-model-and-integration-contracts.md
  */
-import { sql } from 'drizzle-orm';
+import { and, eq, lt, sql } from 'drizzle-orm';
 
 import {
   type ImportBatch,
   ImportBatchStatus,
+  ImportOperation,
   type InstitutionId,
   type RosterRow,
 } from '@caa/domain';
@@ -52,7 +53,12 @@ export interface RosterRejection {
 export interface RosterRepository {
   /**
    * Publishes a batch: records it as PUBLISHED, upserts its students by source ID, applies
-   * tombstones, and records its quarantined rows. Students missing from the batch are unchanged.
+   * tombstones, and records its quarantined rows. Students missing from a `DELTA` are unchanged.
+   *
+   * A non-empty `FULL` batch with no quarantined rows is also reconciled in the same
+   * transaction: every non-deleted student of the tenant whose `sourceId` is the batch's, whose
+   * source time is older than the batch's, and who is missing from it, is marked deleted. Any
+   * other `FULL` batch is published without deleting anyone (see {@link isReconcilable}).
    *
    * @param tenantId - Tenant the batch belongs to; must match `batch.tenantId`.
    * @param publication - Envelope, valid rows, and quarantined rows.
@@ -155,6 +161,7 @@ async function upsertStudents(
         part.map((row) => ({
           tenantId: batch.tenantId,
           sourceStudentId: row.sourceStudentId,
+          sourceId: batch.sourceId,
           recordVersion: row.recordVersion,
           sourceEffectiveAt,
           // NOTE: a tombstone for an unknown student is stored as deleted, so a late, older
@@ -165,6 +172,7 @@ async function upsertStudents(
       .onConflictDoUpdate({
         target: [studentTable.tenantId, studentTable.sourceStudentId],
         set: {
+          sourceId: sql`excluded.source_id`,
           recordVersion: sql`excluded.record_version`,
           sourceEffectiveAt: sql`excluded.source_effective_at`,
           isDeleted: sql`excluded.is_deleted`,
@@ -172,6 +180,59 @@ async function upsertStudents(
         setWhere: INCOMING_SUPERSEDES_STORED,
       });
   }
+}
+
+/**
+ * Tells whether a published batch is a complete snapshot whose omissions are removals.
+ *
+ * @param batch - Envelope being published.
+ * @param rows - Its valid rows.
+ * @param quarantined - Its quarantined rows.
+ * @returns True only for a non-empty `FULL` batch with no quarantined row.
+ */
+export function isReconcilable(
+  batch: ImportBatch,
+  rows: readonly RosterRow[],
+  quarantined: readonly QuarantinedRow[],
+): boolean {
+  // SAFETY: missing from a DELTA is not deletion (docs/planning/09, Adapter envelope). A FULL
+  // batch with a quarantined row is incomplete, and an empty one is far more likely a failed
+  // extract than a source with no students, so neither deletes anyone.
+  return batch.operation === ImportOperation.Full && quarantined.length === 0 && rows.length > 0;
+}
+
+/**
+ * Marks deleted every student a complete `FULL` batch no longer contains. Runs after the upsert
+ * in the same transaction.
+ *
+ * @param tx - Open transaction.
+ * @param batch - A `FULL` envelope whose rows all passed validation.
+ * @param rows - All of its rows.
+ */
+async function reconcileFullSnapshot(
+  tx: Transaction,
+  batch: ImportBatch,
+  rows: readonly RosterRow[],
+): Promise<void> {
+  const sourceEffectiveAt = new Date(batch.sourceEffectiveAt);
+  const presentIds = rows.map((row) => row.sourceStudentId);
+  await tx
+    .update(studentTable)
+    // NOTE: the batch time is recorded so a late, older DELTA can't bring the student back.
+    .set({ isDeleted: true, sourceEffectiveAt })
+    .where(
+      and(
+        // SECURITY: only this tenant's students, and only those this source last wrote. A student
+        // with no recorded source is never reconciled.
+        eq(studentTable.tenantId, batch.tenantId),
+        eq(studentTable.sourceId, batch.sourceId),
+        eq(studentTable.isDeleted, false),
+        // SAFETY: a late, older FULL batch can't delete a student that newer truth changed.
+        lt(studentTable.sourceEffectiveAt, sourceEffectiveAt),
+        // PERF: one array parameter, whatever the batch size.
+        sql`NOT (${studentTable.sourceStudentId} = ANY(${sql.param(presentIds)}::text[]))`,
+      ),
+    );
 }
 
 /**
@@ -252,6 +313,9 @@ export function createRosterRepository(db: Database): RosterRepository {
           rejectedCount: quarantined.length,
         });
         await upsertStudents(tx, batch, rows);
+        if (isReconcilable(batch, rows, quarantined)) {
+          await reconcileFullSnapshot(tx, batch, rows);
+        }
         await insertQuarantined(tx, batch, { importBatchId, rows: quarantined });
       });
     },
