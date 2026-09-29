@@ -132,6 +132,29 @@ function listOptionChecks(option: ScheduleOptionShape): readonly CheckResult[] {
 }
 
 /**
+ * Returns whether an option's bundle credits agree with its credit-load check: any `null`
+ * bundle credit means the load is UNKNOWN, and a load total, when shown, is the exact sum of
+ * the bundle credits.
+ *
+ * @param option - The bundles and the credit-load check.
+ * @returns `false` when a load is decided over an unknown credit, or its total differs from
+ *   the sum.
+ */
+function creditsAgreeWithLoad(option: {
+  readonly bundles: readonly { readonly creditsCountedHundredths: number | null }[];
+  readonly setResults: { readonly creditLoad: CheckResult };
+}): boolean {
+  const { creditLoad } = option.setResults;
+  const credits = option.bundles.map((bundle) => bundle.creditsCountedHundredths);
+  if (credits.some((value) => value === null)) {
+    return creditLoad.state === CheckState.Unknown;
+  }
+  const total = creditLoad.evidence?.creditLoad?.totalCreditsHundredths;
+  const sum = credits.reduce<number>((accumulated, value) => accumulated + (value ?? 0), 0);
+  return total === undefined || total === sum;
+}
+
+/**
  * One validated schedule option. The academic checks (prerequisite, applicability,
  * allocation) are the same for every option, and the credit load is this option's own
  * (ADR-0010 §2). Each dimension is shown separately; passing one implies nothing else.
@@ -177,6 +200,25 @@ export const ScheduleOptionSchema = z
   // belongs in `conflictSet`, which accepts CREDIT_LOAD FAILs for this reason.
   .refine((option) => option.setResults.creditLoad.state !== CheckState.Fail, {
     message: 'An option never has a FAIL creditLoad',
+    path: ['setResults', 'creditLoad'],
+  })
+  // SAFETY: an unknown hard rule leaves the option's schedule feasibility UNKNOWN, never PASS
+  // (ADR-0010 §3), so an option whose credit load is undecided never ranks as a PASS schedule.
+  .refine(
+    (option) =>
+      option.setResults.creditLoad.state !== CheckState.Unknown ||
+      option.scheduleFeasibility.state === CheckState.Unknown,
+    {
+      message: 'An UNKNOWN creditLoad requires an UNKNOWN scheduleFeasibility',
+      path: ['scheduleFeasibility'],
+    },
+  )
+  // SAFETY: the bundle credits and the load total are one credit fact shown twice, so they must
+  // agree. An unknown bundle credit (for example an unselected variable value) makes the load
+  // UNKNOWN, never a PASS over a guessed total (planning/08 §Constraint formulation).
+  .refine(creditsAgreeWithLoad, {
+    message:
+      'creditLoad must be UNKNOWN when a bundle credit is null, and its total must equal the bundle credits',
     path: ['setResults', 'creditLoad'],
   })
   // SAFETY: the solver picks exactly one bundle per requested course, and the academic checks

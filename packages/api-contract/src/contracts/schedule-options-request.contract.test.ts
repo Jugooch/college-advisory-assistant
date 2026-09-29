@@ -3,9 +3,9 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import { TERM_ID } from '../testing/schedule-option-fixtures';
 import { ScheduleOptionsRequestSchema } from './schedule-options-request.contract';
 
-const TERM_ID = '92a3b4c5-0000-4000-8000-000000000003';
 const courseId = (seed: number): string =>
   `c0a5e000-0000-4000-8000-${String(seed).padStart(12, '0')}`;
 

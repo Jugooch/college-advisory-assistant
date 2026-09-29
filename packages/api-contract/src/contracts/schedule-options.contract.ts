@@ -135,6 +135,27 @@ function isRankedAndDistinct(response: { readonly options: readonly ScheduleOpti
   );
 }
 
+/**
+ * Returns whether every option carries the same academic checks: per-course results (compared
+ * by course) and allocation. Only the credit load and schedule feasibility may differ.
+ *
+ * @param response - The options to compare.
+ * @returns `false` when two options disagree on a prerequisite, applicability, or allocation.
+ */
+function hasSameAcademicChecks(response: { readonly options: readonly ScheduleOption[] }): boolean {
+  // NOTE: the values are parsed schema output, whose keys follow the schema's order, so equal
+  // values serialize to equal JSON.
+  const keys = response.options.map((option) =>
+    JSON.stringify({
+      courseResults: [...option.courseResults].sort((first, second) =>
+        first.courseId < second.courseId ? -1 : first.courseId > second.courseId ? 1 : 0,
+      ),
+      allocation: option.setResults.allocation,
+    }),
+  );
+  return keys.every((key) => key === keys[0]);
+}
+
 /** Response body for `POST /v1/students/:studentId/schedule-options`. */
 export const ScheduleOptionsResponseSchema = z
   .object({
@@ -180,6 +201,13 @@ export const ScheduleOptionsResponseSchema = z
   // above a PASS one (ADR-0010 §4).
   .refine(isRankedAndDistinct, {
     message: 'options must be distinct, ranked 1 to n, with PASS schedules before UNKNOWN ones',
+    path: ['options'],
+  })
+  // SAFETY: the academic checks don't depend on sections and are computed once for the
+  // request (ADR-0010 §2), so two options must never show one course's prerequisite,
+  // applicability, or allocation differently.
+  .refine(hasSameAcademicChecks, {
+    message: 'Every option must carry the same courseResults and allocation',
     path: ['options'],
   })
   // SAFETY: every requested course is required, so each option schedules exactly the requested

@@ -37,6 +37,22 @@ export const ConflictSetSchema = z
     /** Conflicts left out after the first {@link MAX_CONFLICT_SET_ITEMS}. */
     omittedCount: z.number().int().nonnegative(),
   })
+  // SAFETY: a repeated conflict would be shown twice and use up the cap, hiding a distinct
+  // verified conflict (ADR-0010 §5: deduplicated by reason code and sections).
+  // NOTE: the items are parsed schema output, whose keys follow the schema's order, so equal
+  // items serialize to equal JSON.
+  .refine(
+    (conflicts) =>
+      new Set(conflicts.items.map((item) => JSON.stringify(item))).size === conflicts.items.length,
+    { message: 'conflictSet items must be distinct', path: ['items'] },
+  )
+  // SAFETY: conflicts are left out only once the list is full, so the student is never told
+  // conflicts were hidden when they would have fit (ADR-0010 §5).
+  .refine(
+    (conflicts) =>
+      conflicts.omittedCount === 0 || conflicts.items.length === MAX_CONFLICT_SET_ITEMS,
+    { message: 'omittedCount must be 0 unless items is full', path: ['omittedCount'] },
+  )
   .readonly();
 
 /** Verified conflicts behind `NO_FEASIBLE_PLAN`. */
