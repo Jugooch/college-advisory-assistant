@@ -9,7 +9,7 @@ import simpleImportSort from 'eslint-plugin-simple-import-sort';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
-import { layerBoundaries } from './config/eslint/layer-boundaries.mjs';
+import { LANGUAGE_SYNTAX_BANS, layerBoundaries } from './config/eslint/layer-boundaries.mjs';
 import { webRules } from './config/eslint/web.mjs';
 
 export default tseslint.config(
@@ -57,14 +57,7 @@ export default tseslint.config(
       'simple-import-sort/exports': 'error',
       eqeqeq: ['error', 'always'],
       'no-console': 'error',
-      'no-restricted-syntax': [
-        'error',
-        {
-          selector: 'TSEnumDeclaration',
-          message: 'Use an `as const` object plus z.enum (standards/04).',
-        },
-        { selector: 'ExportDefaultDeclaration', message: 'Use named exports (standards/02).' },
-      ],
+      'no-restricted-syntax': ['error', ...LANGUAGE_SYNTAX_BANS],
       '@typescript-eslint/consistent-type-imports': 'error',
       '@typescript-eslint/consistent-type-definitions': ['error', 'interface'],
       '@typescript-eslint/explicit-module-boundary-types': 'error',
