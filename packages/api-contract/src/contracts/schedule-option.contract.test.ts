@@ -15,6 +15,7 @@ import {
   PHYS_301L,
   sectionId,
   UNKNOWN_CREDIT_LOAD,
+  UNKNOWN_LOAD_SCHEDULE,
   UNKNOWN_SCHEDULE,
 } from '../testing/schedule-option-fixtures';
 import { ScheduleOptionSchema, SectionBundleSchema } from './schedule-option.contract';
@@ -77,9 +78,11 @@ describe('ScheduleOptionSchema schedule feasibility', () => {
       reasonCode: 'IN_PROGRESS_MIN_GRADE',
     };
 
+    // NOTE: `CheckResultSchema` already rejects a CONDITIONAL schedule check (#212), so the
+    // option's own PASS-or-UNKNOWN rule is a second guard that this payload never reaches.
     expect(
-      messages(buildOption({ scheduleFeasibility: conditional, aggregate: 'CONDITIONAL' })),
-    ).toEqual(['scheduleFeasibility must be PASS or UNKNOWN']);
+      accepts(buildOption({ scheduleFeasibility: conditional, aggregate: 'CONDITIONAL' })),
+    ).toBe(false);
   });
 
   it('rejects a schedule check of another kind', () => {
@@ -103,9 +106,9 @@ describe('ScheduleOptionSchema credit load', () => {
   it('requires an UNKNOWN credit load to make the schedule UNKNOWN (ADR-0010 §3)', () => {
     const unknownLoad = { creditLoad: UNKNOWN_CREDIT_LOAD, aggregate: 'NEEDS_VERIFICATION' };
 
-    expect(accepts(buildOption({ ...unknownLoad, scheduleFeasibility: UNKNOWN_SCHEDULE }))).toBe(
-      true,
-    );
+    expect(
+      accepts(buildOption({ ...unknownLoad, scheduleFeasibility: UNKNOWN_LOAD_SCHEDULE })),
+    ).toBe(true);
     expect(messages(buildOption(unknownLoad))).toEqual([
       'An UNKNOWN creditLoad requires an UNKNOWN scheduleFeasibility',
     ]);
@@ -122,7 +125,7 @@ describe('ScheduleOptionSchema credit load', () => {
         buildOption({
           bundles: unknownCredits,
           creditLoad: UNKNOWN_CREDIT_LOAD,
-          scheduleFeasibility: UNKNOWN_SCHEDULE,
+          scheduleFeasibility: UNKNOWN_LOAD_SCHEDULE,
           aggregate: 'NEEDS_VERIFICATION',
         }),
       ),

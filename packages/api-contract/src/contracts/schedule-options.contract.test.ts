@@ -8,6 +8,7 @@ import {
   buildResponse,
   CREDIT_CONFLICT,
   LIMITATIONS,
+  MISSING_SECTIONS,
   PHYS_301,
   PINNED_INPUTS,
   singleSectionBundle,
@@ -36,7 +37,7 @@ const SEARCH_TIMEOUT = buildResponse({
 const NEEDS_VERIFICATION = {
   ...SEARCH_TIMEOUT,
   outcome: 'NEEDS_VERIFICATION',
-  unresolved: [UNKNOWN_SCHEDULE],
+  unresolved: [MISSING_SECTIONS],
 };
 
 const accepts = (payload: unknown): boolean =>
@@ -77,7 +78,7 @@ describe('ScheduleOptionsResponseSchema outcomes', () => {
     ['SEARCH_TIMEOUT from a complete search', { ...SEARCH_TIMEOUT, searchComplete: true }],
     ['SEARCH_TIMEOUT with a conflict set', { ...SEARCH_TIMEOUT, conflictSet: CONFLICT_SET }],
     ['NEEDS_VERIFICATION with nothing unresolved', { ...NEEDS_VERIFICATION, unresolved: [] }],
-    ['SEARCH_TIMEOUT with unresolved data', { ...SEARCH_TIMEOUT, unresolved: [UNKNOWN_SCHEDULE] }],
+    ['SEARCH_TIMEOUT with unresolved data', { ...SEARCH_TIMEOUT, unresolved: [MISSING_SECTIONS] }],
   ])('rejects %s', (_name, payload) => {
     expect(accepts(payload)).toBe(false);
   });
@@ -90,6 +91,12 @@ describe('ScheduleOptionsResponseSchema outcomes', () => {
 
   it('rejects an unresolved item that is not an UNKNOWN schedule check', () => {
     expect(accepts({ ...NEEDS_VERIFICATION, unresolved: [CREDIT_CONFLICT] })).toBe(false);
+  });
+
+  it('rejects an unresolved schedule unknown that is not about missing sections', () => {
+    expect(messages({ ...NEEDS_VERIFICATION, unresolved: [UNKNOWN_SCHEDULE] })).toEqual([
+      'An unresolved item is an UNKNOWN SCHEDULE_FEASIBILITY check for missing sections',
+    ]);
   });
 });
 

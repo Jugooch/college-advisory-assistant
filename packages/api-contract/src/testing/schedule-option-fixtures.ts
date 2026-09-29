@@ -111,12 +111,41 @@ export const PASS_ALLOCATION: Payload = { kind: 'REQUIREMENT_ALLOCATION', state:
 /** A passing schedule-feasibility check. */
 export const PASS_SCHEDULE: Payload = { kind: 'SCHEDULE_FEASIBILITY', state: 'PASS' };
 
-// TODO(#212): use MEETING_TIME_UNKNOWN once the schedule reason codes land.
-/** An UNKNOWN schedule-feasibility check. */
-export const UNKNOWN_SCHEDULE: Payload = {
+/**
+ * Builds an UNKNOWN schedule-feasibility check explained by one schedule issue.
+ *
+ * @param issue - The issue; its reason code becomes the check's.
+ * @returns A schedule-feasibility check payload.
+ */
+function unknownScheduleWith(issue: Payload): Payload {
+  return {
+    kind: 'SCHEDULE_FEASIBILITY',
+    state: 'UNKNOWN',
+    reasonCode: issue.reasonCode,
+    evidence: { rulesetVersion: null, decisiveLeaves: [], scheduleIssues: [issue] },
+  };
+}
+
+/** An UNKNOWN schedule: the lecture's time is to be announced, beside a hard constraint. */
+export const UNKNOWN_SCHEDULE = unknownScheduleWith({
+  reasonCode: 'MEETING_TIME_UNKNOWN',
+  meeting: { sectionId: sectionId(1), meetingIndex: 0, startTime: null, endTime: null },
+  otherMeeting: null,
+  sharedDates: null,
+  constraintIndex: 0,
+});
+
+/** An UNKNOWN schedule for `unresolved`: DEMO-PHYS 301 has no published section. */
+export const MISSING_SECTIONS = unknownScheduleWith({
+  reasonCode: 'SECTION_DATA_MISSING',
+  courseId: PHYS_301,
+});
+
+/** An UNKNOWN schedule left undecided by the credit load, which carries the arithmetic. */
+export const UNKNOWN_LOAD_SCHEDULE: Payload = {
   kind: 'SCHEDULE_FEASIBILITY',
   state: 'UNKNOWN',
-  reasonCode: 'COURSE_NOT_IN_CATALOG',
+  reasonCode: 'VARIABLE_CREDIT_UNSELECTED',
 };
 
 /**
