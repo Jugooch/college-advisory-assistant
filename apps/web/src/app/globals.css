@@ -134,3 +134,31 @@ td {
     transition: none;
   }
 }
+
+.check-list {
+  padding-left: 1rem;
+}
+
+.check {
+  margin: 0.75rem 0;
+}
+
+.choice {
+  margin: 0.25rem 0;
+}
+
+.facts__row {
+  display: contents;
+}
+
+.nav-list {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.nav-list [aria-current='page'] {
+  font-weight: bold;
+}

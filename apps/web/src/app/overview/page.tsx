@@ -17,6 +17,7 @@ import { AuditFreshness } from '@/features/academic-summary/components/audit-fre
 import { RecordDetails } from '@/features/academic-summary/components/record-details';
 import { RequirementOverview } from '@/features/academic-summary/components/requirement-overview';
 import { StudentLookupForm } from '@/features/session/components/student-lookup-form';
+import { StudentNav } from '@/features/student-navigation/components/student-nav';
 import { ApiErrorNotice } from '@/shared/components/api-error-notice';
 import { keepApiError } from '@/shared/utils/keep-api-error';
 import { readStudentIdQuery } from '@/shared/utils/student-id-query';
@@ -50,6 +51,7 @@ export default async function OverviewPage({
   const summary = await keepApiError(getAcademicSummary(query.studentId));
   return (
     <>
+      <StudentNav studentId={query.studentId} current="overview" />
       <h1>Overview</h1>
       {summary instanceof ApiError ? (
         <ApiErrorNotice error={summary} />
