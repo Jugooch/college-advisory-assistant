@@ -62,6 +62,12 @@ const DATE_CALL = {
   message: 'Date() reads the clock; pass the time in as an argument (NFR-01).',
 };
 
+/** `new Date()` (or `new Date`) with no arguments is the current time; `new Date(value)` is fine. */
+const NEW_DATE_NOW = {
+  selector: "NewExpression[callee.name='Date'][arguments.length=0]",
+  message: 'new Date() reads the clock; pass the time in as an argument (NFR-01).',
+};
+
 /** Syntax banned in every file (standards/02 and /04); blocks that add bans must repeat these. */
 export const LANGUAGE_SYNTAX_BANS = [
   {
@@ -78,7 +84,7 @@ export const LANGUAGE_SYNTAX_BANS = [
 const DETERMINISM_BANS = {
   'no-restricted-properties': ['error', ...NONDETERMINISTIC_PROPERTIES],
   'no-restricted-globals': ['error', ...NONDETERMINISTIC_GLOBALS],
-  'no-restricted-syntax': ['error', ...LANGUAGE_SYNTAX_BANS, DATE_CALL],
+  'no-restricted-syntax': ['error', ...LANGUAGE_SYNTAX_BANS, DATE_CALL, NEW_DATE_NOW],
 };
 
 /** Deployable apps; no workspace imports another app, by name or by subpath. */
