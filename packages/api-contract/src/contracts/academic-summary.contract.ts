@@ -5,6 +5,7 @@
  * @requirement FR-04
  * @requirement FR-05
  * @requirement FR-09
+ * @requirement NFR-04
  * @see docs/planning/08-academic-verification-and-planning.md
  * @see docs/planning/09-data-model-and-integration-contracts.md
  */
@@ -17,6 +18,7 @@ import {
   ReasonCode,
   RequirementResultSchema,
   RequirementState,
+  SourceFreshnessSchema,
   StudentSnapshotSchema,
 } from '@caa/domain';
 
@@ -86,6 +88,42 @@ export const SummaryAuditSchema = z
     catalogYear: AUDIT_FIELDS.catalogYear,
     /** When the audit system generated the audit. ISO 8601 with offset. */
     generatedAt: AUDIT_FIELDS.generatedAt,
+    // TODO(#169): make required
+    /**
+     * Point in time of the student record the audit was run against, so a reader can see which
+     * record revision the audit reflects. ISO 8601 with offset. Omitted means not reported yet,
+     * never "the pinned record".
+     */
+    studentRecordEffectiveAt: AUDIT_FIELDS.studentRecordEffectiveAt.optional(),
+  })
+  // SAFETY: same rule as the domain model. An audit can't have been run against a record from
+  // its own future; that pair would make the record-audit skew meaningless.
+  // NOTE: compared as instants, because strings with different offsets don't sort lexically.
+  .refine(
+    (audit) =>
+      audit.studentRecordEffectiveAt === undefined ||
+      Date.parse(audit.studentRecordEffectiveAt) <= Date.parse(audit.generatedAt),
+    {
+      message: 'studentRecordEffectiveAt must not be later than generatedAt',
+      path: ['studentRecordEffectiveAt'],
+    },
+  )
+  .readonly();
+
+/**
+ * Whether the pinned record and audit were within the maximum source age when the server built
+ * the summary (planning/09 §Proposed freshness policies; standard 05 §Source freshness). The
+ * server derives it from the snapshot's `sourceEffectiveAt` and, when there is an audit, the
+ * audit's `studentRecordEffectiveAt`. The client never recomputes or upgrades it.
+ *
+ * The UI must show a HISTORICAL summary as a historical view that needs a refresh before any new
+ * validated recommendation, never as the student's current standing.
+ */
+export const SummarySourceFreshnessSchema = z
+  .object({
+    state: SourceFreshnessSchema,
+    /** The server time the source times were judged against. ISO 8601 with offset. */
+    judgedAt: z.iso.datetime({ offset: true }),
   })
   .readonly();
 
@@ -206,6 +244,15 @@ export const AcademicSummaryResponseSchema = z
      * must be shown as needing verification, never as current.
      */
     requirements: z.array(SummaryRequirementSchema).readonly(),
+    // TODO(#169): make required
+    /**
+     * Whether the record and audit were current or only historical when the server built the
+     * summary, and when that was judged. Under HISTORICAL, the record, the audit, and every
+     * requirement state are a historical view that needs a refresh, never current standing.
+     * While this field is still optional, an omitted value means freshness wasn't judged, and
+     * the UI treats it like HISTORICAL, never as CURRENT.
+     */
+    sourceFreshness: SummarySourceFreshnessSchema.optional(),
   })
   // SAFETY: a verdict with no audit, or an audit with no verdict, would let the UI show
   // requirement states without saying whether they reflect the record (planning/07
