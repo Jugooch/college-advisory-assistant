@@ -1,12 +1,13 @@
 /**
- * @file The synthetic records the local dev seed writes. Data only; `seed-dev-data.ts` writes it.
+ * @file The synthetic records the local dev seed writes. Data, plus a builder that adds one run's
+ *   academic records; `seed-dev-data.ts` writes the plan.
  * @module @caa/db/seed/dev-seed-plan
  * @requirement FR-01
  * @see docs/planning/09-data-model-and-integration-contracts.md
  */
 import { IdentityStatus, Role } from '@caa/domain';
 
-import { DEV_SEED_ACADEMIC_PLAN, type DevSeedAcademicPlan } from './dev-seed-academic-plan';
+import { buildDevSeedAcademicPlan, type DevSeedAcademicPlan } from './dev-seed-academic-plan';
 
 /** A synthetic institution (tenant). Upserted by `id`. */
 export interface SeedInstitution {
@@ -72,10 +73,11 @@ const TENANT_B = '10000000-0000-4000-8000-000000000002';
 const SOURCE_EFFECTIVE_AT = '2026-08-15T00:00:00.000Z';
 
 /**
- * The fixed, fully synthetic dev seed. Every name and ID is fictional; nothing here is real data.
- * The advisor and student subjects match the example `DEV_AUTH_TOKENS`.
+ * The fixed, fully synthetic tenants, identities, students, and assignments. Every name and ID is
+ * fictional; nothing here is real data. The advisor and student subjects match the example
+ * `DEV_AUTH_TOKENS`.
  */
-export const DEV_SEED_PLAN: DevSeedPlan = {
+const DEV_SEED_ACCESS_PLAN: Omit<DevSeedPlan, 'academic'> = {
   institutions: [
     { id: TENANT_A, name: 'Demo State University', timezone: 'America/Chicago' },
     { id: TENANT_B, name: 'Sample Community College', timezone: 'America/Denver' },
@@ -157,5 +159,16 @@ export const DEV_SEED_PLAN: DevSeedPlan = {
       effectiveTo: null,
     },
   ],
-  academic: DEV_SEED_ACADEMIC_PLAN,
 };
+
+/**
+ * Builds the full dev seed plan for one seed run.
+ *
+ * @param now - The time the seed run started, read once by the caller; every seeded record and
+ *   audit time is derived from it.
+ * @returns The plan. The same `now` always gives the same plan.
+ * @throws {RangeError} When `now` is invalid.
+ */
+export function buildDevSeedPlan(now: Date): DevSeedPlan {
+  return { ...DEV_SEED_ACCESS_PLAN, academic: buildDevSeedAcademicPlan(now) };
+}
