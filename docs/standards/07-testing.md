@@ -42,7 +42,7 @@ Code that talks to PostgreSQL is tested against a real database, not mocks.
 
 ## Acceptance tests
 
-`tests/acceptance/acNN-<description>.test.ts`, one case per file, written by the QA engineer from `docs/planning/13`. Shared harnesses live in `tests/support/*.ts`. They reach apps only through their documented `@caa/<app>/testing` entry points (standard 01), and they keep their own in-memory fakes so the oracle stays independent of the code under test.
+`tests/acceptance/acNN-<description>.test.ts`, one case per file, written by the QA engineer from `docs/planning/13`. Shared harnesses live in `tests/support/*.ts`. They reach apps and the database only through the documented `./testing` entry points (standard 01 §Test entry points), and they keep their own in-memory fakes so the oracle stays independent of the code under test. `@caa/db/testing` only loads input data; expected results still come from the acceptance case, never from the writer.
 
 ## Golden corpus
 
