@@ -202,6 +202,13 @@ export const ScheduleOptionSchema = z
     message: 'An option never has a FAIL creditLoad',
     path: ['setResults', 'creditLoad'],
   })
+  // SAFETY: each hard rule gives PASS, FAIL or UNKNOWN (ADR-0010 §3), and the load of a chosen
+  // candidate set depends on no future condition, so a CONDITIONAL load would let the option
+  // rank as a PASS schedule over a load nobody decided.
+  .refine((option) => option.setResults.creditLoad.state !== CheckState.Conditional, {
+    message: 'An option never has a CONDITIONAL creditLoad',
+    path: ['setResults', 'creditLoad'],
+  })
   // SAFETY: an unknown hard rule leaves the option's schedule feasibility UNKNOWN, never PASS
   // (ADR-0010 §3), so an option whose credit load is undecided never ranks as a PASS schedule.
   .refine(
