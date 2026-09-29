@@ -28,6 +28,13 @@ describe('syntheticId', () => {
     expect(syntheticId('term', 1)).toBe('b0000000-0000-4000-8000-000000000001');
   });
 
+  it('gives the S4 section, linked-section group, section snapshot and campus kinds their own prefixes', () => {
+    expect(syntheticId('section', 1)).toBe('c0000000-0000-4000-8000-000000000001');
+    expect(syntheticId('linkedSectionGroup', 1)).toBe('c1000000-0000-4000-8000-000000000001');
+    expect(syntheticId('sectionSnapshot', 1)).toBe('c2000000-0000-4000-8000-000000000001');
+    expect(syntheticId('campus', 1)).toBe('d0000000-0000-4000-8000-000000000001');
+  });
+
   it('rejects a seed that is negative, fractional, or too large for the final group', () => {
     expect(() => syntheticId('user', -1)).toThrow(RangeError);
     expect(() => syntheticId('user', 1.5)).toThrow(RangeError);

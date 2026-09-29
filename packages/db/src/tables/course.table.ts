@@ -41,6 +41,11 @@ export const courseTable = pgTable(
     maxCreditsHundredths: integer('max_credits_hundredths'),
     /** Equivalency group, or null when the course has no equivalents. */
     equivalencyGroupId: uuid('equivalency_group_id'),
+    /**
+     * Linked course whose credit total already includes this one's, such as a lab counted in
+     * its lecture. Null means the course counts its own credits. Sourced from the catalog.
+     */
+    creditsIncludedInCourseId: uuid('credits_included_in_course_id'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -53,6 +58,17 @@ export const courseTable = pgTable(
       columns: [table.tenantId, table.equivalencyGroupId],
       foreignColumns: [equivalencyGroupTable.tenantId, equivalencyGroupTable.id],
     }),
+    // SECURITY: credits can only be included in a course of the same tenant.
+    foreignKey({
+      name: 'course_credits_included_in_course_fk',
+      columns: [table.tenantId, table.creditsIncludedInCourseId],
+      foreignColumns: [table.tenantId, table.id],
+    }),
+    // SAFETY: mirrors `CourseSchema`: a course included in itself would drop its own credits.
+    check(
+      'course_credits_not_included_in_itself',
+      sql`${table.creditsIncludedInCourseId} IS NULL OR ${table.creditsIncludedInCourseId} <> ${table.id}`,
+    ),
     check('course_source_course_id_not_empty', sql`length(${table.sourceCourseId}) > 0`),
     check('course_label_not_empty', sql`length(${table.label}) > 0`),
     // SAFETY: credit totals drive load and progress checks, so a stored course states its

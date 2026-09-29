@@ -5,6 +5,11 @@
 export { academicPolicyTable } from './tables/academic-policy.table';
 export { advisorAssignmentTable } from './tables/advisor-assignment.table';
 export { auditSnapshotTable } from './tables/audit-snapshot.table';
+export { campusTable } from './tables/campus.table';
+export {
+  campusTransitionTable,
+  campusTransitionVersionTable,
+} from './tables/campus-transition.table';
 export { courseTable } from './tables/course.table';
 export { courseAttemptTable } from './tables/course-attempt.table';
 export { equivalencyGroupTable } from './tables/equivalency-group.table';
@@ -15,6 +20,14 @@ export { prerequisiteRuleTable } from './tables/prerequisite-rule.table';
 export { requirementResultTable } from './tables/requirement-result.table';
 export { requirementResultAllocatedAttemptTable } from './tables/requirement-result-allocated-attempt.table';
 export { requirementResultCandidateCourseTable } from './tables/requirement-result-candidate-course.table';
+export { sectionTable } from './tables/section.table';
+export {
+  sectionLinkComponentTable,
+  sectionLinkGroupTable,
+  sectionLinkMemberTable,
+} from './tables/section-link-group.table';
+export { sectionMeetingTable } from './tables/section-meeting.table';
+export { sectionSnapshotTable } from './tables/section-snapshot.table';
 export { studentTable } from './tables/student.table';
 export { studentSnapshotTable } from './tables/student-snapshot.table';
 export { studentSnapshotAttemptTable } from './tables/student-snapshot-attempt.table';

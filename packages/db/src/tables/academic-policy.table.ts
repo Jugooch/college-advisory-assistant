@@ -24,6 +24,8 @@ import { institutionTable } from './institution.table';
 /**
  * The `academic_policy` table. Published policy is immutable: a change is a new
  * `ruleset_version`. Every nullable column means "the institution hasn't said", never a default.
+ * The database enforces immutability: migration `0003_immutable_published_rules` rejects UPDATE,
+ * DELETE and TRUNCATE (NFR-01).
  */
 export const academicPolicyTable = pgTable(
   'academic_policy',

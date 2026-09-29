@@ -22,7 +22,8 @@ import { institutionTable } from './institution.table';
 
 /**
  * The `prerequisite_rule` table. One row per course per published ruleset version. Published
- * rules are immutable: a change is a new `ruleset_version`, never an update.
+ * rules are immutable: a change is a new `ruleset_version`, never an update. The database enforces
+ * this: migration `0003_immutable_published_rules` rejects UPDATE, DELETE and TRUNCATE (NFR-01).
  */
 export const prerequisiteRuleTable = pgTable(
   'prerequisite_rule',

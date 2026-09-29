@@ -4,11 +4,12 @@
  * @requirement FR-03
  * @see docs/planning/09-data-model-and-integration-contracts.md
  */
-import { sql } from 'drizzle-orm';
+import { and, eq, lt, sql } from 'drizzle-orm';
 
 import {
   type ImportBatch,
   ImportBatchStatus,
+  ImportOperation,
   type InstitutionId,
   type RosterRow,
 } from '@caa/domain';
@@ -40,6 +41,11 @@ export interface RosterPublication {
   /** Valid rows, each `sourceStudentId` at most once (enforced before writing). */
   readonly rows: readonly RosterRow[];
   readonly quarantined: readonly QuarantinedRow[];
+  /**
+   * Whether to mark deleted the students this `FULL` batch omits. The import job decides it;
+   * the repository only applies it. Omitted or `false` means nobody is deleted by omission.
+   */
+  readonly shouldReconcileMissing?: boolean;
 }
 
 /** A batch rejected as a whole. */
@@ -52,13 +58,19 @@ export interface RosterRejection {
 export interface RosterRepository {
   /**
    * Publishes a batch: records it as PUBLISHED, upserts its students by source ID, applies
-   * tombstones, and records its quarantined rows. Students missing from the batch are unchanged.
+   * tombstones, and records its quarantined rows. Students missing from the batch are unchanged
+   * unless `shouldReconcileMissing` is set.
+   *
+   * With `shouldReconcileMissing`, a `FULL` batch is also reconciled in the same transaction: every
+   * non-deleted student of the tenant whose `sourceId` is the batch's, whose source time is
+   * strictly older than the batch's, and who is missing from it, is marked deleted.
    *
    * @param tenantId - Tenant the batch belongs to; must match `batch.tenantId`.
-   * @param publication - Envelope, valid rows, and quarantined rows.
+   * @param publication - Envelope, valid rows, quarantined rows, and whether to reconcile.
    * @returns Resolves once the transaction commits.
-   * @throws {Error} When the tenant doesn't match, two rows share a `sourceStudentId`, the batch
-   *   key was already recorded, or any write fails. Nothing is stored in that case.
+   * @throws {Error} When the tenant doesn't match, two rows share a `sourceStudentId`,
+   *   `shouldReconcileMissing` is set on a batch that isn't `FULL`, the batch key was already
+   *   recorded, or any write fails. Nothing is stored in that case.
    */
   publishRoster(tenantId: InstitutionId, publication: RosterPublication): Promise<void>;
 
@@ -155,6 +167,7 @@ async function upsertStudents(
         part.map((row) => ({
           tenantId: batch.tenantId,
           sourceStudentId: row.sourceStudentId,
+          sourceId: batch.sourceId,
           recordVersion: row.recordVersion,
           sourceEffectiveAt,
           // NOTE: a tombstone for an unknown student is stored as deleted, so a late, older
@@ -165,6 +178,7 @@ async function upsertStudents(
       .onConflictDoUpdate({
         target: [studentTable.tenantId, studentTable.sourceStudentId],
         set: {
+          sourceId: sql`excluded.source_id`,
           recordVersion: sql`excluded.record_version`,
           sourceEffectiveAt: sql`excluded.source_effective_at`,
           isDeleted: sql`excluded.is_deleted`,
@@ -172,6 +186,60 @@ async function upsertStudents(
         setWhere: INCOMING_SUPERSEDES_STORED,
       });
   }
+}
+
+/**
+ * Rejects a reconciliation request on a batch that isn't a full snapshot, before anything is
+ * written. Whether a full snapshot is complete enough is the import job's decision.
+ *
+ * @param batch - Envelope being published.
+ * @param shouldReconcileMissing - Whether the caller asked to delete by omission.
+ * @throws {Error} When deletion by omission is requested for a batch that isn't `FULL`.
+ */
+function assertReconcilesOnlyFullSnapshots(
+  batch: ImportBatch,
+  shouldReconcileMissing: boolean,
+): void {
+  // SAFETY: missing from a DELTA is never deletion (docs/planning/09, Adapter envelope), so a
+  // caller mistake can't turn a delta into a mass delete.
+  if (shouldReconcileMissing && batch.operation !== ImportOperation.Full) {
+    throw new Error('Only a FULL roster batch can delete students by omission');
+  }
+}
+
+/**
+ * Marks deleted every student a `FULL` batch no longer contains. Runs after the upsert in the
+ * same transaction.
+ *
+ * @param tx - Open transaction.
+ * @param batch - A `FULL` envelope whose rows all passed validation.
+ * @param rows - All of its rows.
+ */
+async function reconcileFullSnapshot(
+  tx: Transaction,
+  batch: ImportBatch,
+  rows: readonly RosterRow[],
+): Promise<void> {
+  const sourceEffectiveAt = new Date(batch.sourceEffectiveAt);
+  const presentIds = rows.map((row) => row.sourceStudentId);
+  await tx
+    .update(studentTable)
+    // NOTE: the batch time is recorded so a late, older DELTA can't bring the student back.
+    .set({ isDeleted: true, sourceEffectiveAt })
+    .where(
+      and(
+        // SECURITY: only this tenant's students, and only those this source last wrote. A student
+        // with no recorded source is never reconciled.
+        eq(studentTable.tenantId, batch.tenantId),
+        eq(studentTable.sourceId, batch.sourceId),
+        eq(studentTable.isDeleted, false),
+        // SAFETY: a late, older FULL batch can't delete a student that newer truth changed. A
+        // student stored at the batch's own time is left alone too: the source gives no order.
+        lt(studentTable.sourceEffectiveAt, sourceEffectiveAt),
+        // PERF: one array parameter, whatever the batch size.
+        sql`NOT (${studentTable.sourceStudentId} = ANY(${sql.param(presentIds)}::text[]))`,
+      ),
+    );
 }
 
 /**
@@ -243,15 +311,19 @@ function assertUniqueSourceStudentIds(rows: readonly RosterRow[]): void {
  */
 export function createRosterRepository(db: Database): RosterRepository {
   return {
-    async publishRoster(tenantId, { batch, rows, quarantined }) {
+    async publishRoster(tenantId, { batch, rows, quarantined, shouldReconcileMissing = false }) {
       assertSameTenant(tenantId, batch);
       assertUniqueSourceStudentIds(rows);
+      assertReconcilesOnlyFullSnapshots(batch, shouldReconcileMissing);
       await db.transaction(async (tx) => {
         const importBatchId = await insertBatch(tx, batch, {
           status: ImportBatchStatus.Published,
           rejectedCount: quarantined.length,
         });
         await upsertStudents(tx, batch, rows);
+        if (shouldReconcileMissing) {
+          await reconcileFullSnapshot(tx, batch, rows);
+        }
         await insertQuarantined(tx, batch, { importBatchId, rows: quarantined });
       });
     },
