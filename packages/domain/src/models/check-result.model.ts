@@ -15,9 +15,20 @@ import { CheckEvidenceSchema, type CreditLoadEvidence } from './check-evidence.m
 import { SCHEDULE_REASON_STATE, type ScheduleIssue } from './schedule-issue.model';
 
 /**
- * Whether a `SCHEDULE_FEASIBILITY` check's issues explain its state: a PASS has none, and any
- * other state has at least one, every issue's reason means the check's state, and the check's
- * own reason code is one of them. Checks of other kinds aren't constrained here.
+ * Reasons an undecided credit load gives, which leave a schedule option's feasibility UNKNOWN
+ * because the credit load is one of its hard rules (ADR-0010 §3). The load check itself carries
+ * the arithmetic, so the schedule check names the reason without a schedule issue.
+ */
+const UNKNOWN_LOAD_REASONS: readonly ReasonCode[] = [
+  ReasonCode.CreditBoundsUndefined,
+  ReasonCode.VariableCreditUnselected,
+];
+
+/**
+ * Whether a `SCHEDULE_FEASIBILITY` check's issues explain its state: a PASS has none; any other
+ * state has issues whose reasons all mean that state, and the check's own reason code is one
+ * of them. An UNKNOWN whose reason is an undecided credit load may have no issue. Checks of
+ * other kinds aren't constrained here.
  *
  * @param check - The check's kind, state, reason code, and schedule issues.
  * @returns `true` when the issues agree with the check.
@@ -32,10 +43,13 @@ function scheduleIssuesExplainCheck(check: {
   if (check.kind !== CheckKind.ScheduleFeasibility) return true;
   const issues = check.evidence?.scheduleIssues ?? [];
   if (check.state === CheckState.Pass) return issues.length === 0;
+  const isUnknownLoad =
+    check.state === CheckState.Unknown &&
+    check.reasonCode !== undefined &&
+    UNKNOWN_LOAD_REASONS.includes(check.reasonCode);
   return (
-    issues.length > 0 &&
     issues.every((issue) => SCHEDULE_REASON_STATE[issue.reasonCode] === check.state) &&
-    issues.some((issue) => issue.reasonCode === check.reasonCode)
+    (isUnknownLoad || issues.some((issue) => issue.reasonCode === check.reasonCode))
   );
 }
 
@@ -177,7 +191,7 @@ export const CheckResultSchema = z
   // as an undefined transition time) can never explain a FAIL or be hidden under a PASS.
   .refine(scheduleIssuesExplainCheck, {
     message:
-      'A SCHEDULE_FEASIBILITY check that is not PASS needs scheduleIssues that agree with its state and reasonCode, and a PASS has none',
+      'A non-passing SCHEDULE_FEASIBILITY check needs scheduleIssues that agree with its state and reasonCode (an undecided credit load excepted), and a PASS has none',
     path: ['evidence', 'scheduleIssues'],
   })
   .readonly();

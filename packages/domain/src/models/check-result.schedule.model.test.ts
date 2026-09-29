@@ -27,7 +27,7 @@ const messages = (payload: unknown): readonly string[] =>
   CheckResultSchema.safeParse(payload).error?.issues.map((issue) => issue.message) ?? [];
 
 const EXPLAIN =
-  'A SCHEDULE_FEASIBILITY check that is not PASS needs scheduleIssues that agree with its state and reasonCode, and a PASS has none';
+  'A non-passing SCHEDULE_FEASIBILITY check needs scheduleIssues that agree with its state and reasonCode (an undecided credit load excepted), and a PASS has none';
 
 describe('CheckResultSchema schedule issues', () => {
   it('accepts a PASS schedule with no issues', () => {
@@ -53,6 +53,20 @@ describe('CheckResultSchema schedule issues', () => {
   it('rejects an UNKNOWN issue explaining a FAIL, and a FAIL issue under an UNKNOWN', () => {
     expect(messages(schedule('FAIL', 'SECTION_DATA_MISSING', [MISSING]))).toEqual([EXPLAIN]);
     expect(messages(schedule('UNKNOWN', 'MODALITY_NOT_ALLOWED', [MODALITY]))).toEqual([EXPLAIN]);
+  });
+
+  it.each(['VARIABLE_CREDIT_UNSELECTED', 'CREDIT_BOUNDS_UNDEFINED'])(
+    'accepts an UNKNOWN schedule left undecided by the credit load (%s) with no issue',
+    (reasonCode) => {
+      expect(messages(schedule('UNKNOWN', reasonCode, null))).toEqual([]);
+    },
+  );
+
+  it('rejects a credit-load reason on a FAIL schedule, or beside a FAIL issue', () => {
+    expect(messages(schedule('FAIL', 'CREDIT_LIMIT_EXCEEDED', null))).toEqual([EXPLAIN]);
+    expect(messages(schedule('UNKNOWN', 'VARIABLE_CREDIT_UNSELECTED', [MODALITY]))).toEqual([
+      EXPLAIN,
+    ]);
   });
 
   it('rejects a reason code that none of the issues has', () => {
