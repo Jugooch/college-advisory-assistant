@@ -35,4 +35,23 @@ describe('REASON_CODE_WORDING', () => {
         'Earn at least the grade shown in the evidence, then check again after grades post.',
     });
   });
+
+  it.each([
+    ReasonCode.TransitionTimeUndefined,
+    ReasonCode.MeetingTimeUnknown,
+    ReasonCode.MeetingLocationUnknown,
+    ReasonCode.LinkedSectionUnavailable,
+    ReasonCode.SectionDataMissing,
+  ])('says %s needs verification and names a human route', (code) => {
+    const { nextStep } = describeReason(code);
+
+    expect(nextStep).toMatch(/needing verification/);
+    expect(nextStep).toMatch(/your advisor or the registrar/);
+  });
+
+  it('never assumes an undefined travel time is enough', () => {
+    expect(describeReason(ReasonCode.TransitionTimeUndefined).explanation).toContain(
+      'It isn’t assumed to be enough.',
+    );
+  });
 });
