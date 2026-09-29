@@ -18,8 +18,8 @@ describe('HealthResponseSchema', () => {
     expect(HealthResponseSchema.parse({ ...VALID, authMode })).toEqual({ ...VALID, authMode });
   });
 
-  it('accepts an omitted auth mode while it is still optional (#169)', () => {
-    expect(HealthResponseSchema.parse(VALID).authMode).toBeUndefined();
+  it('rejects a response without an auth mode', () => {
+    expect(HealthResponseSchema.safeParse(VALID).success).toBe(false);
   });
 
   it.each(['oidc', 'DEV', '', null])('rejects the unsupported auth mode %s', (authMode) => {

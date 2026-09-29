@@ -11,6 +11,7 @@ const AUDIT_WITHOUT_RECORD_TIME = {
   auditVersion: 'audit_demo_r7',
   programId: PROGRAM_ID,
   catalogYear: '2025-2026',
+  programName: null,
   generatedAt: '2026-08-21T10:00:00Z',
 };
 const AUDIT = {
@@ -24,10 +25,12 @@ const VALID = {
     programId: PROGRAM_ID,
     catalogYear: '2025-2026',
     sourceEffectiveAt: '2026-08-20T09:00:00-05:00',
+    programName: null,
   },
   audit: AUDIT,
   auditReflectsRecord: { state: 'PASS', reasonCode: null },
   programCatalogConsistency: { state: 'PASS', reasonCode: null },
+  courses: [],
   requirements: [
     {
       sourceRequirementId: 'REQ-CORE',
@@ -77,8 +80,8 @@ describe('SummaryAuditSchema studentRecordEffectiveAt', () => {
     expect(accepts({ ...VALID, audit: { ...AUDIT, studentRecordEffectiveAt: null } })).toBe(false);
   });
 
-  it('accepts an omitted record time while it is still optional (#169)', () => {
-    expect(accepts({ ...VALID, audit: AUDIT_WITHOUT_RECORD_TIME })).toBe(true);
+  it('rejects an audit without its record time', () => {
+    expect(accepts({ ...VALID, audit: AUDIT_WITHOUT_RECORD_TIME })).toBe(false);
   });
 
   it('carries no freshness verdict: a stale summary is 409 STALE_SOURCE, not a 200', () => {

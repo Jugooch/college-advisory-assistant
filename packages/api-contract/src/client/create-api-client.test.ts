@@ -51,7 +51,12 @@ function recordingFetch(data: unknown): {
 
 describe('createApiClient', () => {
   it('returns the validated data payload on success', async () => {
-    const data = { status: 'ok', version: '0.0.0', checkedAt: '2026-09-25T12:00:00.000Z' };
+    const data = {
+      status: 'ok',
+      version: '0.0.0',
+      checkedAt: '2026-09-25T12:00:00.000Z',
+      authMode: 'none',
+    };
     const client = createApiClient({ baseUrl: 'http://api', fetchFn: stubFetch(200, { data }) });
 
     await expect(client.call(getHealthEndpoint)).resolves.toEqual(data);

@@ -52,6 +52,7 @@ describe('CourseChecksResponseSchema', () => {
       auditVersion: 'audit_demo_r7',
       rulesetVersion: 'demo-2026.1',
     },
+    courses: [],
   };
   const accepts = (payload: unknown): boolean =>
     CourseChecksResponseSchema.safeParse(payload).success;

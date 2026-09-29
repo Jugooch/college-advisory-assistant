@@ -76,16 +76,15 @@ export const SummaryStudentSnapshotSchema = z
     catalogYear: SNAPSHOT_FIELDS.catalogYear,
     /** Point in time the record describes. ISO 8601 with offset. */
     sourceEffectiveAt: SNAPSHOT_FIELDS.sourceEffectiveAt,
-    // TODO(#169): make required
     /**
      * Catalog name of `programId`, such as `BS Mathematics`, or `null` when the record states no
      * program or the catalog doesn't supply its name. Plain catalog data, never AI-generated.
      */
-    programName: PROGRAM_NAME.optional(),
+    programName: PROGRAM_NAME,
   })
   // SAFETY: a program name with no program in the record would show a program the record doesn't
   // state (planning/09 §Source authority matrix: the record owns the official program).
-  .refine((snapshot) => snapshot.programId !== null || (snapshot.programName ?? null) === null, {
+  .refine((snapshot) => snapshot.programId !== null || snapshot.programName === null, {
     message: 'programName must be null when programId is null',
     path: ['programName'],
   })
@@ -101,31 +100,23 @@ export const SummaryAuditSchema = z
     auditVersion: AUDIT_FIELDS.auditVersion,
     programId: AUDIT_FIELDS.programId,
     catalogYear: AUDIT_FIELDS.catalogYear,
-    // TODO(#169): make required
     /** Catalog name of the audit's `programId`, or `null` when the catalog doesn't supply it. */
-    programName: PROGRAM_NAME.optional(),
+    programName: PROGRAM_NAME,
     /** When the audit system generated the audit. ISO 8601 with offset. */
     generatedAt: AUDIT_FIELDS.generatedAt,
-    // TODO(#169): make required
     /**
      * Point in time of the student record the audit was run against, so a reader can see which
-     * record revision the audit reflects. ISO 8601 with offset. Omitted means not reported yet,
-     * never "the pinned record".
+     * record revision the audit reflects. ISO 8601 with offset.
      */
-    studentRecordEffectiveAt: AUDIT_FIELDS.studentRecordEffectiveAt.optional(),
+    studentRecordEffectiveAt: AUDIT_FIELDS.studentRecordEffectiveAt,
   })
   // SAFETY: same rule as the domain model. An audit can't have been run against a record from
   // its own future; that pair would make the record-audit skew meaningless.
   // NOTE: compared as instants, because strings with different offsets don't sort lexically.
-  .refine(
-    (audit) =>
-      audit.studentRecordEffectiveAt === undefined ||
-      Date.parse(audit.studentRecordEffectiveAt) <= Date.parse(audit.generatedAt),
-    {
-      message: 'studentRecordEffectiveAt must not be later than generatedAt',
-      path: ['studentRecordEffectiveAt'],
-    },
-  )
+  .refine((audit) => Date.parse(audit.studentRecordEffectiveAt) <= Date.parse(audit.generatedAt), {
+    message: 'studentRecordEffectiveAt must not be later than generatedAt',
+    path: ['studentRecordEffectiveAt'],
+  })
   .readonly();
 
 /**
@@ -244,13 +235,12 @@ export const AcademicSummaryResponseSchema = z
      * requirement state must be shown as needing verification, never as current.
      */
     programCatalogConsistency: ProgramCatalogConsistencySchema.nullable(),
-    // TODO(#169): make required
     /**
      * Catalog code, title, and credit rule of the requirements' candidate courses, at most one
      * entry per course and only for courses a requirement names. A candidate without an entry
      * isn't in the catalog: show its ID and offer no credit choice.
      */
-    courses: CourseDisplayListSchema.optional(),
+    courses: CourseDisplayListSchema,
     /**
      * The audit's requirements in audit order. Empty exactly when `audit` is `null`. Their
      * states are the audit's as of `audit.generatedAt`: when `auditReflectsRecord` is UNKNOWN
@@ -305,7 +295,7 @@ export const AcademicSummaryResponseSchema = z
   .refine(
     (summary) => {
       const named = new Set(summary.requirements.flatMap((item) => item.candidateCourseIds));
-      return (summary.courses ?? []).every((course) => named.has(course.courseId));
+      return summary.courses.every((course) => named.has(course.courseId));
     },
     { message: 'courses must list only candidate courses', path: ['courses'] },
   )
