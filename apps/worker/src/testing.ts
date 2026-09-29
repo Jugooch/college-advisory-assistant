@@ -18,3 +18,4 @@ export {
 } from './jobs/import-roster.job';
 export type { JobDefinition } from './shared/job-definition';
 export type { JobLogger } from './shared/job-logger';
+export type { RosterReconciliation } from './shared/roster-reconciliation';
