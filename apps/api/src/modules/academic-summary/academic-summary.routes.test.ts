@@ -1,7 +1,7 @@
 /**
  * @file HTTP-level tests for `GET /v1/students/:studentId/academic-summary`: each role, 401,
- * NOT_FOUND that doesn't reveal existence, stale and missing audits, tied records, the
- * out-of-scope backstop, and request-scoped logs with opaque IDs only.
+ * NOT_FOUND that doesn't reveal existence, stale and missing audits, tied records, the source
+ * freshness gate (#114), the out-of-scope backstop, and request-scoped logs with opaque IDs only.
  * @requirement FR-02
  * @requirement FR-04
  * @requirement FR-05
@@ -18,6 +18,7 @@ import {
   buildRecordSnapshot,
   RECORD_TIMES,
 } from '../../testing/academic-fixtures';
+import { readLogLines } from '../../testing/course-checks-harness';
 import { bearer, buildWorldApp, readError, STUDENTS, TOKENS } from '../../testing/fixtures';
 
 const lines: string[] = [];
@@ -92,6 +93,7 @@ describe('GET /v1/students/:studentId/academic-summary', () => {
           programId: syntheticId('program', 1),
           catalogYear: '2025-2026',
           generatedAt: RECORD_TIMES.auditGeneratedAt,
+          studentRecordEffectiveAt: RECORD_TIMES.sourceEffectiveAt,
         },
         auditReflectsRecord: { state: CheckState.Pass, reasonCode: null },
         programCatalogConsistency: { state: CheckState.Pass, reasonCode: null },
@@ -217,18 +219,29 @@ describe('GET /v1/students/:studentId/academic-summary record states', () => {
     });
   });
 
+  const pastMaxAge = '2026-08-31T11:59:59.999Z';
   it.each([
     [
-      'snapshots',
+      'two snapshots tie',
       () =>
         (store.studentSnapshots = [
           snapshot,
           buildRecordSnapshot({ studentId: STUDENTS.own.id }, 2),
         ]),
     ],
-    ['audits', () => (store.audits = [audit, buildRecordAudit({ studentId: STUDENTS.own.id }, 2)])],
-  ])('returns 409 STALE_SOURCE with a referral when two %s tie', async (_case, tie) => {
-    tie();
+    [
+      'two audits tie',
+      () => (store.audits = [audit, buildRecordAudit({ studentId: STUDENTS.own.id }, 2)]),
+    ],
+    [
+      "the audit's record time is 1 ms past 24 hours old",
+      () =>
+        (store.audits = [
+          buildRecordAudit({ studentId: STUDENTS.own.id, studentRecordEffectiveAt: pastMaxAge }),
+        ]),
+    ],
+  ])('returns 409 STALE_SOURCE with a referral when %s', async (_case, arrange) => {
+    arrange();
 
     const response = await getSummary(STUDENTS.own.id, TOKENS.student);
 
@@ -240,26 +253,10 @@ describe('GET /v1/students/:studentId/academic-summary record states', () => {
   });
 });
 
-/** The fields of a pino JSON line these tests read; other fields pass through. */
-const LogLineSchema = z.looseObject({
-  msg: z.string(),
-  level: z.number(),
-  reqId: z.string().optional(),
-});
-
-/**
- * Parses the captured log lines.
- *
- * @returns Every captured line.
- */
-function readLines() {
-  return lines.map((line) => LogLineSchema.parse(JSON.parse(line)));
-}
-
 describe('academic summary logs', () => {
   it('carry the request ID on the read line and hold no personal data', async () => {
     const response = await getSummary(STUDENTS.own.id, TOKENS.student);
-    const parsed = readLines();
+    const parsed = readLogLines(lines);
     const completed = parsed.find((line) => line.msg === 'request completed');
 
     expect(response.statusCode).toBe(200);
@@ -284,9 +281,9 @@ describe('academic summary logs', () => {
       .object({ error: z.object({ requestId: z.string() }) })
       .parse(response.json()).error;
 
-    expect(readLines().filter((line) => line.msg === 'academic record unavailable')).toEqual([
-      expect.objectContaining({ reqId: requestId, reason: 'NO_STUDENT_SNAPSHOT' }),
-    ]);
+    expect(
+      readLogLines(lines).filter((line) => line.msg === 'academic record unavailable'),
+    ).toEqual([expect.objectContaining({ reqId: requestId, reason: 'NO_STUDENT_SNAPSHOT' })]);
   });
 });
 
@@ -297,9 +294,9 @@ describe('academic summary out-of-scope backstop', () => {
       url: `/v1/students/${STUDENTS.own.id}/academic-summary`,
       headers: bearer(TOKENS.student),
     });
-    const events = leakyLines
-      .map((line) => LogLineSchema.parse(JSON.parse(line)))
-      .filter((line) => line.msg === 'academic record out of scope');
+    const events = readLogLines(leakyLines).filter(
+      (line) => line.msg === 'academic record out of scope',
+    );
 
     expect(response.statusCode).toBe(404);
     expect(readError(response.json()).code).toBe(ErrorCode.NotFound);

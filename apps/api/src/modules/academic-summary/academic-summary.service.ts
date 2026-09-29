@@ -25,7 +25,10 @@ import type { StudentsService } from '../students/students.service';
 export interface AcademicSummaryServiceDependencies {
   /** Applies the S1 access rule and loads the student. */
   readonly students: StudentsService;
-  /** Loads the latest snapshot and audit, refusing missing, tied, or out-of-scope records. */
+  /**
+   * Loads the latest snapshot and audit, refusing missing, tied, or out-of-scope records, and
+   * applies the source freshness gate.
+   */
   readonly pinnedRecords: PinnedRecordsService;
   /** Validated `AUDIT_RECORD_MAX_SKEW_MS`: the allowed record and audit skew in milliseconds. */
   readonly maxSkewMs: number;
@@ -58,7 +61,9 @@ export interface AcademicSummaryService {
    * @throws {NotFoundError} When the student doesn't exist, the actor may not see them, or a
    *   loaded record belongs to another tenant or student (see `PinnedRecordsService`).
    * @throws {SourceUnavailableError} When the student has no record snapshot.
-   * @throws {StaleSourceError} When the latest snapshot or audit is tied, so none is latest.
+   * @throws {StaleSourceError} When the latest snapshot or audit is tied, so none is latest, or
+   *   the record or the audit's record time is older than the maximum source age, missing, or
+   *   too far in the future.
    */
   getAcademicSummary(
     actor: Actor,
@@ -134,8 +139,12 @@ export function createAcademicSummaryService(
       const student = await students.getStudent(actor, studentId, context);
       const { revision, audit } = await pinnedRecords.loadLatest(actor, student, context);
       const studentSnapshot = revision.snapshot;
+      const scope: RecordScope = { actor, studentId: student.id, context };
+      // SAFETY: a summary is served only from fresh sources, so a stale record or audit is never
+      // shown as current standing; the student is referred instead (ADR-0008, #114).
+      pinnedRecords.assertFresh(scope, { snapshot: studentSnapshot, audit });
       const summarized = summarizeAudit(audit, { studentSnapshot, maxSkewMs });
-      logRead({ actor, studentId: student.id, context }, studentSnapshot, summarized);
+      logRead(scope, studentSnapshot, summarized);
       return { student, studentSnapshot, audit: summarized };
     },
   };
