@@ -28,11 +28,12 @@ Issue (with requirement IDs and acceptance examples)
 
 A PR may change files outside its owner's area only with the `ownership-override` label, and only in one of these cases. Every override PR links its authorizing ADR or tech-lead issue in the body. Reviewers treat any out-of-area file that doesn't fit a listed case as a BLOCKER.
 
-| Case                  | What it allows                                                                                               | Authorized by                             |
-| --------------------- | ------------------------------------------------------------------------------------------------------------ | ----------------------------------------- |
-| Repo-wide mechanical  | A mechanical change that touches many areas, for example a rename across every package                       | Its own ADR or tech-lead issue            |
-| Known finding fixed   | Removing a fixed entry from `tests/support/known-findings.ts` in the fixing PR (standard 07, known findings) | Standard 07 and the finding's `bug` issue |
-| Required-field ripple | Updating a test-kit builder when a domain PR adds a required field, under the rules below                    | #108 (ADR-0004)                           |
+| Case                  | What it allows                                                                                                | Authorized by                             |
+| --------------------- | ------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| Repo-wide mechanical  | A mechanical change that touches many areas, for example a rename across every package                        | Its own ADR or tech-lead issue            |
+| Known finding fixed   | Removing a fixed entry from `tests/support/known-findings.ts` in the fixing PR (standard 07, known findings)  | Standard 07 and the finding's `bug` issue |
+| Required-field ripple | Updating a test-kit builder when a domain PR adds a required field, under the rules below                     | #108 (ADR-0004)                           |
+| Seed-mirror ripple    | Updating the api's copy of the dev seed when a data PR changes seeded academic records, under the rules below | #252 (ADR-0004 Amendment 1)               |
 
 ### Required-field ripple
 
@@ -55,6 +56,21 @@ If anything else breaks (a golden case, an acceptance test, engine or db code), 
 1. The domain PR adds the field as `.optional()` with a `TODO(#issue)` to make it required. Until then, an omitted value means unknown. This is a temporary, tracked exception to standard 04 rule 10.
 2. Each affected owner sets the field in its own code.
 3. A final domain PR removes `.optional()`.
+
+### Seed-mirror ripple
+
+`apps/api/src/testing/seed-scenario-fixtures.ts` is a hand copy of the dev seed's academic records, because api test support can't import `@caa/db/testing` yet. `seed-scenario-fixtures.test.ts` deep-compares the copy with the seed plan, so a data PR that changes a seeded academic record breaks the api test. That covers a catalog course, rule, policy, term, attempt, snapshot or audit. Neither order of two separate PRs keeps `main` green. So the mirror fix lands in the data PR, under these rules:
+
+1. **Only the orchestrator** (the main session) makes the edit. Builder agents never do; their edit hook blocks it.
+2. **Only when the seed changed.** The data PR changes the seed plan under `packages/db/src/seed/`, and the mirror test fails without the edit.
+3. **Only these files:**
+   - `apps/api/src/testing/seed-scenario-fixtures.ts`: the mirrored records' values, copied literally from the seed. A private helper in the file may gain a parameter when a value can't be passed through it otherwise. No new exports, no other behavior changes.
+   - When the mirror sets a field the test-kit builder doesn't default yet: that builder and its test, under the required-field ripple rules 2 and 3 above (a nullable field defaults to `null`).
+4. **Its own commit** on the data branch, for example `test(api): mirror the seeded lab credit inclusion`.
+5. **The PR body says so.** Under Handoffs, add:
+   > **Ownership override (seed-mirror ripple, standard 08, authorized by #252):** the orchestrator changed only `<files>`. Mirrored change: `<record>.<field>: <value>`. api-engineer owns the mirror from here.
+
+If anything else breaks, this case doesn't apply. Examples are an api test that asserts on the changed value, or seeded data the mirror doesn't hold yet, such as sections. The affected owner changes its code first in its own PR where it can; otherwise the tech lead rules on the issue. This case is retired when the api fixtures are built from the seed plan instead of copied (#253, #254, #255).
 
 ## Commits and PR titles
 
