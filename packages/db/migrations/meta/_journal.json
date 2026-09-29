@@ -43,6 +43,13 @@
       "when": 1790709939723,
       "tag": "0005_student_source_id",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790711104593,
+      "tag": "0006_course_credit_inclusion",
+      "breakpoints": true
     }
   ]
 }

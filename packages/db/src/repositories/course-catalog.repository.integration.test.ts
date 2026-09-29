@@ -47,6 +47,7 @@ describe('CourseCatalogRepository.findCatalog', () => {
         minCreditsHundredths: null,
         maxCreditsHundredths: null,
         equivalencyGroupId: groupId,
+        creditsIncludedInCourseId: null,
       },
       {
         id: variableId,
@@ -57,8 +58,43 @@ describe('CourseCatalogRepository.findCatalog', () => {
         minCreditsHundredths: 100,
         maxCreditsHundredths: 400,
         equivalencyGroupId: null,
+        creditsIncludedInCourseId: null,
       },
     ]);
+  });
+
+  it('round-trips a lab whose credits are included in its lecture', async () => {
+    const { db } = testDatabase;
+    const tenantId = await insertTenant(db);
+    const lecture = await insertCourse(db, tenantId, { sourceCourseId: 'DEMO-PHYS-301' });
+    const lab = await insertCourse(db, tenantId, {
+      sourceCourseId: 'DEMO-PHYS-301L',
+      creditsIncludedInCourseId: lecture,
+    });
+
+    const catalog = await createCourseCatalogRepository(db).findCatalog(tenantId);
+
+    expect(
+      catalog.map(({ id, creditsIncludedInCourseId }) => [id, creditsIncludedInCourseId]),
+    ).toEqual([
+      [lecture, null],
+      [lab, lecture],
+    ]);
+  });
+
+  it("can't include credits in another tenant's course, or in the course itself", async () => {
+    const { db } = testDatabase;
+    const tenantA = await insertTenant(db);
+    const tenantB = await insertTenant(db);
+    const courseOfB = await insertCourse(db, tenantB);
+    const ownId = '6f708192-a3b4-4c5d-8e6f-708192a3b4c5';
+
+    await expect(
+      insertCourse(db, tenantA, { creditsIncludedInCourseId: courseOfB }),
+    ).rejects.toMatchObject(violationOf('course_credits_included_in_course_fk'));
+    await expect(
+      insertCourse(db, tenantA, { id: ownId, creditsIncludedInCourseId: ownId }),
+    ).rejects.toMatchObject(violationOf('course_credits_not_included_in_itself'));
   });
 
   it("does not return another tenant's courses", async () => {
