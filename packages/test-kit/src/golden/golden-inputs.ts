@@ -47,6 +47,9 @@ export const GOLDEN_REVIEW = {
  */
 export const S3_ADJUDICATED_ON = '2026-09-28';
 
+/** Adjudication date of the S3 interaction cases (golden corpus growth track, #103). */
+export const S3_INTERACTIONS_ADJUDICATED_ON = '2026-09-29';
+
 /** Source versions behind every prerequisite case. */
 export const PREREQUISITE_SOURCES: readonly string[] = [
   'ruleset demo-2026.1',
