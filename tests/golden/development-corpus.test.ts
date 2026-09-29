@@ -13,20 +13,13 @@ import { describe, expect, it } from 'vitest';
 import { GOLDEN_DEVELOPMENT_CORPUS, GoldenRuleFamily } from '@caa/test-kit';
 
 import { findGoldenMismatches } from '../support/golden-runner';
-import { KNOWN_FINDINGS } from './known-findings';
+import { itForFinding } from '../support/known-findings';
 
 describe('golden corpus, development set', () => {
   for (const golden of GOLDEN_DEVELOPMENT_CORPUS) {
-    const issue = KNOWN_FINDINGS.get(golden.id);
-    if (issue === undefined) {
-      it(`${golden.id}: ${golden.title}`, () => {
-        expect(findGoldenMismatches(golden)).toEqual([]);
-      });
-    } else {
-      it.fails(`${golden.id}: ${golden.title} (open finding #${String(issue)})`, () => {
-        expect(findGoldenMismatches(golden)).toEqual([]);
-      });
-    }
+    itForFinding(golden.id, `${golden.id}: ${golden.title}`, () => {
+      expect(findGoldenMismatches(golden)).toEqual([]);
+    });
   }
 
   it('has at least 113 cases covering every rule family', () => {
