@@ -71,7 +71,10 @@ const commonFields = {
   /** Planning sections, issues, and recorded tech-lead decisions the expectation rests on. */
   citations: z.array(z.string().min(1)).min(1),
   reviewer: z.string().min(1),
-  /** Date the expectation was written down, `YYYY-MM-DD`. */
+  // NOTE: date-only on purpose (docs/standards/04 rule 7): an adjudication is recorded to the
+  // day, the way a reviewer signs and dates it, and no time of day is ever captured, so a time
+  // or offset would fabricate data. The date is in the adjudicating reviewer's calendar.
+  /** Date the expectation was written down, `YYYY-MM-DD` in the reviewer's calendar. */
   adjudicatedOn: z.iso.date(),
 };
 
