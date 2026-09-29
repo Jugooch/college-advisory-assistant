@@ -7,7 +7,7 @@
  */
 import { z } from 'zod';
 
-import { InstitutionIdSchema, RoleSetSchema, UserIdSchema } from '@caa/domain';
+import { InstitutionIdSchema, RoleSetSchema, StudentIdSchema, UserIdSchema } from '@caa/domain';
 
 import { defineEndpoint } from '../define-endpoint';
 
@@ -22,6 +22,13 @@ export const MeResponseSchema = z
     userId: UserIdSchema,
     tenantId: InstitutionIdSchema,
     roles: RoleSetSchema,
+    // TODO(#169): make required
+    /**
+     * The student record linked to the signed-in user, so a student can be taken to their own
+     * record, or `null` when the user has no linked student (for example an advisor). Resolved
+     * from the session on the server, never from the request.
+     */
+    studentId: StudentIdSchema.nullable().optional(),
   })
   .readonly();
 
