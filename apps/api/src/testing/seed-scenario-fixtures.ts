@@ -11,6 +11,7 @@
 import {
   type Course,
   createAuditSnapshot,
+  createCourse,
   LetterGrade,
   type PrerequisiteRule,
   RepeatPolicy,
@@ -71,13 +72,19 @@ function seedCourse(
   );
 }
 
+/** DEMO-PHYS 301, whose credits include its lab's, as the seed states. */
+const PHYS_301 = seedCourse(0x301, 'DEMO-PHYS 301', 400);
+
 /** The seeded catalog, by key. */
 export const SEED_COURSES = {
   math101: seedCourse(0x101, 'DEMO-MATH 101', 300),
   math102: seedCourse(0x102, 'DEMO-MATH 102', 300),
   phys201: seedCourse(0x201, 'DEMO-PHYS 201', 400),
-  phys301: seedCourse(0x301, 'DEMO-PHYS 301', 400),
-  phys301Lab: seedCourse(0x3010, 'DEMO-PHYS 301L', 100),
+  phys301: PHYS_301,
+  phys301Lab: createCourse({
+    ...seedCourse(0x3010, 'DEMO-PHYS 301L', 100),
+    creditsIncludedInCourseId: PHYS_301.id,
+  }),
   engl101: seedCourse(0x1101, 'DEMO-ENGL 101', 300),
   ind390: seedCourse(0x390, 'DEMO-IND 390', [100, 300]),
 } as const;

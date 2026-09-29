@@ -62,16 +62,25 @@ function catalogCourse(
     minCreditsHundredths: isFixed ? null : credits[0],
     maxCreditsHundredths: isFixed ? null : credits[1],
     equivalencyGroupId: null,
+    // NOTE: stated explicitly on every seeded course: null means it counts its own credits.
+    creditsIncludedInCourseId: null,
   });
 }
+
+/** The seeded lecture whose credit total includes its lab's. */
+const PHYS_301 = catalogCourse(0x301, 'DEMO-PHYS 301', 400);
 
 /** The seeded catalog, by key. */
 export const SEED_CATALOG = {
   math101: catalogCourse(0x101, 'DEMO-MATH 101', 300),
   math102: catalogCourse(0x102, 'DEMO-MATH 102', 300),
   phys201: catalogCourse(0x201, 'DEMO-PHYS 201', 400),
-  phys301: catalogCourse(0x301, 'DEMO-PHYS 301', 400),
-  phys301Lab: catalogCourse(0x3010, 'DEMO-PHYS 301L', 100),
+  phys301: PHYS_301,
+  // NOTE: the lab's credits are included in the lecture's total, so a load counts them once.
+  phys301Lab: createCourse({
+    ...catalogCourse(0x3010, 'DEMO-PHYS 301L', 100),
+    creditsIncludedInCourseId: PHYS_301.id,
+  }),
   engl101: catalogCourse(0x1101, 'DEMO-ENGL 101', 300),
   ind390: catalogCourse(0x390, 'DEMO-IND 390', [100, 300]),
 } as const;
