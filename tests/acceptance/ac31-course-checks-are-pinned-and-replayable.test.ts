@@ -2,7 +2,9 @@
  * @file Acceptance: every course-check result names the inputs it was computed from (record
  * snapshot, audit, ruleset) and the as-of times, so it can be reproduced; replaying the same
  * request on the same inputs gives a deep-equal result; and neither endpoint carries free-text
- * academic claims: every consequential value is a structured field.
+ * academic claims: every consequential value is a structured field. The only prose allowed is
+ * plain catalog and audit data: each course's catalog code and title (#186), and the audit's own
+ * requirement labels.
  * @requirement FR-09
  * @requirement FR-10
  * @requirement NFR-01
@@ -31,6 +33,12 @@ const MATH101_B = completedAttempt();
 const MIXED_SET = { courseIds: [math102.id, phys201.id, ind390.id] };
 /** A string with no whitespace: an ID, enum, version, reference, or timestamp, never prose. */
 const TOKEN = /^\S+$/;
+/**
+ * The only places a response may carry catalog display text (#186): each course's catalog code,
+ * such as `DEMO-MATH 102`, and its catalog title when the catalog has one. Both are plain catalog
+ * data copied from the course, never a generated claim. Every other string stays a token.
+ */
+const CATALOG_DISPLAY_PATHS: readonly string[] = ['data.courses[].code', 'data.courses[].title'];
 
 const world = createAcademicWorld();
 
@@ -39,23 +47,39 @@ const world = createAcademicWorld();
 const app = buildAcademicApp(world);
 
 /**
- * Lists every string in a JSON value with the key that holds it.
+ * Lists every string in a JSON value with its path, for example `data.courses[].code`. Array
+ * items share one path segment, `[]`.
  *
  * @param value - Parsed JSON.
- * @param key - The key holding `value`; empty at the root and for array items' own key.
- * @returns `[key, string]` pairs in document order.
+ * @param path - The path of `value`; empty at the root.
+ * @returns `[path, string]` pairs in document order.
  */
-function stringLeaves(value: unknown, key = ''): readonly (readonly [string, string])[] {
+function stringLeaves(value: unknown, path = ''): readonly (readonly [string, string])[] {
   if (typeof value === 'string') {
-    return [[key, value]];
+    return [[path, value]];
   }
   if (Array.isArray(value)) {
-    return value.flatMap((item) => stringLeaves(item, key));
+    return value.flatMap((item) => stringLeaves(item, `${path}[]`));
   }
   if (typeof value === 'object' && value !== null) {
-    return Object.entries(value).flatMap(([child, item]) => stringLeaves(item, child));
+    return Object.entries(value).flatMap(([key, item]) =>
+      stringLeaves(item, path === '' ? key : `${path}.${key}`),
+    );
   }
   return [];
+}
+
+/**
+ * Lists the strings in a response that read as prose: not a token, and not catalog display
+ * text at one of {@link CATALOG_DISPLAY_PATHS}.
+ *
+ * @param body - The parsed response body.
+ * @returns `[path, string]` pairs in document order.
+ */
+function proseOutsideCatalog(body: unknown): readonly (readonly [string, string])[] {
+  return stringLeaves(body).filter(
+    ([path, text]) => !TOKEN.test(text) && !CATALOG_DISPLAY_PATHS.includes(path),
+  );
 }
 
 describe('AC31 course checks are pinned and replayable', () => {
@@ -148,18 +172,33 @@ describe('AC31 course checks are pinned and replayable', () => {
     expect(replay).toEqual(first);
   });
 
-  it('carries no free text in course checks: every string is a token', async () => {
+  it('carries no free text in course checks beyond catalog codes and titles', async () => {
     const response = await checkCourses(app, MIXED_SET);
 
     expect(response.statusCode).toBe(200);
-    expect(stringLeaves(response.body).filter(([, text]) => !TOKEN.test(text))).toEqual([]);
+    expect(proseOutsideCatalog(response.body)).toEqual([]);
   });
 
-  it('carries no free text in the summary beyond the audit’s own requirement labels', async () => {
+  it('carries no free text in the summary beyond requirement labels and catalog display', async () => {
     const response = await readSummary(app);
-    const prose = stringLeaves(response.body).filter(([, text]) => !TOKEN.test(text));
 
     expect(response.statusCode).toBe(200);
-    expect(prose).toEqual([['label', 'Mathematics core']]);
+    expect(proseOutsideCatalog(response.body)).toEqual([
+      ['data.requirements[].label', 'Mathematics core'],
+    ]);
+  });
+
+  it('exempts only catalog codes and titles, not the same keys elsewhere', () => {
+    const body = {
+      data: {
+        courses: [{ code: 'DEMO-MATH 102', title: 'Calculus II', credits: { kind: 'FIXED' } }],
+        courseResults: [{ code: 'you are eligible', title: 'ready to register' }],
+      },
+    };
+
+    expect(proseOutsideCatalog(body)).toEqual([
+      ['data.courseResults[].code', 'you are eligible'],
+      ['data.courseResults[].title', 'ready to register'],
+    ]);
   });
 });
