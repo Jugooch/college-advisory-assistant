@@ -12,7 +12,14 @@ import { SYNTHETIC_COURSES } from '../../fixtures/synthetic-courses';
 import { type GoldenCase } from '../golden-case.schema';
 import { allocationCase } from '../golden-case-factories';
 import { expectedCheck, mustNot, NEVER_PASS_WHEN_UNKNOWN } from '../golden-expectations';
-import { auditRequirementRef, auditWith, FRESH_RECORD, planned } from '../golden-inputs';
+import {
+  auditRequirementRef,
+  auditWith,
+  FRESH_RECORD,
+  pinnedRecord,
+  planned,
+  S3_ADJUDICATED_ON,
+} from '../golden-inputs';
 import { GoldenRuleFamily } from '../golden-rule-family';
 
 const { math102, phys201 } = SYNTHETIC_COURSES;
@@ -185,14 +192,19 @@ export const ALLOCATION_CASES: readonly GoldenCase[] = [
         remainingCourseCount: 2,
         remainingCreditsHundredths: 700,
       }),
-      freshness: { studentRecordEffectiveAt: '2026-09-20T07:30:00.001-05:00', maxSkewMs: 0 },
+      freshness: pinnedRecord({ sourceEffectiveAt: '2026-09-20T07:30:00.001-05:00' }),
     },
     expected: [
       expectedCheck(ALLOCATES, { state: CheckState.Unknown, reasonCode: ReasonCode.AuditStale }),
     ],
     prohibitedClaims: [NEVER_PASS_WHEN_UNKNOWN, NOT_ENGINE_FAIL],
     rationale:
-      "The record changed 1 ms after the audit's record with no skew allowed: refresh, never mix snapshots.",
-    citations: ['planning/13 AC10', 'issue #56 (stale snapshot never passes)'],
+      'The snapshot the audit ran against is 1 ms later than the record time the audit reports, with no skew allowed: refresh, never mix snapshots.',
+    citations: [
+      'planning/13 AC10',
+      'planning/07 §Consistency model (record newer than the audit → UNKNOWN)',
+      'issue #56 (stale snapshot never passes)',
+    ],
+    adjudicatedOn: S3_ADJUDICATED_ON,
   }),
 ];

@@ -12,7 +12,7 @@ import { HOLDOUT_CANDIDATE_SET_CASES } from './holdout-candidate-set.cases';
 import { HOLDOUT_PREREQUISITE_CASES } from './holdout-prerequisite.cases';
 
 /** Version of the frozen holdout. A new version is cut only as README.md describes. */
-export const GOLDEN_HOLDOUT_VERSION = 'v0 (frozen 2026-09-27)';
+export const GOLDEN_HOLDOUT_VERSION = 'v0.1 (frozen 2026-09-27; pinned-input format 2026-09-28)';
 
 /** Frozen holdout cases, kept out of engine development (planning/13 §Golden corpus design). */
 export const GOLDEN_HOLDOUT_CORPUS: readonly GoldenCase[] = defineGoldenCorpus([

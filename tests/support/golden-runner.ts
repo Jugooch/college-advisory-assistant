@@ -29,10 +29,8 @@ const EVIDENCE_FIELDS = ['rulesetVersion', 'decisiveLeaves', 'courseIds', 'credi
 export function runGoldenCase(golden: GoldenCase): readonly CheckResult[] {
   switch (golden.check) {
     case CheckKind.Prerequisite: {
-      const { rule, attempts, courses, academicPolicy, termCodesOldestFirst } = golden.inputs;
-      return [
-        evaluatePrerequisite(rule, { attempts, courses }, { academicPolicy, termCodesOldestFirst }),
-      ];
+      const { rule, attempts, courses, academicPolicy, termCalendar } = golden.inputs;
+      return [evaluatePrerequisite(rule, { attempts, courses }, { academicPolicy, termCalendar })];
     }
     case CheckKind.RequirementApplicability: {
       const { courseId, audit, freshness } = golden.inputs;
@@ -43,8 +41,8 @@ export function runGoldenCase(golden: GoldenCase): readonly CheckResult[] {
       return checkAllocation(candidates, audit, freshness);
     }
     case CheckKind.CreditLoad: {
-      const { selections, bounds } = golden.inputs;
-      return [checkCreditLoad(selections, bounds)];
+      const { selections, academicPolicy } = golden.inputs;
+      return [checkCreditLoad(selections, academicPolicy)];
     }
   }
 }

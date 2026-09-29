@@ -15,6 +15,8 @@ import {
   CourseIdSchema,
   CourseSchema,
   PrerequisiteRuleSchema,
+  StudentSnapshotSchema,
+  TermCalendarSchema,
 } from '@caa/domain';
 
 import { ExpectedCheckSchema, ProhibitedClaimSchema } from './golden-expectation.schema';
@@ -38,10 +40,13 @@ export const GoldenCourseSelectionSchema = z
   .strict()
   .readonly();
 
-/** Schema for the student record the audit must reflect, and the partner's allowed skew. */
-const FreshnessSchema = z
+/**
+ * Schema for the pinned student record the audit must reflect (the snapshot every other check
+ * reads), and the partner's allowed skew between its time and the audit's record time.
+ */
+const PinnedRecordSchema = z
   .object({
-    studentRecordEffectiveAt: z.iso.datetime({ offset: true }),
+    studentSnapshot: StudentSnapshotSchema,
     maxSkewMs: z.number().int().nonnegative(),
   })
   .strict()
@@ -77,7 +82,7 @@ const PrerequisiteCaseSchema = z.object({
   inputs: z
     .object({
       academicPolicy: AcademicPolicySchema,
-      termCodesOldestFirst: z.array(z.string().min(1)).readonly(),
+      termCalendar: TermCalendarSchema,
       courses: z.array(CourseSchema).readonly(),
       attempts: z.array(CourseAttemptSchema).readonly(),
       rule: PrerequisiteRuleSchema,
@@ -91,7 +96,7 @@ const ApplicabilityCaseSchema = z.object({
   ...commonFields,
   check: z.literal(CheckKind.RequirementApplicability),
   inputs: z
-    .object({ courseId: CourseIdSchema, audit: AuditSnapshotSchema, freshness: FreshnessSchema })
+    .object({ courseId: CourseIdSchema, audit: AuditSnapshotSchema, freshness: PinnedRecordSchema })
     .strict()
     .readonly(),
 });
@@ -104,27 +109,23 @@ const AllocationCaseSchema = z.object({
     .object({
       candidates: z.array(GoldenCourseSelectionSchema).readonly(),
       audit: AuditSnapshotSchema,
-      freshness: FreshnessSchema,
+      freshness: PinnedRecordSchema,
     })
     .strict()
     .readonly(),
 });
 
-/** Schema for a case that checks a candidate set's credit load against the term's bounds. */
+/**
+ * Schema for a case that checks a candidate set's credit load against the term credit bounds of
+ * the academic policy (`termCreditBounds`, `null` when the institution supplied none).
+ */
 const CreditLoadCaseSchema = z.object({
   ...commonFields,
   check: z.literal(CheckKind.CreditLoad),
   inputs: z
     .object({
       selections: z.array(GoldenCourseSelectionSchema).readonly(),
-      bounds: z
-        .object({
-          minCreditsHundredths: z.number().int().nonnegative(),
-          maxCreditsHundredths: z.number().int().nonnegative(),
-          sourceRef: z.string().min(1),
-        })
-        .strict()
-        .readonly(),
+      academicPolicy: AcademicPolicySchema,
     })
     .strict()
     .readonly(),
