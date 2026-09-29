@@ -29,11 +29,18 @@ Start with at least 200 deliberately distinct synthetic cases across the support
 
 Each case records source versions, complete input, expected per-check state, expected evidence, allowed alternatives, prohibited claims, rationale, reviewer, and adjudication date. Keep a frozen holdout set separate from development fixtures. De-identified historical cases require institutional authorization and a re-identification risk review; synthetic cases are the default.
 
-**Status (sprint S2, v0):**
-- The corpus holds 69 development cases across 17 rule families, plus 8 holdout cases.
+**Status (sprint S3):**
+- The corpus holds 113 development cases across 20 rule families. Holdout v0.2 (frozen 2026-09-29) holds 15 cases.
+- [`tests/golden/coverage-map.md`](../../tests/golden/coverage-map.md) lists each family's cases, the interactions covered, open gaps, and the path to the 200-case gate. It gives holdout counts only.
 - The format, layout, finding workflow and holdout rules are in `docs/standards/07-testing.md` §Golden corpus.
 - Every case is currently marked `pending-academic-review`. The 200-case gate and academic sign-off remain open for G1.
-- v0 surfaced two engine defects (#88, #89), both fixed before the sprint closed.
+- v0 surfaced two engine defects (#88, #89), both fixed in S2. S3 raised one finding, #183, settled by ruling GR-01 below.
+
+**Adjudication rulings.** When the planning docs leave a golden expectation open, the tech lead rules on the issue and records it here. A ruling is adopted for the synthetic prototype only. It needs academic-owner approval before G1, as every case does (planning/04 §Decision process).
+
+| ID | Question | Ruling | Evidence | Status | Revisit when |
+|---|---|---|---|---|---|
+| GR-01 (#183, 2026-09-29) | A rule with no minimum grade ("any passing completion") meets a completed pass/fail `P`. The policy sets `lowestPassingLetterGrade` and leaves `passSatisfiesMinimumGrade` null. Is it PASS or UNKNOWN? | **PASS.** A `P` is a passing completion in its own scheme. `lowestPassingLetterGrade` says which *letters* pass. It doesn't turn "any passing completion" into "C or better". `passSatisfiesMinimumGrade` and `PASS_EQUIVALENCE_UNDEFINED` apply only when the rule sets a letter minimum (AC19). An institution that needs C or better puts that minimum on the rule. A pass/fail `F` is still FAIL. | planning/08 §Candidate formation and allocation (a `P` is not a C *for a check that requires one*); `AcademicPolicySchema` field contracts (#69); AC19 | Adopted for prototype; pending academic review | An institution defines a `P` that is not a passing completion, or asks that "no minimum" mean its lowest passing letter for every scheme |
 
 ## Representative acceptance cases
 
@@ -65,8 +72,13 @@ Each case records source versions, complete input, expected per-check state, exp
 | AC24 | Same batch ID arrives with a different checksum | CONFLICT; nothing published |
 | AC25 | A DELTA batch omits a student; a later batch tombstones them | Omission keeps the student; only the tombstone deletes |
 | AC26 | An older batch arrives after a newer one | Rejected as stale; newer data is not overwritten |
+| AC27 | Academic summary and course checks are requested by the student, an assigned advisor, an unassigned advisor, another student, and another tenant; one request body names a tenant, role, or user | Student and assigned advisor may read; everyone else gets a 404 identical to a missing student, and nothing from the student reaches another tenant; a body naming a tenant, role, or user is 400; no or unknown session is 401 |
+| AC28 | Student has no record, two records or audits tie for latest, no audit, no ruleset policy, or a record or audit record time past the 24-hour maximum age | No record: 503 SOURCE_UNAVAILABLE; tie: 409 STALE_SOURCE; no audit or policy: course checks 503; past 24 h: course checks 409, exactly 24 h is still fresh; the summary stays readable as history with its as-of time |
+| AC29 | Course checks for the AC02, AC05, and AC18 golden cases; a course with no rule; a course outside the tenant's catalog | The API returns the adjudicated engine states unchanged (CONDITIONAL only where policy permits, competing courses or requirements named, the selected credit counted exactly, an unchosen credit UNKNOWN and never validated); no rule is `prerequisite: null`, never PASS; an unknown or other-tenant course is 400 |
+| AC30 | AC10 through the API: the record was revised more than one hour after the audit's record time, or names another program or catalog | Both endpoints report audit-derived checks as UNKNOWN, never PASS or FAIL from another program, and never VALIDATED; dimensions that don't read the audit keep their result; exactly one hour of skew still passes |
+| AC31 | The same course-check request is made twice on unchanged inputs; a newer record revision or audit is stored | The result pins the record snapshot, audit, ruleset, and as-of times and follows the newer revision or audit; replays are deep-equal; no free-text academic claims, only structured fields and the audit's own requirement labels |
 
-AC21–AC26 were added in sprint S1 (issues #16, #27); they cover identity, tenant isolation, and ingestion.
+AC21–AC26 were added in sprint S1 (issues #16, #27); they cover identity, tenant isolation, and ingestion. AC27–AC31 were added in sprint S3 (issue #102, PR #175); they cover the academic summary and course-check endpoints end to end through the API.
 
 ## Metrics and interpretation
 
