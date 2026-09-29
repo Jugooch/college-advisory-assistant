@@ -59,6 +59,14 @@ describe('CourseChecksService.checkCourses', () => {
   it('reports an unselected variable credit as UNKNOWN, never an assumed value', async () => {
     const checks = await check({ courseIds: [ind390.id] }).result;
 
+    expect(checks.courses).toEqual([
+      {
+        courseId: ind390.id,
+        code: 'DEMO-IND 390',
+        title: null,
+        credits: { kind: 'VARIABLE', minCreditsHundredths: 100, maxCreditsHundredths: 300 },
+      },
+    ]);
     expect(checks.setResults.creditLoad).toMatchObject({
       state: CheckState.Unknown,
       reasonCode: ReasonCode.VariableCreditUnselected,

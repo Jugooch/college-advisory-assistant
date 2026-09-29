@@ -40,7 +40,7 @@ function toSummaryRequirement(
  *   empty together, exactly when the student has no audit.
  */
 export function toAcademicSummaryResponse(summary: AcademicSummary): AcademicSummaryResponse {
-  const { student, studentSnapshot, audit } = summary;
+  const { student, studentSnapshot, audit, courses } = summary;
   // SECURITY: data minimization. Only contract fields are copied; tenant, login, attempt, and
   // allocation data stay on the server.
   return {
@@ -50,6 +50,8 @@ export function toAcademicSummaryResponse(summary: AcademicSummary): AcademicSum
       programId: studentSnapshot.programId,
       catalogYear: studentSnapshot.catalogYear,
       sourceEffectiveAt: studentSnapshot.sourceEffectiveAt,
+      // TODO(#187): send the program name once the catalog carries one; null means unknown.
+      programName: null,
     },
     audit:
       audit === null
@@ -61,9 +63,12 @@ export function toAcademicSummaryResponse(summary: AcademicSummary): AcademicSum
             catalogYear: audit.audit.catalogYear,
             generatedAt: audit.audit.generatedAt,
             studentRecordEffectiveAt: audit.audit.studentRecordEffectiveAt,
+            // TODO(#187): send the program name once the catalog carries one.
+            programName: null,
           },
     auditReflectsRecord: audit?.reflectsRecord ?? null,
     programCatalogConsistency: audit?.programCatalogConsistency ?? null,
     requirements: audit?.audit.requirements.map(toSummaryRequirement) ?? [],
+    courses,
   };
 }

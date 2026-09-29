@@ -8,14 +8,11 @@
  */
 import { z } from 'zod';
 
-/** How requests are authenticated. `none` denies every protected request until SSO is added. */
-export const AuthMode = {
-  None: 'none',
-  Dev: 'dev',
-} as const;
+import { AuthMode } from '@caa/domain';
 
-/** Union of every {@link AuthMode} value. */
-export type AuthMode = (typeof AuthMode)[keyof typeof AuthMode];
+// NOTE: the domain enum, so `/v1/health` reports exactly the mode this validates (#151).
+// `none` denies every protected request until SSO is added.
+export { AuthMode };
 
 /** `DEV_AUTH_TOKENS`: a JSON object from opaque token to the synthetic SSO identity it signs in as. */
 const DevTokenMapSchema = z.record(

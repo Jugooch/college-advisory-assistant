@@ -18,8 +18,9 @@ import {
   buildRecordSnapshot,
   RECORD_TIMES,
 } from '../../testing/academic-fixtures';
+import { getAcademicSummary, SummaryBodySchema } from '../../testing/academic-summary-harness';
 import { readLogLines } from '../../testing/course-checks-harness';
-import { bearer, buildWorldApp, readError, STUDENTS, TOKENS } from '../../testing/fixtures';
+import { buildWorldApp, readError, STUDENTS, TOKENS } from '../../testing/fixtures';
 
 const lines: string[] = [];
 const { app, store } = buildWorldApp({ write: (line) => lines.push(line) });
@@ -46,32 +47,19 @@ beforeEach(() => {
   lines.length = 0;
   store.studentSnapshots = [snapshot];
   store.audits = [audit];
+  store.courses = Object.values(SYNTHETIC_COURSES);
 });
 
 /**
- * Requests one student's academic summary with a dev token.
+ * Requests one student's academic summary from the main app.
  *
  * @param studentId - Path param, sent as-is.
  * @param token - Dev token, or null for no session.
  * @returns The injected response.
  */
-async function getSummary(studentId: string, token: string | null) {
-  return app.inject({
-    method: 'GET',
-    url: `/v1/students/${studentId}/academic-summary`,
-    headers: token === null ? {} : bearer(token),
-  });
+function getSummary(studentId: string, token: string | null) {
+  return getAcademicSummary(app, studentId, token);
 }
-
-/** The fields of the success envelope these tests read. */
-const SummaryBodySchema = z.object({
-  data: z.looseObject({
-    audit: z.unknown(),
-    auditReflectsRecord: z.unknown(),
-    programCatalogConsistency: z.unknown(),
-    requirements: z.array(z.looseObject({ state: z.string() })),
-  }),
-});
 
 describe('GET /v1/students/:studentId/academic-summary', () => {
   it('returns a student their own summary with only the contract fields', async () => {
@@ -86,6 +74,7 @@ describe('GET /v1/students/:studentId/academic-summary', () => {
           programId: syntheticId('program', 1),
           catalogYear: '2025-2026',
           sourceEffectiveAt: RECORD_TIMES.sourceEffectiveAt,
+          programName: null,
         },
         audit: {
           auditSource: 'demo-audit',
@@ -94,6 +83,7 @@ describe('GET /v1/students/:studentId/academic-summary', () => {
           catalogYear: '2025-2026',
           generatedAt: RECORD_TIMES.auditGeneratedAt,
           studentRecordEffectiveAt: RECORD_TIMES.sourceEffectiveAt,
+          programName: null,
         },
         auditReflectsRecord: { state: CheckState.Pass, reasonCode: null },
         programCatalogConsistency: { state: CheckState.Pass, reasonCode: null },
@@ -107,6 +97,14 @@ describe('GET /v1/students/:studentId/academic-summary', () => {
             remainingCourseCount: 1,
             candidateCourseIds: [SYNTHETIC_COURSES.math102.id],
             sourceRef: 'demo-audit/REQ-001',
+          },
+        ],
+        courses: [
+          {
+            courseId: SYNTHETIC_COURSES.math102.id,
+            code: SYNTHETIC_COURSES.math102.label,
+            title: null,
+            credits: { kind: 'FIXED', creditsHundredths: 300 },
           },
         ],
       },
@@ -289,11 +287,7 @@ describe('academic summary logs', () => {
 
 describe('academic summary out-of-scope backstop', () => {
   it('returns 404 with no audit data and logs a warn-level security event', async () => {
-    const response = await leakyApp.inject({
-      method: 'GET',
-      url: `/v1/students/${STUDENTS.own.id}/academic-summary`,
-      headers: bearer(TOKENS.student),
-    });
+    const response = await getAcademicSummary(leakyApp, STUDENTS.own.id, TOKENS.student);
     const events = readLogLines(leakyLines).filter(
       (line) => line.msg === 'academic record out of scope',
     );

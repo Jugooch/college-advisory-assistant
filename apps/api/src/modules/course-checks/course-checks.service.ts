@@ -13,6 +13,7 @@
  * @see docs/planning/08-academic-verification-and-planning.md
  * @see docs/standards/09-errors-logging-and-security.md
  */
+import type { CourseDisplay } from '@caa/api-contract';
 import type {
   AcademicPolicyRepository,
   CourseCatalogRepository,
@@ -35,6 +36,7 @@ import {
   SourceUnavailableError,
 } from '../../shared/domain-errors';
 import type { RequestContext } from '../../shared/request-context';
+import { selectCourseDisplays } from '../course-display/course-display.logic';
 import {
   type CourseChecks,
   type CourseSetInputs,
@@ -78,6 +80,12 @@ export interface CourseChecksQuery {
     | undefined;
 }
 
+/** The checks of a candidate set, and the catalog display entries of its courses. */
+export interface CourseChecksResult extends CourseChecks {
+  /** Code and credit rule of each checked course, from the session tenant's catalog (#151). */
+  readonly courses: readonly CourseDisplay[];
+}
+
 /** Course checks, each gated by the students service's access rule. */
 export interface CourseChecksService {
   /**
@@ -86,7 +94,8 @@ export interface CourseChecksService {
    * @param actor - Authenticated actor from the session.
    * @param query - The path student, and the courses and credit choices from the validated body.
    * @param context - Request-scoped values; every log line carries the request ID.
-   * @returns Per-course and set checks from the engine, their aggregate, and the pinned inputs.
+   * @returns Per-course and set checks from the engine, their aggregate, the pinned inputs, and
+   *   the checked courses' catalog display entries.
    * @throws {NotFoundError} When the student doesn't exist, the actor may not see them, or a
    *   loaded record belongs to another tenant or student.
    * @throws {SourceUnavailableError} When the student has no snapshot or no audit, the active
@@ -102,7 +111,7 @@ export interface CourseChecksService {
     actor: Actor,
     query: CourseChecksQuery,
     context: RequestContext,
-  ): Promise<CourseChecks>;
+  ): Promise<CourseChecksResult>;
 }
 
 /**
@@ -308,7 +317,7 @@ export function createCourseChecksService(
         },
         'course checks run',
       );
-      return checks;
+      return { ...checks, courses: selectCourseDisplays(query.courseIds, catalog) };
     },
   };
 }
