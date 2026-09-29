@@ -120,3 +120,52 @@ export function createPrerequisiteExpression(
 ): PrerequisiteExpression {
   return PrerequisiteExpressionSchema.parse(input);
 }
+
+/**
+ * The institution states the course has no prerequisite. It exists only as a whole rule's
+ * expression, so it can never be combined with course requirements. A course with no rule at
+ * all is different: its rule wasn't imported, and the engine reports UNKNOWN (#141).
+ */
+export interface NoPrerequisite {
+  readonly type: typeof PrerequisiteExpressionType.None;
+}
+
+/**
+ * The expression at the root of a rule: a prerequisite tree, or an explicit "no prerequisite".
+ * `NONE` is allowed here and nowhere below, so `ALL` and `ANY` children are always
+ * {@link PrerequisiteExpression} nodes.
+ */
+export type PrerequisiteRootExpression = PrerequisiteExpression | NoPrerequisite;
+
+/** Raw input accepted by {@link createPrerequisiteRootExpression}. */
+export type PrerequisiteRootExpressionInput =
+  PrerequisiteExpressionInput | { type: typeof PrerequisiteExpressionType.None };
+
+/** Schema for a rule's root expression: `NONE`, or a prerequisite expression tree. */
+// SAFETY: `NONE` is accepted only at the root. Inside `ALL` it would read as satisfied, and
+// inside `ANY` it would satisfy the whole group, so a stray `NONE` could turn a real
+// prerequisite into a PASS. The child schema, `PrerequisiteExpressionSchema`, rejects it.
+export const PrerequisiteRootExpressionSchema: z.ZodType<
+  PrerequisiteRootExpression,
+  PrerequisiteRootExpressionInput
+> = z.union([
+  z
+    .object({ type: z.literal(PrerequisiteExpressionType.None) })
+    .strict()
+    .readonly(),
+  PrerequisiteExpressionSchema,
+]);
+
+/**
+ * Creates a validated, immutable root expression.
+ *
+ * @param input - Raw root expression.
+ * @returns The parsed root expression.
+ * @throws {z.ZodError} When the input is neither `NONE` nor a valid expression tree, including
+ *   a `NONE` node below the root.
+ */
+export function createPrerequisiteRootExpression(
+  input: PrerequisiteRootExpressionInput,
+): PrerequisiteRootExpression {
+  return PrerequisiteRootExpressionSchema.parse(input);
+}
