@@ -16,9 +16,16 @@ export type SyntheticIdKind =
   | 'program'
   | 'equivalencyGroup'
   | 'studentSnapshot'
-  | 'term';
+  | 'term'
+  | 'section'
+  | 'linkedSectionGroup'
+  | 'sectionSnapshot'
+  | 'campus';
 
-/** First UUID group per kind, so the kind is visible when an ID shows up in a failing test. */
+/**
+ * First UUID group per kind, so the kind is visible when an ID shows up in a failing test. The
+ * section kinds share the `c` range (`c0`, `c1`, `c2`) and leave `e` and `f` free.
+ */
 const KIND_PREFIX: Readonly<Record<SyntheticIdKind, string>> = {
   tenant: '10000000',
   user: '20000000',
@@ -31,6 +38,10 @@ const KIND_PREFIX: Readonly<Record<SyntheticIdKind, string>> = {
   equivalencyGroup: '90000000',
   studentSnapshot: 'a0000000',
   term: 'b0000000',
+  section: 'c0000000',
+  linkedSectionGroup: 'c1000000',
+  sectionSnapshot: 'c2000000',
+  campus: 'd0000000',
 };
 
 /** Largest seed that fits the 12-hex-digit final UUID group. */
