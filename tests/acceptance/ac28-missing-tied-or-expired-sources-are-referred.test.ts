@@ -199,4 +199,17 @@ describe('AC28 missing, tied, or expired sources are referred', () => {
       expect(String(summary.message)).toMatch(/advisor/i);
     },
   );
+
+  acceptanceIt(
+    'AC28',
+    'refers the summary to an advisor with 409 when only the audit’s record time is past 24 hours',
+    async () => {
+      storeRecordAt('2026-09-01T06:00:00.000Z', PAST_THE_LIMIT);
+
+      const summary = summarizeError(await readSummary(app));
+
+      expect(summary).toMatchObject(STALE);
+      expect(String(summary.message)).toMatch(/advisor/i);
+    },
+  );
 });

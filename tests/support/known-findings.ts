@@ -21,6 +21,10 @@ import { it } from 'vitest';
  */
 export const KNOWN_FINDINGS: ReadonlyMap<string, number> = new Map<string, number>([
   ['AC28: refers the summary to an advisor with 409 STALE_SOURCE past 24 hours', 114],
+  [
+    'AC28: refers the summary to an advisor with 409 when only the audit’s record time is past 24 hours',
+    114,
+  ],
 ]);
 
 /** A key of the register: a golden case ID, or an acceptance case and its exact test title. */
