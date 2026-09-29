@@ -47,3 +47,29 @@ This retroactively covers #70 (`lowestPassingLetterGrade: null`) and #104 (`stud
 - The override is used for anything outside the named files.
 - Builders start carrying defaults that qa-engineer later has to correct.
 - A human reviewer joins and could approve cross-area PRs directly.
+
+## Amendment 1 (2026-09-29, issue #252): seed-mirror ripples
+
+**Related:** ADR-0009, standard 08 §Seed-mirror ripple, issues #147, #216, #217, #229, #241, #253, #254, #255.
+
+**Context.** `apps/api/src/testing/seed-scenario-fixtures.ts` (#147) is a hand copy of the dev seed's academic records. `seed-scenario-fixtures.test.ts` deep-compares it with the seed plan from `@caa/db/testing`. The copy can't import that entry itself, because lint bans `./testing` imports in every non-test file under `apps/*/src/**` (ADR-0009). So each change to seeded academic data needs three edits in one PR: the db seed (data-engineer), the api mirror (api-engineer) and sometimes the test-kit builder default (qa-engineer). Either order of separate PRs breaks `main`. Examples are #216 (DEMO-PHYS 301L's credits included in DEMO-PHYS 301) and the seed steps of the #229 and #241 staged rollouts. The decision above covers builder ripples only.
+
+The options were:
+
+- **(a) A named seed-mirror ripple override.** The orchestrator applies the mirror change, and the builder default if needed, in the data PR, under the same kind of limits as a required-field ripple.
+- **(b) The structural fix.** The api fixtures build from the seed plan through `@caa/db/testing`. This needs standard 01 and ADR-0009 to allow imports from `apps/<app>/src/testing/**`, a devops lint exception, and an api refactor.
+
+**Decision: (a) now, and (b) as a follow-up that retires (a).** (b) removes the ripple for good, but it needs three PRs from three owners in order (#253, #254, #255). Waiting for them would block #216's seed part, #217, #229 and #241 for the rest of S4. (a) unblocks them now, and it is bounded the way the original decision is:
+
+- only the orchestrator edits;
+- only when the data PR changes the seed plan and the mirror test fails without the edit;
+- a closed file list, with values copied literally from the seed;
+- its own commit, and fixed PR-body wording citing #252.
+
+Standard 08 §Seed-mirror ripple has the rules. CI already enforces the "authorized by" link for every override, so no tooling change is needed for (a).
+
+**Consequences.**
+
+- #216, #217, #229 and #241 can each land their seed change as one PR, and `main` stays green.
+- The mirror stays a hand copy until #255 lands. A seed change that breaks any other api test is outside the case, so that owner changes its code first.
+- When #255 merges, the tech lead removes the case from standard 08 and marks this amendment superseded (#253).
