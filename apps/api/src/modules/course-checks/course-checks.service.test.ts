@@ -9,9 +9,10 @@
 import { describe, expect, it } from 'vitest';
 
 import { CheckState, type CourseId, ReasonCode } from '@caa/domain';
-import { buildActor, buildCourse, SYNTHETIC_TENANTS } from '@caa/test-kit';
+import { buildCourse, SYNTHETIC_TENANTS } from '@caa/test-kit';
 
 import {
+  InconsistentInputsError,
   InvalidRequestError,
   NotFoundError,
   RulesetNotConfiguredError,
@@ -19,73 +20,16 @@ import {
   StaleSourceError,
 } from '../../shared/domain-errors';
 import {
-  createInMemoryAcademicRepositories,
-  type InMemoryAcademicStore,
-} from '../../testing/in-memory-academic-repositories';
-import { createRecordingLogger } from '../../testing/in-memory-repositories';
-import {
-  buildSeedAcademicStore,
-  SEED_AUDITS,
-  SEED_COURSES,
-  SEED_STUDENTS,
-} from '../../testing/seed-scenario-fixtures';
-import { createPinnedRecordsService } from '../pinned-records/pinned-records.service';
-import { type CourseChecksQuery, createCourseChecksService } from './course-checks.service';
+  CHECK_ACTOR as actor,
+  CHECK_STUDENT as student,
+  runCourseChecks as check,
+} from '../../testing/course-checks-harness';
+import type { InMemoryAcademicStore } from '../../testing/in-memory-academic-repositories';
+import { SEED_AUDITS, SEED_COURSES } from '../../testing/seed-scenario-fixtures';
 
-const actor = buildActor({ tenantId: SYNTHETIC_TENANTS.a.id });
-const student = SEED_STUDENTS.current;
 const { math102, ind390, engl101 } = SEED_COURSES;
-/** A fixed clock 7 hours after SYN-000001's seeded record and audit record time. */
-const NOW = '2026-09-01T12:00:00.000Z';
-/** 24 hours. */
-const MAX_AGE_MS = 86_400_000;
 
 const MATH_102_QUERY = { courseIds: [SEED_COURSES.math102.id] };
-
-/** Changes to the seeded store, the ruleset, and the access decision for one test. */
-interface Setup {
-  readonly isAllowed?: boolean;
-  readonly rulesetVersion?: string | null;
-  readonly change?: (store: InMemoryAcademicStore) => InMemoryAcademicStore;
-  /** The clock reading; defaults to {@link NOW}. */
-  readonly now?: string;
-}
-
-/**
- * Creates the service over the seeded store and checks a query for SYN-000001.
- *
- * @param query - Courses and credit choices.
- * @param setup - Store changes, ruleset, and access decision.
- * @returns The check's promise, the recording logger, and the rule lookups made.
- */
-function check(query: Omit<CourseChecksQuery, 'studentId'>, setup: Setup = {}) {
-  const store = (setup.change ?? ((seeded) => seeded))(buildSeedAcademicStore());
-  const repositories = createInMemoryAcademicRepositories(store);
-  const ruleLookups: unknown[] = [];
-  const logger = createRecordingLogger();
-  const service = createCourseChecksService({
-    ...repositories,
-    prerequisiteRules: {
-      findRule: (...args) => {
-        ruleLookups.push(args);
-        return repositories.prerequisiteRules.findRule(...args);
-      },
-    },
-    students: {
-      getStudent: () =>
-        setup.isAllowed === false ? Promise.reject(new NotFoundError()) : Promise.resolve(student),
-    },
-    pinnedRecords: createPinnedRecordsService({
-      ...repositories,
-      maxSourceAgeMs: MAX_AGE_MS,
-      now: () => new Date(setup.now ?? NOW),
-    }),
-    maxSkewMs: 3_600_000,
-    rulesetVersion: setup.rulesetVersion === undefined ? 'demo-2026.1' : setup.rulesetVersion,
-  });
-  const result = service.checkCourses(actor, { studentId: student.id, ...query }, { logger });
-  return { result, logger, ruleLookups };
-}
 
 describe('CourseChecksService.checkCourses', () => {
   it('returns every check dimension for each course and for the set', async () => {
@@ -188,14 +132,17 @@ describe('CourseChecksService.checkCourses', () => {
     await expect(result).rejects.toBeInstanceOf(InvalidRequestError);
   });
 
-  it('turns an engine input error into INVALID_REQUEST, logging only its name', async () => {
+  it('turns a request-caused engine input error into INVALID_REQUEST, logging its reason', async () => {
     const { result, logger } = check({
       courseIds: [ind390.id],
       creditSelections: [{ courseId: ind390.id, selectedCreditsHundredths: 900 }],
     });
 
     await expect(result).rejects.toBeInstanceOf(InvalidRequestError);
-    expect(logger.entries[0]?.details).toMatchObject({ reason: 'CandidateSetInputError' });
+    expect(logger.entries[0]).toMatchObject({
+      level: 'info',
+      details: { reason: 'CandidateSetInputError:selectedCredits' },
+    });
   });
 
   it('logs the run with opaque IDs, versions, and the aggregate only', async () => {
@@ -224,6 +171,68 @@ describe('CourseChecksService.checkCourses', () => {
       },
     ]);
     expect(JSON.stringify(logger.entries)).not.toContain(student.sourceStudentId);
+  });
+});
+
+describe('CourseChecksService.checkCourses stored-data engine errors', () => {
+  const noRange = { ...ind390, minCreditsHundredths: null, maxCreditsHundredths: null };
+  const withoutRange = (store: InMemoryAcademicStore) => ({
+    ...store,
+    courses: (store.courses ?? []).map((course) => (course.id === ind390.id ? noRange : course)),
+  });
+  const invertedBounds = (store: InMemoryAcademicStore) => ({
+    ...store,
+    policies: (store.policies ?? []).map((policy) => ({
+      ...policy,
+      termCreditBounds: { minCreditsHundredths: 1800, maxCreditsHundredths: 1200 },
+    })),
+  });
+
+  it.each([
+    {
+      name: 'a course with no credit range',
+      courseId: ind390.id,
+      change: withoutRange,
+      issue: 'courseCredits',
+    },
+    {
+      name: 'inverted term credit bounds',
+      courseId: math102.id,
+      change: invertedBounds,
+      issue: 'bounds',
+    },
+  ])(
+    'refers the student with SOURCE_UNAVAILABLE for $name',
+    async ({ courseId, change, issue }) => {
+      const { result, logger } = check({ courseIds: [courseId] }, { change });
+
+      await expect(result).rejects.toBeInstanceOf(SourceUnavailableError);
+      expect(logger.entries).toEqual([
+        {
+          level: 'warn',
+          message: 'course checks input invalid',
+          details: {
+            actorUserId: actor.userId,
+            tenantId: actor.tenantId,
+            studentId: student.id,
+            cause: 'STORED_DATA',
+            reason: `CandidateSetInputError:${issue}`,
+          },
+        },
+      ]);
+    },
+  );
+
+  it('fails with an internal error when a loaded rule is at another ruleset', async () => {
+    const { result, logger } = check(MATH_102_QUERY, {
+      mapRule: (rule) => ({ ...rule, rulesetVersion: 'other-1' }),
+    });
+
+    await expect(result).rejects.toBeInstanceOf(InconsistentInputsError);
+    expect(logger.entries[0]).toMatchObject({
+      level: 'warn',
+      details: { cause: 'INTERNAL', reason: 'PrerequisiteInputMismatchError' },
+    });
   });
 });
 
