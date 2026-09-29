@@ -75,6 +75,24 @@ export class InvalidRequestError extends DomainError {
 }
 
 /**
+ * Loaded inputs contradict how they were queried, for example a prerequisite rule at another
+ * ruleset than the policy it was loaded with. Not a `DomainError`: it is a defect, so the error
+ * handler returns INTERNAL_ERROR with no detail.
+ */
+export class InconsistentInputsError extends Error {
+  /**
+   * Creates the error.
+   *
+   * @param reason - Opaque reason, such as the engine error name. Never a value or an identifier.
+   * @param cause - The engine error that exposed the inconsistency.
+   */
+  constructor(reason: string, cause: unknown) {
+    super(`Loaded inputs are inconsistent: ${reason}`, { cause });
+    this.name = 'InconsistentInputsError';
+  }
+}
+
+/**
  * `ACTIVE_RULESET_VERSION` isn't set, so course checks can't run. Not a `DomainError`: the
  * error handler returns INTERNAL_ERROR, and no ruleset is ever guessed.
  */
