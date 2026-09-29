@@ -60,6 +60,8 @@ These are initial operating proposals requiring institutional approval and feed 
 | Registration holds/readiness | 15 minutes if source supports it | Readiness unknown; never inferred from old absence |
 | Approved policy/catalog | Version and effective dates plus daily change check | Withdraw affected interpretation on discovered unresolved change |
 
+_Decision note (2026-09-29, ADR-0008 Amendment 1, #114):_ For the prototype, "historical view only" for transcript, program and audit is met by refusing the live academic summary and course checks past the maximum age: 409 `STALE_SOURCE` with an advisor referral. Nothing past the age is shown as current. A labeled historical view of the summary waits for a server-derived marker and its UX (revisit before G1).
+
 These ages are not guarantees of source correctness. Even a fresh seat count can change before registration. If feeds cannot meet them, remove the dependent capability or approve a revised claim policy explicitly.
 
 ## Logical app interfaces

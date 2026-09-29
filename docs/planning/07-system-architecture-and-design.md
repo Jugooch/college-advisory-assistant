@@ -63,6 +63,8 @@ A vendor audit is usable only after validating its semantic coverage. If hypothe
 
 Use separate disable flags for personalized planning, conversational explanations, a cohort, and an adapter. Source outages should not crash read-only historical views. LLM outages should leave forms, verified plan cards, and case access operational. Tenant-aware caches and queue payloads are mandatory. No global cache may store one student's result under a course-only key.
 
+_Decision note (2026-09-29, ADR-0008 Amendment 1, #114):_ "Read-only historical views" means saved results shown with their original timestamp and status, such as plan revisions (AC14). The live academic summary is not one of them. When its sources are past the maximum age, it returns 409 `STALE_SOURCE` with an advisor referral, the same as course checks, until a historical-view UX with a server-derived marker exists (revisit before G1).
+
 Retry transient read errors with bounded backoff. Quarantine malformed imports. Use last-known-good configuration only if applicable and fresh; otherwise display unavailable. Authentication failure, semantic mismatch, and missing permissions are not retryable transient errors.
 
 ## Deployment and delivery

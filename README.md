@@ -76,7 +76,7 @@ curl -X POST http://localhost:4000/v1/students/30000000-0000-4000-8000-000000000
    - With `creditSelections` setting `selectedCreditsHundredths: 200` (2.00) for DEMO-IND 390: **PASS at 12.00**; the minimum is inclusive (**GC-LOAD-005**).
    - Adding DEMO-PHYS 301L and choosing 300 (3.00): **PASS at 14.00**. 3.00 + 4.00 + 3.00 + 1.00 + 3.00, and the lab carries its own credit (**GC-LOAD-001**).
 4. **A stale audit: SYN-000002 (sign in with `dev-token-advisor`).** SYN-000002's audit ran against a record 17 days older than its latest record, which carries a DEMO-MATH 101 grade posted after the audit ran.
-   - **The academic summary and course checks both return 409 `STALE_SOURCE`** and refer the student to an advisor. The audit's record time is older than the 24-hour source-age limit, so neither endpoint gives a result, not even the audit's requirement states as of when it ran (planning/09 §Proposed freshness policies; ADR-0008; #114).
+   - **The academic summary and course checks both return 409 `STALE_SOURCE`** and refer the student to an advisor. The audit's record time is older than the 24-hour source-age limit, so neither endpoint gives a result, not even the audit's requirement states as of when it ran (planning/09 §Proposed freshness policies; ADR-0008 Amendment 1; #114).
    - The same audit would also fail the audit-reflects-record check (**UNKNOWN `AUDIT_STALE`**, **GC-STALE-001**), because the record changed after it by more than any allowed skew. The age check refuses the request first, so that result isn't shown.
 
 ## Where things are
