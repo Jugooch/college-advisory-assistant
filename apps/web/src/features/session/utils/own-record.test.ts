@@ -14,16 +14,29 @@ const STUDENT_ID = syntheticId('student', 1);
 /**
  * Builds a contract-valid `/v1/me` response.
  *
- * @param studentId - The linked student, `null`, or omitted when undefined.
+ * @param studentId - The linked student, or `null` when the user has none.
  * @returns The parsed response.
  */
-function me(studentId: string | null | undefined): MeResponse {
+function me(studentId: string | null): MeResponse {
   return MeResponseSchema.parse({
     userId: syntheticId('user', 1),
     tenantId: SYNTHETIC_TENANTS.a.id,
     roles: [Role.Student],
-    ...(studentId === undefined ? {} : { studentId }),
+    studentId,
   });
+}
+
+/**
+ * Removes `studentId` from a response.
+ *
+ * @param response - A full response.
+ * @returns The same response without the `studentId` key.
+ */
+function withoutStudentId(response: MeResponse): MeResponse {
+  const entries = Object.entries(response).filter(([key]) => key !== 'studentId');
+  // NOTE: simulates an older API that doesn't report `studentId`. The cast compiles, and is
+  // needed, whether the contract has the field as optional or required.
+  return Object.fromEntries(entries) as MeResponse;
 }
 
 describe('ownOverviewPath', () => {
@@ -32,9 +45,9 @@ describe('ownOverviewPath', () => {
   });
 
   it.each([
-    ['no linked student', null],
-    ['an API that does not report one yet', undefined],
-  ])('is null for %s, so the lookup form stays', (_name, studentId) => {
-    expect(ownOverviewPath(me(studentId))).toBeNull();
+    ['no linked student', me(null)],
+    ['an API that does not report one', withoutStudentId(me(STUDENT_ID))],
+  ])('is null for %s, so the lookup form stays', (_name, response) => {
+    expect(ownOverviewPath(response)).toBeNull();
   });
 });

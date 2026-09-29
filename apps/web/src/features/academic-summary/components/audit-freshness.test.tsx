@@ -29,18 +29,22 @@ function summaryWith(verdicts: {
       programId: verdicts.isProgramMatched ? PROGRAM_ID : syntheticId('program', 2),
       catalogYear: '2025-2026',
       sourceEffectiveAt: '2026-09-12T14:00:00Z',
+      programName: null,
     },
     audit: {
       auditSource: 'demo-audit',
       auditVersion: 'audit_demo_r7',
       programId: PROGRAM_ID,
       catalogYear: '2025-2026',
+      programName: null,
       generatedAt: '2026-09-10T09:00:00Z',
+      studentRecordEffectiveAt: '2026-09-10T08:00:00Z',
     },
     auditReflectsRecord: verdicts.auditReflectsRecord,
     programCatalogConsistency: verdicts.isProgramMatched
       ? { state: CheckState.Pass, reasonCode: null }
       : { state: CheckState.Unknown, reasonCode: ReasonCode.AuditProgramMismatch },
+    courses: [],
     requirements: [buildRequirementResult()],
   });
 }

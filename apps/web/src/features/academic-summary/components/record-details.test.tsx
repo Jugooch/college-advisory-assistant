@@ -16,12 +16,12 @@ const PROGRAM_ID = syntheticId('program', 1);
 /**
  * Builds a contract-valid summary with one program in the record and the audit.
  *
- * @param names - The program names, or an empty object to omit them.
+ * @param names - The program names in the record and the audit, each `null` when not supplied.
  * @returns The parsed summary.
  */
 function summaryWith(names: {
-  readonly record?: string | null;
-  readonly audit?: string | null;
+  readonly record: string | null;
+  readonly audit: string | null;
 }): AcademicSummaryResponse {
   return AcademicSummaryResponseSchema.parse({
     student: { id: syntheticId('student', 3), sourceStudentId: 'SYN-000003' },
@@ -30,18 +30,20 @@ function summaryWith(names: {
       programId: PROGRAM_ID,
       catalogYear: '2025-2026',
       sourceEffectiveAt: '2026-09-12T14:00:00Z',
-      ...(names.record === undefined ? {} : { programName: names.record }),
+      programName: names.record,
     },
     audit: {
       auditSource: 'demo-audit',
       auditVersion: 'audit_demo_r9',
       programId: PROGRAM_ID,
       catalogYear: '2025-2026',
+      programName: names.audit,
       generatedAt: '2026-09-10T09:00:00Z',
-      ...(names.audit === undefined ? {} : { programName: names.audit }),
+      studentRecordEffectiveAt: '2026-09-10T08:00:00Z',
     },
     auditReflectsRecord: { state: CheckState.Pass, reasonCode: null },
     programCatalogConsistency: { state: CheckState.Pass, reasonCode: null },
+    courses: [],
     requirements: [buildRequirementResult({ label: 'Core' })],
   });
 }
@@ -57,11 +59,10 @@ describe('RecordDetails', () => {
     expect(html).not.toContain(`<code>${PROGRAM_ID}</code>`);
   });
 
-  it.each([
-    ['null', { record: null, audit: null }],
-    ['omitted', {}],
-  ])('shows the program ID when the name is %s', (_name, names) => {
-    const html = renderToStaticMarkup(<RecordDetails summary={summaryWith(names)} />);
+  it('shows the program ID when no name is supplied', () => {
+    const html = renderToStaticMarkup(
+      <RecordDetails summary={summaryWith({ record: null, audit: null })} />,
+    );
 
     expect(html).toContain(`<dt>Program in your record</dt><dd><code>${PROGRAM_ID}</code></dd>`);
     expect(html).toContain(`<dd><code>${PROGRAM_ID}</code>, catalog 2025-2026</dd>`);

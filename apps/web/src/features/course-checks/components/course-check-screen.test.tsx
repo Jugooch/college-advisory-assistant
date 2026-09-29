@@ -42,6 +42,14 @@ const RESULT: CourseChecksResponse = CourseChecksResponseSchema.parse({
     auditVersion: 'audit_demo_r7',
     rulesetVersion: 'demo-2026.1',
   },
+  courses: [
+    {
+      courseId: math101.id,
+      code: 'DEMO-MATH 101',
+      title: null,
+      credits: { kind: 'FIXED', creditsHundredths: 300 },
+    },
+  ],
 });
 
 /**
