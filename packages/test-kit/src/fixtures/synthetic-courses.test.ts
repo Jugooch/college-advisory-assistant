@@ -18,8 +18,17 @@ describe('SYNTHETIC_COURSES', () => {
       minCreditsHundredths: null,
       maxCreditsHundredths: null,
       equivalencyGroupId: '90000000-0000-4000-8000-000000000001',
+      title: null,
       creditsIncludedInCourseId: null,
     });
+  });
+
+  it('states for every course that the catalog supplies no title', () => {
+    const titles = Object.values(SYNTHETIC_COURSES).map((course) =>
+      Object.hasOwn(course, 'title') ? course.title : 'omitted',
+    );
+
+    expect(titles).toEqual([null, null, null, null, null, null]);
   });
 
   it('states for every course, including the DEMO-PHYS 201L lab, that it counts its own credits', () => {

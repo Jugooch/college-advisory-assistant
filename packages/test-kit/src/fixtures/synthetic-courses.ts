@@ -26,8 +26,8 @@ type CatalogEntry = Pick<
 >;
 
 /**
- * Creates a catalog course in tenant A that counts its own credits. The source ID is the label
- * with the space replaced by a hyphen, for example `DEMO-MATH-101`.
+ * Creates a catalog course in tenant A that counts its own credits and has no catalog title. The
+ * source ID is the label with the space replaced by a hyphen, for example `DEMO-MATH-101`.
  *
  * @param seed - Drives the course `id`; chosen so the hex reads like the course number.
  * @param entry - Label, credits, and equivalency group.
@@ -38,6 +38,7 @@ function catalogCourse(seed: number, entry: CatalogEntry): Course {
     id: syntheticId('course', seed),
     tenantId: SYNTHETIC_TENANTS.a.id,
     sourceCourseId: entry.label.replace(' ', '-'),
+    title: null,
     creditsIncludedInCourseId: null,
     ...entry,
   });
@@ -82,7 +83,8 @@ function fixed(
  * `90000000-0000-4000-8000-000000000001`, so DEMO-MATH 101 and DEMO-MATH 111 are equivalents.
  * The catalog states no prerequisites; build those with `buildPrerequisiteRule`. Every course
  * counts its own credits (`creditsIncludedInCourseId: null`), including DEMO-PHYS 201L, which
- * is a separately credited lab; build a lab included in its lecture with `buildCourse`.
+ * is a separately credited lab; build a lab included in its lecture with `buildCourse`. No
+ * course has a catalog title (`title: null`), so tests never depend on title text.
  */
 export const SYNTHETIC_COURSES: Readonly<Record<SyntheticCourseKey, Course>> = {
   math101: catalogCourse(0x101, fixed('DEMO-MATH 101', 300, SYNTHETIC_MATH_EQUIVALENCY_GROUP_ID)),
