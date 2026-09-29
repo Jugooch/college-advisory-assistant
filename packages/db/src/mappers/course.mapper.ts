@@ -25,5 +25,6 @@ export function toCourse(row: CourseRow): Course {
     minCreditsHundredths: row.minCreditsHundredths,
     maxCreditsHundredths: row.maxCreditsHundredths,
     equivalencyGroupId: row.equivalencyGroupId,
+    creditsIncludedInCourseId: row.creditsIncludedInCourseId,
   });
 }

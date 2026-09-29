@@ -188,3 +188,23 @@ This interprets planning/08; it doesn't deviate from it, so it needs no change-c
 - QA (#226): a golden case for each of the two results, citing GR-02.
 
 **Revisit when** a source publishes weekdays that can still change after publication. A known weekday would then no longer prove a disjoint date set.
+
+## Amendment 2 (2026-09-29, issue #261): a TBA location decides travel as UNKNOWN
+
+**Related:** #218, #261, PR #260. Amendment 1 (GR-02, PR #249) covers TBA times.
+
+**Context.** Section 8 defines travel between two timed meetings on campuses. It doesn't cover a timed meeting whose location is TBA (`location: null`). Engine PR #260 returns UNKNOWN for that case and asked for confirmation.
+
+**Decision.** This applies to two timed meetings that share a possible date and whose times don't overlap. An overlap is FAIL `MEETING_CONFLICT` whatever the locations, because the times alone prove it.
+
+- If either meeting is online, no trip is needed and the pair passes the travel rule. An online meeting has no campus (section 8).
+- Otherwise, if either location is TBA, the pair is UNKNOWN `MEETING_LOCATION_UNKNOWN`, whatever the gap. That includes two TBA locations. The TBA meeting may be on another campus, and it is never assumed to be on the same one.
+- Otherwise, section 8 applies unchanged.
+
+This follows planning/08's check-state table, where missing data is UNKNOWN, and section 8's rule that an unconfigured pair is UNKNOWN whatever the gap. It interprets section 8 and doesn't deviate from planning, so it needs no change-control record.
+
+**Consequences.** Engine (#218, PR #260) returns this, with tests for a TBA location next to a campus meeting (UNKNOWN) and next to an online meeting (no trip). The domain adds `MEETING_LOCATION_UNKNOWN` in the second half of #212, and the web words it under the wording-map ripple (#261).
+
+A meeting with a known campus and a TBA room (`room: null`) doesn't have a TBA location. Its campus decides travel as usual.
+
+**Revisit when** pilot section data has TBA locations often enough that most options fall to UNKNOWN. The fix would then be better source data, or an institution-approved rule, never an assumed campus.

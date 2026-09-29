@@ -29,6 +29,27 @@
       "when": 1790707006395,
       "tag": "0003_immutable_published_rules",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790708957971,
+      "tag": "0004_section_persistence",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790709939723,
+      "tag": "0005_student_source_id",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790711104593,
+      "tag": "0006_course_credit_inclusion",
+      "breakpoints": true
     }
   ]
 }
