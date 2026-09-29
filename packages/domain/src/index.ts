@@ -16,7 +16,6 @@ export * from './enums/reason-code.enum';
 export * from './enums/repeat-policy.enum';
 export * from './enums/requirement-state.enum';
 export * from './enums/role.enum';
-export * from './enums/source-freshness.enum';
 export * from './models/academic-policy.model';
 export * from './models/actor.model';
 export * from './models/advisor-assignment.model';

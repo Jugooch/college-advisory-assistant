@@ -18,8 +18,6 @@ import {
   ReasonCode,
   RequirementResultSchema,
   RequirementState,
-  SourceFreshness,
-  SourceFreshnessSchema,
   StudentSnapshotSchema,
 } from '@caa/domain';
 
@@ -112,23 +110,6 @@ export const SummaryAuditSchema = z
   .readonly();
 
 /**
- * Whether the pinned record and audit were within the maximum source age when the server built
- * the summary (planning/09 §Proposed freshness policies; standard 05 §Source freshness). The
- * server derives it from the snapshot's `sourceEffectiveAt` and, when there is an audit, the
- * audit's `studentRecordEffectiveAt`. The client never recomputes or upgrades it.
- *
- * The UI must show a HISTORICAL summary as a historical view that needs a refresh before any new
- * validated recommendation, never as the student's current standing.
- */
-export const SummarySourceFreshnessSchema = z
-  .object({
-    state: SourceFreshnessSchema,
-    /** The server time the source times were judged against. ISO 8601 with offset. */
-    judgedAt: z.iso.datetime({ offset: true }),
-  })
-  .readonly();
-
-/**
  * Whether the audit reflects the pinned student record, with the same shape the engine's
  * `checkAuditReflectsRecord` returns: PASS with no reason, or UNKNOWN with one of two reasons.
  * `AUDIT_STALE` means the record changed after the audit by more than the allowed skew, or the
@@ -209,6 +190,12 @@ export const SummaryRequirementSchema = z
 /**
  * Response body for `GET /v1/students/:studentId/academic-summary`.
  *
+ * Every summary this schema describes was built from fresh sources. When the snapshot's
+ * `sourceEffectiveAt` or, when there is an audit, its `studentRecordEffectiveAt` is past the
+ * maximum source age, too far in the future, missing, or unparseable, the endpoint returns 409
+ * `STALE_SOURCE` with a referral instead, the same gate as course checks (ADR-0008; standard 05
+ * §Source freshness; planning/09 §Proposed freshness policies).
+ *
  * SECURITY: data minimization. Carries no tenant, login, or attempt data; the student is the
  * same minimal shape as `GET /v1/students/:studentId`.
  *
@@ -245,15 +232,6 @@ export const AcademicSummaryResponseSchema = z
      * must be shown as needing verification, never as current.
      */
     requirements: z.array(SummaryRequirementSchema).readonly(),
-    // TODO(#169): make required
-    /**
-     * Whether the record and audit were current or only historical when the server built the
-     * summary, and when that was judged. Under HISTORICAL, the record, the audit, and every
-     * requirement state are a historical view that needs a refresh, never current standing.
-     * While this field is still optional, an omitted value means freshness wasn't judged, and
-     * the UI treats it like HISTORICAL, never as CURRENT.
-     */
-    sourceFreshness: SummarySourceFreshnessSchema.optional(),
   })
   // SAFETY: a verdict with no audit, or an audit with no verdict, would let the UI show
   // requirement states without saying whether they reflect the record (planning/07
@@ -282,20 +260,6 @@ export const AcademicSummaryResponseSchema = z
       path: ['programCatalogConsistency'],
     },
   )
-  // SAFETY: a missing source time is not fresh, so a summary whose audit lacks its record time
-  // is never CURRENT (planning/09 §Proposed freshness policies: historical view only). This
-  // checks only that every time a CURRENT verdict relies on is present; the age rule itself
-  // stays in the api's freshness logic (ADR-0005, ADR-0008).
-  .refine(
-    (summary) =>
-      summary.sourceFreshness?.state !== SourceFreshness.Current ||
-      summary.audit === null ||
-      summary.audit.studentRecordEffectiveAt !== undefined,
-    {
-      message: 'sourceFreshness must be HISTORICAL when the audit has no studentRecordEffectiveAt',
-      path: ['sourceFreshness', 'state'],
-    },
-  )
   // SAFETY: requirement states come only from an audit, and a degree audit always has one
   // (planning/09 §Canonical entities: AuditSnapshot holds the requirement tree).
   .refine((summary) => (summary.audit === null) === (summary.requirements.length === 0), {
@@ -318,7 +282,8 @@ export type AcademicSummaryResponse = z.infer<typeof AcademicSummaryResponseSche
 
 /**
  * Reads the pinned record, audit, and requirement states of one student the signed-in user may
- * see. Others are NOT_FOUND. Read-only: nothing is written to an institutional system.
+ * see. Others are NOT_FOUND. Stale, missing, or future source times are 409 STALE_SOURCE, never
+ * a 200. Read-only: nothing is written to an institutional system.
  */
 export const getAcademicSummaryEndpoint = defineEndpoint({
   method: 'GET',
