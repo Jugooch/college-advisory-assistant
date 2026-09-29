@@ -25,7 +25,9 @@ import { institutionTable } from './institution.table';
 
 /**
  * The `requirement_result` table. One row per requirement of one audit snapshot, written with
- * the audit and never changed. The parent link stays inside the same audit.
+ * the audit and never changed. The parent link stays inside the same audit. Allocated attempts
+ * and candidate courses are in `requirement_result_allocated_attempt` and
+ * `requirement_result_candidate_course`, whose keys the database checks (#121).
  */
 export const requirementResultTable = pgTable(
   'requirement_result',
@@ -42,19 +44,22 @@ export const requirementResultTable = pgTable(
     parentSourceRequirementId: text('parent_source_requirement_id'),
     label: text('label').notNull(),
     state: text('state').notNull().$type<RequirementState>(),
-    // NOTE: ID arrays keep the audit's own order; the mapper validates each element.
-    allocatedAttemptIds: uuid('allocated_attempt_ids').array().notNull(),
     /** Credits still needed in hundredths, or null when not measured in credits. */
     remainingCreditsHundredths: integer('remaining_credits_hundredths'),
     /** Courses still needed, or null when not measured in courses. */
     remainingCourseCount: integer('remaining_course_count'),
-    candidateCourseIds: uuid('candidate_course_ids').array().notNull(),
     isReusable: boolean('is_reusable').notNull(),
     sourceRef: text('source_ref').notNull(),
   },
   (table) => [
     // SECURITY: target of composite foreign keys, so references can't cross tenants.
     unique('requirement_result_tenant_id_id_key').on(table.tenantId, table.id),
+    // SECURITY: target of the allocation and candidate keys, so their rows name the right audit.
+    unique('requirement_result_tenant_id_audit_snapshot_id_id_key').on(
+      table.tenantId,
+      table.auditSnapshotId,
+      table.id,
+    ),
     unique('requirement_result_source_requirement_key').on(
       table.tenantId,
       table.auditSnapshotId,

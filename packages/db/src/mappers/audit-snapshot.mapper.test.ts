@@ -9,6 +9,7 @@ import { RequirementState } from '@caa/domain';
 import type { AuditSnapshotRow } from '../tables/audit-snapshot.table';
 import type { RequirementResultRow } from '../tables/requirement-result.table';
 import { toAuditSnapshot } from './audit-snapshot.mapper';
+import type { RequirementResultLinks } from './requirement-result.mapper';
 
 const ROW: AuditSnapshotRow = {
   id: 'e5f6a7b8-c9d0-4e1f-8a2b-3c4d5e6f7081',
@@ -23,6 +24,12 @@ const ROW: AuditSnapshotRow = {
   studentRecordEffectiveAt: new Date('2026-09-25T06:00:00.000Z'),
   ingestedAt: new Date('2026-09-25T09:00:00.000Z'),
 };
+
+const ATTEMPT_ID = 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d';
+const COURSE_ID = '3c4d5e6f-7081-4a92-8b3c-4d5e6f708192';
+
+/** No requirement has links unless a test adds them. */
+const NO_LINKS = new Map<string, RequirementResultLinks>();
 
 /**
  * Builds a requirement row for one position of the synthetic audit.
@@ -44,10 +51,8 @@ function requirementRow(
     parentSourceRequirementId: ids.parent,
     label: `Requirement ${ids.id}`,
     state: RequirementState.Incomplete,
-    allocatedAttemptIds: [],
     remainingCreditsHundredths: null,
     remainingCourseCount: 1,
-    candidateCourseIds: [],
     isReusable: false,
     sourceRef: `demo-audit:${ids.id}`,
   };
@@ -55,10 +60,14 @@ function requirementRow(
 
 describe('toAuditSnapshot', () => {
   it('rebuilds the audit with its requirements in position order', () => {
-    const audit = toAuditSnapshot(ROW, [
-      requirementRow(0, { id: 'REQ-CORE', parent: null }),
-      requirementRow(1, { id: 'REQ-MATH', parent: 'REQ-CORE' }),
-    ]);
+    const audit = toAuditSnapshot(
+      ROW,
+      [
+        requirementRow(0, { id: 'REQ-CORE', parent: null }),
+        requirementRow(1, { id: 'REQ-MATH', parent: 'REQ-CORE' }),
+      ],
+      NO_LINKS,
+    );
 
     expect(audit.studentSnapshotId).toBe('c3d4e5f6-a7b8-4c9d-8e1f-2a3b4c5d6e7f');
     expect(audit.generatedAt).toBe('2026-09-25T08:00:00.000Z');
@@ -69,22 +78,42 @@ describe('toAuditSnapshot', () => {
     ]);
   });
 
+  it('gives each requirement its own links and the others none', () => {
+    const core = requirementRow(0, { id: 'REQ-CORE', parent: null });
+    const math = requirementRow(1, { id: 'REQ-MATH', parent: 'REQ-CORE' });
+    const links = new Map([
+      [math.id, { allocatedAttemptIds: [ATTEMPT_ID], candidateCourseIds: [COURSE_ID] }],
+    ]);
+
+    const audit = toAuditSnapshot(ROW, [core, math], links);
+
+    expect(
+      audit.requirements.map(({ allocatedAttemptIds, candidateCourseIds }) => ({
+        allocatedAttemptIds,
+        candidateCourseIds,
+      })),
+    ).toEqual([
+      { allocatedAttemptIds: [], candidateCourseIds: [] },
+      { allocatedAttemptIds: [ATTEMPT_ID], candidateCourseIds: [COURSE_ID] },
+    ]);
+  });
+
   it('rejects stored requirements whose parents form a cycle', () => {
     const rows = [
       requirementRow(0, { id: 'REQ-A', parent: 'REQ-B' }),
       requirementRow(1, { id: 'REQ-B', parent: 'REQ-A' }),
     ];
 
-    expect(() => toAuditSnapshot(ROW, rows)).toThrow(ZodError);
+    expect(() => toAuditSnapshot(ROW, rows, NO_LINKS)).toThrow(ZodError);
   });
 
   it('rejects a stored requirement whose parent is missing', () => {
     const rows = [requirementRow(0, { id: 'REQ-MATH', parent: 'REQ-CORE' })];
 
-    expect(() => toAuditSnapshot(ROW, rows)).toThrow(ZodError);
+    expect(() => toAuditSnapshot(ROW, rows, NO_LINKS)).toThrow(ZodError);
   });
 
   it('rejects a stored audit with no requirements', () => {
-    expect(() => toAuditSnapshot(ROW, [])).toThrow(ZodError);
+    expect(() => toAuditSnapshot(ROW, [], NO_LINKS)).toThrow(ZodError);
   });
 });

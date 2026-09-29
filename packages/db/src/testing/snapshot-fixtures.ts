@@ -17,9 +17,12 @@ import {
 } from '@caa/domain';
 
 import type { Database } from '../client';
+import {
+  insertRequirementResults,
+  type RequirementToWrite,
+} from '../seed/requirement-result-writer';
 import { auditSnapshotTable } from '../tables/audit-snapshot.table';
 import { courseAttemptTable } from '../tables/course-attempt.table';
-import { requirementResultTable } from '../tables/requirement-result.table';
 import { studentSnapshotTable } from '../tables/student-snapshot.table';
 import { studentSnapshotAttemptTable } from '../tables/student-snapshot-attempt.table';
 
@@ -27,7 +30,6 @@ import { studentSnapshotAttemptTable } from '../tables/student-snapshot-attempt.
 export const TEST_PROGRAM_ID = '1f2e3d4c-5b6a-4978-8a1b-2c3d4e5f6a7b';
 
 type AttemptInsert = typeof courseAttemptTable.$inferInsert;
-type RequirementInsert = typeof requirementResultTable.$inferInsert;
 
 /** Attempt columns a test sets; the rest default to an in-progress `2026FA` attempt. */
 export type AttemptFixture = Pick<AttemptInsert, 'studentId' | 'courseId'> &
@@ -41,9 +43,12 @@ export interface SnapshotFixture {
   readonly attemptIds?: readonly CourseAttemptId[];
 }
 
-/** Requirement columns a test sets; the rest default to an incomplete top-level requirement. */
-export type RequirementFixture = Pick<RequirementInsert, 'sourceRequirementId'> &
-  Partial<Omit<RequirementInsert, 'tenantId' | 'auditSnapshotId' | 'position'>>;
+/**
+ * Requirement fields a test sets; the rest default to an incomplete top-level requirement with
+ * no allocated attempts or candidates.
+ */
+export type RequirementFixture = Pick<RequirementToWrite, 'sourceRequirementId'> &
+  Partial<RequirementToWrite>;
 
 /** Audit fields a test sets. Times are ISO strings. */
 export interface AuditFixture {
@@ -156,11 +161,11 @@ export async function insertAudit(
       })
       .returning({ id: auditSnapshotTable.id });
     const id = AuditSnapshotIdSchema.parse(rows[0]?.id);
-    await tx.insert(requirementResultTable).values(
-      fixture.requirements.map((requirement, position) => ({
-        tenantId,
-        auditSnapshotId: id,
-        position,
+    const scope = { tenantId, auditSnapshotId: id, studentSnapshotId: fixture.studentSnapshotId };
+    await insertRequirementResults(
+      tx,
+      scope,
+      fixture.requirements.map((requirement) => ({
         label: 'Synthetic requirement',
         state: RequirementState.Incomplete,
         allocatedAttemptIds: [],
