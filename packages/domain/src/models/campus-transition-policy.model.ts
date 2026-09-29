@@ -10,17 +10,23 @@ import { CampusIdSchema } from './campus.model';
 import { InstitutionIdSchema } from './institution.model';
 
 /**
- * Schema for the time required to get from one campus to another between two meetings.
- * The pair is ordered: going from A to B may take a different time than going from B to A.
+ * Schema for the time required to get from one campus to a different campus between two
+ * meetings. The pair is ordered: going from A to B may take a different time than B to A.
  */
 export const CampusTransitionSchema = z
   .object({
     /** Campus of the meeting that ends first. */
     fromCampusId: CampusIdSchema,
-    /** Campus of the meeting that starts next. May equal `fromCampusId` for same-campus time. */
+    /** Campus of the meeting that starts next. Always a different campus. */
     toCampusId: CampusIdSchema,
     /** Whole minutes required between the end of one meeting and the start of the next. */
     minutes: z.number().int().nonnegative(),
+  })
+  // NOTE: two meetings on the same campus need no transition (ADR-0010 §8), so a same-campus
+  // entry would be a second, conflicting source for a rule the engine already fixes.
+  .refine((pair) => pair.fromCampusId !== pair.toCampusId, {
+    message: 'fromCampusId and toCampusId must be different campuses',
+    path: ['toCampusId'],
   })
   .readonly();
 
@@ -28,19 +34,22 @@ export const CampusTransitionSchema = z
 export type CampusTransition = z.infer<typeof CampusTransitionSchema>;
 
 /**
- * Schema for one tenant's campus transition policy in one ruleset version. Every value is
- * institution configuration, never a default built into code.
+ * Schema for one version of a tenant's campus transition table. Every value is institution
+ * configuration, never a default built into code.
  *
- * The policy lists only the ordered pairs the institution supplied. A pair that isn't listed
- * is unknown, never zero minutes: the engine reports the affected schedule option as UNKNOWN,
- * never as feasible (AC08). That includes the same-campus pair, so an institution that allows
- * back-to-back meetings on one campus lists that pair with `0` minutes.
+ * The table lists only the ordered pairs of different campuses the institution supplied. A
+ * pair of different campuses that isn't listed is unknown, never zero minutes: the engine
+ * reports the affected schedule option as UNKNOWN (`TRANSITION_TIME_UNDEFINED`), never as
+ * feasible (AC08). Meetings on the same campus, and online meetings, need no transition.
  */
 export const CampusTransitionPolicySchema = z
   .object({
     tenantId: InstitutionIdSchema,
-    /** Published ruleset version this policy belongs to, for example `demo-2026.1`. */
-    rulesetVersion: z.string().min(1),
+    /**
+     * Version of this tenant's transition table, for example `demo-2026.1`. Schedule options
+     * pin it as `campusTransitionVersion`, so a changed table is a new version.
+     */
+    version: z.string().min(1),
     /** The ordered campus pairs the institution supplied. An empty list means none. */
     transitions: z.array(CampusTransitionSchema).readonly(),
   })
@@ -65,7 +74,8 @@ export type CampusTransitionPolicyInput = z.input<typeof CampusTransitionPolicyS
  *
  * @param input - Raw policy fields.
  * @returns The parsed campus transition policy.
- * @throws {z.ZodError} When a field is invalid or an ordered campus pair repeats.
+ * @throws {z.ZodError} When a field is invalid, a pair names one campus twice, or an ordered
+ *   campus pair repeats.
  */
 export function createCampusTransitionPolicy(
   input: CampusTransitionPolicyInput,
