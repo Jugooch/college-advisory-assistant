@@ -17,15 +17,28 @@ const SOUTH = 'c4a1b2c3-0000-4000-8000-000000000002';
 const PHYS_301L = 'c0a5e000-0000-4000-8000-000000003010';
 
 const MWF = { firstDate: '2026-08-24', lastDate: '2026-12-11', weekdays: ['MONDAY', 'FRIDAY'] };
-const lecture = (startTime: string | null, endTime: string | null): object => ({
+/** Meeting days; `null` when the days are to be announced. */
+type Days = readonly string[] | null;
+const MON_FRI: Days = ['MONDAY', 'FRIDAY'];
+const lecture = (
+  startTime: string | null,
+  endTime: string | null,
+  weekdays: Days = MON_FRI,
+): object => ({
   sectionId: LECTURE,
   meetingIndex: 0,
+  weekdays,
   startTime,
   endTime,
 });
-const lab = (startTime: string | null, endTime: string | null): object => ({
+const lab = (
+  startTime: string | null,
+  endTime: string | null,
+  weekdays: Days = MON_FRI,
+): object => ({
   sectionId: LAB,
   meetingIndex: 0,
+  weekdays,
   startTime,
   endTime,
 });
@@ -54,8 +67,20 @@ describe('createScheduleIssue', () => {
   it('accepts a meeting conflict between two overlapping timed meetings', () => {
     const conflict: ScheduleIssueInput = {
       reasonCode: 'MEETING_CONFLICT',
-      first: { sectionId: LECTURE, meetingIndex: 0, startTime: '09:00', endTime: '09:50' },
-      second: { sectionId: LAB, meetingIndex: 0, startTime: '09:30', endTime: '11:20' },
+      first: {
+        sectionId: LECTURE,
+        meetingIndex: 0,
+        weekdays: ['MONDAY'],
+        startTime: '09:00',
+        endTime: '09:50',
+      },
+      second: {
+        sectionId: LAB,
+        meetingIndex: 0,
+        weekdays: ['MONDAY'],
+        startTime: '09:30',
+        endTime: '11:20',
+      },
       sharedDates: { firstDate: '2026-08-24', lastDate: '2026-12-11', weekdays: ['MONDAY'] },
     };
 
@@ -103,26 +128,35 @@ describe('createScheduleIssue', () => {
     expect(accepts({ ...INSUFFICIENT, requiredMinutes: null })).toBe(false);
   });
 
-  it.each(['MEETING_TIME_UNKNOWN', 'MEETING_LOCATION_UNKNOWN'])(
-    'accepts %s against another meeting or against a constraint',
-    (reasonCode) => {
-      const pair = {
-        reasonCode,
-        meeting: lab(null, null),
-        otherMeeting: lecture('09:00', '09:50'),
-        sharedDates: MWF,
-        constraintIndex: null,
-      };
-      const constraint = { ...pair, otherMeeting: null, sharedDates: null, constraintIndex: 0 };
+  it('accepts MEETING_TIME_UNKNOWN against another meeting or against a constraint', () => {
+    const pair = {
+      reasonCode: 'MEETING_TIME_UNKNOWN',
+      meeting: lab(null, null),
+      otherMeeting: lecture('09:00', '09:50'),
+      sharedDates: MWF,
+      constraintIndex: null,
+    };
+    const constraint = { ...pair, otherMeeting: null, sharedDates: null, constraintIndex: 0 };
 
-      expect(accepts(pair)).toBe(true);
-      expect(accepts(constraint)).toBe(true);
-      expect(accepts({ ...pair, constraintIndex: 0 })).toBe(false);
-      expect(accepts({ ...constraint, constraintIndex: null })).toBe(false);
-    },
-  );
+    expect(accepts(pair)).toBe(true);
+    expect(accepts(constraint)).toBe(true);
+    expect(accepts({ ...pair, constraintIndex: 0 })).toBe(false);
+    expect(accepts({ ...constraint, constraintIndex: null })).toBe(false);
+  });
 
-  it('rejects MEETING_TIME_UNKNOWN for a meeting whose time is known', () => {
+  it('accepts MEETING_TIME_UNKNOWN for a meeting whose days are TBA but times are set (GR-02)', () => {
+    const tbaDays = {
+      reasonCode: 'MEETING_TIME_UNKNOWN',
+      meeting: lab('10:00', '11:00', null),
+      otherMeeting: lecture('09:00', '09:50'),
+      sharedDates: MWF,
+      constraintIndex: null,
+    };
+
+    expect(accepts(tbaDays)).toBe(true);
+  });
+
+  it('rejects MEETING_TIME_UNKNOWN for a meeting whose days and time are known', () => {
     const result = ScheduleIssueSchema.safeParse({
       reasonCode: 'MEETING_TIME_UNKNOWN',
       meeting: lab('10:00', '11:00'),
@@ -132,11 +166,11 @@ describe('createScheduleIssue', () => {
     });
 
     expect(result.error?.issues.map((issue) => issue.message)).toEqual([
-      'MEETING_TIME_UNKNOWN names a meeting whose time is to be announced',
+      'MEETING_TIME_UNKNOWN names a meeting whose days or time are to be announced',
     ]);
   });
 
-  it('accepts MEETING_LOCATION_UNKNOWN for two timed meetings, one with a TBA location', () => {
+  it('accepts MEETING_LOCATION_UNKNOWN for two timed meetings that do not overlap, or a constraint', () => {
     const location = {
       reasonCode: 'MEETING_LOCATION_UNKNOWN',
       meeting: lab('10:00', '11:00'),
@@ -146,6 +180,23 @@ describe('createScheduleIssue', () => {
     };
 
     expect(accepts(location)).toBe(true);
+    expect(
+      accepts({ ...location, otherMeeting: null, sharedDates: null, constraintIndex: 2 }),
+    ).toBe(true);
+  });
+
+  it('rejects MEETING_LOCATION_UNKNOWN for overlapping meetings, which are a MEETING_CONFLICT', () => {
+    const result = ScheduleIssueSchema.safeParse({
+      reasonCode: 'MEETING_LOCATION_UNKNOWN',
+      meeting: lab('09:30', '11:00'),
+      otherMeeting: lecture('09:00', '09:50'),
+      sharedDates: MWF,
+      constraintIndex: null,
+    });
+
+    expect(result.error?.issues.map((issue) => issue.message)).toEqual([
+      'MEETING_LOCATION_UNKNOWN names two timed meetings that do not overlap',
+    ]);
   });
 
   it('accepts a meeting in a hard unavailable block, and rejects one that only touches it', () => {
@@ -161,6 +212,23 @@ describe('createScheduleIssue', () => {
     expect(accepts(blocked)).toBe(true);
     expect(accepts({ ...blocked, blockStartTime: '09:50', blockEndTime: '12:00' })).toBe(false);
     expect(accepts({ ...blocked, meeting: lecture(null, null) })).toBe(false);
+  });
+
+  it.each([
+    { blockStartTime: '12:00', blockEndTime: '08:00' },
+    { blockStartTime: '09:00', blockEndTime: '09:00' },
+  ])('rejects an inverted or empty unavailable block %j', (block) => {
+    const result = ScheduleIssueSchema.safeParse({
+      reasonCode: 'UNAVAILABLE_TIME_CONFLICT',
+      meeting: lecture('09:00', '09:50'),
+      constraintIndex: 0,
+      weekdays: ['FRIDAY'],
+      ...block,
+    });
+
+    expect(result.error?.issues.map((issue) => issue.message)).toContain(
+      'blockStartTime must be earlier than blockEndTime',
+    );
   });
 
   it('accepts the modality, campus, linked-section, and missing-data shapes', () => {

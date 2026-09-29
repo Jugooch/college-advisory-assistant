@@ -13,6 +13,7 @@ import { CheckState } from '../enums/check-state.enum';
 import { ReasonCode } from '../enums/reason-code.enum';
 import {
   doLocalTimeRangesOverlap,
+  localTimeGapMinutes,
   type LocalTimeRange,
   LocalTimeSchema,
 } from './meeting-pattern.model';
@@ -56,7 +57,7 @@ function rangeOf(ref: MeetingTimeRef): LocalTimeRange | null {
 }
 
 /** Two meetings overlap on a shared date (half-open intervals). */
-const MeetingConflictSchema = z
+const MeetingConflictIssueSchema = z
   .object({
     reasonCode: z.literal(ReasonCode.MeetingConflict),
     first: MeetingTimeRefSchema,
@@ -82,10 +83,10 @@ const MeetingConflictSchema = z
   .readonly();
 
 /**
- * A meeting's time or location is to be announced, so the check can't be decided. It is
+ * A meeting's days, time, or location is to be announced, so the check can't be decided. It is
  * compared either with another meeting on a shared date, or with a hard constraint.
  */
-const UnknownMeetingSchema = z
+const UnknownMeetingIssueSchema = z
   .object({
     reasonCode: z.enum([ReasonCode.MeetingTimeUnknown, ReasonCode.MeetingLocationUnknown]),
     /** The meeting whose time or location is to be announced. */
@@ -112,17 +113,33 @@ const UnknownMeetingSchema = z
         'An unknown meeting is compared with another meeting and shared dates, or with a constraint',
     },
   )
-  // SAFETY: an unknown time must be explained by a meeting whose time is actually to be
-  // announced, so the evidence never contradicts its own reason (FR-10).
+  // SAFETY: an unknown time must be explained by a meeting whose days or time are actually to
+  // be announced, so the evidence never contradicts its own reason (FR-10; GR-02).
   .refine(
     (issue) =>
-      issue.reasonCode !== ReasonCode.MeetingTimeUnknown || rangeOf(issue.meeting) === null,
-    { message: 'MEETING_TIME_UNKNOWN names a meeting whose time is to be announced' },
+      issue.reasonCode !== ReasonCode.MeetingTimeUnknown ||
+      rangeOf(issue.meeting) === null ||
+      issue.meeting.weekdays === null,
+    { message: 'MEETING_TIME_UNKNOWN names a meeting whose days or time are to be announced' },
+  )
+  // SAFETY: an overlap is FAIL MEETING_CONFLICT whatever the locations, because the times alone
+  // prove it, so a TBA location only leaves two timed, non-overlapping meetings UNKNOWN
+  // (ADR-0010 Amendment 2).
+  .refine(
+    (issue) => {
+      if (issue.reasonCode !== ReasonCode.MeetingLocationUnknown || issue.otherMeeting === null) {
+        return true;
+      }
+      const range = rangeOf(issue.meeting);
+      const otherRange = rangeOf(issue.otherMeeting);
+      return range !== null && otherRange !== null && !doLocalTimeRangesOverlap(range, otherRange);
+    },
+    { message: 'MEETING_LOCATION_UNKNOWN names two timed meetings that do not overlap' },
   )
   .readonly();
 
 /** A meeting falls in a hard unavailable time block (half-open, like the block itself). */
-const UnavailableTimeConflictSchema = z
+const UnavailableTimeConflictIssueSchema = z
   .object({
     reasonCode: z.literal(ReasonCode.UnavailableTimeConflict),
     meeting: MeetingTimeRefSchema,
@@ -134,6 +151,13 @@ const UnavailableTimeConflictSchema = z
     /** The block's local end, exclusive; `24:00` is the end of the day. */
     blockEndTime: z.union([LocalTimeSchema, z.literal('24:00')]),
   })
+  .refine(
+    ({ blockStartTime, blockEndTime }) => localTimeGapMinutes(blockStartTime, blockEndTime) > 0,
+    {
+      message: 'blockStartTime must be earlier than blockEndTime',
+      path: ['blockEndTime'],
+    },
+  )
   // SAFETY: the times shown must prove the FAIL: a timed meeting that intersects the block
   // (planning/08 §Schedule model: half-open intervals).
   .refine(
@@ -155,11 +179,11 @@ const UnavailableTimeConflictSchema = z
  * index into the request's constraint list.
  */
 export const ScheduleIssueSchema = z.discriminatedUnion('reasonCode', [
-  MeetingConflictSchema,
+  MeetingConflictIssueSchema,
   TransitionInsufficientIssueSchema,
   TransitionUndefinedIssueSchema,
-  UnknownMeetingSchema,
-  UnavailableTimeConflictSchema,
+  UnknownMeetingIssueSchema,
+  UnavailableTimeConflictIssueSchema,
   ModalityNotAllowedIssueSchema,
   CampusNotAllowedIssueSchema,
   LinkedSectionUnavailableIssueSchema,

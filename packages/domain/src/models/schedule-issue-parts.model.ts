@@ -29,14 +29,17 @@ export const WeekdayListSchema = z
 
 /**
  * Schema for one meeting named in a schedule issue: the section, the index into its
- * `meetings`, and the local time range shown beside the issue. The times are `null` together
- * when the meeting's time is to be announced.
+ * `meetings`, and the weekdays and local time range shown beside the issue, copied from the
+ * meeting. The weekdays are `null` when the days are to be announced, and the times are `null`
+ * together when the time is to be announced.
  */
 export const MeetingTimeRefSchema = z
   .object({
     sectionId: SectionIdSchema,
     /** Index of the meeting in the section's `meetings`. */
     meetingIndex: z.number().int().nonnegative(),
+    /** Days the meeting recurs on, or `null` when the days are to be announced. */
+    weekdays: WeekdayListSchema.nullable(),
     /** Local start time, or `null` when to be announced. */
     startTime: LocalTimeSchema.nullable(),
     /** Local end time, exclusive, or `null` when to be announced. */

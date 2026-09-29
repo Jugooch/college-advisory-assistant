@@ -129,7 +129,13 @@ function unknownScheduleWith(issue: Payload): Payload {
 /** An UNKNOWN schedule: the lecture's time is to be announced, beside a hard constraint. */
 export const UNKNOWN_SCHEDULE = unknownScheduleWith({
   reasonCode: 'MEETING_TIME_UNKNOWN',
-  meeting: { sectionId: sectionId(1), meetingIndex: 0, startTime: null, endTime: null },
+  meeting: {
+    sectionId: sectionId(1),
+    meetingIndex: 0,
+    weekdays: null,
+    startTime: null,
+    endTime: null,
+  },
   otherMeeting: null,
   sharedDates: null,
   constraintIndex: 0,
