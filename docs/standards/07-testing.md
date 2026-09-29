@@ -57,18 +57,28 @@ The golden corpus is the independent oracle for the verification engine (plannin
   - `reviewer` (`pending-academic-review` until an academic owner signs it) and the adjudication date.
 - **Independence:**
   - Expected values come from the planning docs and from tech-lead decisions recorded on issues and PRs.
+  - When the planning docs leave an expectation open, the tech lead rules on the issue and adds the ruling to planning/13 §Golden corpus design (Adjudication rulings). Cases cite the ruling ID, for example GR-01.
   - They're never computed with engine code.
   - Cases call the engine only through `@caa/engine`'s public API.
-- **Findings:**
-  - A case the engine doesn't meet is never weakened.
-  - It runs as `it.fails` and is listed in `tests/golden/known-findings.ts`, with a `bug` issue for the owning engineer.
-  - When the fix lands, the entry is removed in the same PR, under `ownership-override` if the fix belongs to another owner.
+- **Findings:** a case the engine doesn't meet follows §Known findings.
 - **Holdout (`tests/golden/holdout/`):**
   - It's frozen and versioned, and engine engineers don't read it.
   - A disagreement becomes a bug issue, never an edit.
   - A case used to diagnose a defect is "burned": it moves to the development set and is replaced.
   - `tests/golden/holdout-isolation.test.ts` fails if anything outside `tests/golden/` imports the holdout, or if IDs or inputs overlap with the development set.
 - **Layout:** development cases go in `packages/test-kit/src/golden/cases/<rule-family>.cases.ts`, and runners in `tests/golden/*.test.ts`.
+
+## Known findings
+
+A finding is a golden case or an acceptance test whose planning-derived expectation the code doesn't meet yet. Golden and acceptance findings share one register, so open findings are counted in one place for the release gates.
+
+- **Never weaken the test.** The expected value stays as adjudicated, and a `bug` issue goes to the owning engineer.
+- **Register:** `tests/support/known-findings.ts` maps each finding key to its issue number:
+  - a golden case (development or holdout): its case ID, for example `GC-PF-004`;
+  - an acceptance test: `ACNN: <exact it title>`, for example `AC29: keeps CONDITIONAL end to end`. An acceptance file holds several tests, so the case number alone isn't enough.
+- **Expected failure comes from the register.** The golden runners look up the case ID. A failing acceptance test is declared through the register's helper in `tests/support`, which looks up its key. Either way the test runs as `it.fails` while the register lists it, and as `it` otherwise. No test file hard-codes `it.fails`.
+- **Guard:** a test fails if a register entry matches no golden case and no test declared through the helper.
+- **Closing:** the fixing PR removes the entry, and nothing else in `tests/`. That uses `ownership-override` if the fix belongs to another owner (standard 08). If a tech-lead ruling settles the finding instead, the QA engineer re-adjudicates the case from the ruling and removes the entry.
 
 ## Running
 
