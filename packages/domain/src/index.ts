@@ -44,7 +44,6 @@ export * from './models/requirement-result.model';
 export * from './models/roster-row.model';
 export * from './models/schedule-constraint.model';
 export * from './models/schedule-issue.model';
-export * from './models/schedule-issue-parts.model';
 export * from './models/schedule-transition-issue.model';
 export * from './models/section.model';
 export * from './models/section-snapshot.model';

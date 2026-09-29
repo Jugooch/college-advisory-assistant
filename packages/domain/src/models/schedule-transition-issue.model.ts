@@ -12,8 +12,10 @@ import { CampusIdSchema } from './campus.model';
 import { hasEnoughTransitionTime } from './campus-transition-policy.model';
 import { localTimeGapMinutes } from './meeting-pattern.model';
 import {
+  isSameMeeting,
   type MeetingTimeRef,
   MeetingTimeRefSchema,
+  meetsOnDays,
   SharedMeetingDatesSchema,
 } from './schedule-issue-parts.model';
 
@@ -50,15 +52,31 @@ function isConsistentTransition(transition: {
   const { earlier, later } = transition;
   if (earlier.endTime === null || later.startTime === null) return false;
   const gap = localTimeGapMinutes(earlier.endTime, later.startTime);
-  const isSameMeeting =
-    earlier.sectionId === later.sectionId && earlier.meetingIndex === later.meetingIndex;
   return (
     transition.fromCampusId !== transition.toCampusId &&
-    !isSameMeeting &&
+    !isSameMeeting(earlier, later) &&
     gap >= 0 &&
     gap === transition.availableMinutes
   );
 }
+
+/**
+ * Returns whether both meetings meet on every day the evidence says they share.
+ *
+ * @param transition - The two meetings and their shared dates.
+ * @returns `false` when a shared weekday isn't one of a meeting's known days.
+ */
+function sharesListedDays(transition: {
+  readonly earlier: MeetingTimeRef;
+  readonly later: MeetingTimeRef;
+  readonly sharedDates: { readonly weekdays: readonly string[] };
+}): boolean {
+  const days = transition.sharedDates.weekdays;
+  return meetsOnDays(transition.earlier, days) && meetsOnDays(transition.later, days);
+}
+
+/** Message for shared days that a named meeting doesn't meet on. */
+const DAYS_SUBSET_MESSAGE = 'The weekdays shown must be days each named meeting meets on';
 
 /** The gap is shorter than the institution's required travel time (AC08). */
 export const TransitionInsufficientIssueSchema = z
@@ -78,6 +96,13 @@ export const TransitionInsufficientIssueSchema = z
       }),
     { message: 'An insufficient transition has availableMinutes below requiredMinutes' },
   )
+  // SAFETY: a meeting whose days are to be announced could meet on any day or none of them, so
+  // it can only leave travel UNKNOWN, never prove a FAIL (GR-02; planning/08 §Schedule model).
+  .refine(({ earlier, later }) => earlier.weekdays !== null && later.weekdays !== null, {
+    message: 'A FAIL issue names meetings whose days are known',
+  })
+  // SAFETY: the evidence may only claim a shortfall on days both meetings meet (FR-10).
+  .refine(sharesListedDays, { message: DAYS_SUBSET_MESSAGE })
   .readonly();
 
 /** The institution hasn't configured the travel time for this ordered campus pair. */
@@ -93,4 +118,5 @@ export const TransitionUndefinedIssueSchema = z
   .refine(isConsistentTransition, {
     message: 'A transition names two timed, non-overlapping meetings on different campuses',
   })
+  .refine(sharesListedDays, { message: DAYS_SUBSET_MESSAGE })
   .readonly();

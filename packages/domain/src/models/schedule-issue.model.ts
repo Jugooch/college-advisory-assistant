@@ -20,9 +20,11 @@ import {
 import {
   CampusNotAllowedIssueSchema,
   ConstraintIndexSchema,
+  isSameMeeting,
   LinkedSectionUnavailableIssueSchema,
   type MeetingTimeRef,
   MeetingTimeRefSchema,
+  meetsOnDays,
   ModalityNotAllowedIssueSchema,
   SectionDataMissingIssueSchema,
   SharedMeetingDatesSchema,
@@ -33,16 +35,11 @@ import {
   TransitionUndefinedIssueSchema,
 } from './schedule-transition-issue.model';
 
-/**
- * Returns whether two references name different meetings.
- *
- * @param first - One meeting.
- * @param second - The other meeting.
- * @returns `false` when both name the same meeting of the same section.
- */
-function isDifferentMeeting(first: MeetingTimeRef, second: MeetingTimeRef): boolean {
-  return first.sectionId !== second.sectionId || first.meetingIndex !== second.meetingIndex;
-}
+/** Message for a FAIL shape that names a meeting whose days are to be announced. */
+const KNOWN_DAYS_MESSAGE = 'A FAIL issue names meetings whose days are known';
+
+/** Message for shared or blocked days that a named meeting doesn't meet on. */
+const DAYS_SUBSET_MESSAGE = 'The weekdays shown must be days each named meeting meets on';
 
 /**
  * Returns a meeting's time range, when it is timed.
@@ -72,13 +69,24 @@ const MeetingConflictIssueSchema = z
       const firstRange = rangeOf(first);
       const secondRange = rangeOf(second);
       return (
-        isDifferentMeeting(first, second) &&
+        !isSameMeeting(first, second) &&
         firstRange !== null &&
         secondRange !== null &&
         doLocalTimeRangesOverlap(firstRange, secondRange)
       );
     },
     { message: 'A meeting conflict names two different, timed, overlapping meetings' },
+  )
+  // SAFETY: a meeting whose days are to be announced could meet on any day or none of them, so
+  // it can only leave a conflict UNKNOWN, never prove a FAIL (GR-02; planning/08 §Schedule model).
+  .refine(({ first, second }) => first.weekdays !== null && second.weekdays !== null, {
+    message: KNOWN_DAYS_MESSAGE,
+  })
+  // SAFETY: the evidence may only claim a conflict on days both meetings actually meet (FR-10).
+  .refine(
+    ({ first, second, sharedDates }) =>
+      meetsOnDays(first, sharedDates.weekdays) && meetsOnDays(second, sharedDates.weekdays),
+    { message: DAYS_SUBSET_MESSAGE },
   )
   .readonly();
 
@@ -107,7 +115,7 @@ const UnknownMeetingIssueSchema = z
         ? issue.sharedDates === null && issue.constraintIndex !== null
         : issue.sharedDates !== null &&
           issue.constraintIndex === null &&
-          isDifferentMeeting(issue.meeting, issue.otherMeeting),
+          !isSameMeeting(issue.meeting, issue.otherMeeting),
     {
       message:
         'An unknown meeting is compared with another meeting and shared dates, or with a constraint',
@@ -135,6 +143,14 @@ const UnknownMeetingIssueSchema = z
       return range !== null && otherRange !== null && !doLocalTimeRangesOverlap(range, otherRange);
     },
     { message: 'MEETING_LOCATION_UNKNOWN names two timed meetings that do not overlap' },
+  )
+  .refine(
+    ({ meeting, otherMeeting, sharedDates }) =>
+      otherMeeting === null ||
+      sharedDates === null ||
+      (meetsOnDays(meeting, sharedDates.weekdays) &&
+        meetsOnDays(otherMeeting, sharedDates.weekdays)),
+    { message: DAYS_SUBSET_MESSAGE },
   )
   .readonly();
 
@@ -170,6 +186,14 @@ const UnavailableTimeConflictIssueSchema = z
     },
     { message: 'An unavailable-time conflict names a timed meeting that overlaps the block' },
   )
+  // SAFETY: a meeting whose days are to be announced never proves it falls in a hard
+  // unavailable time; it is UNKNOWN (GR-02; ADR-0010 §3).
+  .refine(({ meeting }) => meeting.weekdays !== null, { message: KNOWN_DAYS_MESSAGE })
+  // SAFETY: the evidence may only claim the conflict on days the meeting actually meets (FR-10).
+  // NOTE: the block's own days are in the request, not the issue, so they're checked there.
+  .refine(({ meeting, weekdays }) => meetsOnDays(meeting, weekdays), {
+    message: DAYS_SUBSET_MESSAGE,
+  })
   .readonly();
 
 /**
