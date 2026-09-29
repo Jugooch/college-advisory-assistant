@@ -138,6 +138,23 @@ describe('buildDevSeedAcademicPlan', () => {
     expect([ind390?.minCreditsHundredths, ind390?.maxCreditsHundredths]).toEqual([100, 300]);
   });
 
+  it("includes only the lab's credits in its lecture, and states null on every other course", () => {
+    const inclusion = PLAN.courses.map((course) => [
+      course.label,
+      course.creditsIncludedInCourseId,
+    ]);
+
+    expect(inclusion).toEqual([
+      ['DEMO-MATH 101', null],
+      ['DEMO-MATH 102', null],
+      ['DEMO-PHYS 201', null],
+      ['DEMO-PHYS 301', null],
+      ['DEMO-PHYS 301L', courseByLabel('DEMO-PHYS 301')?.id],
+      ['DEMO-ENGL 101', null],
+      ['DEMO-IND 390', null],
+    ]);
+  });
+
   it('states the policy the scenarios assume, including credit bounds', () => {
     expect(PLAN.policy).toMatchObject({
       allowsInProgressPrerequisites: true,

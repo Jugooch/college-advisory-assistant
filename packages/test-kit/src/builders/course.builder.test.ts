@@ -18,6 +18,7 @@ describe('buildCourse', () => {
       minCreditsHundredths: null,
       maxCreditsHundredths: null,
       equivalencyGroupId: null,
+      creditsIncludedInCourseId: null,
     });
   });
 
