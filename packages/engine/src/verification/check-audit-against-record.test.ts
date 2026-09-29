@@ -3,12 +3,8 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import {
-  createStudentSnapshot,
-  type StudentSnapshot,
-  type StudentSnapshotInput,
-} from '@caa/domain';
-import { buildAuditSnapshot, SYNTHETIC_TENANTS, syntheticId } from '@caa/test-kit';
+import { type StudentSnapshot, type StudentSnapshotInput } from '@caa/domain';
+import { buildAuditSnapshot, buildStudentSnapshot, syntheticId } from '@caa/test-kit';
 
 import { checkAuditAgainstRecord } from './check-audit-against-record';
 
@@ -16,23 +12,14 @@ import { checkAuditAgainstRecord } from './check-audit-against-record';
 const AUDIT = buildAuditSnapshot();
 
 /**
- * Builds the snapshot the default audit ran against, with the given fields replaced.
+ * Builds the snapshot the default audit ran against, ingested late enough for any record time
+ * the tests use, with the given fields replaced.
  *
  * @param overrides - Fields to replace.
  * @returns The student snapshot.
  */
 function snapshotWith(overrides: Partial<StudentSnapshotInput> = {}): StudentSnapshot {
-  return createStudentSnapshot({
-    id: syntheticId('studentSnapshot', 1),
-    tenantId: SYNTHETIC_TENANTS.a.id,
-    studentId: syntheticId('student', 1),
-    programId: syntheticId('program', 1),
-    catalogYear: '2025-2026',
-    attemptIds: [],
-    sourceEffectiveAt: '2026-09-20T07:30:00.000-05:00',
-    ingestedAt: '2026-09-21T00:00:00.000-05:00',
-    ...overrides,
-  });
+  return buildStudentSnapshot({ ingestedAt: '2026-09-21T00:00:00.000-05:00', ...overrides });
 }
 
 describe('checkAuditAgainstRecord', () => {
@@ -62,15 +49,6 @@ describe('checkAuditAgainstRecord', () => {
     });
 
     expect(checkAuditAgainstRecord(AUDIT, { studentSnapshot, maxSkewMs: 3_600_000 })).toEqual({
-      state: 'UNKNOWN',
-      reasonCode: 'AUDIT_STALE',
-    });
-  });
-
-  it('compares only the record time in the transitional form (#122)', () => {
-    const freshness = { studentRecordEffectiveAt: '2026-09-20T07:30:00.001-05:00', maxSkewMs: 0 };
-
-    expect(checkAuditAgainstRecord(AUDIT, freshness)).toEqual({
       state: 'UNKNOWN',
       reasonCode: 'AUDIT_STALE',
     });

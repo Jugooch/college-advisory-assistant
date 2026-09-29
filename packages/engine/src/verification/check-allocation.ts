@@ -20,7 +20,7 @@ import {
 
 import { assertValidCandidateSet, type CourseSelection } from './candidate-set';
 import { checkAuditAgainstRecord } from './check-audit-against-record';
-import type { PinnedStudentRecord, StudentRecordFreshness } from './check-audit-reflects-record';
+import type { PinnedStudentRecord } from './check-audit-reflects-record';
 import { type AllocationContest, findAllocationContests } from './find-allocation-contests';
 
 /**
@@ -44,7 +44,7 @@ import { type AllocationContest, findAllocationContests } from './find-allocatio
  * @param candidates - The candidate set. Credits are used as upper bounds for credit room.
  * @param audit - The authoritative audit snapshot.
  * @param record - The pinned student record the audit must reflect and the maximum skew
- *   allowed, or (transitional, tests only) the record time and skew.
+ *   allowed.
  * @returns REQUIREMENT_ALLOCATION checks. Each `sourceRef` pins the audit revision as
  *   `<auditSource>:<auditVersion>`, followed by `:<requirement sourceRef>` for a contested
  *   requirement (or the ancestor that decided it AMBIGUOUS). Evidence has no ruleset version
@@ -56,7 +56,7 @@ import { type AllocationContest, findAllocationContests } from './find-allocatio
 export function checkAllocation(
   candidates: readonly CourseSelection[],
   audit: AuditSnapshot,
-  record: PinnedStudentRecord | StudentRecordFreshness,
+  record: PinnedStudentRecord,
 ): readonly CheckResult[] {
   assertValidCandidateSet(candidates);
   const auditRef = `${audit.auditSource}:${audit.auditVersion}`;

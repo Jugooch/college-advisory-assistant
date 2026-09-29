@@ -4,7 +4,12 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Course, RequirementResult, RequirementResultInput } from '@caa/domain';
-import { buildAuditSnapshot, buildRequirementResult, SYNTHETIC_COURSES } from '@caa/test-kit';
+import {
+  buildAuditSnapshot,
+  buildRequirementResult,
+  buildStudentSnapshot,
+  SYNTHETIC_COURSES,
+} from '@caa/test-kit';
 
 import { CandidateSetInputError, type CourseSelection } from './candidate-set';
 import { checkAllocation } from './check-allocation';
@@ -12,9 +17,12 @@ import { AuditRecordInputError } from './check-audit-reflects-record';
 
 const { math101, math102, phys201 } = SYNTHETIC_COURSES;
 /** The record the default audit ran against, so the audit is fresh. */
-const FRESH = { studentRecordEffectiveAt: '2026-09-20T07:30:00.000-05:00', maxSkewMs: 0 };
+const FRESH = { studentSnapshot: buildStudentSnapshot(), maxSkewMs: 0 };
 /** A record one second newer than the default audit's, beyond a zero skew. */
-const STALE = { studentRecordEffectiveAt: '2026-09-20T07:30:01.000-05:00', maxSkewMs: 0 };
+const STALE = {
+  studentSnapshot: buildStudentSnapshot({ sourceEffectiveAt: '2026-09-20T07:30:01.000-05:00' }),
+  maxSkewMs: 0,
+};
 const CANDIDATES = [select(math101), select(math102)];
 
 /**

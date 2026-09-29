@@ -4,7 +4,12 @@
 import { describe, expect, it } from 'vitest';
 
 import type { CourseId, RequirementResult } from '@caa/domain';
-import { buildAuditSnapshot, buildRequirementResult, SYNTHETIC_COURSES } from '@caa/test-kit';
+import {
+  buildAuditSnapshot,
+  buildRequirementResult,
+  buildStudentSnapshot,
+  SYNTHETIC_COURSES,
+} from '@caa/test-kit';
 
 import { AuditRecordInputError } from './check-audit-reflects-record';
 import { evaluateApplicability } from './evaluate-applicability';
@@ -13,9 +18,12 @@ import { evaluateApplicability } from './evaluate-applicability';
 const CALC_ID = SYNTHETIC_COURSES.math101.id;
 const CALC_ALIAS_ID = SYNTHETIC_COURSES.math111.id;
 /** The record the default audit ran against, so the audit is fresh. */
-const FRESH = { studentRecordEffectiveAt: '2026-09-20T07:30:00.000-05:00', maxSkewMs: 0 };
+const FRESH = { studentSnapshot: buildStudentSnapshot(), maxSkewMs: 0 };
 /** A record one second newer than the default audit's, beyond a zero skew. */
-const STALE = { studentRecordEffectiveAt: '2026-09-20T07:30:01.000-05:00', maxSkewMs: 0 };
+const STALE = {
+  studentSnapshot: buildStudentSnapshot({ sourceEffectiveAt: '2026-09-20T07:30:01.000-05:00' }),
+  maxSkewMs: 0,
+};
 
 /**
  * Builds a requirement that lists DEMO-MATH 101 as its only candidate.

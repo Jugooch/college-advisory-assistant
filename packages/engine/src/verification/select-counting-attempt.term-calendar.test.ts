@@ -3,10 +3,11 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { createTerm, type Term, type TermCalendar } from '@caa/domain';
+import type { TermCalendar } from '@caa/domain';
 import {
   buildAcademicPolicy,
   buildPrerequisiteRule,
+  buildTermCalendar,
   completedAttempt,
   course,
   inProgressAttempt,
@@ -18,31 +19,12 @@ import {
 import { evaluatePrerequisite } from './evaluate-prerequisite';
 import { selectCountingAttempt } from './select-counting-attempt';
 
-/**
- * Builds one term of tenant A. Its dates don't affect term order.
- *
- * @param termCode - The term code.
- * @param sequence - The term's position in the calendar.
- * @param index - Distinguishes term IDs.
- * @returns The term.
- */
-function term(termCode: string, sequence: number, index: number): Term {
-  return createTerm({
-    id: `b0000000-0000-4000-8000-00000000000${String(index)}`,
-    tenantId: SYNTHETIC_TENANTS.a.id,
-    termCode,
-    startsOn: '2026-01-12',
-    endsOn: '2026-05-08',
-    sequence,
-  });
-}
-
 /** `2026SU` sorts after `2026FA` as a string, but this calendar puts it first. */
-const CALENDAR: TermCalendar = [
-  term('2026SP', -20, 1),
-  term('2026SU', -10, 2),
-  term('2026FA', 5, 3),
-];
+const CALENDAR: TermCalendar = buildTermCalendar([
+  { termCode: '2026SP', sequence: -20 },
+  { termCode: '2026SU', sequence: -10 },
+  { termCode: '2026FA', sequence: 5 },
+]);
 const MOST_RECENT = buildAcademicPolicy({
   repeatPolicy: 'MOST_RECENT',
   allowsInProgressPrerequisites: true,

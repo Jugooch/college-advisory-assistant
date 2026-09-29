@@ -4,13 +4,18 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Course, CourseId, RequirementResult, RequirementResultInput } from '@caa/domain';
-import { buildAuditSnapshot, buildRequirementResult, SYNTHETIC_COURSES } from '@caa/test-kit';
+import {
+  buildAuditSnapshot,
+  buildRequirementResult,
+  buildStudentSnapshot,
+  SYNTHETIC_COURSES,
+} from '@caa/test-kit';
 
 import type { CourseSelection } from './candidate-set';
 import { checkAllocation } from './check-allocation';
 
 const { math101, math102, phys201, ind390 } = SYNTHETIC_COURSES;
-const FRESH = { studentRecordEffectiveAt: '2026-09-20T07:30:00.000-05:00', maxSkewMs: 0 };
+const FRESH = { studentSnapshot: buildStudentSnapshot(), maxSkewMs: 0 };
 const PASS = [{ state: 'PASS', sourceRef: 'demo-audit:audit_demo_r1', reasonCode: undefined }];
 
 /**

@@ -4,12 +4,17 @@
 import { describe, expect, it } from 'vitest';
 
 import type { AuditSnapshot, RequirementResult, RequirementState } from '@caa/domain';
-import { buildAuditSnapshot, buildRequirementResult, SYNTHETIC_COURSES } from '@caa/test-kit';
+import {
+  buildAuditSnapshot,
+  buildRequirementResult,
+  buildStudentSnapshot,
+  SYNTHETIC_COURSES,
+} from '@caa/test-kit';
 
 import { evaluateApplicability } from './evaluate-applicability';
 
 const CALC_ID = SYNTHETIC_COURSES.math101.id;
-const FRESH = { studentRecordEffectiveAt: '2026-09-20T07:30:00.000-05:00', maxSkewMs: 0 };
+const FRESH = { studentSnapshot: buildStudentSnapshot(), maxSkewMs: 0 };
 
 /** One requirement of a test tree. */
 interface Node {

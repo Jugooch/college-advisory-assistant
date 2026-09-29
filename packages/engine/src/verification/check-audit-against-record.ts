@@ -18,7 +18,6 @@ import {
   type AuditRecordReflection,
   checkAuditReflectsRecord,
   type PinnedStudentRecord,
-  type StudentRecordFreshness,
 } from './check-audit-reflects-record';
 
 /** PASS when the audit may be read for the record; otherwise the first reason it may not. */
@@ -30,19 +29,14 @@ export type AuditRecordAgreement = AuditRecordReflection | AuditProgramConsisten
  * that isn't PASS decides.
  *
  * @param audit - The audit snapshot.
- * @param record - The pinned student record and maximum skew, or (transitional, tests only) the
- *   record time and skew, which skip the identity, revision, and program checks.
+ * @param record - The pinned student record and the maximum skew.
  * @returns PASS, or UNKNOWN with `AUDIT_STALE`, `AUDIT_AMBIGUOUS`, or `AUDIT_PROGRAM_MISMATCH`.
  * @throws {AuditRecordInputError} When a timestamp or the maximum skew is invalid.
  */
 export function checkAuditAgainstRecord(
   audit: AuditSnapshot,
-  record: PinnedStudentRecord | StudentRecordFreshness,
+  record: PinnedStudentRecord,
 ): AuditRecordAgreement {
-  // TODO(#122): drop the time-only form once no caller passes StudentRecordFreshness.
-  if (!('studentSnapshot' in record)) {
-    return checkAuditReflectsRecord(audit, record.studentRecordEffectiveAt, record.maxSkewMs);
-  }
   const reflection = checkAuditReflectsRecord(audit, record.studentSnapshot, record.maxSkewMs);
   // SAFETY: an audit that doesn't reflect the record is reported as such first: which program
   // it describes matters only once it is known to be about this record (planning/07
