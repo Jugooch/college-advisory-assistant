@@ -18,6 +18,7 @@ const AUDIT = {
   studentRecordEffectiveAt: '2026-08-20T09:00:00-05:00',
 };
 const CURRENT = { state: 'CURRENT', judgedAt: '2026-08-21T12:00:00Z' };
+const HISTORICAL = { state: 'HISTORICAL', judgedAt: '2026-08-23T12:00:00-05:00' };
 const WITHOUT_FRESHNESS = {
   student: { id: '2b3c4d5e-0000-4000-8000-000000000001', sourceStudentId: 'DEMO-S-0001' },
   studentSnapshot: {
@@ -66,13 +67,11 @@ describe('AcademicSummaryResponseSchema source freshness', () => {
   });
 
   it('accepts a HISTORICAL summary, with or without an audit', () => {
-    const historical = { state: 'HISTORICAL', judgedAt: '2026-08-23T12:00:00-05:00' };
-
-    expect(AcademicSummaryResponseSchema.parse({ ...VALID, sourceFreshness: historical })).toEqual({
+    expect(AcademicSummaryResponseSchema.parse({ ...VALID, sourceFreshness: HISTORICAL })).toEqual({
       ...VALID,
-      sourceFreshness: historical,
+      sourceFreshness: HISTORICAL,
     });
-    expect(accepts({ ...NO_AUDIT, sourceFreshness: historical })).toBe(true);
+    expect(accepts({ ...NO_AUDIT, sourceFreshness: HISTORICAL })).toBe(true);
   });
 
   it('accepts an omitted freshness while it is still optional (#169)', () => {
@@ -116,7 +115,15 @@ describe('SummaryAuditSchema studentRecordEffectiveAt', () => {
     expect(accepts({ ...VALID, audit: { ...AUDIT, studentRecordEffectiveAt: null } })).toBe(false);
   });
 
-  it('accepts an omitted record time while it is still optional (#169)', () => {
-    expect(accepts({ ...VALID, audit: AUDIT_WITHOUT_RECORD_TIME })).toBe(true);
+  it('accepts an omitted record time while optional (#169), but never as CURRENT', () => {
+    const audit = AUDIT_WITHOUT_RECORD_TIME;
+
+    expect(accepts({ ...VALID, audit, sourceFreshness: CURRENT })).toBe(false);
+    expect(accepts({ ...VALID, audit, sourceFreshness: HISTORICAL })).toBe(true);
+    expect(accepts({ ...WITHOUT_FRESHNESS, audit })).toBe(true);
+  });
+
+  it('accepts CURRENT with no audit, when only the record time is judged', () => {
+    expect(accepts({ ...NO_AUDIT, sourceFreshness: CURRENT })).toBe(true);
   });
 });

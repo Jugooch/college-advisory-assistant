@@ -18,6 +18,7 @@ import {
   ReasonCode,
   RequirementResultSchema,
   RequirementState,
+  SourceFreshness,
   SourceFreshnessSchema,
   StudentSnapshotSchema,
 } from '@caa/domain';
@@ -279,6 +280,20 @@ export const AcademicSummaryResponseSchema = z
     {
       message: 'programCatalogConsistency must be UNKNOWN exactly when program or catalog differ',
       path: ['programCatalogConsistency'],
+    },
+  )
+  // SAFETY: a missing source time is not fresh, so a summary whose audit lacks its record time
+  // is never CURRENT (planning/09 §Proposed freshness policies: historical view only). This
+  // checks only that every time a CURRENT verdict relies on is present; the age rule itself
+  // stays in the api's freshness logic (ADR-0005, ADR-0008).
+  .refine(
+    (summary) =>
+      summary.sourceFreshness?.state !== SourceFreshness.Current ||
+      summary.audit === null ||
+      summary.audit.studentRecordEffectiveAt !== undefined,
+    {
+      message: 'sourceFreshness must be HISTORICAL when the audit has no studentRecordEffectiveAt',
+      path: ['sourceFreshness', 'state'],
     },
   )
   // SAFETY: requirement states come only from an audit, and a degree audit always has one
