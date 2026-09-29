@@ -49,6 +49,28 @@ describe('checkServerDirective', () => {
     );
   });
 
+  it('accepts a trailing block comment after the directive in an action file', () => {
+    const source = `${HEADER}"use server" /* form handler */\nexport async function a() {}\n`;
+
+    expect(checkServerDirective(ACTION, source)).toBeNull();
+  });
+
+  it.each([
+    ["    'use server'; // form handler", 'the reviewer example'],
+    ['  "use server";', 'double quotes'],
+    ["      'use server'", 'no semicolon'],
+    ["\t'use server'; /* form handler */", 'a trailing block comment and a tab indent'],
+    ["  async function go() { 'use server'; return 1; }", 'code before it on the line'],
+    ['  const go = async () => { "use server"', 'an arrow function body'],
+    ["  'use strict'; 'use server';", 'another directive before it'],
+  ])('rejects an inline page directive with %s', (line) => {
+    const source = `export default function Page() {\n  async function go() {\n${line}\n  }\n}\n`;
+
+    expect(checkServerDirective('apps/web/src/app/dev/sign-in/page.tsx', source)).toBe(
+      'server actions live in features/<feature>/actions/*.action.ts',
+    );
+  });
+
   it('rejects a file-level directive in a component', () => {
     const path = 'apps/web/src/shared/components/api-error-notice.tsx';
 

@@ -15,6 +15,12 @@ const TEST = String.raw`(\.(integration\.)?test)?`;
  */
 const STRUCTURE_RULES = [
   {
+    // SECURITY: the 'use server' placement check and the web lint rules read .ts/.tsx only.
+    scope: /^apps\/web\/src\/.*\.(js|jsx|mjs|cjs)$/,
+    allow: () => false,
+    expected: 'TypeScript only under apps/web/src (.ts or .tsx)',
+  },
+  {
     scope: /^apps\/web\/src\/app\/.*route\.tsx?$/,
     allow: () => false,
     expected: 'no route handlers in Next.js; add the endpoint to apps/api',

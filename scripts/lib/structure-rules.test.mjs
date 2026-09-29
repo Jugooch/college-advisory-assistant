@@ -115,3 +115,22 @@ describe('checkStructure for the web layers and api logic (ADR-0007, ADR-0008)',
     expect(checkStructure(path)).toContain(expected);
   });
 });
+
+describe('checkStructure keeps apps/web/src TypeScript-only', () => {
+  it.each([
+    'apps/web/src/app/overview/page.js',
+    'apps/web/src/app/overview/page.jsx',
+    'apps/web/src/features/session/actions/dev-sign-in.action.js',
+    'apps/web/src/shared/utils/x.mjs',
+    'apps/web/src/lib/x.cjs',
+    'apps/web/src/app/route.js',
+  ])('rejects %s', (path) => {
+    expect(checkStructure(path)).toContain('TypeScript only under apps/web/src');
+  });
+
+  it('leaves web config files outside src alone', () => {
+    const paths = ['apps/web/next.config.mjs', 'apps/web/postcss.config.cjs'];
+
+    expect(paths.map(checkStructure)).toEqual([null, null]);
+  });
+});
