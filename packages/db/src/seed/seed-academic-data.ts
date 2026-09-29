@@ -13,12 +13,12 @@ import { auditSnapshotTable } from '../tables/audit-snapshot.table';
 import { courseTable } from '../tables/course.table';
 import { courseAttemptTable } from '../tables/course-attempt.table';
 import { prerequisiteRuleTable } from '../tables/prerequisite-rule.table';
-import { requirementResultTable } from '../tables/requirement-result.table';
 import { studentSnapshotTable } from '../tables/student-snapshot.table';
 import { studentSnapshotAttemptTable } from '../tables/student-snapshot-attempt.table';
 import { termTable } from '../tables/term.table';
 import { assertAcademicPlanReferences } from './academic-plan-references';
 import type { DevSeedAcademicPlan } from './dev-seed-academic-plan';
+import { insertRequirementResults } from './requirement-result-writer';
 
 /** How many academic records the plan holds. Counts only, safe to log. */
 export interface AcademicSeedCounts {
@@ -171,22 +171,12 @@ async function insertAudit(tx: SeedWriter, audit: AuditSnapshot, studentId: stri
       studentRecordEffectiveAt: new Date(audit.studentRecordEffectiveAt),
     })
     .onConflictDoNothing({ target: auditSnapshotTable.id });
-  const results = requirementResultTable;
-  await tx
-    .insert(results)
-    .values(
-      requirements.map((requirement, position) => ({
-        ...requirement,
-        tenantId: audit.tenantId,
-        auditSnapshotId: audit.id,
-        position,
-        allocatedAttemptIds: [...requirement.allocatedAttemptIds],
-        candidateCourseIds: [...requirement.candidateCourseIds],
-      })),
-    )
-    .onConflictDoNothing({
-      target: [results.tenantId, results.auditSnapshotId, results.sourceRequirementId],
-    });
+  const scope = {
+    tenantId: audit.tenantId,
+    auditSnapshotId: audit.id,
+    studentSnapshotId: audit.studentSnapshotId,
+  };
+  await insertRequirementResults(tx, scope, requirements);
 }
 
 /**

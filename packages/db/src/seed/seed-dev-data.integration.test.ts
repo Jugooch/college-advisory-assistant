@@ -185,6 +185,9 @@ describe('seedDevData', () => {
     expect(audit?.status === 'FOUND' && audit.audit.studentSnapshotId).toBe(
       snapshot?.status === 'FOUND' && snapshot.revision.snapshot.id,
     );
+    const requirements = audit?.status === 'FOUND' ? audit.audit.requirements : [];
+    expect(requirements.map((r) => r.allocatedAttemptIds.length)).toEqual([0, 1, 1, 0]);
+    expect(requirements.map((r) => r.candidateCourseIds.length)).toEqual([0, 1, 2, 3]);
   });
 
   it("reads the stale student's audit as pinned to an older snapshot than the latest", async () => {

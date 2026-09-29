@@ -13,6 +13,8 @@ export { importQuarantineTable } from './tables/import-quarantine.table';
 export { institutionTable } from './tables/institution.table';
 export { prerequisiteRuleTable } from './tables/prerequisite-rule.table';
 export { requirementResultTable } from './tables/requirement-result.table';
+export { requirementResultAllocatedAttemptTable } from './tables/requirement-result-allocated-attempt.table';
+export { requirementResultCandidateCourseTable } from './tables/requirement-result-candidate-course.table';
 export { studentTable } from './tables/student.table';
 export { studentSnapshotTable } from './tables/student-snapshot.table';
 export { studentSnapshotAttemptTable } from './tables/student-snapshot-attempt.table';

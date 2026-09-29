@@ -68,9 +68,15 @@ describe('AuditSnapshotRepository.findLatest', () => {
       studentId: subject.studentId,
       courseId,
     });
+    // NOTE: an allocated attempt must be in the snapshot the audit is pinned to.
+    const pinnedSnapshotId = await insertSnapshot(db, subject.tenantId, {
+      studentId: subject.studentId,
+      sourceEffectiveAt: '2026-09-10T07:00:00.000Z',
+      attemptIds: [attemptId],
+    });
     await insertAudit(db, subject.tenantId, {
       studentId: subject.studentId,
-      studentSnapshotId: subject.snapshotId,
+      studentSnapshotId: pinnedSnapshotId,
       generatedAt: '2026-09-11T06:00:00.000Z',
       requirements: [
         // NOTE: a child before its parent in audit order, which the parent key must allow.

@@ -12,8 +12,11 @@ import type { AuditSnapshot, InstitutionId, StudentId } from '@caa/domain';
 
 import type { Database } from '../client';
 import { toAuditSnapshot } from '../mappers/audit-snapshot.mapper';
+import { groupRequirementLinks } from '../mappers/requirement-result.mapper';
 import { type AuditSnapshotRow, auditSnapshotTable } from '../tables/audit-snapshot.table';
 import { requirementResultTable } from '../tables/requirement-result.table';
+import { requirementResultAllocatedAttemptTable } from '../tables/requirement-result-allocated-attempt.table';
+import { requirementResultCandidateCourseTable } from '../tables/requirement-result-candidate-course.table';
 import { studentTable } from '../tables/student.table';
 
 /**
@@ -56,6 +59,46 @@ function isTied(newest: AuditSnapshotRow, runnerUp: AuditSnapshotRow | undefined
 }
 
 /**
+ * Reads one audit's requirement rows and their allocation and candidate rows, each in position
+ * order, and maps them with the audit row.
+ *
+ * @param db - Typed database handle.
+ * @param tenantId - Tenant that owns the audit.
+ * @param audit - The audit row.
+ * @returns The domain audit snapshot.
+ * @throws {z.ZodError} When the stored audit or its requirement tree is invalid.
+ */
+async function loadAudit(
+  db: Database,
+  tenantId: InstitutionId,
+  audit: AuditSnapshotRow,
+): Promise<AuditSnapshot> {
+  const requirements = requirementResultTable;
+  const allocations = requirementResultAllocatedAttemptTable;
+  const candidates = requirementResultCandidateCourseTable;
+  // SECURITY: every read is filtered by tenant as well as by the audit.
+  const [requirementRows, allocationRows, candidateRows] = await Promise.all([
+    db
+      .select()
+      .from(requirements)
+      .where(and(eq(requirements.tenantId, tenantId), eq(requirements.auditSnapshotId, audit.id)))
+      .orderBy(asc(requirements.position)),
+    db
+      .select()
+      .from(allocations)
+      .where(and(eq(allocations.tenantId, tenantId), eq(allocations.auditSnapshotId, audit.id)))
+      .orderBy(asc(allocations.requirementResultId), asc(allocations.position)),
+    db
+      .select()
+      .from(candidates)
+      .where(and(eq(candidates.tenantId, tenantId), eq(candidates.auditSnapshotId, audit.id)))
+      .orderBy(asc(candidates.requirementResultId), asc(candidates.position)),
+  ]);
+  const links = groupRequirementLinks(allocationRows, candidateRows);
+  return toAuditSnapshot(audit, requirementRows, links);
+}
+
+/**
  * Creates the audit snapshot repository.
  *
  * @param db - Typed database handle.
@@ -63,7 +106,6 @@ function isTied(newest: AuditSnapshotRow, runnerUp: AuditSnapshotRow | undefined
  */
 export function createAuditSnapshotRepository(db: Database): AuditSnapshotRepository {
   const audits = auditSnapshotTable;
-  const requirements = requirementResultTable;
   return {
     async findLatest(tenantId, studentId) {
       const [newest, runnerUp] = await db
@@ -89,17 +131,7 @@ export function createAuditSnapshotRepository(db: Database): AuditSnapshotReposi
       if (isTied(newest.audit, runnerUp?.audit)) {
         return { status: 'AMBIGUOUS' };
       }
-      const requirementRows = await db
-        .select()
-        .from(requirements)
-        .where(
-          and(
-            eq(requirements.tenantId, tenantId),
-            eq(requirements.auditSnapshotId, newest.audit.id),
-          ),
-        )
-        .orderBy(asc(requirements.position));
-      return { status: 'FOUND', audit: toAuditSnapshot(newest.audit, requirementRows) };
+      return { status: 'FOUND', audit: await loadAudit(db, tenantId, newest.audit) };
     },
   };
 }

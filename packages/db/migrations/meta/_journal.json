@@ -22,6 +22,13 @@
       "when": 1790611971833,
       "tag": "0002_snapshot_attempt_audit",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790707332586,
+      "tag": "0003_requirement_reference_keys",
+      "breakpoints": true
     }
   ]
 }
