@@ -1,6 +1,6 @@
 # ADR-0008: Pure logic files in API modules, and source freshness defaults
 
-- **Status:** Accepted
+- **Status:** Accepted; amended 2026-09-29 (Amendment 1: the academic summary)
 - **Date:** 2026-09-28
 - **Deciders:** Tech lead
 - **Related:** NFR-01, planning/07 §Request lifecycle, planning/09 §Proposed freshness policies, standards 01, 05, issues #153, #114, #152, PR #138
@@ -36,7 +36,7 @@ Standard 05's services section also stops listing "engine functions" as injected
 
 - `ACADEMIC_SOURCE_MAX_AGE_MS` is required in production, with no default, because each institution approves its own value. Outside production it defaults to 24 hours, planning/09's proposed age. Accepted values are whole milliseconds from 0 to 7 days.
 - The future tolerance is a fixed 5 minutes, for clock drift between the source and the API.
-- The gate checks the snapshot's `sourceEffectiveAt` and the audit's `studentRecordEffectiveAt`. A missing or unparseable time is not fresh. When the gate fails, the API returns 409 `STALE_SOURCE` with a referral before the engine runs.
+- The gate checks the snapshot's `sourceEffectiveAt` and the audit's `studentRecordEffectiveAt`. A missing or unparseable time is not fresh. When the gate fails, the API returns 409 `STALE_SOURCE` with a referral before the engine runs. Amendment 1 applies the same gate to the academic summary.
 
 This doesn't change a planning doc. The 24-hour value is planning/09's own proposal. A production value above 24 hours needs recorded institutional approval under planning/04 §Change control.
 
@@ -61,3 +61,28 @@ This doesn't change a planning doc. The 24-hour value is planning/09's own propo
 - A logic function needs a dependency to be replaceable in tests. That makes it a service.
 - An institution approves freshness ages per source that differ, which would need one setting per source instead of one shared setting.
 - Clock drift over 5 minutes is seen from a real source.
+
+## Amendment 1 (2026-09-29): the academic summary uses the same gate
+
+**Related:** #114, #178, #202, PR #199.
+
+**Context.** The freshness decision above named course checks only. #114 extends the gate to `GET /v1/students/:studentId/academic-summary`, and two architecture reviews disagreed on whether this ADR covered that. Three planning texts bear on it:
+
+- planning/07 §Failure containment: "source outages should not crash read-only historical views".
+- planning/09 §Proposed freshness policies: past the maximum age, transcript, program and audit data is "historical view only; refresh before new validated recommendation".
+- planning/07 §Request lifecycle and AC14: a saved plan revision stays readable with its original timestamp and status.
+
+**Options.**
+
+1. **409 `STALE_SOURCE` with an advisor referral**, the same as course checks.
+2. **200 with a server-derived historical marker.** The UI would show it as a historical view that needs a refresh.
+
+**Decision: option 1, for the prototype.** Past `ACADEMIC_SOURCE_MAX_AGE_MS` the academic summary returns 409 `STALE_SOURCE` with an advisor referral. It is refused before any result is built, by the same `PinnedRecordsService.assertFresh` gate, with the same missing-time and future-tolerance rules. Every 200 from either endpoint is fresh by definition, so the contract carries no freshness marker. Reasons:
+
+- **The summary isn't an audited historical artifact.** It's a live read of the current sources, and it carries PASS verdicts (`auditReflectsRecord`, `programCatalogConsistency`). Past the maximum age, those verdicts would read as current standing. planning/09 allows a historical view only if it is presented as history, and nothing in the contract or UI can say so yet.
+- **One gate for both endpoints** is the conservative choice. UNKNOWN is never shown as PASS, and a referral is the planning/09 expiry path ("refresh before new validated recommendation").
+- **planning/07's "historical views" are saved results with their original timestamp,** such as plan revisions (AC14), and a source outage must not break them. This decision doesn't touch them. The request is refused because its sources are too old; nothing crashes.
+
+**Consequences.** planning/07 and planning/09 get a note pointing here. Standard 05 §Source freshness names both endpoints. The planning/13 AC28 row and README scenario 4 describe the 409. The #114 api and qa PRs cite this amendment.
+
+**Revisit when** a historical-view UX is designed: a server-derived marker in the contract and a UI that shows it as history needing a refresh. At the latest, revisit before G1. Option 2 then replaces the 409 for the summary only.

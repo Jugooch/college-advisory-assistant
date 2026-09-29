@@ -5,7 +5,7 @@
  */
 import { and, eq, type SQL } from 'drizzle-orm';
 
-import type { InstitutionId, Student, StudentId } from '@caa/domain';
+import type { InstitutionId, Student, StudentId, UserId } from '@caa/domain';
 
 import type { Database } from '../client';
 import { toStudent } from '../mappers/student.mapper';
@@ -34,19 +34,43 @@ export interface StudentRepository {
 }
 
 /**
+ * Finds a signed-in user's own student record. Kept apart from {@link StudentRepository} so
+ * existing test doubles of that interface stay valid; `createStudentRepository` implements both.
+ */
+export interface StudentUserLinkRepository {
+  /**
+   * Finds the student a signed-in user is linked to, in that user's tenant.
+   *
+   * @param tenantId - Tenant from the authenticated session.
+   * @param userId - User identity ID from the authenticated session.
+   * @returns The linked student, or null when the user has no student link in this tenant or
+   *   the linked student was deleted by the source.
+   * @throws {Error} When more than one current student is linked to the user; the link is
+   *   ambiguous, so no student is chosen.
+   */
+  findByUserId(tenantId: InstitutionId, userId: UserId): Promise<Student | null>;
+}
+
+/**
  * Creates the student repository.
  *
  * @param db - Typed database handle.
- * @returns A {@link StudentRepository}.
+ * @returns A {@link StudentRepository} that is also a {@link StudentUserLinkRepository}.
  */
-export function createStudentRepository(db: Database): StudentRepository {
+export function createStudentRepository(
+  db: Database,
+): StudentRepository & StudentUserLinkRepository {
   const findOne = async (tenantId: InstitutionId, match: SQL): Promise<Student | null> => {
     const rows = await db
       .select()
       .from(studentTable)
       // SECURITY: every read is filtered by tenant; tombstoned students are invisible.
       .where(and(eq(studentTable.tenantId, tenantId), eq(studentTable.isDeleted, false), match))
-      .limit(1);
+      // NOTE: two rows, so a match that isn't unique is detected instead of picked.
+      .limit(2);
+    if (rows.length > 1) {
+      throw new Error('Student lookup matched more than one current student');
+    }
     const row = rows[0];
     return row ? toStudent(row) : null;
   };
@@ -55,5 +79,6 @@ export function createStudentRepository(db: Database): StudentRepository {
     findById: (tenantId, id) => findOne(tenantId, eq(studentTable.id, id)),
     findBySourceStudentId: (tenantId, sourceStudentId) =>
       findOne(tenantId, eq(studentTable.sourceStudentId, sourceStudentId)),
+    findByUserId: (tenantId, userId) => findOne(tenantId, eq(studentTable.userId, userId)),
   };
 }
