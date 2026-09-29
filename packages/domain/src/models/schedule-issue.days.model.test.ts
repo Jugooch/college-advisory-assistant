@@ -128,3 +128,37 @@ describe('schedule issues show only days the named meetings meet on', () => {
     expect(messages(tbaTime)).toEqual([]);
   });
 });
+
+describe('private schedule-issue helpers, through the public schema', () => {
+  const TRANSITION_MESSAGE =
+    'An insufficient transition has availableMinutes below requiredMinutes';
+
+  it('measures a transition gap across hours in wall-clock minutes (11:50 to 13:05 is 75)', () => {
+    const acrossHours = {
+      ...insufficient(['MONDAY']),
+      earlier: meeting(LECTURE, ['MONDAY'], ['11:00', '11:50']),
+      later: meeting(LAB, ['MONDAY'], ['13:05', '14:00']),
+      requiredMinutes: 90,
+    };
+
+    expect(messages({ ...acrossHours, availableMinutes: 75 })).toEqual([]);
+    expect(messages({ ...acrossHours, availableMinutes: 15 })).toEqual([TRANSITION_MESSAGE]);
+  });
+
+  it('rejects a transition that names one meeting twice', () => {
+    const itself = {
+      ...insufficient(['MONDAY']),
+      later: meeting(LECTURE, ['MONDAY'], ['10:00', '10:50']),
+    };
+
+    expect(messages(itself)).toEqual([TRANSITION_MESSAGE]);
+  });
+
+  it('accepts an unavailable block that runs to 24:00, and rejects one that ends at its start', () => {
+    expect(messages({ ...blocked(['MONDAY']), blockEndTime: '24:00' })).toEqual([]);
+    expect(messages({ ...blocked(['MONDAY']), blockStartTime: '10:00' })).toEqual([
+      'blockStartTime must be earlier than blockEndTime',
+      'An unavailable-time conflict names a timed meeting that overlaps the block',
+    ]);
+  });
+});

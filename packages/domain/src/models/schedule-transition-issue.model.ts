@@ -15,13 +15,52 @@ import {
   MeetingTimeRefSchema,
   SharedMeetingDatesSchema,
 } from './schedule-issue-parts.model';
-import {
-  DAYS_SUBSET_MESSAGE,
-  isSameMeeting,
-  KNOWN_DAYS_MESSAGE,
-  localTimeGapMinutes,
-  meetsOnDays,
-} from './schedule-issue-support.model';
+
+// NOTE: these private helpers and messages are also copied in schedule-issue.model.ts on
+// purpose (standard 01 §Shared invariants: only the boolean shared invariants are exported).
+
+/** Message for a FAIL issue that names a meeting whose days are to be announced. */
+const KNOWN_DAYS_MESSAGE = 'A FAIL issue names meetings whose days are known';
+
+/** Message for shared days that a named meeting doesn't meet on. */
+const DAYS_SUBSET_MESSAGE = 'The weekdays shown must be days each named meeting meets on';
+
+/**
+ * Returns the wall-clock minutes from one local `HH:MM` time to another on the same date.
+ *
+ * @param from - The earlier meeting's end.
+ * @param to - The later meeting's start.
+ * @returns Minutes from `from` to `to`; negative when `to` is earlier.
+ */
+function localTimeGapMinutes(from: string, to: string): number {
+  const minutesOf = (time: string): number =>
+    Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
+  return minutesOf(to) - minutesOf(from);
+}
+
+/**
+ * Returns whether two references name the same meeting of the same section.
+ *
+ * @param first - One meeting.
+ * @param second - The other meeting.
+ * @returns `true` when the section and meeting index both match.
+ */
+function isSameMeeting(first: MeetingTimeRef, second: MeetingTimeRef): boolean {
+  return first.sectionId === second.sectionId && first.meetingIndex === second.meetingIndex;
+}
+
+/**
+ * Returns whether a meeting can occur on every listed day. A meeting whose days are to be
+ * announced could be on any day (GR-02), so it covers any list.
+ *
+ * @param ref - The meeting.
+ * @param days - Days the evidence says the meeting occurs on.
+ * @returns `false` when a listed day isn't one of the meeting's known days.
+ */
+function meetsOnDays(ref: MeetingTimeRef, days: readonly string[]): boolean {
+  const { weekdays } = ref;
+  return weekdays === null || days.every((day) => weekdays.some((weekday) => weekday === day));
+}
 
 /**
  * Fields of a transition issue: two timed meetings on different campuses that share a date,

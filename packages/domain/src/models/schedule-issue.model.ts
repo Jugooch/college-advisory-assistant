@@ -28,16 +28,42 @@ import {
   WeekdayListSchema,
 } from './schedule-issue-parts.model';
 import {
-  DAYS_SUBSET_MESSAGE,
-  isSameMeeting,
-  KNOWN_DAYS_MESSAGE,
-  localTimeGapMinutes,
-  meetsOnDays,
-} from './schedule-issue-support.model';
-import {
   TransitionInsufficientIssueSchema,
   TransitionUndefinedIssueSchema,
 } from './schedule-transition-issue.model';
+
+// NOTE: these private helpers and messages are also copied in schedule-transition-issue.model.ts
+// on purpose (standard 01 §Shared invariants: only the boolean shared invariants are exported).
+
+/** Message for a FAIL issue that names a meeting whose days are to be announced. */
+const KNOWN_DAYS_MESSAGE = 'A FAIL issue names meetings whose days are known';
+
+/** Message for shared or blocked days that a named meeting doesn't meet on. */
+const DAYS_SUBSET_MESSAGE = 'The weekdays shown must be days each named meeting meets on';
+
+/**
+ * Returns whether two references name the same meeting of the same section.
+ *
+ * @param first - One meeting.
+ * @param second - The other meeting.
+ * @returns `true` when the section and meeting index both match.
+ */
+function isSameMeeting(first: MeetingTimeRef, second: MeetingTimeRef): boolean {
+  return first.sectionId === second.sectionId && first.meetingIndex === second.meetingIndex;
+}
+
+/**
+ * Returns whether a meeting can occur on every listed day. A meeting whose days are to be
+ * announced could be on any day (GR-02), so it covers any list.
+ *
+ * @param ref - The meeting.
+ * @param days - Days the evidence says the meeting occurs on.
+ * @returns `false` when a listed day isn't one of the meeting's known days.
+ */
+function meetsOnDays(ref: MeetingTimeRef, days: readonly string[]): boolean {
+  const { weekdays } = ref;
+  return weekdays === null || days.every((day) => weekdays.some((weekday) => weekday === day));
+}
 
 /**
  * Returns a meeting's time range, when it is timed.
@@ -165,13 +191,12 @@ const UnavailableTimeConflictIssueSchema = z
     /** The block's local end, exclusive; `24:00` is the end of the day. */
     blockEndTime: z.union([LocalTimeSchema, z.literal('24:00')]),
   })
-  .refine(
-    ({ blockStartTime, blockEndTime }) => localTimeGapMinutes(blockStartTime, blockEndTime) > 0,
-    {
-      message: 'blockStartTime must be earlier than blockEndTime',
-      path: ['blockEndTime'],
-    },
-  )
+  // NOTE: validated `HH:MM` strings, and `24:00`, sort in time order, so a string comparison is
+  // exact here.
+  .refine(({ blockStartTime, blockEndTime }) => blockStartTime < blockEndTime, {
+    message: 'blockStartTime must be earlier than blockEndTime',
+    path: ['blockEndTime'],
+  })
   // SAFETY: the times shown must prove the FAIL: a timed meeting that intersects the block
   // (planning/08 §Schedule model: half-open intervals).
   .refine(

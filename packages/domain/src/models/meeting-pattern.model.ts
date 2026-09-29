@@ -10,7 +10,6 @@ import { z } from 'zod';
 import { MeetingLocationKind } from '../enums/section-modality.enum';
 import { WeekdaySchema } from '../enums/weekday.enum';
 import { CampusIdSchema } from './campus.model';
-import { minutesOfLocalTime } from './schedule-issue-support.model';
 
 /**
  * Returns whether no value appears twice.
@@ -32,6 +31,16 @@ export const LocalTimeSchema = z.iso.time({ precision: -1 });
 export interface LocalTimeRange {
   readonly startTime: string;
   readonly endTime: string;
+}
+
+/**
+ * Converts a local `HH:MM` time to minutes after midnight.
+ *
+ * @param time - A local time; `24:00` gives 1440. Malformed input gives `NaN`.
+ * @returns Minutes after midnight, for example 570 for `09:30`.
+ */
+function minutesOfLocalTime(time: string): number {
+  return Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
 }
 
 /**
