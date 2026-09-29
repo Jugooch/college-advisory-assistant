@@ -28,11 +28,11 @@ Issue (with requirement IDs and acceptance examples)
 
 A PR may change files outside its owner's area only with the `ownership-override` label, and only in one of these cases. Every override PR links its authorizing ADR or tech-lead issue in the body. Reviewers treat any out-of-area file that doesn't fit a listed case as a BLOCKER.
 
-| Case                  | What it allows                                                                                             | Authorized by                             |
-| --------------------- | ---------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
-| Repo-wide mechanical  | A mechanical change that touches many areas, for example a rename across every package                     | Its own ADR or tech-lead issue            |
-| Golden finding fixed  | Removing a fixed entry from `tests/golden/known-findings.ts` in the fixing PR (standard 07, golden corpus) | Standard 07 and the finding's `bug` issue |
-| Required-field ripple | Updating a test-kit builder when a domain PR adds a required field, under the rules below                  | #108 (ADR-0004)                           |
+| Case                  | What it allows                                                                                               | Authorized by                             |
+| --------------------- | ------------------------------------------------------------------------------------------------------------ | ----------------------------------------- |
+| Repo-wide mechanical  | A mechanical change that touches many areas, for example a rename across every package                       | Its own ADR or tech-lead issue            |
+| Known finding fixed   | Removing a fixed entry from `tests/support/known-findings.ts` in the fixing PR (standard 07, known findings) | Standard 07 and the finding's `bug` issue |
+| Required-field ripple | Updating a test-kit builder when a domain PR adds a required field, under the rules below                    | #108 (ADR-0004)                           |
 
 ### Required-field ripple
 
