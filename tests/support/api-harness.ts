@@ -20,14 +20,23 @@ import {
 } from '@caa/api/testing';
 import type { AdvisorAssignment, Student, UserIdentity } from '@caa/domain';
 
+import { type AcademicWorld, createAcademicRepositories } from './academic-repositories';
+
 /** Fixed instant every API acceptance case runs at. */
 export const ACCEPTANCE_NOW = new Date('2026-09-01T12:00:00.000Z');
+
+/** The ruleset version the harness's API runs course checks under. */
+export const ACCEPTANCE_RULESET_VERSION = 'demo-2026.1';
 
 /** The API app, not yet listening. */
 export type AcceptanceApp = ReturnType<typeof buildApp>;
 
-/** Mutable backing data. Every repository call reads it again, so a case can change it mid-session. */
-export interface AcceptanceWorld {
+/**
+ * Mutable backing data. Every repository call reads it again, so a case can change it mid-session.
+ * The academic fields (snapshots, audits, catalog, rules, policies, terms) are optional: a case
+ * seeds only what it reads, and an omitted field means nothing of that kind is stored.
+ */
+export interface AcceptanceWorld extends AcademicWorld {
   identities: readonly UserIdentity[];
   students: readonly Student[];
   assignments: readonly AdvisorAssignment[];
@@ -107,7 +116,9 @@ function createAssignments(world: AcceptanceWorld): AdvisorAssignmentRepository 
 }
 
 /**
- * Builds the API with dev auth over the world, at {@link ACCEPTANCE_NOW}. Call it once per file at
+ * Builds the API with dev auth over the world, at {@link ACCEPTANCE_NOW}, running course checks
+ * under {@link ACCEPTANCE_RULESET_VERSION}. Every repository the API has, the academic ones
+ * included, reads the world, so no endpoint hits a missing repository. Call it once per file at
  * module scope and mutate the world between cases: the first build in a worker loads Fastify's
  * schema compilers, which can take seconds on a slow disk and would count against a case's timeout.
  *
@@ -131,11 +142,13 @@ export function buildAcceptanceApp(
     DATABASE_URL: 'postgres://unused.invalid/acceptance',
     AUTH_MODE: AuthMode.Dev,
     DEV_AUTH_TOKENS: JSON.stringify(tokenMap),
+    ACTIVE_RULESET_VERSION: ACCEPTANCE_RULESET_VERSION,
   });
   const repositories: Repositories = {
     userIdentities: createIdentities(world),
     students: createStudents(world),
     advisorAssignments: createAssignments(world),
+    ...createAcademicRepositories(world),
   };
   return buildApp({
     dependencies: createContainer({ env, repositories, now: () => ACCEPTANCE_NOW }),
@@ -158,6 +171,33 @@ export async function getAs(
 ): Promise<AcceptanceResponse> {
   const headers = authorization === null ? {} : { authorization };
   const response = await app.inject({ method: 'GET', url, headers });
+  return { statusCode: response.statusCode, body: response.json() };
+}
+
+/** A JSON `POST` request with a raw `Authorization` header. */
+export interface AcceptancePost {
+  readonly url: string;
+  readonly authorization: string;
+  readonly payload: object;
+}
+
+/**
+ * Sends `POST <url>` with a JSON body, the way a browser would.
+ *
+ * @param app - App under test.
+ * @param request - Path, raw `Authorization` header value, and JSON body.
+ * @returns Status code and parsed JSON body.
+ */
+export async function postAs(
+  app: AcceptanceApp,
+  { url, authorization, payload }: AcceptancePost,
+): Promise<AcceptanceResponse> {
+  const response = await app.inject({
+    method: 'POST',
+    url,
+    headers: { authorization, 'content-type': 'application/json' },
+    payload: JSON.stringify(payload),
+  });
   return { statusCode: response.statusCode, body: response.json() };
 }
 

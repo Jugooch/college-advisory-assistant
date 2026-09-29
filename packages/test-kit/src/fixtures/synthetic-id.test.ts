@@ -23,8 +23,9 @@ describe('syntheticId', () => {
     expect(syntheticId('equivalencyGroup', 1)).toBe('90000000-0000-4000-8000-000000000001');
   });
 
-  it('gives the S3 student snapshot kind its own prefix', () => {
+  it('gives the S3 student snapshot and term kinds their own prefixes', () => {
     expect(syntheticId('studentSnapshot', 1)).toBe('a0000000-0000-4000-8000-000000000001');
+    expect(syntheticId('term', 1)).toBe('b0000000-0000-4000-8000-000000000001');
   });
 
   it('rejects a seed that is negative, fractional, or too large for the final group', () => {
