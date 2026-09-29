@@ -18,6 +18,7 @@ import {
   type StudentRepository,
   type UserIdentityRepository,
 } from '@caa/api/testing';
+import type { StudentUserLinkRepository } from '@caa/db';
 import type { AdvisorAssignment, Student, UserIdentity } from '@caa/domain';
 
 import { type AcademicWorld, createAcademicRepositories } from './academic-repositories';
@@ -105,6 +106,28 @@ function createStudents(world: AcceptanceWorld): StudentRepository {
 }
 
 /**
+ * Creates the student-user link repository over the world: the student in the tenant whose
+ * `userId` is the signed-in user. Like the contract says, another tenant's student is never
+ * returned, and a user linked to two students is an error, never a pick.
+ *
+ * @param world - Backing data.
+ * @returns A {@link StudentUserLinkRepository}.
+ */
+export function createStudentUserLinks(world: AcceptanceWorld): StudentUserLinkRepository {
+  return {
+    findByUserId: (tenantId, userId) => {
+      const linked = world.students.filter(
+        (item) => item.tenantId === tenantId && item.userId === userId,
+      );
+      if (linked.length > 1) {
+        return Promise.reject(new Error('More than one student is linked to the user'));
+      }
+      return Promise.resolve(linked[0] ?? null);
+    },
+  };
+}
+
+/**
  * Creates the advisor assignment repository over the world. An assignment is active from
  * `effectiveFrom` (inclusive) until `effectiveTo` (exclusive, or open when null).
  *
@@ -160,9 +183,12 @@ export function buildAcceptanceApp(
     ACADEMIC_SOURCE_MAX_AGE_MS: String(ACCEPTANCE_SOURCE_MAX_AGE_MS),
     AUDIT_RECORD_MAX_SKEW_MS: String(ACCEPTANCE_AUDIT_SKEW_MS),
   });
-  const repositories: Repositories = {
+  // NOTE: the intersection lets the harness provide `studentUserLinks` before the API adds it
+  // to `Repositories` (#151); once it's there, the intersection is redundant and can go.
+  const repositories: Repositories & { studentUserLinks: StudentUserLinkRepository } = {
     userIdentities: createIdentities(world),
     students: createStudents(world),
+    studentUserLinks: createStudentUserLinks(world),
     advisorAssignments: createAssignments(world),
     ...createAcademicRepositories(world),
   };
