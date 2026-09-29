@@ -24,6 +24,7 @@ import {
 
 import { defineEndpoint } from '../define-endpoint';
 import { MAX_COURSE_CHECK_COURSES } from './course-checks-request.contract';
+import { CourseDisplayListSchema } from './course-display.contract';
 
 /**
  * Returns whether a list has no repeated values.
@@ -150,6 +151,13 @@ export const CourseChecksResponseSchema = z
      */
     aggregate: AggregateStateSchema,
     pinnedInputs: PinnedInputsSchema,
+    // TODO(#169): make required
+    /**
+     * Catalog code, title, and credit rule of the checked courses, at most one entry per course
+     * and only for courses in `courseResults`. A course without an entry isn't in the catalog:
+     * show its ID and offer no credit choice. Display data only; it changes no check.
+     */
+    courses: CourseDisplayListSchema.optional(),
   })
   .refine((response) => isDistinct(response.courseResults.map((result) => result.courseId)), {
     message: 'courseResults must not repeat a course',
@@ -180,6 +188,14 @@ export const CourseChecksResponseSchema = z
       message: 'Prerequisite evidence must use the pinned rulesetVersion',
       path: ['courseResults'],
     },
+  )
+  // SECURITY: data minimization. Catalog entries are sent only for the checked courses.
+  .refine(
+    (response) => {
+      const checked = new Set(response.courseResults.map((result) => result.courseId));
+      return (response.courses ?? []).every((course) => checked.has(course.courseId));
+    },
+    { message: 'courses must list only checked courses', path: ['courses'] },
   )
   .readonly();
 

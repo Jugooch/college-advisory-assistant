@@ -22,6 +22,7 @@ import {
 } from '@caa/domain';
 
 import { defineEndpoint } from '../define-endpoint';
+import { CourseDisplayListSchema } from './course-display.contract';
 import { StudentResponseSchema } from './students.contract';
 
 // NOTE: the domain schemas carry refinements, so zod can't `.pick()` from them. Fields are
@@ -29,6 +30,9 @@ import { StudentResponseSchema } from './students.contract';
 const SNAPSHOT_FIELDS = StudentSnapshotSchema.unwrap().shape;
 const AUDIT_FIELDS = AuditSnapshotSchema.unwrap().shape;
 const REQUIREMENT_FIELDS = RequirementResultSchema.unwrap().shape;
+
+/** A program's catalog name, or `null` when it's unknown. Plain catalog data. */
+const PROGRAM_NAME = z.string().min(1).nullable();
 
 /**
  * Returns whether a list has no repeated values.
@@ -72,6 +76,18 @@ export const SummaryStudentSnapshotSchema = z
     catalogYear: SNAPSHOT_FIELDS.catalogYear,
     /** Point in time the record describes. ISO 8601 with offset. */
     sourceEffectiveAt: SNAPSHOT_FIELDS.sourceEffectiveAt,
+    // TODO(#169): make required
+    /**
+     * Catalog name of `programId`, such as `BS Mathematics`, or `null` when the record states no
+     * program or the catalog doesn't supply its name. Plain catalog data, never AI-generated.
+     */
+    programName: PROGRAM_NAME.optional(),
+  })
+  // SAFETY: a program name with no program in the record would show a program the record doesn't
+  // state (planning/09 §Source authority matrix: the record owns the official program).
+  .refine((snapshot) => snapshot.programId !== null || (snapshot.programName ?? null) === null, {
+    message: 'programName must be null when programId is null',
+    path: ['programName'],
   })
   .readonly();
 
@@ -85,6 +101,9 @@ export const SummaryAuditSchema = z
     auditVersion: AUDIT_FIELDS.auditVersion,
     programId: AUDIT_FIELDS.programId,
     catalogYear: AUDIT_FIELDS.catalogYear,
+    // TODO(#169): make required
+    /** Catalog name of the audit's `programId`, or `null` when the catalog doesn't supply it. */
+    programName: PROGRAM_NAME.optional(),
     /** When the audit system generated the audit. ISO 8601 with offset. */
     generatedAt: AUDIT_FIELDS.generatedAt,
     // TODO(#169): make required
@@ -225,6 +244,13 @@ export const AcademicSummaryResponseSchema = z
      * requirement state must be shown as needing verification, never as current.
      */
     programCatalogConsistency: ProgramCatalogConsistencySchema.nullable(),
+    // TODO(#169): make required
+    /**
+     * Catalog code, title, and credit rule of the requirements' candidate courses, at most one
+     * entry per course and only for courses a requirement names. A candidate without an entry
+     * isn't in the catalog: show its ID and offer no credit choice.
+     */
+    courses: CourseDisplayListSchema.optional(),
     /**
      * The audit's requirements in audit order. Empty exactly when `audit` is `null`. Their
      * states are the audit's as of `audit.generatedAt`: when `auditReflectsRecord` is UNKNOWN
@@ -275,6 +301,14 @@ export const AcademicSummaryResponseSchema = z
     message: 'sourceRequirementId must be unique and parents must be listed requirements',
     path: ['requirements'],
   })
+  // SECURITY: data minimization. Catalog entries are sent only for courses the response names.
+  .refine(
+    (summary) => {
+      const named = new Set(summary.requirements.flatMap((item) => item.candidateCourseIds));
+      return (summary.courses ?? []).every((course) => named.has(course.courseId));
+    },
+    { message: 'courses must list only candidate courses', path: ['courses'] },
+  )
   .readonly();
 
 /** Response body for `GET /v1/students/:studentId/academic-summary`. */
