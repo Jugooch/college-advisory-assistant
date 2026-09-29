@@ -14,6 +14,7 @@ import { buildActor, buildCourse, SYNTHETIC_TENANTS } from '@caa/test-kit';
 import {
   InvalidRequestError,
   NotFoundError,
+  RulesetNotConfiguredError,
   SourceUnavailableError,
   StaleSourceError,
 } from '../../shared/domain-errors';
@@ -29,11 +30,7 @@ import {
   SEED_STUDENTS,
 } from '../../testing/seed-scenario-fixtures';
 import { createPinnedRecordsService } from '../pinned-records/pinned-records.service';
-import {
-  type CourseChecksQuery,
-  createCourseChecksService,
-  RulesetNotConfiguredError,
-} from './course-checks.service';
+import { type CourseChecksQuery, createCourseChecksService } from './course-checks.service';
 
 const actor = buildActor({ tenantId: SYNTHETIC_TENANTS.a.id });
 const student = SEED_STUDENTS.current;
@@ -78,11 +75,13 @@ function check(query: Omit<CourseChecksQuery, 'studentId'>, setup: Setup = {}) {
       getStudent: () =>
         setup.isAllowed === false ? Promise.reject(new NotFoundError()) : Promise.resolve(student),
     },
-    pinnedRecords: createPinnedRecordsService(repositories),
+    pinnedRecords: createPinnedRecordsService({
+      ...repositories,
+      maxSourceAgeMs: MAX_AGE_MS,
+      now: () => new Date(setup.now ?? NOW),
+    }),
     maxSkewMs: 3_600_000,
     rulesetVersion: setup.rulesetVersion === undefined ? 'demo-2026.1' : setup.rulesetVersion,
-    maxSourceAgeMs: MAX_AGE_MS,
-    now: () => new Date(setup.now ?? NOW),
   });
   const result = service.checkCourses(actor, { studentId: student.id, ...query }, { logger });
   return { result, logger, ruleLookups };

@@ -73,3 +73,15 @@ export class InvalidRequestError extends DomainError {
     this.name = 'InvalidRequestError';
   }
 }
+
+/**
+ * `ACTIVE_RULESET_VERSION` isn't set, so course checks can't run. Not a `DomainError`: the
+ * error handler returns INTERNAL_ERROR, and no ruleset is ever guessed.
+ */
+export class RulesetNotConfiguredError extends Error {
+  /** Creates the error. */
+  constructor() {
+    super('ACTIVE_RULESET_VERSION is not configured');
+    this.name = 'RulesetNotConfiguredError';
+  }
+}

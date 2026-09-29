@@ -33,26 +33,28 @@ import {
   PrerequisiteInputMismatchError,
 } from '@caa/engine';
 
-import { InvalidRequestError, SourceUnavailableError } from '../../shared/domain-errors';
+import {
+  InvalidRequestError,
+  RulesetNotConfiguredError,
+  SourceUnavailableError,
+} from '../../shared/domain-errors';
 import type { RequestContext } from '../../shared/request-context';
 import {
   type CourseChecks,
   type CourseSetInputs,
   verifyCourseSet,
-} from '../course-verification/course-verification.service';
-import {
-  assertSourcesFresh,
-  logRecordUnavailable,
-  type PinnedRecordsService,
-  type RecordScope,
-} from '../pinned-records/pinned-records.service';
+} from '../course-verification/course-verification.logic';
+import type { PinnedRecordsService, RecordScope } from '../pinned-records/pinned-records.service';
 import type { StudentsService } from '../students/students.service';
 
 /** Dependencies of the course checks service. */
 export interface CourseChecksServiceDependencies {
   /** Applies the S1 access rule and loads the student. */
   readonly students: StudentsService;
-  /** Loads the latest snapshot and audit, refusing missing, tied, or out-of-scope records. */
+  /**
+   * Loads the latest snapshot and audit, refusing missing, tied, or out-of-scope records, and
+   * applies the source freshness gate.
+   */
   readonly pinnedRecords: PinnedRecordsService;
   readonly courseCatalog: CourseCatalogRepository;
   readonly prerequisiteRules: PrerequisiteRuleRepository;
@@ -62,10 +64,6 @@ export interface CourseChecksServiceDependencies {
   readonly maxSkewMs: number;
   /** Validated `ACTIVE_RULESET_VERSION`, or `null` when none is configured. */
   readonly rulesetVersion: string | null;
-  /** Validated `ACADEMIC_SOURCE_MAX_AGE_MS`: how old the record and audit may be. */
-  readonly maxSourceAgeMs: number;
-  /** Returns the current time. Read here, never in the engine. */
-  readonly now: () => Date;
 }
 
 /** What the caller asks to check: the path student and the body. Identity is never part of it. */
@@ -106,15 +104,6 @@ export interface CourseChecksService {
   ): Promise<CourseChecks>;
 }
 
-/** Thrown when `ACTIVE_RULESET_VERSION` isn't set; the error handler returns INTERNAL_ERROR. */
-export class RulesetNotConfiguredError extends Error {
-  /** Creates the error. */
-  constructor() {
-    super('ACTIVE_RULESET_VERSION is not configured');
-    this.name = 'RulesetNotConfiguredError';
-  }
-}
-
 /**
  * Logs why a course-check request was rejected, with opaque IDs and a reason only.
  *
@@ -132,17 +121,22 @@ function logRejected(scope: RecordScope, reason: string): void {
 /**
  * Returns the audit, or refers the student to an advisor when there is none.
  *
+ * @param pinnedRecords - Logs the unavailable reason.
  * @param scope - The actor, the path student, and the request context.
  * @param audit - The pinned audit, or `null`.
  * @returns The audit.
  * @throws {SourceUnavailableError} When there is no audit.
  */
-function requireAudit(scope: RecordScope, audit: AuditSnapshot | null): AuditSnapshot {
+function requireAudit(
+  pinnedRecords: PinnedRecordsService,
+  scope: RecordScope,
+  audit: AuditSnapshot | null,
+): AuditSnapshot {
   // SAFETY: applicability and allocation come only from the audit, and the response pins its
   // version, so without one there is nothing to check against. The student is referred, never
   // shown guessed applicability (planning/08: missing data is UNKNOWN or a referral; #100).
   if (audit === null) {
-    logRecordUnavailable(scope, 'NO_AUDIT');
+    pinnedRecords.recordUnavailable(scope, 'NO_AUDIT');
     throw new SourceUnavailableError();
   }
   return audit;
@@ -151,14 +145,19 @@ function requireAudit(scope: RecordScope, audit: AuditSnapshot | null): AuditSna
 /**
  * Returns the active ruleset's policy, or refers the student when the tenant has none.
  *
+ * @param pinnedRecords - Logs the unavailable reason.
  * @param scope - The actor, the path student, and the request context.
  * @param policy - The policy the repository found, or `null`.
  * @returns The policy.
  * @throws {SourceUnavailableError} When there is no policy.
  */
-function requirePolicy(scope: RecordScope, policy: AcademicPolicy | null): AcademicPolicy {
+function requirePolicy(
+  pinnedRecords: PinnedRecordsService,
+  scope: RecordScope,
+  policy: AcademicPolicy | null,
+): AcademicPolicy {
   if (policy === null) {
-    logRecordUnavailable(scope, 'NO_ACADEMIC_POLICY');
+    pinnedRecords.recordUnavailable(scope, 'NO_ACADEMIC_POLICY');
     throw new SourceUnavailableError();
   }
   return policy;
@@ -243,13 +242,9 @@ export function createCourseChecksService(
         dependencies.academicPolicies.findPolicy(tenantId, rulesetVersion),
         dependencies.terms.findOrdered(tenantId),
       ]);
-      const audit = requireAudit(scope, records.audit);
-      assertSourcesFresh(
-        scope,
-        { snapshot: records.revision.snapshot, audit },
-        { now: dependencies.now(), maxAgeMs: dependencies.maxSourceAgeMs },
-      );
-      const academicPolicy = requirePolicy(scope, policy);
+      const audit = requireAudit(pinnedRecords, scope, records.audit);
+      pinnedRecords.assertFresh(scope, { snapshot: records.revision.snapshot, audit });
+      const academicPolicy = requirePolicy(pinnedRecords, scope, policy);
       const courses = resolveCourses(scope, query.courseIds, catalog);
       const rules = await Promise.all(
         courses.map((course) =>

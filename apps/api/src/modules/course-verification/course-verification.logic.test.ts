@@ -31,7 +31,7 @@ import {
   SEED_SNAPSHOTS,
   SEED_TERMS,
 } from '../../testing/seed-scenario-fixtures';
-import { type CourseSetInputs, verifyCourseSet } from './course-verification.service';
+import { type CourseSetInputs, verifyCourseSet } from './course-verification.logic';
 
 /** One hour, the API's default skew. */
 const MAX_SKEW_MS = 3_600_000;

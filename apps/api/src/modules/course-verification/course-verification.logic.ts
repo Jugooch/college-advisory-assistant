@@ -1,13 +1,7 @@
 /**
  * @file Runs the engine's per-course and set checks on one candidate course set, from pinned inputs
- * only. A pure orchestration function on purpose, not an injected service: it constructs nothing
- * and reads no clock, so callers import it directly.
- *
- * NOTE: a stated exception to standard 01's roles. `apps/api/src/modules/*` allows only
- * `routes`, `controller`, `service`, and `mapper` files; a pure orchestration function is none of
- * them exactly, and it isn't a mapper, so it keeps the `.service.ts` suffix. Pending a tech-lead
- * decision on a role for pure functions.
- * @module @caa/api/modules/course-verification/course-verification.service
+ * only. Pure logic (standard 05 §Logic): it constructs nothing and reads no clock.
+ * @module @caa/api/modules/course-verification/course-verification.logic
  * @requirement FR-05
  * @requirement FR-06
  * @requirement FR-09
