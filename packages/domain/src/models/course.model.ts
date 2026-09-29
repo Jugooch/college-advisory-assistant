@@ -49,6 +49,24 @@ export const CourseSchema = z
     maxCreditsHundredths: CreditsHundredthsSchema.nullable(),
     /** Equivalency group this course belongs to, or `null` when it has no equivalents. */
     equivalencyGroupId: EquivalencyGroupIdSchema.nullable(),
+    /**
+     * The linked course whose credit total already includes this course's credits, such as a
+     * lab counted in its lecture's total. `null` means this course counts its own credits.
+     * Sourced from the institution's catalog, never inferred from labels or course numbers.
+     * Credit-load callers derive `CourseSelection.countsCredits` from it, so the credits are
+     * counted once.
+     *
+     * An omitted value means unknown: the source hasn't said. It will be required once every
+     * producer sets it (standard 08 §Required-field ripple, staged rollout).
+     */
+    // TODO(#229): remove `.optional()` once the db mapper, seed, and test-kit fixtures set it.
+    creditsIncludedInCourseId: CourseIdSchema.nullable().optional(),
+  })
+  // SAFETY: a course whose credits are included in itself would drop its own credits from
+  // every credit total.
+  .refine((course) => course.creditsIncludedInCourseId !== course.id, {
+    message: 'creditsIncludedInCourseId must not name the course itself',
+    path: ['creditsIncludedInCourseId'],
   })
   // SAFETY: credit totals drive load and progress checks, so a course must state its credits
   // in exactly one unambiguous form rather than letting readers pick between two.
@@ -87,9 +105,88 @@ export type CourseInput = z.input<typeof CourseSchema>;
  *
  * @param input - Raw course fields.
  * @returns The parsed course.
- * @throws {z.ZodError} When a field is invalid, the course mixes or omits credit forms, or its
- *   minimum credits exceed its maximum.
+ * @throws {z.ZodError} When a field is invalid, the course mixes or omits credit forms, its
+ *   minimum credits exceed its maximum, or its credits are included in itself.
  */
 export function createCourse(input: CourseInput): Course {
   return CourseSchema.parse(input);
+}
+
+/**
+ * Returns whether following `creditsIncludedInCourseId` from any course of the catalog reaches
+ * that course again.
+ *
+ * @param courses - A catalog whose course IDs are unique.
+ * @returns `true` when the credit-inclusion links form a cycle.
+ */
+function hasCreditInclusionCycle(courses: readonly Course[]): boolean {
+  const includedIn = new Map(
+    courses.map((course) => [course.id, course.creditsIncludedInCourseId ?? null] as const),
+  );
+  return courses.some((course) => {
+    let next = includedIn.get(course.id) ?? null;
+    for (let step = 0; next !== null && step < courses.length; step += 1) {
+      if (next === course.id) return true;
+      next = includedIn.get(next) ?? null;
+    }
+    return false;
+  });
+}
+
+/**
+ * Schema for one tenant's course catalog. An empty catalog is valid and means the tenant
+ * supplied no courses.
+ *
+ * It checks the rules a single course can't: course IDs are unique, and every
+ * `creditsIncludedInCourseId` names a course in the same catalog, so it can't point at another
+ * tenant's course, and the links form no cycle.
+ */
+export const CourseCatalogSchema = z
+  .array(CourseSchema)
+  .readonly()
+  // SAFETY: course IDs are tenant-specific, so mixing tenants would count one tenant's credits
+  // under another tenant's catalog.
+  .refine((courses) => courses.every((course) => course.tenantId === courses[0]?.tenantId), {
+    message: 'All courses in a catalog must belong to one tenant',
+  })
+  .refine((courses) => new Set(courses.map((course) => course.id)).size === courses.length, {
+    message: 'Course id must be unique within a catalog',
+  })
+  // SAFETY: a link to a course outside the catalog, including another tenant's, can't be
+  // resolved, so credit load could drop credits that no course in the plan counts.
+  .refine(
+    (courses) => {
+      const ids = new Set<string>(courses.map((course) => course.id));
+      return courses.every(
+        (course) =>
+          course.creditsIncludedInCourseId === null ||
+          course.creditsIncludedInCourseId === undefined ||
+          ids.has(course.creditsIncludedInCourseId),
+      );
+    },
+    { message: 'creditsIncludedInCourseId must name a course in the same catalog' },
+  )
+  // SAFETY: in a cycle, every course's credits are included in another's, so none of them is
+  // ever counted.
+  .refine((courses) => !hasCreditInclusionCycle(courses), {
+    message: 'creditsIncludedInCourseId links must not form a cycle',
+  });
+
+/** A validated, immutable course catalog. */
+export type CourseCatalog = z.infer<typeof CourseCatalogSchema>;
+
+/** Raw input accepted by {@link createCourseCatalog}. */
+export type CourseCatalogInput = z.input<typeof CourseCatalogSchema>;
+
+/**
+ * Creates a validated, immutable course catalog.
+ *
+ * @param input - One tenant's courses.
+ * @returns The parsed course catalog.
+ * @throws {z.ZodError} When a course is invalid, the courses belong to more than one tenant, a
+ *   course ID repeats, a `creditsIncludedInCourseId` names a course outside the catalog, or the
+ *   credit-inclusion links form a cycle.
+ */
+export function createCourseCatalog(input: CourseCatalogInput): CourseCatalog {
+  return CourseCatalogSchema.parse(input);
 }
