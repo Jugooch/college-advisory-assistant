@@ -4,7 +4,7 @@
  * @requirement FR-02
  * @requirement FR-14
  */
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 import { ErrorCode } from '@caa/domain';
@@ -12,7 +12,16 @@ import { buildStudent } from '@caa/test-kit';
 
 import { bearer, buildWorldApp, readError, STUDENTS, TOKENS } from '../../testing/fixtures';
 
-const { app } = buildWorldApp();
+const rawLines: string[] = [];
+// NOTE: built once at module scope, so Fastify's startup cost never counts against a test's
+// timeout (#83). Tests that change the store or read logs are reset before each test.
+const { app, store } = buildWorldApp({ write: (line) => rawLines.push(line) });
+const ASSIGNMENTS = store.assignments;
+
+beforeEach(() => {
+  rawLines.length = 0;
+  store.assignments = ASSIGNMENTS;
+});
 
 /**
  * Requests one student with a dev token.
@@ -42,13 +51,12 @@ describe('GET /v1/students/:studentId', () => {
   });
 
   it('returns 404 on the second call after the assignment is revoked (AC15)', async () => {
-    const world = buildWorldApp();
     const url = `/v1/students/${STUDENTS.own.id}`;
     const headers = bearer(TOKENS.advisor);
 
-    const before = await world.app.inject({ method: 'GET', url, headers });
-    world.store.assignments = [];
-    const after = await world.app.inject({ method: 'GET', url, headers });
+    const before = await app.inject({ method: 'GET', url, headers });
+    store.assignments = [];
+    const after = await app.inject({ method: 'GET', url, headers });
 
     expect([before.statusCode, after.statusCode]).toEqual([200, 404]);
   });
@@ -91,7 +99,7 @@ describe('GET /v1/students/:studentId', () => {
 const LogLineSchema = z.looseObject({ msg: z.string(), reqId: z.string().optional() });
 
 /**
- * Builds the world app with a log capture, and requests one student with a dev token.
+ * Requests one student with a dev token and reads the log lines that request wrote.
  *
  * @param studentId - Path param, sent as-is.
  * @param token - Dev token.
@@ -99,9 +107,8 @@ const LogLineSchema = z.looseObject({ msg: z.string(), reqId: z.string().optiona
  *   and every raw log line.
  */
 async function getStudentCapturingLogs(studentId: string, token: string) {
-  const rawLines: string[] = [];
-  const world = buildWorldApp({ write: (line) => rawLines.push(line) });
-  const response = await world.app.inject({
+  rawLines.length = 0;
+  const response = await app.inject({
     method: 'GET',
     url: `/v1/students/${studentId}`,
     headers: bearer(token),
@@ -109,7 +116,7 @@ async function getStudentCapturingLogs(studentId: string, token: string) {
   const lines = rawLines.map((line) => LogLineSchema.parse(JSON.parse(line)));
   const decisions = lines.filter((line) => line.msg === 'student access decision');
   const completed = lines.find((line) => line.msg === 'request completed');
-  return { response, decisions, completedReqId: completed?.reqId, rawLines };
+  return { response, decisions, completedReqId: completed?.reqId, rawLines: [...rawLines] };
 }
 
 describe('access-decision logs (FR-14)', () => {
