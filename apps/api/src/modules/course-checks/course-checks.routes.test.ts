@@ -1,7 +1,8 @@
 /**
  * @file HTTP-level tests for `POST /v1/students/:studentId/course-checks`: each role, 401,
  * NOT_FOUND that doesn't reveal existence, strict bodies, unknown courses, missing and stale
- * audits, replay, the out-of-scope backstop, and request-scoped logs with opaque IDs only.
+ * audits, request-caused 400s against stored-data 503s and 500s, replay, the out-of-scope
+ * backstop, and request-scoped logs with opaque IDs only.
  * @requirement FR-01
  * @requirement FR-02
  * @requirement FR-05
@@ -10,34 +11,38 @@
  * @requirement NFR-04
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { z } from 'zod';
 
-import { CourseChecksResponseSchema } from '@caa/api-contract';
 import { CheckState, ErrorCode, ReasonCode } from '@caa/domain';
 import { buildCourse, buildStudent, SYNTHETIC_TENANTS } from '@caa/test-kit';
 
 import { buildRecordAudit, buildRecordSnapshot } from '../../testing/academic-fixtures';
-import { bearer, buildWorldApp, readError, STUDENTS, TOKENS } from '../../testing/fixtures';
+import {
+  buildSeededWorldApp,
+  postCourseChecks,
+  readChecks,
+  readLogLines,
+  rulesAtRuleset,
+} from '../../testing/course-checks-harness';
+import { readError, STUDENTS, TOKENS } from '../../testing/fixtures';
 import {
   buildSeedAcademicStore,
   SEED_COURSES,
   SEED_SNAPSHOTS,
 } from '../../testing/seed-scenario-fixtures';
 
-const lines: string[] = [];
-const { app, store } = buildWorldApp({ write: (line) => lines.push(line) });
+// NOTE: every app is built once at module scope so Fastify's startup cost never counts against a
+// test's timeout (#83).
+const { app, store, lines } = buildSeededWorldApp();
 const { math102, ind390 } = SEED_COURSES;
 const foreignAudit = buildRecordAudit({ tenantId: SYNTHETIC_TENANTS.b.id }, 9);
-const leakyLines: string[] = [];
-// NOTE: every app is built once at module scope so Fastify's startup cost never counts against a
-// test's timeout (#83). This one's audit repository ignores its tenant filter.
-const { app: leakyApp, store: leakyStore } = buildWorldApp(
-  { write: (line) => leakyLines.push(line) },
-  {
-    auditSnapshots: { findLatest: () => Promise.resolve({ status: 'FOUND', audit: foreignAudit }) },
-  },
-);
-Object.assign(leakyStore, buildSeedAcademicStore());
+// NOTE: this one's audit repository ignores its tenant filter.
+const { app: leakyApp, lines: leakyLines } = buildSeededWorldApp({
+  auditSnapshots: { findLatest: () => Promise.resolve({ status: 'FOUND', audit: foreignAudit }) },
+});
+// NOTE: this one's rule repository returns every rule at another ruleset than the policy's.
+const { app: mismatchedApp } = buildSeededWorldApp({
+  prerequisiteRules: rulesAtRuleset('other-1'),
+});
 
 beforeEach(() => {
   lines.length = 0;
@@ -45,33 +50,20 @@ beforeEach(() => {
 });
 
 /**
- * Posts a course-checks request with a dev token.
+ * Posts a course-checks request to the main app.
  *
  * @param studentId - Path param, sent as-is.
  * @param token - Dev token, or null for no session.
  * @param body - Request body.
  * @returns The injected response.
  */
-async function postChecks(studentId: string, token: string | null, body: Record<string, unknown>) {
-  return app.inject({
-    method: 'POST',
-    url: `/v1/students/${studentId}/course-checks`,
-    headers: token === null ? {} : bearer(token),
-    payload: body,
-  });
-}
-
-/**
- * Parses a success body with the response contract.
- *
- * @param body - The parsed JSON body.
- * @returns The checks.
- */
-function readChecks(body: unknown) {
-  return z.object({ data: CourseChecksResponseSchema }).parse(body).data;
+function postChecks(studentId: string, token: string | null, body: Record<string, unknown>) {
+  return postCourseChecks(app, { studentId, token, body });
 }
 
 const MATH_102 = { courseIds: [math102.id] };
+/** The student themself asking for MATH 102. */
+const OWN_MATH_102 = { studentId: STUDENTS.own.id, token: TOKENS.student, body: MATH_102 };
 
 describe('POST /v1/students/:studentId/course-checks', () => {
   it('returns the checks to the student themself, pinned to the inputs', async () => {
@@ -150,21 +142,43 @@ describe('POST /v1/students/:studentId/course-checks request errors', () => {
     });
   });
 
-  it('returns 400 for a course outside the tenant catalog', async () => {
-    const response = await postChecks(STUDENTS.own.id, TOKENS.student, {
-      courseIds: [buildCourse({}, 0x999).id],
-    });
-
-    expect(response.statusCode).toBe(400);
+  it.each([
+    ['a course outside the tenant catalog', { courseIds: [buildCourse({}, 0x999).id] }],
+    [
+      'a selected credit value the course can never award',
+      {
+        courseIds: [ind390.id],
+        creditSelections: [{ courseId: ind390.id, selectedCreditsHundredths: 900 }],
+      },
+    ],
+  ])('returns 400 for %s, which the request caused', async (_case, body) => {
+    expect((await postChecks(STUDENTS.own.id, TOKENS.student, body)).statusCode).toBe(400);
   });
 
-  it('returns 400 for a selected credit value the course can never award', async () => {
-    const response = await postChecks(STUDENTS.own.id, TOKENS.student, {
-      courseIds: [ind390.id],
-      creditSelections: [{ courseId: ind390.id, selectedCreditsHundredths: 900 }],
-    });
+  it('returns 503 SOURCE_UNAVAILABLE with a referral, not 400, for inverted stored credit bounds', async () => {
+    store.policies = (store.policies ?? []).map((policy) => ({
+      ...policy,
+      termCreditBounds: { minCreditsHundredths: 1800, maxCreditsHundredths: 1200 },
+    }));
 
-    expect(response.statusCode).toBe(400);
+    const response = await postChecks(STUDENTS.own.id, TOKENS.student, MATH_102);
+
+    expect(response.statusCode).toBe(503);
+    expect(readError(response.json())).toEqual({
+      code: ErrorCode.SourceUnavailable,
+      message: 'Your academic record is not available yet. Please contact your advisor.',
+    });
+    expect(
+      readLogLines(lines).filter((line) => line.msg === 'course checks input invalid'),
+    ).toEqual([expect.objectContaining({ level: 40, reason: 'CandidateSetInputError:bounds' })]);
+  });
+
+  it('returns 500 INTERNAL_ERROR, not 400, when a loaded rule is at another ruleset', async () => {
+    const response = await postCourseChecks(mismatchedApp, OWN_MATH_102);
+
+    expect(response.statusCode).toBe(500);
+    expect(readError(response.json()).code).toBe(ErrorCode.InternalError);
+    expect(response.body).not.toContain('other-1');
   });
 });
 
@@ -280,17 +294,10 @@ describe('POST /v1/students/:studentId/course-checks record states', () => {
   });
 });
 
-/** The fields of a pino JSON line these tests read; other fields pass through. */
-const LogLineSchema = z.looseObject({
-  msg: z.string(),
-  level: z.number(),
-  reqId: z.string().optional(),
-});
-
 describe('course checks logs and backstop', () => {
   it('carry the request ID on the run line and hold no personal data', async () => {
     const response = await postChecks(STUDENTS.own.id, TOKENS.student, MATH_102);
-    const parsed = lines.map((line) => LogLineSchema.parse(JSON.parse(line)));
+    const parsed = readLogLines(lines);
     const completed = parsed.find((line) => line.msg === 'request completed');
 
     expect(response.statusCode).toBe(200);
@@ -302,15 +309,10 @@ describe('course checks logs and backstop', () => {
   });
 
   it('returns 404 with no audit data for an out-of-scope audit, and logs a warn event', async () => {
-    const response = await leakyApp.inject({
-      method: 'POST',
-      url: `/v1/students/${STUDENTS.own.id}/course-checks`,
-      headers: bearer(TOKENS.student),
-      payload: MATH_102,
-    });
-    const events = leakyLines
-      .map((line) => LogLineSchema.parse(JSON.parse(line)))
-      .filter((line) => line.msg === 'academic record out of scope');
+    const response = await postCourseChecks(leakyApp, OWN_MATH_102);
+    const events = readLogLines(leakyLines).filter(
+      (line) => line.msg === 'academic record out of scope',
+    );
 
     expect(response.statusCode).toBe(404);
     expect(response.body).not.toContain(foreignAudit.auditVersion);
