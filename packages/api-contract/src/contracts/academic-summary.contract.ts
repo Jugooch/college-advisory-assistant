@@ -5,6 +5,7 @@
  * @requirement FR-04
  * @requirement FR-05
  * @requirement FR-09
+ * @requirement NFR-04
  * @see docs/planning/08-academic-verification-and-planning.md
  * @see docs/planning/09-data-model-and-integration-contracts.md
  */
@@ -105,7 +106,26 @@ export const SummaryAuditSchema = z
     programName: PROGRAM_NAME.optional(),
     /** When the audit system generated the audit. ISO 8601 with offset. */
     generatedAt: AUDIT_FIELDS.generatedAt,
+    // TODO(#169): make required
+    /**
+     * Point in time of the student record the audit was run against, so a reader can see which
+     * record revision the audit reflects. ISO 8601 with offset. Omitted means not reported yet,
+     * never "the pinned record".
+     */
+    studentRecordEffectiveAt: AUDIT_FIELDS.studentRecordEffectiveAt.optional(),
   })
+  // SAFETY: same rule as the domain model. An audit can't have been run against a record from
+  // its own future; that pair would make the record-audit skew meaningless.
+  // NOTE: compared as instants, because strings with different offsets don't sort lexically.
+  .refine(
+    (audit) =>
+      audit.studentRecordEffectiveAt === undefined ||
+      Date.parse(audit.studentRecordEffectiveAt) <= Date.parse(audit.generatedAt),
+    {
+      message: 'studentRecordEffectiveAt must not be later than generatedAt',
+      path: ['studentRecordEffectiveAt'],
+    },
+  )
   .readonly();
 
 /**
@@ -188,6 +208,12 @@ export const SummaryRequirementSchema = z
 
 /**
  * Response body for `GET /v1/students/:studentId/academic-summary`.
+ *
+ * Every summary this schema describes was built from fresh sources. When the snapshot's
+ * `sourceEffectiveAt` or, when there is an audit, its `studentRecordEffectiveAt` is past the
+ * maximum source age, too far in the future, missing, or unparseable, the endpoint returns 409
+ * `STALE_SOURCE` with a referral instead, the same gate as course checks (ADR-0008; standard 05
+ * §Source freshness; planning/09 §Proposed freshness policies).
  *
  * SECURITY: data minimization. Carries no tenant, login, or attempt data; the student is the
  * same minimal shape as `GET /v1/students/:studentId`.
@@ -290,7 +316,8 @@ export type AcademicSummaryResponse = z.infer<typeof AcademicSummaryResponseSche
 
 /**
  * Reads the pinned record, audit, and requirement states of one student the signed-in user may
- * see. Others are NOT_FOUND. Read-only: nothing is written to an institutional system.
+ * see. Others are NOT_FOUND. Stale, missing, or future source times are 409 STALE_SOURCE, never
+ * a 200. Read-only: nothing is written to an institutional system.
  */
 export const getAcademicSummaryEndpoint = defineEndpoint({
   method: 'GET',
