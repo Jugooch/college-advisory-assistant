@@ -1,14 +1,22 @@
 /**
- * @file Parts of schedule issues: a reference to one timed meeting, and the dates two meetings share.
+ * @file Parts of schedule issues: a reference to one meeting, timed or to be announced, the
+ *   dates two meetings share, and the issue shapes that need no cross-field rule.
  * @module @caa/domain/models/schedule-issue-parts
  * @requirement FR-10
  * @see docs/adr/0010-deterministic-bounded-schedule-solver.md
  */
 import { z } from 'zod';
 
+import { ReasonCode } from '../enums/reason-code.enum';
+import { SectionModalitySchema } from '../enums/section-modality.enum';
 import { WeekdaySchema } from '../enums/weekday.enum';
+import { CampusIdSchema } from './campus.model';
+import { CourseIdSchema } from './course.model';
 import { LocalTimeSchema } from './meeting-pattern.model';
 import { SectionIdSchema } from './section.model';
+
+/** Schema for an index into the request's constraint list. */
+export const ConstraintIndexSchema = z.number().int().nonnegative();
 
 /** Schema for a non-empty list of distinct weekdays. */
 export const WeekdayListSchema = z
@@ -70,3 +78,46 @@ export const SharedMeetingDatesSchema = z
 
 /** Validated, immutable shared meeting dates. */
 export type SharedMeetingDates = z.infer<typeof SharedMeetingDatesSchema>;
+
+/** A section's delivery mode is outside the student's hard allowed modalities. */
+export const ModalityNotAllowedIssueSchema = z
+  .object({
+    reasonCode: z.literal(ReasonCode.ModalityNotAllowed),
+    sectionId: SectionIdSchema,
+    modality: SectionModalitySchema,
+    constraintIndex: ConstraintIndexSchema,
+  })
+  .readonly();
+
+/** A meeting is on a campus outside the student's hard allowed campuses. */
+export const CampusNotAllowedIssueSchema = z
+  .object({
+    reasonCode: z.literal(ReasonCode.CampusNotAllowed),
+    sectionId: SectionIdSchema,
+    meetingIndex: z.number().int().nonnegative(),
+    campusId: CampusIdSchema,
+    constraintIndex: ConstraintIndexSchema,
+  })
+  .readonly();
+
+/** A section requires a linked component for which no section was published. */
+export const LinkedSectionUnavailableIssueSchema = z
+  .object({
+    reasonCode: z.literal(ReasonCode.LinkedSectionUnavailable),
+    /** The section whose required component has no permitted section. */
+    primarySectionId: SectionIdSchema,
+    /** Display name of the component, such as `Lab`. */
+    componentName: z.string().min(1),
+    /** Course the component's sections would belong to. */
+    courseId: CourseIdSchema,
+  })
+  .readonly();
+
+/** A requested course has no section in the published section data. */
+export const SectionDataMissingIssueSchema = z
+  .object({
+    reasonCode: z.literal(ReasonCode.SectionDataMissing),
+    /** The requested course with no section in the published section data. */
+    courseId: CourseIdSchema,
+  })
+  .readonly();

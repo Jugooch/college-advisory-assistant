@@ -27,8 +27,9 @@ const UNKNOWN_LOAD_REASONS: readonly ReasonCode[] = [
 /**
  * Whether a `SCHEDULE_FEASIBILITY` check's issues explain its state: a PASS has none; any other
  * state has issues whose reasons all mean that state, and the check's own reason code is one
- * of them. An UNKNOWN whose reason is an undecided credit load may have no issue. Checks of
- * other kinds aren't constrained here.
+ * of them. An UNKNOWN whose reason is an undecided credit load may have no issue. A CONDITIONAL
+ * schedule check is always rejected: no schedule reason means CONDITIONAL, and a schedule
+ * depends on no future condition. Checks of other kinds aren't constrained here.
  *
  * @param check - The check's kind, state, reason code, and schedule issues.
  * @returns `true` when the issues agree with the check.

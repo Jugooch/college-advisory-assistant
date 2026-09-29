@@ -24,6 +24,58 @@ function isDistinct(values: readonly string[]): boolean {
 /** Schema for a local wall-clock time, `HH:MM` on a 24-hour clock, with no date or offset. */
 export const LocalTimeSchema = z.iso.time({ precision: -1 });
 
+/**
+ * A local wall-clock interval, `[startTime, endTime)`, as `HH:MM` strings on one calendar date.
+ * `endTime` may be `24:00`, the end of the day, for an unavailable-time block.
+ */
+export interface LocalTimeRange {
+  readonly startTime: string;
+  readonly endTime: string;
+}
+
+/**
+ * Converts a local `HH:MM` time to minutes after midnight.
+ *
+ * @param time - A local time; `24:00` gives 1440.
+ * @returns Minutes after midnight, for example 570 for `09:30`.
+ */
+function minutesOf(time: string): number {
+  return Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
+}
+
+/**
+ * Returns whether two local time ranges overlap as half-open intervals, so one ending exactly
+ * when the other starts doesn't overlap. Shared invariant (ADR-0005): the engine's meeting and
+ * unavailable-time comparisons and the schedule-issue schema both call it.
+ *
+ * @param first - One range.
+ * @param second - The other range.
+ * @returns `true` when some minute lies in both ranges.
+ */
+export function doLocalTimeRangesOverlap(first: LocalTimeRange, second: LocalTimeRange): boolean {
+  // SAFETY: meetings are half-open intervals, so back-to-back meetings don't conflict, while
+  // required travel time can still rule them out (planning/08 §Schedule model).
+  return (
+    minutesOf(first.startTime) < minutesOf(second.endTime) &&
+    minutesOf(second.startTime) < minutesOf(first.endTime)
+  );
+}
+
+/**
+ * Returns the wall-clock minutes from one local time to a later one on the same date: the
+ * later meeting's start minus the earlier meeting's end. Negative when `to` is earlier. Shared
+ * invariant (ADR-0005): the engine's transition check and the schedule-issue schema both call it.
+ *
+ * @param from - The earlier meeting's end time.
+ * @param to - The later meeting's start time.
+ * @returns Minutes from `from` to `to`.
+ */
+export function localTimeGapMinutes(from: string, to: string): number {
+  // SAFETY: the gap is measured in local wall-clock minutes on one calendar date, so a
+  // daylight-saving change never moves a meeting (ADR-0010 §8).
+  return minutesOf(to) - minutesOf(from);
+}
+
 /** Schema for where a meeting takes place: on a campus, or online. */
 export const MeetingLocationSchema = z.discriminatedUnion('kind', [
   z

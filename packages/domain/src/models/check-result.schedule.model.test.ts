@@ -69,6 +69,17 @@ describe('CheckResultSchema schedule issues', () => {
     ]);
   });
 
+  it('accepts an undecided credit load beside UNKNOWN schedule issues', () => {
+    expect(messages(schedule('UNKNOWN', 'VARIABLE_CREDIT_UNSELECTED', [MISSING]))).toEqual([]);
+  });
+
+  it('rejects a CONDITIONAL schedule, whatever its issues', () => {
+    expect(messages(schedule('CONDITIONAL', 'SECTION_DATA_MISSING', [MISSING]))).toEqual([EXPLAIN]);
+    expect(messages(schedule('CONDITIONAL', 'VARIABLE_CREDIT_UNSELECTED', null))).toEqual([
+      EXPLAIN,
+    ]);
+  });
+
   it('rejects a reason code that none of the issues has', () => {
     expect(messages(schedule('UNKNOWN', 'TRANSITION_TIME_UNDEFINED', [MISSING]))).toEqual([
       EXPLAIN,

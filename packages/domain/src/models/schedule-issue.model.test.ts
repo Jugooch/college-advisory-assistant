@@ -122,6 +122,32 @@ describe('createScheduleIssue', () => {
     },
   );
 
+  it('rejects MEETING_TIME_UNKNOWN for a meeting whose time is known', () => {
+    const result = ScheduleIssueSchema.safeParse({
+      reasonCode: 'MEETING_TIME_UNKNOWN',
+      meeting: lab('10:00', '11:00'),
+      otherMeeting: lecture('09:00', '09:50'),
+      sharedDates: MWF,
+      constraintIndex: null,
+    });
+
+    expect(result.error?.issues.map((issue) => issue.message)).toEqual([
+      'MEETING_TIME_UNKNOWN names a meeting whose time is to be announced',
+    ]);
+  });
+
+  it('accepts MEETING_LOCATION_UNKNOWN for two timed meetings, one with a TBA location', () => {
+    const location = {
+      reasonCode: 'MEETING_LOCATION_UNKNOWN',
+      meeting: lab('10:00', '11:00'),
+      otherMeeting: lecture('09:00', '09:50'),
+      sharedDates: MWF,
+      constraintIndex: null,
+    };
+
+    expect(accepts(location)).toBe(true);
+  });
+
   it('accepts a meeting in a hard unavailable block, and rejects one that only touches it', () => {
     const blocked = {
       reasonCode: 'UNAVAILABLE_TIME_CONFLICT',

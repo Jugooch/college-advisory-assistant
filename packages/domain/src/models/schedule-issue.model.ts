@@ -11,30 +11,26 @@ import { z } from 'zod';
 
 import { CheckState } from '../enums/check-state.enum';
 import { ReasonCode } from '../enums/reason-code.enum';
-import { SectionModalitySchema } from '../enums/section-modality.enum';
-import { CampusIdSchema } from './campus.model';
-import { CourseIdSchema } from './course.model';
-import { LocalTimeSchema } from './meeting-pattern.model';
 import {
+  doLocalTimeRangesOverlap,
+  type LocalTimeRange,
+  LocalTimeSchema,
+} from './meeting-pattern.model';
+import {
+  CampusNotAllowedIssueSchema,
+  ConstraintIndexSchema,
+  LinkedSectionUnavailableIssueSchema,
   type MeetingTimeRef,
   MeetingTimeRefSchema,
+  ModalityNotAllowedIssueSchema,
+  SectionDataMissingIssueSchema,
   SharedMeetingDatesSchema,
   WeekdayListSchema,
 } from './schedule-issue-parts.model';
-import { SectionIdSchema } from './section.model';
-
-/** Schema for an index into the request's constraint list. */
-const ConstraintIndexSchema = z.number().int().nonnegative();
-
-/**
- * Converts a validated local `HH:MM` time to minutes after midnight.
- *
- * @param time - A validated local time.
- * @returns Minutes after midnight, for example 570 for `09:30`.
- */
-function minutesOf(time: string): number {
-  return Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
-}
+import {
+  TransitionInsufficientIssueSchema,
+  TransitionUndefinedIssueSchema,
+} from './schedule-transition-issue.model';
 
 /**
  * Returns whether two references name different meetings.
@@ -47,6 +43,18 @@ function isDifferentMeeting(first: MeetingTimeRef, second: MeetingTimeRef): bool
   return first.sectionId !== second.sectionId || first.meetingIndex !== second.meetingIndex;
 }
 
+/**
+ * Returns a meeting's time range, when it is timed.
+ *
+ * @param ref - The meeting.
+ * @returns Its local range, or `null` when its time is to be announced.
+ */
+function rangeOf(ref: MeetingTimeRef): LocalTimeRange | null {
+  return ref.startTime === null || ref.endTime === null
+    ? null
+    : { startTime: ref.startTime, endTime: ref.endTime };
+}
+
 /** Two meetings overlap on a shared date (half-open intervals). */
 const MeetingConflictSchema = z
   .object({
@@ -56,89 +64,21 @@ const MeetingConflictSchema = z
     sharedDates: SharedMeetingDatesSchema,
   })
   // SAFETY: a conflict shown between a meeting and itself, or between untimed or disjoint
-  // meetings, would explain a FAIL with facts that don't support it.
+  // meetings, would explain a FAIL with facts that don't support it (planning/08 §Schedule
+  // model: half-open intervals).
   .refine(
-    ({ first, second }) =>
-      isDifferentMeeting(first, second) &&
-      first.startTime !== null &&
-      first.endTime !== null &&
-      second.startTime !== null &&
-      second.endTime !== null &&
-      first.startTime < second.endTime &&
-      second.startTime < first.endTime,
+    ({ first, second }) => {
+      const firstRange = rangeOf(first);
+      const secondRange = rangeOf(second);
+      return (
+        isDifferentMeeting(first, second) &&
+        firstRange !== null &&
+        secondRange !== null &&
+        doLocalTimeRangesOverlap(firstRange, secondRange)
+      );
+    },
     { message: 'A meeting conflict names two different, timed, overlapping meetings' },
   )
-  .readonly();
-
-/**
- * Fields of a transition issue: two timed meetings on different campuses that share a date,
- * the earlier one ending no later than the later one starts (ADR-0010 §8).
- */
-const TRANSITION_FIELDS = {
-  earlier: MeetingTimeRefSchema,
-  later: MeetingTimeRefSchema,
-  sharedDates: SharedMeetingDatesSchema,
-  /** Campus of the earlier meeting. */
-  fromCampusId: CampusIdSchema,
-  /** Campus of the later meeting; always a different campus. */
-  toCampusId: CampusIdSchema,
-  /** Whole minutes from the earlier meeting's end to the later meeting's start. */
-  availableMinutes: z.number().int().nonnegative(),
-};
-
-/**
- * Returns whether a transition's meetings, campuses, and available minutes agree.
- *
- * @param transition - The transition's meetings, campuses, and gap.
- * @returns `false` when the campuses match, a meeting is untimed, the meetings overlap, or the
- *   available minutes differ from the gap between them.
- */
-function isConsistentTransition(transition: {
-  readonly earlier: MeetingTimeRef;
-  readonly later: MeetingTimeRef;
-  readonly fromCampusId: string;
-  readonly toCampusId: string;
-  readonly availableMinutes: number;
-}): boolean {
-  const { earlier, later } = transition;
-  if (earlier.endTime === null || later.startTime === null) return false;
-  const gap = minutesOf(later.startTime) - minutesOf(earlier.endTime);
-  return (
-    transition.fromCampusId !== transition.toCampusId &&
-    isDifferentMeeting(earlier, later) &&
-    gap >= 0 &&
-    gap === transition.availableMinutes
-  );
-}
-
-/** The gap is shorter than the institution's required travel time (AC08). */
-const TransitionInsufficientSchema = z
-  .object({
-    reasonCode: z.literal(ReasonCode.TransitionTimeInsufficient),
-    ...TRANSITION_FIELDS,
-    /** The institution's required minutes for this ordered campus pair. */
-    requiredMinutes: z.number().int().nonnegative(),
-  })
-  // SAFETY: the minutes shown must prove the FAIL: less time available than required.
-  .refine(
-    (transition) =>
-      isConsistentTransition(transition) &&
-      transition.availableMinutes < transition.requiredMinutes,
-    { message: 'An insufficient transition has availableMinutes below requiredMinutes' },
-  )
-  .readonly();
-
-/** The institution hasn't configured the travel time for this ordered campus pair. */
-const TransitionUndefinedSchema = z
-  .object({
-    reasonCode: z.literal(ReasonCode.TransitionTimeUndefined),
-    ...TRANSITION_FIELDS,
-    /** Always `null`: no required time is configured, and it is never assumed to be zero. */
-    requiredMinutes: z.null(),
-  })
-  .refine(isConsistentTransition, {
-    message: 'A transition names two timed, non-overlapping meetings on different campuses',
-  })
   .readonly();
 
 /**
@@ -157,6 +97,9 @@ const UnknownMeetingSchema = z
     /** The hard constraint it couldn't be checked against, or `null` for a meeting pair. */
     constraintIndex: ConstraintIndexSchema.nullable(),
   })
+  // SAFETY: missing data is UNKNOWN, and the UNKNOWN must name what it couldn't be compared
+  // with: another meeting on a shared date, or a hard constraint (planning/08 §Schedule model;
+  // ADR-0010 Amendments 1 and 2).
   .refine(
     (issue) =>
       issue.otherMeeting === null
@@ -168,6 +111,13 @@ const UnknownMeetingSchema = z
       message:
         'An unknown meeting is compared with another meeting and shared dates, or with a constraint',
     },
+  )
+  // SAFETY: an unknown time must be explained by a meeting whose time is actually to be
+  // announced, so the evidence never contradicts its own reason (FR-10).
+  .refine(
+    (issue) =>
+      issue.reasonCode !== ReasonCode.MeetingTimeUnknown || rangeOf(issue.meeting) === null,
+    { message: 'MEETING_TIME_UNKNOWN names a meeting whose time is to be announced' },
   )
   .readonly();
 
@@ -184,13 +134,16 @@ const UnavailableTimeConflictSchema = z
     /** The block's local end, exclusive; `24:00` is the end of the day. */
     blockEndTime: z.union([LocalTimeSchema, z.literal('24:00')]),
   })
-  // SAFETY: the times shown must prove the FAIL: a timed meeting that intersects the block.
+  // SAFETY: the times shown must prove the FAIL: a timed meeting that intersects the block
+  // (planning/08 §Schedule model: half-open intervals).
   .refine(
-    ({ meeting, blockStartTime, blockEndTime }) =>
-      meeting.startTime !== null &&
-      meeting.endTime !== null &&
-      meeting.startTime < blockEndTime &&
-      blockStartTime < meeting.endTime,
+    ({ meeting, blockStartTime, blockEndTime }) => {
+      const range = rangeOf(meeting);
+      return (
+        range !== null &&
+        doLocalTimeRangesOverlap(range, { startTime: blockStartTime, endTime: blockEndTime })
+      );
+    },
     { message: 'An unavailable-time conflict names a timed meeting that overlaps the block' },
   )
   .readonly();
@@ -203,45 +156,14 @@ const UnavailableTimeConflictSchema = z
  */
 export const ScheduleIssueSchema = z.discriminatedUnion('reasonCode', [
   MeetingConflictSchema,
-  TransitionInsufficientSchema,
-  TransitionUndefinedSchema,
+  TransitionInsufficientIssueSchema,
+  TransitionUndefinedIssueSchema,
   UnknownMeetingSchema,
   UnavailableTimeConflictSchema,
-  z
-    .object({
-      reasonCode: z.literal(ReasonCode.ModalityNotAllowed),
-      sectionId: SectionIdSchema,
-      modality: SectionModalitySchema,
-      constraintIndex: ConstraintIndexSchema,
-    })
-    .readonly(),
-  z
-    .object({
-      reasonCode: z.literal(ReasonCode.CampusNotAllowed),
-      sectionId: SectionIdSchema,
-      meetingIndex: z.number().int().nonnegative(),
-      campusId: CampusIdSchema,
-      constraintIndex: ConstraintIndexSchema,
-    })
-    .readonly(),
-  z
-    .object({
-      reasonCode: z.literal(ReasonCode.LinkedSectionUnavailable),
-      /** The section whose required component has no permitted section. */
-      primarySectionId: SectionIdSchema,
-      /** Display name of the component, such as `Lab`. */
-      componentName: z.string().min(1),
-      /** Course the component's sections would belong to. */
-      courseId: CourseIdSchema,
-    })
-    .readonly(),
-  z
-    .object({
-      reasonCode: z.literal(ReasonCode.SectionDataMissing),
-      /** The requested course with no section in the published section data. */
-      courseId: CourseIdSchema,
-    })
-    .readonly(),
+  ModalityNotAllowedIssueSchema,
+  CampusNotAllowedIssueSchema,
+  LinkedSectionUnavailableIssueSchema,
+  SectionDataMissingIssueSchema,
 ]);
 
 /** A validated, immutable schedule issue. */
@@ -255,7 +177,8 @@ export type ScheduleReasonCode = ScheduleIssue['reasonCode'];
 
 /**
  * The check state each schedule reason code means. A conflict proven on known data is FAIL;
- * a decision blocked by missing data is UNKNOWN, never PASS (ADR-0010 §3).
+ * a decision blocked by missing data is UNKNOWN, never PASS (ADR-0010 §3). No schedule reason
+ * means CONDITIONAL, so a CONDITIONAL schedule check is never valid.
  */
 export const SCHEDULE_REASON_STATE: Readonly<Record<ScheduleReasonCode, CheckState>> = {
   [ReasonCode.MeetingConflict]: CheckState.Fail,
