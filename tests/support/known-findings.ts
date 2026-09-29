@@ -5,6 +5,7 @@
  *   hard-code `it.fails`: they declare tests through {@link itForFinding} or
  *   {@link acceptanceIt}, which read this register.
  * @module @caa/tests/support/known-findings
+ * @requirement NFR-01
  * @see docs/standards/07-testing.md
  * @see docs/planning/13-test-and-evaluation-strategy.md
  */
@@ -41,9 +42,26 @@ export function declaredAcceptanceKeys(source: string): readonly string[] {
   );
 }
 
+/**
+ * A hard-coded expected failure in a test file, such as `it.fails(`, `test.fails(` or
+ * `it.fails.each(`. Test files declare expected failures through the register instead.
+ */
+export const HARD_CODED_EXPECTED_FAILURE = /\b(?:it|test)\.fails\b/;
+
+/** A test that runs normally: its key isn't in the register. */
+export interface PlainTest {
+  readonly kind: 'test';
+}
+
+/** A test that runs as an expected failure while its finding is open. */
+export interface ExpectedFailure {
+  readonly kind: 'expected-failure';
+  /** The `bug` issue that tracks the finding. */
+  readonly issue: number;
+}
+
 /** How a test is registered: as a plain test, or as an expected failure of an open finding. */
-export type FindingMode =
-  { readonly kind: 'test' } | { readonly kind: 'expected-failure'; readonly issue: number };
+export type FindingMode = PlainTest | ExpectedFailure;
 
 /**
  * Looks up how a test runs.

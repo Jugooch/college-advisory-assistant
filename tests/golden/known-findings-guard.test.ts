@@ -1,7 +1,7 @@
 /**
  * @file Guards the known-findings register (docs/standards/07-testing.md, Known findings): every
  *   entry is well formed and matches a golden case or an acceptance test declared through
- *   `acceptanceIt`, and no test file hard-codes `it.fails`. It lives in `tests/golden/`, like the
+ *   `acceptanceIt`, and no test file hard-codes `it.fails` or `test.fails`. It lives in `tests/golden/`, like the
  *   holdout isolation test, because it reads the holdout's case IDs.
  * @requirement NFR-01
  * @see docs/standards/07-testing.md
@@ -15,14 +15,25 @@ import { describe, expect, it } from 'vitest';
 
 import { GOLDEN_DEVELOPMENT_CORPUS } from '@caa/test-kit';
 
-import { declaredAcceptanceKeys, FINDING_KEY, KNOWN_FINDINGS } from '../support/known-findings';
+import {
+  declaredAcceptanceKeys,
+  FINDING_KEY,
+  HARD_CODED_EXPECTED_FAILURE,
+  KNOWN_FINDINGS,
+} from '../support/known-findings';
 import { GOLDEN_HOLDOUT_CORPUS } from './holdout/holdout-corpus';
 
 const TESTS_ROOT = fileURLToPath(new URL('../', import.meta.url));
 const ACCEPTANCE_FOLDER = join(TESTS_ROOT, 'acceptance');
 const SKIPPED_FOLDERS = ['node_modules'];
-/** A hard-coded expected failure; tests must declare one through the register instead. */
-const HARD_CODED_FAILS = /\bit\.fails\s*\(/;
+/**
+ * Files that name the forbidden calls to describe the rule, not to use them: this guard and the
+ * register's own test, which holds literal examples of the pattern.
+ */
+const DESCRIBES_THE_RULE = [
+  'golden/known-findings-guard.test.ts',
+  'support/known-findings.test.ts',
+];
 
 /**
  * Lists the test files under a folder.
@@ -70,10 +81,15 @@ describe('known-findings register', () => {
     expect(unmatched).toEqual([]);
   });
 
-  it('leaves expected failures to the register: no test file hard-codes it.fails', () => {
+  it('leaves expected failures to the register: no test file hard-codes it.fails or test.fails', () => {
     const hardCoded = testFiles(TESTS_ROOT)
-      .filter((path) => HARD_CODED_FAILS.test(readFileSync(path, 'utf8')))
-      .map((path) => relative(TESTS_ROOT, path).replaceAll('\\', '/'));
+      .map((path) => ({
+        path: relative(TESTS_ROOT, path).replaceAll('\\', '/'),
+        source: readFileSync(path, 'utf8'),
+      }))
+      .filter(({ path }) => !DESCRIBES_THE_RULE.includes(path))
+      .filter(({ source }) => HARD_CODED_EXPECTED_FAILURE.test(source))
+      .map(({ path }) => path);
 
     expect(hardCoded).toEqual([]);
   });

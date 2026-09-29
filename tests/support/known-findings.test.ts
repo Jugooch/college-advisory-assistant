@@ -7,7 +7,12 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { declaredAcceptanceKeys, FINDING_KEY, findingMode } from './known-findings';
+import {
+  declaredAcceptanceKeys,
+  FINDING_KEY,
+  findingMode,
+  HARD_CODED_EXPECTED_FAILURE,
+} from './known-findings';
 
 const REGISTER: ReadonlyMap<string, number> = new Map([
   ['GC-PF-004', 183],
@@ -52,6 +57,26 @@ describe('declaredAcceptanceKeys', () => {
 
   it('ignores plain it calls', () => {
     expect(declaredAcceptanceKeys("it('keeps CONDITIONAL end to end', () => {});")).toEqual([]);
+  });
+});
+
+describe('HARD_CODED_EXPECTED_FAILURE', () => {
+  it.each([
+    "it.fails('keeps CONDITIONAL', () => {});",
+    "test.fails('keeps CONDITIONAL', () => {});",
+    "it.fails.each([1, 2])('case %s', () => {});",
+    "test.fails.each([1, 2])('case %s', () => {});",
+  ])('catches %s', (source) => {
+    expect(HARD_CODED_EXPECTED_FAILURE.test(source)).toBe(true);
+  });
+
+  it.each([
+    "it('keeps CONDITIONAL', () => {});",
+    "itForFinding('GC-PF-004', 'GC-PF-004', () => {});",
+    'const fit.failsafe = true;',
+    'splitFails(result);',
+  ])('ignores %s', (source) => {
+    expect(HARD_CODED_EXPECTED_FAILURE.test(source)).toBe(false);
   });
 });
 
