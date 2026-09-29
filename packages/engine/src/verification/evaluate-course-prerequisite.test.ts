@@ -157,6 +157,26 @@ describe('evaluatePrerequisite for one required course', () => {
     );
   });
 
+  it('passes under HIGHEST_GRADE when a same-grade retake has identical earned credits', () => {
+    const attempts = [
+      completedAttempt({ grade: letter('B'), creditsEarnedHundredths: 300 }, 1),
+      completedAttempt({ grade: letter('B'), creditsEarnedHundredths: 300, termCode: '2026FA' }, 2),
+    ];
+
+    expect(checkOf(attempts, { repeatPolicy: 'HIGHEST_GRADE' })).toEqual(expected('PASS'));
+  });
+
+  it('is UNKNOWN under HIGHEST_GRADE when a same-grade retake earned different credits', () => {
+    const attempts = [
+      completedAttempt({ grade: letter('B'), creditsEarnedHundredths: 300 }, 1),
+      completedAttempt({ grade: letter('B'), creditsEarnedHundredths: 0, termCode: '2026FA' }, 2),
+    ];
+
+    expect(checkOf(attempts, { repeatPolicy: 'HIGHEST_GRADE' })).toEqual(
+      expected('UNKNOWN', 'REPEAT_ORDER_UNDETERMINED'),
+    );
+  });
+
   it('is UNKNOWN with COURSE_NOT_IN_CATALOG when the required course is not catalogued', () => {
     expect(checkOf([], {}, course(MISSING_ID))).toEqual(
       expected('UNKNOWN', 'COURSE_NOT_IN_CATALOG'),

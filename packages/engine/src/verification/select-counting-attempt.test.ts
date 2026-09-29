@@ -12,6 +12,7 @@ import {
   fail,
   letter,
   pass,
+  SYNTHETIC_COURSES,
 } from '@caa/test-kit';
 
 import {
@@ -163,15 +164,57 @@ describe('selectCountingAttempt', () => {
     });
   });
 
-  it('returns UNDETERMINED under HIGHEST_GRADE when the best grade is tied', () => {
-    const attempts = [completedAttempt({}, 1), completedAttempt({}, 2)];
+  it('counts the lowest-ID attempt under HIGHEST_GRADE when tied attempts are identical', () => {
+    const earlierId = completedAttempt(
+      { termCode: '2026SP', grade: letter('B'), creditsEarnedHundredths: 300 },
+      1,
+    );
+    const laterId = completedAttempt(
+      { termCode: '2025SP', grade: letter('B'), creditsEarnedHundredths: 300 },
+      2,
+    );
+    const failed = completedAttempt({ grade: letter('F'), creditsEarnedHundredths: 0 }, 3);
+
+    const inOrder = selectCountingAttempt([earlierId, failed, laterId], HIGHEST_GRADE);
+    const reversed = selectCountingAttempt([laterId, failed, earlierId], HIGHEST_GRADE);
+
+    expect(inOrder).toEqual({ state: 'COUNTED', attempt: earlierId, earnedCreditsHundredths: 300 });
+    expect(reversed).toEqual(inOrder);
+  });
+
+  it('counts a tied P under HIGHEST_GRADE when both awards are unknown', () => {
+    const attempts = [
+      completedAttempt({ grade: pass(), creditsEarnedHundredths: null }, 2),
+      completedAttempt({ grade: pass(), creditsEarnedHundredths: null }, 1),
+    ];
 
     expect(selectCountingAttempt(attempts, HIGHEST_GRADE)).toEqual({
-      state: 'UNDETERMINED',
-      reasonCode: 'REPEAT_ORDER_UNDETERMINED',
+      state: 'COUNTED',
+      attempt: attempts[1],
       earnedCreditsHundredths: null,
     });
   });
+
+  it.each([
+    ['earned credits', { creditsEarnedHundredths: 400 }],
+    ['earned credits, one unknown', { creditsEarnedHundredths: null }],
+    ['courses', { courseId: SYNTHETIC_COURSES.math111.id }],
+    ['statuses', { status: 'TRANSFER_AWARDED' }],
+  ] as const)(
+    'returns UNDETERMINED under HIGHEST_GRADE when tied grades differ in %s',
+    (_difference, overrides) => {
+      const attempts = [
+        completedAttempt({ grade: letter('B'), creditsEarnedHundredths: 300 }, 1),
+        completedAttempt({ grade: letter('B'), creditsEarnedHundredths: 300, ...overrides }, 2),
+      ];
+
+      expect(selectCountingAttempt(attempts, HIGHEST_GRADE)).toEqual({
+        state: 'UNDETERMINED',
+        reasonCode: 'REPEAT_ORDER_UNDETERMINED',
+        earnedCreditsHundredths: null,
+      });
+    },
+  );
 
   it('returns UNDETERMINED under HIGHEST_GRADE when no grades were recorded', () => {
     const attempts = [completedAttempt({ grade: null }, 1), completedAttempt({ grade: null }, 2)];
