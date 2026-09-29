@@ -1,6 +1,8 @@
 /**
  * @file In-memory copy of the dev seed's academic data (#127) for SYN-000001 and SYN-000002, so
- * service tests can check the README "Try the seeded academic scenarios" expectations.
+ * service tests can check the README "Try the seeded academic scenarios" expectations. It is a
+ * copy because `@caa/db/testing` is for test files only; `seed-scenario-fixtures.test.ts` fails
+ * when it drifts from the seed's own plan (#147).
  * @module @caa/api/testing/seed-scenario-fixtures
  * @see packages/db/src/seed/dev-seed-academic-catalog.ts
  * @see packages/db/src/seed/dev-seed-academic-plan.ts
@@ -190,11 +192,10 @@ const CHILD = {
 /**
  * Builds the seeded degree root requirement.
  *
- * @param auditVersion - The audit's version, used in the source reference.
  * @param remainingCourseCount - Courses still needed.
  * @returns The requirement input.
  */
-function degreeRoot(auditVersion: string, remainingCourseCount: number) {
+function degreeRoot(remainingCourseCount: number) {
   return {
     ...CHILD,
     sourceRequirementId: 'REQ-DEMO-BS',
@@ -202,7 +203,7 @@ function degreeRoot(auditVersion: string, remainingCourseCount: number) {
     label: 'Demo B.S. requirements',
     state: RequirementState.Incomplete,
     remainingCourseCount,
-    sourceRef: `${auditVersion}:REQ-DEMO-BS`,
+    sourceRef: 'requirement/REQ-DEMO-BS',
   };
 }
 
@@ -224,7 +225,7 @@ export const SEED_AUDITS = {
     generatedAt: '2026-09-01T07:00:00.000Z',
     studentRecordEffectiveAt: '2026-09-01T05:00:00.000Z',
     requirements: [
-      degreeRoot('audit_demo_r1', 2),
+      degreeRoot(2),
       {
         ...CHILD,
         sourceRequirementId: 'REQ-MATH-CORE',
@@ -233,7 +234,7 @@ export const SEED_AUDITS = {
         allocatedAttemptIds: [SEED_ATTEMPTS[1].id],
         remainingCreditsHundredths: 0,
         candidateCourseIds: [math101.id],
-        sourceRef: 'audit_demo_r1:REQ-MATH-CORE',
+        sourceRef: 'requirement/REQ-MATH-CORE',
       },
       {
         ...CHILD,
@@ -243,7 +244,7 @@ export const SEED_AUDITS = {
         allocatedAttemptIds: [SEED_ATTEMPTS[2].id],
         remainingCourseCount: 1,
         candidateCourseIds: [phys201.id, phys301.id],
-        sourceRef: 'audit_demo_r1:REQ-PHYS-SEQ',
+        sourceRef: 'requirement/REQ-PHYS-SEQ',
       },
       {
         ...CHILD,
@@ -252,7 +253,7 @@ export const SEED_AUDITS = {
         state: RequirementState.Incomplete,
         remainingCreditsHundredths: 300,
         candidateCourseIds: [SEED_COURSES.engl101.id, SEED_COURSES.ind390.id, math102.id],
-        sourceRef: 'audit_demo_r1:REQ-ELECTIVES',
+        sourceRef: 'requirement/REQ-ELECTIVES',
       },
     ],
   }),
@@ -264,7 +265,7 @@ export const SEED_AUDITS = {
     auditVersion: 'audit_demo_r2',
     generatedAt: '2026-08-15T07:00:00.000Z',
     studentRecordEffectiveAt: '2026-08-15T05:00:00.000Z',
-    requirements: [degreeRoot('audit_demo_r2', 3)],
+    requirements: [degreeRoot(3)],
   }),
 } as const;
 
