@@ -25,11 +25,22 @@ import {
   StaleSourceError,
 } from '../../shared/domain-errors';
 import type { RequestContext } from '../../shared/request-context';
+import { isSourceFresh } from '../source-freshness/source-freshness.logic';
 
 /** Dependencies of the pinned records service. */
 export interface PinnedRecordsServiceDependencies {
   readonly studentSnapshots: StudentSnapshotRepository;
   readonly auditSnapshots: AuditSnapshotRepository;
+  /** Returns the current time. Read here for the freshness gate, never in the engine. */
+  readonly now: () => Date;
+  /** Validated `ACADEMIC_SOURCE_MAX_AGE_MS`: how old the record and audit may be. */
+  readonly maxSourceAgeMs: number;
+}
+
+/** The pinned snapshot and audit a validated read is built from. */
+export interface PinnedSources {
+  readonly snapshot: StudentSnapshot;
+  readonly audit: AuditSnapshot;
 }
 
 /** The latest record revision of one student and, when there is one, their latest audit. */
@@ -55,6 +66,25 @@ export interface PinnedRecordsService {
    * @throws {NotFoundError} When a loaded record belongs to another tenant or student.
    */
   loadLatest(actor: Actor, student: Student, context: RequestContext): Promise<PinnedRecords>;
+
+  /**
+   * Refuses a validated read when the pinned record or the audit's record time is not fresh:
+   * older than `maxSourceAgeMs`, missing, or too far in the future (standard 05 §Source
+   * freshness). Reads the injected clock.
+   *
+   * @param scope - The actor, the path student, and the request context.
+   * @param sources - The pinned snapshot and audit.
+   * @throws {StaleSourceError} When either time is not fresh, after logging the reason.
+   */
+  assertFresh(scope: RecordScope, sources: PinnedSources): void;
+
+  /**
+   * Logs why an academic read can't be answered, with opaque IDs only.
+   *
+   * @param scope - The actor, the path student, and the request context.
+   * @param reason - Why the read is unavailable.
+   */
+  recordUnavailable(scope: RecordScope, reason: RecordUnavailableReason): void;
 }
 
 /** Why an academic read can't be answered. Logged; the client sees only the error code. */
@@ -79,75 +109,12 @@ export interface RecordScope {
  * @param scope - The actor, the path student, and the request context.
  * @param reason - Why the read is unavailable.
  */
-export function logRecordUnavailable(scope: RecordScope, reason: RecordUnavailableReason): void {
+function logUnavailable(scope: RecordScope, reason: RecordUnavailableReason): void {
   const { actor, studentId } = scope;
   scope.context.logger.info(
     { actorUserId: actor.userId, tenantId: actor.tenantId, studentId, reason },
     'academic record unavailable',
   );
-}
-
-/**
- * Most a source time may be ahead of the clock and still count as fresh: five minutes, for clock
- * drift between the source system and this server. Anything further ahead is not fresh.
- */
-export const SOURCE_TIME_FUTURE_TOLERANCE_MS = 300_000;
-
-/** The clock reading and the configured maximum age a freshness decision uses. */
-export interface FreshnessPolicy {
-  /** The injected clock's current time; read by the caller, never by the engine. */
-  readonly now: Date;
-  /** Validated `ACADEMIC_SOURCE_MAX_AGE_MS`. */
-  readonly maxAgeMs: number;
-}
-
-/**
- * Decides whether a source time is fresh enough for a validated result.
- *
- * @param sourceTime - The time the source data describes, ISO 8601 with offset; may be missing.
- * @param policy - The current time and the maximum age.
- * @returns `true` when the time is at most `maxAgeMs` old (exactly at the limit is fresh) and
- *   no more than the tolerance in the future; `false` when it is missing or unparseable.
- */
-export function isSourceFresh(
-  sourceTime: string | null | undefined,
-  policy: FreshnessPolicy,
-): boolean {
-  const instant = typeof sourceTime === 'string' ? Date.parse(sourceTime) : Number.NaN;
-  // SAFETY: a missing or unreadable time can't show the data is recent, and a time far in the
-  // future is a source error; neither is treated as fresh (planning/09 §Proposed freshness
-  // policies; planning/08: missing or conflicting data is UNKNOWN or a referral).
-  if (Number.isNaN(instant)) {
-    return false;
-  }
-  const ageMs = policy.now.getTime() - instant;
-  return ageMs <= policy.maxAgeMs && ageMs >= -SOURCE_TIME_FUTURE_TOLERANCE_MS;
-}
-
-/**
- * Refuses a validated read when the pinned record or the audit's record time is not fresh.
- *
- * @param scope - The actor, the path student, and the request context.
- * @param records - The pinned snapshot and audit.
- * @param policy - The current time and the maximum age.
- * @throws {StaleSourceError} When either time is not fresh, after logging the reason.
- */
-export function assertSourcesFresh(
-  scope: RecordScope,
-  records: { readonly snapshot: StudentSnapshot; readonly audit: AuditSnapshot },
-  policy: FreshnessPolicy,
-): void {
-  if (
-    isSourceFresh(records.snapshot.sourceEffectiveAt, policy) &&
-    isSourceFresh(records.audit.studentRecordEffectiveAt, policy)
-  ) {
-    return;
-  }
-  // SAFETY: a transcript, program, or audit older than the maximum age is historical only, so it
-  // never yields a PASS or a validated plan; the student is referred to refresh first
-  // (planning/09 §Proposed freshness policies; CLAUDE.md: stale data is never PASS).
-  logRecordUnavailable(scope, 'SOURCE_NOT_FRESH');
-  throw new StaleSourceError();
 }
 
 /**
@@ -191,11 +158,11 @@ function pinRevision(
   // which record is current. Neither is guessed; the student is referred to an advisor
   // (planning/07 §Consistency model; planning/08: missing or conflicting data is UNKNOWN).
   if (latest === null) {
-    logRecordUnavailable(scope, 'NO_STUDENT_SNAPSHOT');
+    logUnavailable(scope, 'NO_STUDENT_SNAPSHOT');
     throw new SourceUnavailableError();
   }
   if (latest.status === 'AMBIGUOUS') {
-    logRecordUnavailable(scope, 'STUDENT_SNAPSHOT_AMBIGUOUS');
+    logUnavailable(scope, 'STUDENT_SNAPSHOT_AMBIGUOUS');
     throw new StaleSourceError();
   }
   assertInScope(scope, latest.revision.snapshot);
@@ -218,7 +185,7 @@ function pinAudit(scope: RecordScope, latest: LatestAuditSnapshot | null): Audit
   // SAFETY: a tie means neither audit's requirement states can be read as the audit's, and
   // "no audit" would be false. The read is refused and referred instead.
   if (latest.status === 'AMBIGUOUS') {
-    logRecordUnavailable(scope, 'AUDIT_AMBIGUOUS');
+    logUnavailable(scope, 'AUDIT_AMBIGUOUS');
     throw new StaleSourceError();
   }
   assertInScope(scope, latest.audit);
@@ -228,13 +195,13 @@ function pinAudit(scope: RecordScope, latest: LatestAuditSnapshot | null): Audit
 /**
  * Creates the pinned records service.
  *
- * @param dependencies - The snapshot and audit repositories.
+ * @param dependencies - The snapshot and audit repositories, the clock, and the maximum age.
  * @returns A {@link PinnedRecordsService}.
  */
 export function createPinnedRecordsService(
   dependencies: PinnedRecordsServiceDependencies,
 ): PinnedRecordsService {
-  const { studentSnapshots, auditSnapshots } = dependencies;
+  const { studentSnapshots, auditSnapshots, now, maxSourceAgeMs } = dependencies;
   return {
     async loadLatest(actor, student, context) {
       // SECURITY: both reads are for the session's tenant and the access-checked student only.
@@ -246,5 +213,22 @@ export function createPinnedRecordsService(
       const revision = pinRevision(scope, latestSnapshot);
       return { revision, audit: pinAudit(scope, latestAudit) };
     },
+
+    assertFresh(scope, sources) {
+      const policy = { now: now(), maxAgeMs: maxSourceAgeMs };
+      if (
+        isSourceFresh(sources.snapshot.sourceEffectiveAt, policy) &&
+        isSourceFresh(sources.audit.studentRecordEffectiveAt, policy)
+      ) {
+        return;
+      }
+      // SAFETY: a transcript, program, or audit older than the maximum age is historical only,
+      // so it never yields a PASS or a validated plan; the student is referred to refresh first
+      // (planning/09 §Proposed freshness policies; CLAUDE.md: stale data is never PASS).
+      logUnavailable(scope, 'SOURCE_NOT_FRESH');
+      throw new StaleSourceError();
+    },
+
+    recordUnavailable: logUnavailable,
   };
 }
