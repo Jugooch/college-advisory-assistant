@@ -58,33 +58,6 @@ export const MeetingTimeRefSchema = z
 /** A validated, immutable meeting reference. */
 export type MeetingTimeRef = z.infer<typeof MeetingTimeRefSchema>;
 
-// NOTE: this file is internal to `@caa/domain` (index.ts doesn't re-export it), so the helpers
-// below are shared by the schedule-issue files without becoming domain exports.
-
-/**
- * Returns whether two references name the same meeting of the same section.
- *
- * @param first - One meeting.
- * @param second - The other meeting.
- * @returns `true` when the section and meeting index both match.
- */
-export function isSameMeeting(first: MeetingTimeRef, second: MeetingTimeRef): boolean {
-  return first.sectionId === second.sectionId && first.meetingIndex === second.meetingIndex;
-}
-
-/**
- * Returns whether a meeting can occur on every listed day. A meeting whose days are to be
- * announced could be on any day (GR-02), so it covers any list.
- *
- * @param ref - The meeting.
- * @param days - Days the evidence says the meeting occurs on.
- * @returns `false` when a listed day isn't one of the meeting's known days.
- */
-export function meetsOnDays(ref: MeetingTimeRef, days: readonly string[]): boolean {
-  const { weekdays } = ref;
-  return weekdays === null || days.every((day) => weekdays.some((weekday) => weekday === day));
-}
-
 /**
  * Schema for the dates two meetings can both occur on, summarized as the engine computes them:
  * the first and last shared date and every weekday with a shared date.

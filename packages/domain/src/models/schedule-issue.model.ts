@@ -13,33 +13,31 @@ import { CheckState } from '../enums/check-state.enum';
 import { ReasonCode } from '../enums/reason-code.enum';
 import {
   doLocalTimeRangesOverlap,
-  localTimeGapMinutes,
   type LocalTimeRange,
   LocalTimeSchema,
 } from './meeting-pattern.model';
 import {
   CampusNotAllowedIssueSchema,
   ConstraintIndexSchema,
-  isSameMeeting,
   LinkedSectionUnavailableIssueSchema,
   type MeetingTimeRef,
   MeetingTimeRefSchema,
-  meetsOnDays,
   ModalityNotAllowedIssueSchema,
   SectionDataMissingIssueSchema,
   SharedMeetingDatesSchema,
   WeekdayListSchema,
 } from './schedule-issue-parts.model';
 import {
+  DAYS_SUBSET_MESSAGE,
+  isSameMeeting,
+  KNOWN_DAYS_MESSAGE,
+  localTimeGapMinutes,
+  meetsOnDays,
+} from './schedule-issue-support.model';
+import {
   TransitionInsufficientIssueSchema,
   TransitionUndefinedIssueSchema,
 } from './schedule-transition-issue.model';
-
-/** Message for a FAIL shape that names a meeting whose days are to be announced. */
-const KNOWN_DAYS_MESSAGE = 'A FAIL issue names meetings whose days are known';
-
-/** Message for shared or blocked days that a named meeting doesn't meet on. */
-const DAYS_SUBSET_MESSAGE = 'The weekdays shown must be days each named meeting meets on';
 
 /**
  * Returns a meeting's time range, when it is timed.

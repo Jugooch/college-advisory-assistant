@@ -1,10 +1,10 @@
 /**
- * @file Tests for the shared scheduling invariants: time-range overlap, gaps, and transitions.
+ * @file Tests for the shared scheduling invariants: time-range overlap and transition time.
  */
 import { describe, expect, it } from 'vitest';
 
 import { hasEnoughTransitionTime } from './campus-transition-policy.model';
-import { doLocalTimeRangesOverlap, localTimeGapMinutes } from './meeting-pattern.model';
+import { doLocalTimeRangesOverlap } from './meeting-pattern.model';
 
 const range = (startTime: string, endTime: string): { startTime: string; endTime: string } => ({
   startTime,
@@ -27,18 +27,6 @@ describe('doLocalTimeRangesOverlap', () => {
 
   it('never throws, even on malformed input', () => {
     expect(doLocalTimeRangesOverlap(range('', 'x'), range('09:00', '09:50'))).toBe(false);
-  });
-});
-
-describe('localTimeGapMinutes', () => {
-  it.each([
-    ['09:50', '10:00', 10],
-    ['09:50', '09:50', 0],
-    ['11:50', '13:05', 75],
-    ['10:00', '09:50', -10],
-    ['00:00', '24:00', 1440],
-  ])('from %s to %s is %i minutes', (from, to, expected) => {
-    expect(localTimeGapMinutes(from, to)).toBe(expected);
   });
 });
 

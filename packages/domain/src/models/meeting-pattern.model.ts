@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { MeetingLocationKind } from '../enums/section-modality.enum';
 import { WeekdaySchema } from '../enums/weekday.enum';
 import { CampusIdSchema } from './campus.model';
+import { minutesOfLocalTime } from './schedule-issue-support.model';
 
 /**
  * Returns whether no value appears twice.
@@ -34,16 +35,6 @@ export interface LocalTimeRange {
 }
 
 /**
- * Converts a local `HH:MM` time to minutes after midnight.
- *
- * @param time - A local time; `24:00` gives 1440.
- * @returns Minutes after midnight, for example 570 for `09:30`.
- */
-function minutesOf(time: string): number {
-  return Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
-}
-
-/**
  * Returns whether two local time ranges overlap as half-open intervals, so one ending exactly
  * when the other starts doesn't overlap. Shared invariant (ADR-0005): the engine's meeting and
  * unavailable-time comparisons and the schedule-issue schema both call it.
@@ -56,24 +47,9 @@ export function doLocalTimeRangesOverlap(first: LocalTimeRange, second: LocalTim
   // SAFETY: meetings are half-open intervals, so back-to-back meetings don't conflict, while
   // required travel time can still rule them out (planning/08 §Schedule model).
   return (
-    minutesOf(first.startTime) < minutesOf(second.endTime) &&
-    minutesOf(second.startTime) < minutesOf(first.endTime)
+    minutesOfLocalTime(first.startTime) < minutesOfLocalTime(second.endTime) &&
+    minutesOfLocalTime(second.startTime) < minutesOfLocalTime(first.endTime)
   );
-}
-
-/**
- * Returns the wall-clock minutes from one local time to a later one on the same date: the
- * later meeting's start minus the earlier meeting's end. Negative when `to` is earlier. Shared
- * invariant (ADR-0005): the engine's transition check and the schedule-issue schema both call it.
- *
- * @param from - The earlier meeting's end time.
- * @param to - The later meeting's start time.
- * @returns Minutes from `from` to `to`.
- */
-export function localTimeGapMinutes(from: string, to: string): number {
-  // SAFETY: the gap is measured in local wall-clock minutes on one calendar date, so a
-  // daylight-saving change never moves a meeting (ADR-0010 §8).
-  return minutesOf(to) - minutesOf(from);
 }
 
 /** Schema for where a meeting takes place: on a campus, or online. */

@@ -10,14 +10,18 @@ import { z } from 'zod';
 import { ReasonCode } from '../enums/reason-code.enum';
 import { CampusIdSchema } from './campus.model';
 import { hasEnoughTransitionTime } from './campus-transition-policy.model';
-import { localTimeGapMinutes } from './meeting-pattern.model';
 import {
-  isSameMeeting,
   type MeetingTimeRef,
   MeetingTimeRefSchema,
-  meetsOnDays,
   SharedMeetingDatesSchema,
 } from './schedule-issue-parts.model';
+import {
+  DAYS_SUBSET_MESSAGE,
+  isSameMeeting,
+  KNOWN_DAYS_MESSAGE,
+  localTimeGapMinutes,
+  meetsOnDays,
+} from './schedule-issue-support.model';
 
 /**
  * Fields of a transition issue: two timed meetings on different campuses that share a date,
@@ -75,9 +79,6 @@ function sharesListedDays(transition: {
   return meetsOnDays(transition.earlier, days) && meetsOnDays(transition.later, days);
 }
 
-/** Message for shared days that a named meeting doesn't meet on. */
-const DAYS_SUBSET_MESSAGE = 'The weekdays shown must be days each named meeting meets on';
-
 /** The gap is shorter than the institution's required travel time (AC08). */
 export const TransitionInsufficientIssueSchema = z
   .object({
@@ -99,7 +100,7 @@ export const TransitionInsufficientIssueSchema = z
   // SAFETY: a meeting whose days are to be announced could meet on any day or none of them, so
   // it can only leave travel UNKNOWN, never prove a FAIL (GR-02; planning/08 §Schedule model).
   .refine(({ earlier, later }) => earlier.weekdays !== null && later.weekdays !== null, {
-    message: 'A FAIL issue names meetings whose days are known',
+    message: KNOWN_DAYS_MESSAGE,
   })
   // SAFETY: the evidence may only claim a shortfall on days both meetings meet (FR-10).
   .refine(sharesListedDays, { message: DAYS_SUBSET_MESSAGE })
