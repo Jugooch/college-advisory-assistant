@@ -18,7 +18,18 @@ describe('SYNTHETIC_COURSES', () => {
       minCreditsHundredths: null,
       maxCreditsHundredths: null,
       equivalencyGroupId: '90000000-0000-4000-8000-000000000001',
+      creditsIncludedInCourseId: null,
     });
+  });
+
+  it('states for every course, including the DEMO-PHYS 201L lab, that it counts its own credits', () => {
+    const included = Object.values(SYNTHETIC_COURSES).map((course) =>
+      Object.hasOwn(course, 'creditsIncludedInCourseId')
+        ? course.creditsIncludedInCourseId
+        : 'omitted',
+    );
+
+    expect(included).toEqual([null, null, null, null, null, null]);
   });
 
   it('puts DEMO-MATH 111 in the same equivalency group as DEMO-MATH 101', () => {
