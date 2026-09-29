@@ -33,6 +33,8 @@ const NONDETERMINISTIC = [
   ['Date.now()', 'NFR-01'],
   ['Math.random()', 'NFR-01'],
   ['Date()', 'reads the clock'],
+  ['new Date()', 'new Date() reads the clock'],
+  ['new Date', 'new Date() reads the clock'],
   ['crypto.randomUUID()', 'no randomness'],
   ['performance.now()', 'reads no clock'],
   ['process.env.X', 'no environment'],
@@ -73,8 +75,8 @@ describe('other packages keep their clock and environment access', () => {
     'packages/api-contract/src/index.ts',
     'apps/api/src/app.ts',
     'apps/worker/src/main.ts',
-  ])('allows Date.now() and process.env in %s', async (path) => {
-    const code = 'export const x = [Date.now(), process.env.X];';
+  ])('allows Date.now(), new Date() and process.env in %s', async (path) => {
+    const code = 'export const x = [Date.now(), new Date(), process.env.X];';
 
     expect(await lintWithRules(path, code, RULES)).toEqual([]);
   });
