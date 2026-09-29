@@ -73,3 +73,23 @@ Standard 08 §Seed-mirror ripple has the rules. CI already enforces the "authori
 - #216, #217, #229 and #241 can each land their seed change as one PR, and `main` stays green.
 - The mirror stays a hand copy until #255 lands. A seed change that breaks any other api test is outside the case, so that owner changes its code first.
 - When #255 merges, the tech lead removes the case from standard 08 and marks this amendment superseded (#253).
+
+## Amendment 2 (2026-09-29, issue #261): wording-map ripples
+
+**Related:** standard 06 §Shared code, standard 08 §Wording-map ripple, planning/10, planning/11, issues #212, #218, #219, #220, #261, PRs #251, #260.
+
+**Context.** The web's reason-code wording map, `apps/web/src/shared/utils/reason-code-wording.ts`, is typed `Record<ReasonCode, ReasonWording>`. Its test fails when a code has no entry or an entry has no code. The second half of #212 adds the scheduling reason codes, such as `MEETING_CONFLICT`, `TRANSITION_TIME_UNDEFINED`, `MEETING_TIME_UNKNOWN` and `MEETING_LOCATION_UNKNOWN`. Neither the domain PR nor a web PR can land first without breaking `main`, and engine #218–#220 wait on it. Unlike a builder default, the missing piece is student-facing wording, which only the frontend-engineer may write.
+
+The options were:
+
+- **(a) A named wording-map ripple override.** The frontend-engineer writes the exact wording in a comment, and the orchestrator applies it literally in the domain PR.
+- **(b) A tolerant map.** Make the map `Partial`, and render a generic fallback for a code with no wording.
+- **(c) A staged code.** The web map keys on its own list of displayable codes, and the domain adds codes behind it.
+
+**Decision: (a).** Standard 08 §Wording-map ripple has the rules. (b) and (c) give up the compile-time guarantee that every code the API can send has wording the frontend-engineer wrote. A generic fallback can't state a FAIL's remediation, and a fallback worded for UNKNOWN would understate a FAIL. The generic text itself is exactly the kind of free wording that planning/10 keeps out of consequential results. (a) keeps the guarantee and keeps authorship with the owner. The orchestrator only transcribes, and reviewers check the text against the linked comment. CI already enforces the "authorized by" link.
+
+**Consequences.**
+
+- The second half of #212 lands as one domain PR with a separate web commit, and `main` stays green.
+- Every added code ships with owner-written wording, and the existing test still bans overclaiming words.
+- A change to web code other than the map and its test is outside the case.
