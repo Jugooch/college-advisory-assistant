@@ -133,7 +133,11 @@ packages/test-kit/src/golden/
 - Hooks: `use-plan-revisions.ts` → `usePlanRevisions`.
 - **One primary export per file.** Supporting types for that export may sit beside it, and so may the shared invariants of a `.enum.ts` or `.model.ts`.
 - **Barrels:** only `<package>/src/index.ts`. Other packages import only from the package root (`@caa/domain`), never deep paths.
-- **Test entry points:** the one exception is a documented `./testing` subpath export. It is a single file `apps/<app>/src/testing.ts` (no nested `index.ts`), exported as `"./testing"` in the app's `package.json`, used only by tests (`@caa/api/testing`, `@caa/worker/testing`), and never bundled into the production entry. Anything else under `src/` stays private.
+- **Test entry points:** the one exception is a documented `./testing` subpath export (ADR-0009). It is a single file `src/testing.ts` (no nested `index.ts`), exported as `"./testing"` in the workspace's `package.json`, used only by tests, and never bundled into the production entry. It is allowed only in these workspaces:
+  - `apps/api` (`@caa/api/testing`) and `apps/worker` (`@caa/worker/testing`): build the app with test dependencies.
+  - `packages/db` (`@caa/db/testing`): write synthetic scenarios into the test database, because only `@caa/db` owns the tables and client.
+
+  Any other package or app needs an amendment to this list. Anything else under `src/` stays private.
 
 ## Size
 
