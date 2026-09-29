@@ -46,6 +46,7 @@ export async function lintWithRules(path, code, ruleNames) {
     [
       {
         files: ['**/*.{ts,tsx,mjs}'],
+        plugins: config.plugins,
         languageOptions: { parser: config.languageOptions?.parser },
         rules,
       },
