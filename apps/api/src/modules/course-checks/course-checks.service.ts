@@ -27,13 +27,9 @@ import type {
   CourseId,
   StudentId,
 } from '@caa/domain';
-import {
-  AuditRecordInputError,
-  CandidateSetInputError,
-  PrerequisiteInputMismatchError,
-} from '@caa/engine';
 
 import {
+  InconsistentInputsError,
   InvalidRequestError,
   RulesetNotConfiguredError,
   SourceUnavailableError,
@@ -44,6 +40,10 @@ import {
   type CourseSetInputs,
   verifyCourseSet,
 } from '../course-verification/course-verification.logic';
+import {
+  classifyEngineInputError,
+  type EngineInputErrorClassification,
+} from '../engine-input-errors/engine-input-errors.logic';
 import type { PinnedRecordsService, RecordScope } from '../pinned-records/pinned-records.service';
 import type { StudentsService } from '../students/students.service';
 
@@ -89,13 +89,14 @@ export interface CourseChecksService {
    * @returns Per-course and set checks from the engine, their aggregate, and the pinned inputs.
    * @throws {NotFoundError} When the student doesn't exist, the actor may not see them, or a
    *   loaded record belongs to another tenant or student.
-   * @throws {SourceUnavailableError} When the student has no snapshot or no audit, or the
-   *   active ruleset has no policy.
+   * @throws {SourceUnavailableError} When the student has no snapshot or no audit, the active
+   *   ruleset has no policy, or the engine rejects stored catalog, policy, or record data.
    * @throws {StaleSourceError} When two snapshots or two audits are tied for latest, or the
    *   record or the audit's record time is older than the maximum source age.
    * @throws {InvalidRequestError} When a course isn't in the tenant's catalog, or the engine
-   *   rejects the inputs.
+   *   rejects the requested courses or credit choices.
    * @throws {RulesetNotConfiguredError} When no active ruleset is configured.
+   * @throws {InconsistentInputsError} When the loaded rule and policy contradict each other.
    */
   checkCourses(
     actor: Actor,
@@ -190,26 +191,57 @@ function resolveCourses(
 }
 
 /**
- * Runs the engine, turning its input errors into INVALID_REQUEST without internal details.
+ * Converts a classified engine input error into the typed error for its cause, and logs why with
+ * opaque IDs only.
+ *
+ * @param scope - The actor, the path student, and the request context.
+ * @param classification - Who caused the error, and the log reason.
+ * @param error - The engine error, kept as the cause of an internal error.
+ * @returns The error to throw.
+ */
+function toTypedError(
+  scope: RecordScope,
+  classification: EngineInputErrorClassification,
+  error: unknown,
+): Error {
+  const { cause, reason } = classification;
+  if (cause === 'REQUEST') {
+    logRejected(scope, reason);
+    return new InvalidRequestError();
+  }
+  const { actor, studentId } = scope;
+  // NOTE: stored-data and internal causes are data-integrity problems an operator must see, so
+  // they log at warn with opaque IDs and the reason only.
+  scope.context.logger.warn(
+    { actorUserId: actor.userId, tenantId: actor.tenantId, studentId, cause, reason },
+    'course checks input invalid',
+  );
+  // SAFETY: the student did nothing wrong, so they get a referral, not a 400 blaming the request
+  // (planning/08: missing or conflicting data is UNKNOWN or a referral; #145).
+  return cause === 'STORED_DATA'
+    ? new SourceUnavailableError()
+    : new InconsistentInputsError(reason, error);
+}
+
+/**
+ * Runs the engine, turning its input errors into a typed error for whoever caused them.
  *
  * @param scope - The actor, the path student, and the request context.
  * @param inputs - Every pinned input.
  * @returns The checks.
- * @throws {InvalidRequestError} When the engine rejects an input.
+ * @throws {InvalidRequestError} When the engine rejects the requested courses or credits.
+ * @throws {SourceUnavailableError} When the engine rejects stored data.
+ * @throws {InconsistentInputsError} When the loaded inputs contradict each other.
  */
 function runChecks(scope: RecordScope, inputs: CourseSetInputs): CourseChecks {
   try {
     return verifyCourseSet(inputs);
   } catch (error) {
-    if (
-      error instanceof CandidateSetInputError ||
-      error instanceof AuditRecordInputError ||
-      error instanceof PrerequisiteInputMismatchError
-    ) {
-      logRejected(scope, error.name);
-      throw new InvalidRequestError();
+    const classification = classifyEngineInputError(error);
+    if (classification === null) {
+      throw error;
     }
-    throw error;
+    throw toTypedError(scope, classification, error);
   }
 }
 
