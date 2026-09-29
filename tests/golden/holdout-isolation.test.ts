@@ -5,7 +5,7 @@
  * @see tests/golden/holdout/README.md
  * @see docs/planning/13-test-and-evaluation-strategy.md
  */
-import { readdirSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -13,6 +13,7 @@ import { describe, expect, it } from 'vitest';
 
 import { GOLDEN_DEVELOPMENT_CORPUS } from '@caa/test-kit';
 
+import { sourceFiles } from '../support/source-files';
 import { GOLDEN_HOLDOUT_CORPUS } from './holdout/holdout-corpus';
 
 const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
@@ -21,28 +22,21 @@ const ALLOWED_FOLDER = 'tests/golden/';
 /** A module specifier that points at a holdout file. */
 const HOLDOUT_SPECIFIER =
   /['"][^'"]*(golden\/holdout|holdout-corpus|holdout-[a-z-]+\.cases)[^'"]*['"]/;
-const SKIPPED_FOLDERS = ['node_modules', 'dist', '.next', 'coverage'];
 
 /**
- * Lists the TypeScript files under a folder, skipping dependencies and build output.
+ * Tells whether a file name is TypeScript or an ES module script.
  *
- * @param folder - Absolute folder path.
- * @returns Absolute file paths.
+ * @param fileName - The file name.
+ * @returns `true` for `.ts`, `.tsx` and `.mjs` files.
  */
-function typeScriptFiles(folder: string): string[] {
-  return readdirSync(folder, { withFileTypes: true }).flatMap((entry) => {
-    const path = join(folder, entry.name);
-    if (entry.isDirectory()) {
-      return SKIPPED_FOLDERS.includes(entry.name) ? [] : typeScriptFiles(path);
-    }
-    return /\.(tsx?|mjs)$/.test(entry.name) ? [path] : [];
-  });
+function isScript(fileName: string): boolean {
+  return /\.(tsx?|mjs)$/.test(fileName);
 }
 
 describe('golden holdout isolation', () => {
   it('is imported by nothing outside tests/golden/', () => {
     const importers = ['packages', 'apps', 'tests']
-      .flatMap((root) => typeScriptFiles(join(REPO_ROOT, root)))
+      .flatMap((root) => sourceFiles(join(REPO_ROOT, root), isScript))
       .map((path) => relative(REPO_ROOT, path).replaceAll('\\', '/'))
       .filter((path) => !path.startsWith(ALLOWED_FOLDER))
       .filter((path) => HOLDOUT_SPECIFIER.test(readFileSync(join(REPO_ROOT, path), 'utf8')));

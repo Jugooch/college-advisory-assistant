@@ -7,7 +7,7 @@
  * @see docs/standards/07-testing.md
  * @see tests/golden/holdout/README.md
  */
-import { readdirSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -21,11 +21,11 @@ import {
   HARD_CODED_EXPECTED_FAILURE,
   KNOWN_FINDINGS,
 } from '../support/known-findings';
+import { sourceFiles } from '../support/source-files';
 import { GOLDEN_HOLDOUT_CORPUS } from './holdout/holdout-corpus';
 
 const TESTS_ROOT = fileURLToPath(new URL('../', import.meta.url));
 const ACCEPTANCE_FOLDER = join(TESTS_ROOT, 'acceptance');
-const SKIPPED_FOLDERS = ['node_modules'];
 /**
  * Files that name the forbidden calls to describe the rule, not to use them: this guard and the
  * register's own test, which holds literal examples of the pattern.
@@ -42,13 +42,7 @@ const DESCRIBES_THE_RULE = [
  * @returns Absolute file paths.
  */
 function testFiles(folder: string): string[] {
-  return readdirSync(folder, { withFileTypes: true }).flatMap((entry) => {
-    const path = join(folder, entry.name);
-    if (entry.isDirectory()) {
-      return SKIPPED_FOLDERS.includes(entry.name) ? [] : testFiles(path);
-    }
-    return entry.name.endsWith('.test.ts') ? [path] : [];
-  });
+  return sourceFiles(folder, (fileName) => fileName.endsWith('.test.ts'));
 }
 
 /**
