@@ -79,6 +79,8 @@ These ages are not guarantees of source correctness. Even a fresh seat count can
 
 Error vocabulary: UNAUTHORIZED, OUT_OF_SCOPE, SOURCE_UNAVAILABLE, STALE_SOURCE, SEMANTIC_GAP, REVISION_CONFLICT, SEARCH_TIMEOUT, and NO_FEASIBLE_PLAN. Do not expose raw vendor responses or student identifiers in errors. Tenant and role are never accepted as trusted JSON payload fields.
 
+_Decision note (2026-09-29, ADR-0010, #209):_ Until plan drafts (FR-11) need a stored request, schedule options are served synchronously by `POST /v1/students/:studentId/schedule-options` on pinned inputs, bounded by the solver's work cap, like course checks. The request-and-poll pair above is deferred. SEARCH_TIMEOUT and NO_FEASIBLE_PLAN are returned as values of a 200 response's `outcome` field, with verified evidence, not as error envelopes. A stale section snapshot is still 409 STALE_SOURCE, and seat and registration claims are left out and named as limitations.
+
 ## Retention and deletion proposal
 
 Minimize imported fields. Do not ingest SSNs, medical detail, full financial-aid files, or immigration documents for V1. Proposed defaults for review: raw conversation 30 days; reproducibility snapshots and plan/case records for the agreed pilot plus 90 days; security access events 1 year; backups 35 days. These are placeholders pending institutional records schedules, legal holds, and contractual needs, not asserted legal requirements.

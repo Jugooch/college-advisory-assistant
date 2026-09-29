@@ -43,6 +43,15 @@ Academic rules live in the engine, with one exception (ADR-0005). A **shared inv
 
 A rule that only the engine needs stays in the engine. Generic helpers such as `isDistinct` aren't shared invariants and stay private to their file.
 
+### Determinism in pure code
+
+The engine, domain shared invariants, and `.logic.ts` files give deep-equal output for deep-equal input (NFR-01):
+
+- **No clock, timer, randomness, or environment.** That means no `Date.now()`, argument-less `new Date()`, `performance`, `setTimeout`, `setInterval`, `setImmediate`, `Math.random`, `crypto`, or `process`. The caller passes the time in.
+- **No locale.** Strings are ordered by UTF-16 code unit (`<` and `>`, or a bare `.sort()` on strings), never with `localeCompare` or `Intl`, because those depend on the runtime's locale data.
+- **Input order doesn't matter.** Output never depends on the order of an input array or on `Map` or `Set` insertion order from unsorted input. Every sort of non-strings has an explicit comparator, and every order that reaches the output ends on a unique ID. A function that takes a collection has a test that shuffles its input and expects a deep-equal result.
+- **Work is counted, not timed.** A bounded search takes a work cap as an argument, counts a documented unit, and returns the cap and the units used in its result. It never stops on elapsed time (ADR-0010).
+
 ## Folder layout per workspace
 
 ```
