@@ -39,7 +39,7 @@ The seed gives tenant _Demo State University_ a small catalog, ruleset `demo-202
 
 **Seeded times are relative to the seed run.** `db:seed` reads the clock once and times every seeded record from it: SYN-000001's record is 3 hours old and its audit ran against exactly that record, so it's within the API's 24-hour source-age limit (`ACADEMIC_SOURCE_MAX_AGE_MS`) right after seeding. SYN-000002's audit ran against a record 17 days older than its latest one. The offsets are in `SEED_TIME_OFFSETS_MS` (`packages/db/src/seed/dev-seed-record-times.ts`).
 
-**Re-seeding refreshes the scenarios.** After 24 hours SYN-000001's record is stale too, and course checks return 409 `STALE_SOURCE`. Run `pnpm --filter @caa/db db:seed` again: each run adds a fresh snapshot and audit revision for both students as new rows. Nothing existing is changed, and the app reads the newest. The catalog, rules, policy, terms, and attempts are fixed and kept as they are. To start from a clean database instead, run `docker compose -f infra/docker-compose.yml down -v`, then migrate and seed again.
+**Re-seeding refreshes the scenarios.** After 24 hours SYN-000001's record is stale too, and both the academic summary and course checks return 409 `STALE_SOURCE`. Run `pnpm --filter @caa/db db:seed` again: each run adds a fresh snapshot and audit revision for both students as new rows. Nothing existing is changed, and the app reads the newest. The catalog, rules, policy, terms, and attempts are fixed and kept as they are. To start from a clean database instead, run `docker compose -f infra/docker-compose.yml down -v`, then migrate and seed again.
 
 **API settings.** Run the API with the values from `infra/env.example` (`AUTH_MODE=dev`):
 
@@ -76,8 +76,8 @@ curl -X POST http://localhost:4000/v1/students/30000000-0000-4000-8000-000000000
    - With `creditSelections` setting `selectedCreditsHundredths: 200` (2.00) for DEMO-IND 390: **PASS at 12.00**; the minimum is inclusive (**GC-LOAD-005**).
    - Adding DEMO-PHYS 301L and choosing 300 (3.00): **PASS at 14.00**. 3.00 + 4.00 + 3.00 + 1.00 + 3.00, and the lab carries its own credit (**GC-LOAD-001**).
 4. **A stale audit: SYN-000002 (sign in with `dev-token-advisor`).** SYN-000002's audit ran against a record 17 days older than its latest record, which carries a DEMO-MATH 101 grade posted after the audit ran.
-   - **Course checks return 409 `STALE_SOURCE`** and refer the student to an advisor: the audit's record time is older than the 24-hour source-age limit, so no validated result is given (planning/09 §Proposed freshness policies).
-   - **The academic summary** shows the audit-reflects-record check as **UNKNOWN `AUDIT_STALE`**: the record changed after the audit by more than any allowed skew (the API accepts at most 7 days) (**GC-STALE-001**; planning/07 §Consistency model). The requirement states are still the audit's, as of when it ran, and must be shown as needing verification, never as current standing.
+   - **The academic summary and course checks both return 409 `STALE_SOURCE`** and refer the student to an advisor. The audit's record time is older than the 24-hour source-age limit, so neither endpoint gives a result, not even the audit's requirement states as of when it ran (planning/09 §Proposed freshness policies; ADR-0008; #114).
+   - The same audit would also fail the audit-reflects-record check (**UNKNOWN `AUDIT_STALE`**, **GC-STALE-001**), because the record changed after it by more than any allowed skew. The age check refuses the request first, so that result isn't shown.
 
 ## Where things are
 
