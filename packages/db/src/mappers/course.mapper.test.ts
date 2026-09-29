@@ -16,8 +16,11 @@ const ROW: CourseRow = {
   minCreditsHundredths: null,
   maxCreditsHundredths: null,
   equivalencyGroupId: null,
+  creditsIncludedInCourseId: null,
   createdAt: new Date('2026-09-25T12:00:00.000Z'),
 };
+
+const LECTURE_ID = '5e6f7081-92a3-4b4c-8d5e-6f708192a3b4';
 
 describe('toCourse', () => {
   it('keeps only the domain fields of a fixed-credit course', () => {
@@ -32,7 +35,18 @@ describe('toCourse', () => {
       minCreditsHundredths: null,
       maxCreditsHundredths: null,
       equivalencyGroupId: null,
+      creditsIncludedInCourseId: null,
     });
+  });
+
+  it('keeps the course whose credit total includes this one', () => {
+    const course = toCourse({ ...ROW, creditsIncludedInCourseId: LECTURE_ID });
+
+    expect(course.creditsIncludedInCourseId).toBe(LECTURE_ID);
+  });
+
+  it('rejects a stored course whose credits are included in itself', () => {
+    expect(() => toCourse({ ...ROW, creditsIncludedInCourseId: ROW.id })).toThrow(ZodError);
   });
 
   it('keeps a variable credit range and its equivalency group', () => {
