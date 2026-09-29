@@ -111,7 +111,10 @@ function createStudents(world: AcceptanceWorld): StudentRepository {
  * returned, and a user linked to two students is an error, never a pick.
  *
  * @param world - Backing data.
- * @returns A {@link StudentUserLinkRepository}.
+ * @returns A {@link StudentUserLinkRepository}. Its `findByUserId` rejects with an error when
+ *   more than one student in the tenant is linked to the user.
+ * @throws {Error} When more than one student in the tenant is linked to the user (from the
+ *   returned `findByUserId`, as a rejected promise).
  */
 export function createStudentUserLinks(world: AcceptanceWorld): StudentUserLinkRepository {
   return {
