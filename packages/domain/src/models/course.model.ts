@@ -26,6 +26,23 @@ export type EquivalencyGroupId = z.infer<typeof EquivalencyGroupIdSchema>;
 const CreditsHundredthsSchema = z.number().int().nonnegative();
 
 /**
+ * Schema for the institution's statement that a course is repeatable for credit, such as an
+ * ensemble or a topics course, with its optional caps (AC04). Each cap is `null` when the
+ * institution states none; a stated cap limits how many attempts or credits may count.
+ */
+export const RepeatableForCreditSchema = z
+  .object({
+    /** Most attempts that may earn credit, at least 2, or `null` when no attempt cap is stated. */
+    maxAttempts: z.number().int().min(2).nullable(),
+    /** Most credits all attempts may earn together, in hundredths, or `null` when uncapped. */
+    maxCreditsHundredths: z.number().int().positive().nullable(),
+  })
+  .readonly();
+
+/** A validated, immutable repeat-for-credit statement. */
+export type RepeatableForCredit = z.infer<typeof RepeatableForCreditSchema>;
+
+/**
  * Schema for a course.
  *
  * A course has exactly one credit form:
@@ -68,6 +85,15 @@ export const CourseSchema = z
      */
     // TODO(#229): remove `.optional()` once the db mapper, seed, and test-kit fixtures set it.
     creditsIncludedInCourseId: CourseIdSchema.nullable().optional(),
+    /**
+     * The institution's statement that attempts of this course may each earn credit, with any
+     * caps. `null` means the institution doesn't state that, so only one attempt counts (AC04:
+     * duplicate earned credit only when policy explicitly permits it). Sourced from the
+     * institution's catalog, never inferred from labels such as "topics". An omitted value means
+     * the producer hasn't been updated yet (staged rollout, standard 08 §Required-field ripple).
+     */
+    // TODO(#267): remove `.optional()` once the db mapper, seed, and test-kit fixtures set it.
+    repeatableForCredit: RepeatableForCreditSchema.nullable().optional(),
   })
   // SAFETY: a course whose credits are included in itself would drop its own credits from
   // every credit total.
@@ -75,6 +101,19 @@ export const CourseSchema = z
     message: 'creditsIncludedInCourseId must not name the course itself',
     path: ['creditsIncludedInCourseId'],
   })
+  // SAFETY: a repeat credit cap below what one attempt earns would contradict the course's own
+  // credits, so the engine couldn't tell whether even the first attempt counts in full.
+  .refine(
+    (course) => {
+      const cap = course.repeatableForCredit?.maxCreditsHundredths ?? null;
+      const oneAttempt = course.creditsHundredths ?? course.minCreditsHundredths;
+      return cap === null || oneAttempt === null || cap >= oneAttempt;
+    },
+    {
+      message: "repeatableForCredit.maxCreditsHundredths must cover one attempt's credits",
+      path: ['repeatableForCredit', 'maxCreditsHundredths'],
+    },
+  )
   // SAFETY: credit totals drive load and progress checks, so a course must state its credits
   // in exactly one unambiguous form rather than letting readers pick between two.
   .refine(
