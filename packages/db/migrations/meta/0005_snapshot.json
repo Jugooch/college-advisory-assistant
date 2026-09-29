@@ -1,6 +1,6 @@
 {
-  "id": "7dc729d6-3dc7-488c-951c-a30ed9e390bf",
-  "prevId": "ce43bb26-b04a-4b87-aaad-01e659d64f7e",
+  "id": "d5e7408e-3482-49a0-b61b-0230c206cb5d",
+  "prevId": "7dc729d6-3dc7-488c-951c-a30ed9e390bf",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2830,6 +2830,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "source_id": {
+          "name": "source_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "user_id": {
           "name": "user_id",
           "type": "uuid",
@@ -2863,7 +2869,29 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "student_tenant_id_source_id_idx": {
+          "name": "student_tenant_id_source_id_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "source_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "student_tenant_id_institution_id_fk": {
           "name": "student_tenant_id_institution_id_fk",
@@ -2914,7 +2942,12 @@
         }
       },
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "student_source_id_not_empty": {
+          "name": "student_source_id_not_empty",
+          "value": "\"student\".\"source_id\" IS NULL OR length(\"student\".\"source_id\") > 0"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.term": {

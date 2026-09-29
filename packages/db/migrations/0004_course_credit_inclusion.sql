@@ -1,3 +1,0 @@
-ALTER TABLE "course" ADD COLUMN "credits_included_in_course_id" uuid;--> statement-breakpoint
-ALTER TABLE "course" ADD CONSTRAINT "course_credits_included_in_course_fk" FOREIGN KEY ("tenant_id","credits_included_in_course_id") REFERENCES "public"."course"("tenant_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "course" ADD CONSTRAINT "course_credits_not_included_in_itself" CHECK ("course"."credits_included_in_course_id" IS NULL OR "course"."credits_included_in_course_id" <> "course"."id");
