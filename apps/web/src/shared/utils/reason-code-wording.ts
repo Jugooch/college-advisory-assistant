@@ -137,6 +137,62 @@ export const REASON_CODE_WORDING: Readonly<Record<ReasonCode, ReasonWording>> = 
       'The institution hasn’t published this term’s minimum and maximum load, so the total can’t be compared.',
     nextStep: 'Ask your advisor about the credit load limits for this term.',
   },
+  MEETING_CONFLICT: {
+    explanation: 'Two meetings in this schedule overlap on days they both meet.',
+    nextStep:
+      'Choose a different section for one of the courses named in the evidence, or ask your advisor.',
+  },
+  TRANSITION_TIME_INSUFFICIENT: {
+    explanation:
+      'Two meetings are on different campuses, and the time between them is shorter than the travel time the institution requires.',
+    nextStep:
+      'Choose sections with more time between them or on the same campus, or ask your advisor.',
+  },
+  TRANSITION_TIME_UNDEFINED: {
+    explanation:
+      'Two meetings on different campuses fall on the same day, and the institution hasn’t set the travel time between those campuses. It isn’t assumed to be enough.',
+    nextStep:
+      'Treat this schedule as needing verification. Ask your advisor or the registrar whether there is enough time to travel between these meetings.',
+  },
+  MEETING_TIME_UNKNOWN: {
+    explanation:
+      'A meeting’s days or times haven’t been announced yet, so a conflict with another meeting or with a time you marked unavailable can’t be ruled out.',
+    nextStep:
+      'Treat this schedule as needing verification. Check again after the times are published, or ask your advisor or the registrar.',
+  },
+  MEETING_LOCATION_UNKNOWN: {
+    explanation:
+      'A meeting’s location hasn’t been announced yet, so travel time between campuses and your campus choices can’t be checked.',
+    nextStep:
+      'Treat this schedule as needing verification. Check again after the location is published, or ask your advisor or the registrar.',
+  },
+  UNAVAILABLE_TIME_CONFLICT: {
+    explanation: 'A meeting falls in a time you marked as unavailable.',
+    nextStep:
+      'Choose a different section, change your unavailable times if they can move, or ask your advisor.',
+  },
+  MODALITY_NOT_ALLOWED: {
+    explanation: 'A section is taught in a way you didn’t allow, such as in person or online.',
+    nextStep:
+      'Choose a section taught in a way you allowed, change your choices, or ask your advisor.',
+  },
+  CAMPUS_NOT_ALLOWED: {
+    explanation: 'A meeting is on a campus you didn’t allow.',
+    nextStep:
+      'Choose a section on a campus you allowed, change your campus choices, or ask your advisor.',
+  },
+  LINKED_SECTION_UNAVAILABLE: {
+    explanation:
+      'A section needs a linked part, such as a lab, and no section of that part has been published.',
+    nextStep:
+      'Treat this schedule as needing verification. Ask your advisor or the registrar when the linked section will be offered.',
+  },
+  SECTION_DATA_MISSING: {
+    explanation:
+      'The term’s published schedule has no sections for a course you asked for, so it can’t be scheduled here.',
+    nextStep:
+      'Treat this as needing verification. Ask your advisor or the registrar whether the course is offered this term.',
+  },
 };
 
 /**

@@ -14,6 +14,7 @@ import { ReasonCodeSchema } from '../enums/reason-code.enum';
 import { CourseIdSchema } from './course.model';
 import { CourseAttemptIdSchema } from './course-attempt.model';
 import { GradeSchema } from './grade.model';
+import { ScheduleIssueSchema } from './schedule-issue.model';
 
 /**
  * Schema for a path through a rule expression: the child index at each `ALL` or `ANY` node,
@@ -120,6 +121,20 @@ export const CheckEvidenceSchema = z
      * check carries no credit arithmetic; `CheckResultSchema` allows it only on `CREDIT_LOAD`.
      */
     creditLoad: CreditLoadEvidenceSchema.nullable().optional(),
+    /**
+     * What a non-passing `SCHEDULE_FEASIBILITY` check found, one entry per conflict or unknown,
+     * decisive first. Omitted when the check has none, never an empty list. `CheckResultSchema`
+     * enforces, for this field:
+     * - only a `SCHEDULE_FEASIBILITY` check may have it;
+     * - a PASS check has none;
+     * - on any other state, every entry's reason means the check's state
+     *   (`SCHEDULE_REASON_STATE`), and the check's own `reasonCode` is one of the entries';
+     * - except that an UNKNOWN check whose `reasonCode` is an undecided credit load
+     *   (`VARIABLE_CREDIT_UNSELECTED` or `CREDIT_BOUNDS_UNDEFINED`) may have no entry, because
+     *   the credit-load check carries that arithmetic;
+     * - so a CONDITIONAL check is always rejected, since no schedule reason means CONDITIONAL.
+     */
+    scheduleIssues: z.array(ScheduleIssueSchema).min(1).readonly().optional(),
   })
   .readonly();
 

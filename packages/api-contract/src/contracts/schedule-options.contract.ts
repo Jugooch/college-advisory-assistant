@@ -19,6 +19,7 @@ import {
   CheckResultSchema,
   CheckState,
   CourseIdSchema,
+  ReasonCode,
   ScheduleLimitation,
   ScheduleLimitationSchema,
   ScheduleOutcome,
@@ -170,14 +171,21 @@ export const ScheduleOptionsResponseSchema = z
     conflictSet: ConflictSetSchema.nullable(),
     /**
      * UNKNOWN SCHEDULE_FEASIBILITY results saying which data is missing, for
-     * `NEEDS_VERIFICATION`; empty for every other outcome.
+     * `NEEDS_VERIFICATION`; empty for every other outcome. Each is `SECTION_DATA_MISSING` or
+     * `LINKED_SECTION_UNAVAILABLE`, the two reasons a course can have no bundle (ADR-0010 §5).
      */
     unresolved: z
       .array(
         CheckResultSchema.refine(
           (check) =>
-            check.state === CheckState.Unknown && check.kind === CheckKind.ScheduleFeasibility,
-          { message: 'An unresolved item is an UNKNOWN SCHEDULE_FEASIBILITY check' },
+            check.state === CheckState.Unknown &&
+            check.kind === CheckKind.ScheduleFeasibility &&
+            (check.reasonCode === ReasonCode.SectionDataMissing ||
+              check.reasonCode === ReasonCode.LinkedSectionUnavailable),
+          {
+            message:
+              'An unresolved item is an UNKNOWN SCHEDULE_FEASIBILITY check for missing sections',
+          },
         ),
       )
       .readonly(),

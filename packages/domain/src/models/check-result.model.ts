@@ -12,6 +12,47 @@ import { CheckState, CheckStateSchema } from '../enums/check-state.enum';
 import { PrerequisiteExpressionType } from '../enums/prerequisite-expression-type.enum';
 import { ReasonCode, ReasonCodeSchema } from '../enums/reason-code.enum';
 import { CheckEvidenceSchema, type CreditLoadEvidence } from './check-evidence.model';
+import { SCHEDULE_REASON_STATE, type ScheduleIssue } from './schedule-issue.model';
+
+/**
+ * Reasons an undecided credit load gives, which leave a schedule option's feasibility UNKNOWN
+ * because the credit load is one of its hard rules (ADR-0010 §3). The load check itself carries
+ * the arithmetic, so the schedule check names the reason without a schedule issue.
+ */
+const UNKNOWN_LOAD_REASONS: readonly ReasonCode[] = [
+  ReasonCode.CreditBoundsUndefined,
+  ReasonCode.VariableCreditUnselected,
+];
+
+/**
+ * Whether a `SCHEDULE_FEASIBILITY` check's issues explain its state: a PASS has none; any other
+ * state has issues whose reasons all mean that state, and the check's own reason code is one
+ * of them. An UNKNOWN whose reason is an undecided credit load may have no issue. A CONDITIONAL
+ * schedule check is always rejected: no schedule reason means CONDITIONAL, and a schedule
+ * depends on no future condition. Checks of other kinds aren't constrained here.
+ *
+ * @param check - The check's kind, state, reason code, and schedule issues.
+ * @returns `true` when the issues agree with the check.
+ */
+function scheduleIssuesExplainCheck(check: {
+  readonly kind: CheckKind;
+  readonly state: CheckState;
+  readonly reasonCode?: ReasonCode | undefined;
+  readonly evidence?:
+    { readonly scheduleIssues?: readonly ScheduleIssue[] | undefined } | undefined;
+}): boolean {
+  if (check.kind !== CheckKind.ScheduleFeasibility) return true;
+  const issues = check.evidence?.scheduleIssues ?? [];
+  if (check.state === CheckState.Pass) return issues.length === 0;
+  const isUnknownLoad =
+    check.state === CheckState.Unknown &&
+    check.reasonCode !== undefined &&
+    UNKNOWN_LOAD_REASONS.includes(check.reasonCode);
+  return (
+    issues.every((issue) => SCHEDULE_REASON_STATE[issue.reasonCode] === check.state) &&
+    (isUnknownLoad || issues.some((issue) => issue.reasonCode === check.reasonCode))
+  );
+}
 
 /** Check kinds that evaluate a course rule expression, so they can have decisive leaves. */
 const EXPRESSION_CHECK_KINDS: readonly CheckKind[] = [
@@ -135,6 +176,24 @@ export const CheckResultSchema = z
   .refine((check) => creditLoadAgreesWithCheck(check), {
     message: 'creditLoad totals contradict the check state or reasonCode',
     path: ['evidence', 'creditLoad'],
+  })
+  // SAFETY: schedule conflicts are consequential facts, so they may only appear on the check
+  // that evaluates them, never beside an unrelated dimension.
+  .refine(
+    (check) =>
+      check.kind === CheckKind.ScheduleFeasibility || check.evidence?.scheduleIssues === undefined,
+    {
+      message: 'Only SCHEDULE_FEASIBILITY checks may have scheduleIssues',
+      path: ['evidence', 'scheduleIssues'],
+    },
+  )
+  // SAFETY: a FAIL or UNKNOWN schedule must name what failed or is missing from structured
+  // fields (FR-10), a PASS must show no conflict beside it, and an issue meaning UNKNOWN (such
+  // as an undefined transition time) can never explain a FAIL or be hidden under a PASS.
+  .refine(scheduleIssuesExplainCheck, {
+    message:
+      'A non-passing SCHEDULE_FEASIBILITY check needs scheduleIssues that agree with its state and reasonCode (an undecided credit load excepted), and a PASS has none',
+    path: ['evidence', 'scheduleIssues'],
   })
   .readonly();
 

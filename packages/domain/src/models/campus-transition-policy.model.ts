@@ -34,6 +34,24 @@ export const CampusTransitionSchema = z
 export type CampusTransition = z.infer<typeof CampusTransitionSchema>;
 
 /**
+ * Returns whether the gap between two meetings allows the institution's required transition.
+ * A gap exactly equal to the required minutes is enough. Shared invariant (ADR-0005): the
+ * engine's transition check and the schedule-issue schema both call it.
+ *
+ * @param gapMinutes - Minutes from the earlier meeting's end to the later meeting's start.
+ * @param transition - The configured transition for the ordered campus pair.
+ * @returns `false` when the gap is shorter than the required minutes.
+ */
+export function hasEnoughTransitionTime(
+  gapMinutes: number,
+  transition: Pick<CampusTransition, 'minutes'>,
+): boolean {
+  // SAFETY: a gap shorter than the configured time is a travel conflict (AC08), and the rule
+  // only applies to a configured pair; an unconfigured one is UNKNOWN (ADR-0010 §8).
+  return gapMinutes >= transition.minutes;
+}
+
+/**
  * Schema for one version of a tenant's campus transition table. Every value is institution
  * configuration, never a default built into code.
  *

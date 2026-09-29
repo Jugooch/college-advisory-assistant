@@ -24,6 +24,43 @@ function isDistinct(values: readonly string[]): boolean {
 /** Schema for a local wall-clock time, `HH:MM` on a 24-hour clock, with no date or offset. */
 export const LocalTimeSchema = z.iso.time({ precision: -1 });
 
+/**
+ * A local wall-clock interval, `[startTime, endTime)`, as `HH:MM` strings on one calendar date.
+ * `endTime` may be `24:00`, the end of the day, for an unavailable-time block.
+ */
+export interface LocalTimeRange {
+  readonly startTime: string;
+  readonly endTime: string;
+}
+
+/**
+ * Converts a local `HH:MM` time to minutes after midnight.
+ *
+ * @param time - A local time; `24:00` gives 1440. Malformed input gives `NaN`.
+ * @returns Minutes after midnight, for example 570 for `09:30`.
+ */
+function minutesOfLocalTime(time: string): number {
+  return Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
+}
+
+/**
+ * Returns whether two local time ranges overlap as half-open intervals, so one ending exactly
+ * when the other starts doesn't overlap. Shared invariant (ADR-0005): the engine's meeting and
+ * unavailable-time comparisons and the schedule-issue schema both call it.
+ *
+ * @param first - One range.
+ * @param second - The other range.
+ * @returns `true` when some minute lies in both ranges.
+ */
+export function doLocalTimeRangesOverlap(first: LocalTimeRange, second: LocalTimeRange): boolean {
+  // SAFETY: meetings are half-open intervals, so back-to-back meetings don't conflict, while
+  // required travel time can still rule them out (planning/08 §Schedule model).
+  return (
+    minutesOfLocalTime(first.startTime) < minutesOfLocalTime(second.endTime) &&
+    minutesOfLocalTime(second.startTime) < minutesOfLocalTime(first.endTime)
+  );
+}
+
 /** Schema for where a meeting takes place: on a campus, or online. */
 export const MeetingLocationSchema = z.discriminatedUnion('kind', [
   z
