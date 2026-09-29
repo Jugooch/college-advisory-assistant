@@ -3,13 +3,15 @@
  * record is 503 SOURCE_UNAVAILABLE; a tie for the latest record or audit is 409 STALE_SOURCE;
  * course checks need an audit and a policy; and a record or audit record time older than the
  * 24-hour maximum age refers both reads to an advisor with 409 STALE_SOURCE. There is no 200
- * historical view: every 200 is fresh (ADR-0008 and standard 05 §Source freshness, decided on
- * #114). Exactly at the limit is still fresh. Until #114 lands, the summary case is a known
- * finding (tests/support/known-findings.ts).
+ * historical view: every 200 is fresh (ADR-0008 Amendment 1, the academic summary uses the same
+ * gate, recorded in #199; standard 05 §Source freshness). Exactly at the limit is still fresh.
+ * Until the #114 api change lands, the summary case is a known finding
+ * (tests/support/known-findings.ts).
  * @requirement FR-04
  * @requirement NFR-01
  * @requirement NFR-04
  * @requirement T02
+ * @see docs/adr/0008-api-logic-role-and-source-freshness.md
  * @see docs/planning/13-test-and-evaluation-strategy.md
  * @see docs/planning/09-data-model-and-integration-contracts.md
  * @see docs/planning/07-system-architecture-and-design.md
