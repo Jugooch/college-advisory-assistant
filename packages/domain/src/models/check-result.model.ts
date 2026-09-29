@@ -12,6 +12,32 @@ import { CheckState, CheckStateSchema } from '../enums/check-state.enum';
 import { PrerequisiteExpressionType } from '../enums/prerequisite-expression-type.enum';
 import { ReasonCode, ReasonCodeSchema } from '../enums/reason-code.enum';
 import { CheckEvidenceSchema, type CreditLoadEvidence } from './check-evidence.model';
+import { SCHEDULE_REASON_STATE, type ScheduleIssue } from './schedule-issue.model';
+
+/**
+ * Whether a `SCHEDULE_FEASIBILITY` check's issues explain its state: a PASS has none, and any
+ * other state has at least one, every issue's reason means the check's state, and the check's
+ * own reason code is one of them. Checks of other kinds aren't constrained here.
+ *
+ * @param check - The check's kind, state, reason code, and schedule issues.
+ * @returns `true` when the issues agree with the check.
+ */
+function scheduleIssuesExplainCheck(check: {
+  readonly kind: CheckKind;
+  readonly state: CheckState;
+  readonly reasonCode?: ReasonCode | undefined;
+  readonly evidence?:
+    { readonly scheduleIssues?: readonly ScheduleIssue[] | undefined } | undefined;
+}): boolean {
+  if (check.kind !== CheckKind.ScheduleFeasibility) return true;
+  const issues = check.evidence?.scheduleIssues ?? [];
+  if (check.state === CheckState.Pass) return issues.length === 0;
+  return (
+    issues.length > 0 &&
+    issues.every((issue) => SCHEDULE_REASON_STATE[issue.reasonCode] === check.state) &&
+    issues.some((issue) => issue.reasonCode === check.reasonCode)
+  );
+}
 
 /** Check kinds that evaluate a course rule expression, so they can have decisive leaves. */
 const EXPRESSION_CHECK_KINDS: readonly CheckKind[] = [
@@ -135,6 +161,24 @@ export const CheckResultSchema = z
   .refine((check) => creditLoadAgreesWithCheck(check), {
     message: 'creditLoad totals contradict the check state or reasonCode',
     path: ['evidence', 'creditLoad'],
+  })
+  // SAFETY: schedule conflicts are consequential facts, so they may only appear on the check
+  // that evaluates them, never beside an unrelated dimension.
+  .refine(
+    (check) =>
+      check.kind === CheckKind.ScheduleFeasibility || check.evidence?.scheduleIssues === undefined,
+    {
+      message: 'Only SCHEDULE_FEASIBILITY checks may have scheduleIssues',
+      path: ['evidence', 'scheduleIssues'],
+    },
+  )
+  // SAFETY: a FAIL or UNKNOWN schedule must name what failed or is missing from structured
+  // fields (FR-10), a PASS must show no conflict beside it, and an issue meaning UNKNOWN (such
+  // as an undefined transition time) can never explain a FAIL or be hidden under a PASS.
+  .refine(scheduleIssuesExplainCheck, {
+    message:
+      'A SCHEDULE_FEASIBILITY check that is not PASS needs scheduleIssues that agree with its state and reasonCode, and a PASS has none',
+    path: ['evidence', 'scheduleIssues'],
   })
   .readonly();
 

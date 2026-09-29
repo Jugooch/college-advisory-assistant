@@ -14,6 +14,7 @@ import { ReasonCodeSchema } from '../enums/reason-code.enum';
 import { CourseIdSchema } from './course.model';
 import { CourseAttemptIdSchema } from './course-attempt.model';
 import { GradeSchema } from './grade.model';
+import { ScheduleIssueSchema } from './schedule-issue.model';
 
 /**
  * Schema for a path through a rule expression: the child index at each `ALL` or `ANY` node,
@@ -120,6 +121,13 @@ export const CheckEvidenceSchema = z
      * check carries no credit arithmetic; `CheckResultSchema` allows it only on `CREDIT_LOAD`.
      */
     creditLoad: CreditLoadEvidenceSchema.nullable().optional(),
+    /**
+     * What a non-passing `SCHEDULE_FEASIBILITY` check found, one entry per conflict or unknown,
+     * decisive first. Omitted when the check has none, never an empty list.
+     * `CheckResultSchema` allows it only on `SCHEDULE_FEASIBILITY`, requires it when that check
+     * isn't PASS, and requires each entry to agree with the check's state and reason code.
+     */
+    scheduleIssues: z.array(ScheduleIssueSchema).min(1).readonly().optional(),
   })
   .readonly();
 

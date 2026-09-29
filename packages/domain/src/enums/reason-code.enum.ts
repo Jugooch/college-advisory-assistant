@@ -61,6 +61,28 @@ import { z } from 'zod';
  * - `CREDIT_BOUNDS_UNDEFINED`: the credit-load check can't compare the plan with the term's
  *   load limits, because the institution hasn't supplied them (`AcademicPolicy.termCreditBounds`
  *   is `null`). The check is UNKNOWN, never a PASS against an assumed default load.
+ *
+ * Schedules (`SCHEDULE_FEASIBILITY` checks; ADR-0010). Each comes with a matching
+ * `ScheduleIssue` in the check's evidence:
+ * - `MEETING_CONFLICT` (FAIL): two meetings of the option overlap on a date they share.
+ * - `TRANSITION_TIME_INSUFFICIENT` (FAIL): the gap between meetings on two campuses is shorter
+ *   than the institution's required travel time (AC08).
+ * - `TRANSITION_TIME_UNDEFINED` (UNKNOWN): meetings on two campuses share a date, and the
+ *   institution hasn't configured the travel time between them. Never assumed to be zero.
+ * - `MEETING_TIME_UNKNOWN` (UNKNOWN): a meeting's days or time are to be announced, so a
+ *   conflict or a hard unavailable time can't be ruled out.
+ * - `MEETING_LOCATION_UNKNOWN` (UNKNOWN): a meeting's location is to be announced, so travel
+ *   time or a hard campus constraint can't be checked.
+ * - `UNAVAILABLE_TIME_CONFLICT` (FAIL): a meeting falls in a time the student marked as a hard
+ *   unavailable time.
+ * - `MODALITY_NOT_ALLOWED` (FAIL): a section's delivery mode is outside the student's hard
+ *   allowed modalities.
+ * - `CAMPUS_NOT_ALLOWED` (FAIL): a meeting is on a campus outside the student's hard allowed
+ *   campuses.
+ * - `LINKED_SECTION_UNAVAILABLE` (UNKNOWN): a section requires a linked component (such as a
+ *   lab) for which the registrar published no permitted section.
+ * - `SECTION_DATA_MISSING` (UNKNOWN): a requested course has no section in the term's published
+ *   section data.
  */
 export const ReasonCode = {
   MinGradeNotMet: 'MIN_GRADE_NOT_MET',
@@ -89,6 +111,16 @@ export const ReasonCode = {
   CreditBelowMinimum: 'CREDIT_BELOW_MINIMUM',
   VariableCreditUnselected: 'VARIABLE_CREDIT_UNSELECTED',
   CreditBoundsUndefined: 'CREDIT_BOUNDS_UNDEFINED',
+  MeetingConflict: 'MEETING_CONFLICT',
+  TransitionTimeInsufficient: 'TRANSITION_TIME_INSUFFICIENT',
+  TransitionTimeUndefined: 'TRANSITION_TIME_UNDEFINED',
+  MeetingTimeUnknown: 'MEETING_TIME_UNKNOWN',
+  MeetingLocationUnknown: 'MEETING_LOCATION_UNKNOWN',
+  UnavailableTimeConflict: 'UNAVAILABLE_TIME_CONFLICT',
+  ModalityNotAllowed: 'MODALITY_NOT_ALLOWED',
+  CampusNotAllowed: 'CAMPUS_NOT_ALLOWED',
+  LinkedSectionUnavailable: 'LINKED_SECTION_UNAVAILABLE',
+  SectionDataMissing: 'SECTION_DATA_MISSING',
 } as const;
 
 /** Union of every {@link ReasonCode} value. */

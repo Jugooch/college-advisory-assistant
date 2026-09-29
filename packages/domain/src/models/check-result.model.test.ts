@@ -51,7 +51,8 @@ describe('CheckResultSchema', () => {
           .reasonCode,
     );
 
-    expect(codes).toHaveLength(26);
+    expect(codes).toHaveLength(36);
+    expect(codes).toContain('TRANSITION_TIME_UNDEFINED');
     expect(codes).toContain('VARIABLE_CREDIT_UNSELECTED');
     expect(codes).toContain('CREDIT_BOUNDS_UNDEFINED');
     expect(codes).toContain('AUDIT_PROGRAM_MISMATCH');
