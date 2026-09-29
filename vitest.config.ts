@@ -31,6 +31,20 @@ const UNIT_WORKSPACES = [
  */
 const WORKSPACE_TEST_TIMEOUTS: Partial<Record<string, number>> = { tests: 15_000 };
 
+/**
+ * `config` holds the lint-config tests. Each loads the repository ESLint config, whose plugin
+ * imports take minutes on slow checkouts (WSL `/mnt/c`), so its files share one worker and one
+ * module cache: the config loads once per run instead of once per test file. They lint strings
+ * only and keep no state between files. Vitest requires a single-worker, non-isolated project to
+ * have its own group; group 1 runs after the others, so the load doesn't compete for the disk.
+ */
+const SHARED_WORKER_WORKSPACES = new Set(['config']);
+const SHARED_WORKER_OPTIONS = {
+  isolate: false,
+  fileParallelism: false,
+  sequence: { groupOrder: 1 },
+};
+
 const integration = resolveIntegrationMode(process.env);
 if (integration.mode === 'fail') {
   throw new Error(integration.reason);
@@ -45,6 +59,7 @@ export default defineConfig({
         test: {
           name: root,
           root,
+          ...(SHARED_WORKER_WORKSPACES.has(root) ? SHARED_WORKER_OPTIONS : {}),
           exclude: [...configDefaults.exclude, INTEGRATION_TEST_PATTERN],
           ...(root in WORKSPACE_TEST_TIMEOUTS
             ? { testTimeout: WORKSPACE_TEST_TIMEOUTS[root] }
