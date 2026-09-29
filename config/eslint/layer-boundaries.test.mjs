@@ -1,44 +1,15 @@
 /**
  * @file Tests that the merged lint config keeps the `./testing` entry points test-only and blocks
  * cross-app imports, including subpaths, and keeps Node built-ins out of engine production code,
- * whichever flat-config block matches a file last.
+ * whichever flat-config block matches a file last. Also covers the api `.logic.ts` role (ADR-0008).
  * @see docs/standards/01-repository-structure.md
+ * @see docs/standards/05-api-design.md
  */
-import { fileURLToPath } from 'node:url';
-
-import { ESLint, Linter } from 'eslint';
 import { beforeAll, describe, expect, it } from 'vitest';
 
-const ROOT = fileURLToPath(new URL('../..', import.meta.url));
+import { lintImport, lintWithRules, loadRepoLintConfig } from './lint-test-harness.mjs';
 
-/** @type {ESLint} */
-let eslint;
-
-// NOTE: the first lookup loads every lint plugin, which is slow on some file systems.
-beforeAll(async () => {
-  eslint = new ESLint({ cwd: ROOT });
-  await eslint.calculateConfigForFile('eslint.config.mjs');
-}, 120_000);
-
-/**
- * Lints one import statement with the `no-restricted-imports` entry the repo config gives a path.
- *
- * @param {string} path - Repository-relative file path whose config applies.
- * @param {string} specifier - The imported module.
- * @returns {Promise<string[]>} Messages reported for the import; empty when it is allowed.
- */
-async function lintImport(path, specifier) {
-  const config = await eslint.calculateConfigForFile(path);
-  const entry = config.rules?.['no-restricted-imports'];
-  if (entry === undefined) {
-    return [];
-  }
-  const linter = new Linter({ configType: 'flat' });
-  const results = linter.verify(`import '${specifier}';`, [
-    { rules: { 'no-restricted-imports': entry } },
-  ]);
-  return results.map((result) => result.message);
-}
+beforeAll(loadRepoLintConfig, 120_000);
 
 const PRODUCTION_FILES = [
   'apps/api/src/app.ts',
@@ -100,7 +71,7 @@ describe('app boundaries cover subpaths', () => {
   ])('forbids %s from importing %s', async (path, specifier) => {
     const messages = await lintImport(path, specifier);
 
-    expect(messages).toHaveLength(1);
+    expect(messages).not.toEqual([]);
   });
 });
 
@@ -144,5 +115,106 @@ describe('engine production code has no Node built-ins (NFR-01)', () => {
     const messages = await lintImport(path, specifier);
 
     expect(messages).toEqual([]);
+  });
+});
+
+describe('api .logic.ts files are pure (ADR-0008)', () => {
+  const LOGIC = 'apps/api/src/modules/x/x.logic.ts';
+
+  it.each([
+    "import { verifyCourseSet } from '@caa/engine';",
+    "import { CheckState } from '@caa/domain';",
+    "import type { StudentSnapshotRevision } from '@caa/db';",
+    "import { DomainError } from '../../shared/domain-errors';",
+    "import { isSourceFresh } from '../y/y.logic';",
+  ])('allows %s', async (statement) => {
+    expect(await lintImport(LOGIC, statement)).toEqual([]);
+  });
+
+  it.each([
+    "import { createStudentSnapshotRepository } from '@caa/db';",
+    "import { fastify } from 'fastify';",
+    "import { createYService } from '../y/y.service';",
+    "import { requestContext } from '../../shared/request-context';",
+    "import { container } from '../../container';",
+    "import { loadEnv } from '../../config/env';",
+    "import { readFileSync } from 'node:fs';",
+    "import { readFileSync } from 'fs';",
+    "import { eq } from 'drizzle-orm';",
+    "import { x } from '@caa/worker';",
+  ])('forbids %s', async (statement) => {
+    expect(await lintImport(LOGIC, statement)).not.toEqual([]);
+  });
+
+  it('allows parsing a given time', async () => {
+    const messages = await lintWithRules(LOGIC, 'export const at = new Date(value);', [
+      'no-restricted-properties',
+      'no-restricted-syntax',
+    ]);
+
+    expect(messages).toEqual([]);
+  });
+
+  it.each([
+    ['Date.now()', 'NFR-01'],
+    ['Math.random()', 'NFR-01'],
+    ['new Date()', "service's injected clock"],
+    ['Date()', 'reads the clock'],
+    ['crypto.randomUUID()', 'no randomness'],
+    ['performance.now()', 'reads no clock'],
+    ['process.env.X', 'no environment'],
+  ])('forbids %s', async (expression, message) => {
+    const messages = await lintWithRules(LOGIC, `export const x = ${expression};`, [
+      'no-restricted-properties',
+      'no-restricted-syntax',
+      'no-restricted-globals',
+    ]);
+
+    expect(messages.join('\n')).toContain(message);
+  });
+
+  it('keeps the language syntax bans', async () => {
+    const messages = await lintWithRules(LOGIC, 'enum Color { Red }', ['no-restricted-syntax']);
+
+    expect(messages.join('\n')).toContain('as const');
+  });
+
+  it.each(['apps/api/src/modules/x/x.controller.ts', 'apps/api/src/modules/x/x.routes.ts'])(
+    'forbids %s from importing ./x.logic',
+    async (path) => {
+      expect(await lintImport(path, "import { decide } from './x.logic';")).not.toEqual([]);
+    },
+  );
+
+  it('still lets a service import logic', async () => {
+    const statement = "import { decide } from './x.logic';";
+
+    expect(await lintImport('apps/api/src/modules/x/x.service.ts', statement)).toEqual([]);
+  });
+});
+
+describe('engine production code reads no clock, randomness, or environment (NFR-01)', () => {
+  const ENGINE_SOURCE = 'packages/engine/src/verification/example.ts';
+  const RULES = ['no-restricted-properties', 'no-restricted-syntax', 'no-restricted-globals'];
+
+  it.each([
+    ['Date.now()', 'NFR-01'],
+    ['Math.random()', 'NFR-01'],
+    ['Date()', 'reads the clock'],
+    ['crypto.randomUUID()', 'no randomness'],
+    ['performance.now()', 'reads no clock'],
+    ['process.env.X', 'no environment'],
+  ])('forbids %s', async (expression, message) => {
+    const messages = await lintWithRules(ENGINE_SOURCE, `export const x = ${expression};`, RULES);
+
+    expect(messages.join('\n')).toContain(message);
+  });
+
+  it('allows parsing a given time and keeps the language syntax bans', async () => {
+    const allowed = await lintWithRules(ENGINE_SOURCE, 'export const at = new Date(value);', RULES);
+    const banned = await lintWithRules(ENGINE_SOURCE, 'enum Color { Red }', RULES);
+
+    expect(allowed).toEqual([]);
+    expect(banned.join('\n')).toContain('as const');
   });
 });
