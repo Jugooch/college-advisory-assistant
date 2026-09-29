@@ -1,6 +1,6 @@
 /**
  * @file The development golden corpus: every rule family (v0 from S2, extended in S3 for pinned
- *   inputs), independently adjudicated from the planning docs. The frozen holdout lives apart, in
+ *   inputs and for interactions between families), independently adjudicated from the planning docs. The frozen holdout lives apart, in
  *   `tests/golden/holdout/` (see its README).
  * @module @caa/test-kit/golden/golden-corpus
  * @requirement FR-04
@@ -15,14 +15,18 @@ import { APPLICABILITY_CASES } from './cases/applicability.cases';
 import { ATTEMPT_STATUS_CASES } from './cases/attempt-status.cases';
 import { CREDIT_BOUNDS_UNDEFINED_CASES } from './cases/credit-bounds-undefined.cases';
 import { CREDIT_LOAD_CASES } from './cases/credit-load.cases';
+import { CUTOFF_PASS_FAIL_CASES } from './cases/cutoff-pass-fail.cases';
 import { EXPRESSION_CASES } from './cases/expressions.cases';
 import { MINIMUM_GRADE_CASES } from './cases/minimum-grade.cases';
 import { PASSING_CUTOFF_CASES } from './cases/passing-cutoff.cases';
+import { PENDING_TRANSFER_REPEAT_CASES } from './cases/pending-transfer-repeats.cases';
 import { PINNED_RECORD_CASES } from './cases/pinned-record.cases';
 import { PROGRAM_CATALOG_CASES } from './cases/program-catalog.cases';
 import { REPEAT_CASES } from './cases/repeats.cases';
+import { REQUIREMENT_ANCESTOR_CASES } from './cases/requirement-ancestors.cases';
 import { RETAKE_AND_EQUIVALENCY_CASES } from './cases/retakes-and-equivalency.cases';
 import { TERM_ORDER_CASES } from './cases/term-order.cases';
+import { VARIABLE_CREDIT_ALLOCATION_CASES } from './cases/variable-credit-allocation.cases';
 import { defineGoldenCorpus, type GoldenCase } from './golden-case.schema';
 
 /**
@@ -33,13 +37,17 @@ import { defineGoldenCorpus, type GoldenCase } from './golden-case.schema';
 export const GOLDEN_DEVELOPMENT_CORPUS: readonly GoldenCase[] = defineGoldenCorpus([
   ...MINIMUM_GRADE_CASES,
   ...PASSING_CUTOFF_CASES,
+  ...CUTOFF_PASS_FAIL_CASES,
   ...ATTEMPT_STATUS_CASES,
+  ...PENDING_TRANSFER_REPEAT_CASES,
   ...REPEAT_CASES,
   ...RETAKE_AND_EQUIVALENCY_CASES,
   ...TERM_ORDER_CASES,
   ...EXPRESSION_CASES,
   ...APPLICABILITY_CASES,
+  ...REQUIREMENT_ANCESTOR_CASES,
   ...ALLOCATION_CASES,
+  ...VARIABLE_CREDIT_ALLOCATION_CASES,
   ...PINNED_RECORD_CASES,
   ...PROGRAM_CATALOG_CASES,
   ...CREDIT_LOAD_CASES,

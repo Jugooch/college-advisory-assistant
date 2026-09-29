@@ -13,7 +13,7 @@ import { letter, pass } from '../../builders/grade.builder';
 import { type GoldenCase } from '../golden-case.schema';
 import { prerequisiteCase } from '../golden-case-factories';
 import { mustNot, NEVER_PASS_WHEN_UNKNOWN, prerequisiteCheck } from '../golden-expectations';
-import { prerequisiteInputs } from '../golden-inputs';
+import { prerequisiteInputs, S3_INTERACTIONS_ADJUDICATED_ON } from '../golden-inputs';
 import { GoldenRuleFamily } from '../golden-rule-family';
 
 const REPEATS = 'planning/08 §Candidate formation and allocation (repeats need attempt identities)';
@@ -122,21 +122,49 @@ export const REPEAT_CASES: readonly GoldenCase[] = [
   prerequisiteCase({
     id: 'GC-REP-006',
     family: GoldenRuleFamily.Repeat,
-    title: 'HIGHEST_GRADE with two equal grades is a tie',
+    title: 'HIGHEST_GRADE settles a tie whose attempts are identical',
     requirementIds: ['FR-06', 'T04'],
     inputs: prerequisiteInputs({
       policy: { repeatPolicy: RepeatPolicy.HighestGrade },
       attempts: twoAttempts([letter('B'), '2025FA'], [letter('B'), '2026SP']),
     }),
+    expected: [prerequisiteCheck(CheckState.Pass, null)],
+    allowedAlternatives: [
+      [prerequisiteCheck(CheckState.Unknown, ReasonCode.RepeatOrderUndetermined)],
+    ],
+    prohibitedClaims: [NOT_BLOCKED],
+    rationale:
+      'Both attempts are the same course and status with a B and 3.00 credits, so whichever counts, the counted grade is B, which meets C: the rule is satisfied by current evidence. UNKNOWN stays acceptable: it is the safe direction, and it was the recorded behavior before issue #78.',
+    citations: [
+      'planning/08 §Authority and result semantics (PASS: satisfied by current evidence)',
+      'issue #78 (an identical-outcome HIGHEST_GRADE tie resolves)',
+      'PR #64 (ties → UNDETERMINED, before #78)',
+    ],
+    adjudicatedOn: S3_INTERACTIONS_ADJUDICATED_ON,
+  }),
+  prerequisiteCase({
+    id: 'GC-REP-014',
+    family: GoldenRuleFamily.Repeat,
+    title: 'A HIGHEST_GRADE tie that differs in earned credits stays undetermined',
+    requirementIds: ['FR-06', 'T04'],
+    inputs: prerequisiteInputs({
+      policy: { repeatPolicy: RepeatPolicy.HighestGrade },
+      attempts: [
+        completedAttempt({ grade: letter('B'), termCode: '2025FA' }, 1),
+        completedAttempt({ grade: letter('B'), termCode: '2026SP', creditsEarnedHundredths: 0 }, 2),
+      ],
+    }),
     expected: [prerequisiteCheck(CheckState.Unknown, ReasonCode.RepeatOrderUndetermined)],
     allowedAlternatives: [[prerequisiteCheck(CheckState.Pass, null)]],
     prohibitedClaims: [NOT_BLOCKED],
     rationale:
-      'The tie leaves no single counting attempt (UNKNOWN); PASS is also acceptable because both tied grades meet C.',
+      'Both are B, but one earned 3.00 credits and the other none, so the tie changes the outcome and which attempt counts is undetermined (issue #78). PASS is also acceptable here, because both tied grades meet C.',
     citations: [
-      'packages/domain ReasonCode (REPEAT_ORDER_UNDETERMINED: tied grades)',
-      'PR #64 (ties → UNDETERMINED)',
+      'issue #78 (a tie that differs in credits stays UNDETERMINED)',
+      REPEATS,
+      'planning/08 §Authority and result semantics',
     ],
+    adjudicatedOn: S3_INTERACTIONS_ADJUDICATED_ON,
   }),
   prerequisiteCase({
     id: 'GC-REP-007',

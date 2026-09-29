@@ -6,4 +6,6 @@
  */
 
 /** Open findings by golden case ID: the `bug` issue number that tracks each disagreement. */
-export const KNOWN_FINDINGS: ReadonlyMap<string, number> = new Map<string, number>([]);
+export const KNOWN_FINDINGS: ReadonlyMap<string, number> = new Map<string, number>([
+  ['GC-PF-004', 183],
+]);
