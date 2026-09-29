@@ -6,7 +6,7 @@
  */
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { lintImport, loadRepoLintConfig } from './lint-test-harness.mjs';
+import { lintImport, lintWithRules, loadRepoLintConfig } from './lint-test-harness.mjs';
 
 beforeAll(loadRepoLintConfig, 120_000);
 
@@ -202,5 +202,29 @@ describe('relative paths cannot bypass the folder rules', () => {
     ['apps/web/src/shared/components/x.tsx', named('y', '../utils/y')],
   ])('allows %s importing %s', async (path, statement) => {
     expect(await lintImport(path, statement)).toEqual([]);
+  });
+});
+
+describe('folder naming', () => {
+  const FOLDER_RULE = ['check-file/folder-naming-convention'];
+
+  it.each([
+    'apps/web/src/app/students/[studentId]/page.tsx',
+    'apps/web/src/app/(signed-in)/overview/page.tsx',
+    'apps/web/src/features/course-checks/components/check-evidence.tsx',
+    'apps/api/src/course-checks/course-checks.controller.ts',
+    'packages/engine/src/verification/check.ts',
+  ])('allows %s', async (path) => {
+    expect(await lintWithRules(path, '', FOLDER_RULE)).toEqual([]);
+  });
+
+  it.each([
+    'apps/web/src/features/[studentId]/x.ts',
+    'apps/web/src/app/StudentList/page.tsx',
+    'apps/api/src/courseChecks/x.ts',
+    'apps/worker/src/[job]/x.ts',
+    'packages/domain/src/Course_Models/x.ts',
+  ])('forbids %s', async (path) => {
+    expect(await lintWithRules(path, '', FOLDER_RULE)).not.toEqual([]);
   });
 });
