@@ -29,6 +29,7 @@ export function buildCourse(overrides: Partial<CourseInput> = {}, seed = 1): Cou
     minCreditsHundredths: null,
     maxCreditsHundredths: null,
     equivalencyGroupId: null,
+    creditsIncludedInCourseId: null,
     ...overrides,
   });
 }
