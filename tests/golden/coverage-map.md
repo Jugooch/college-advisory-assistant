@@ -8,7 +8,7 @@ Status as of 2026-09-29 (#103):
 - The holdout has 15 cases, version v0.2.
 - Every case is `pending-academic-review`.
 - No open findings. #183 was settled by tech-lead ruling GR-01 (planning/13 §Golden corpus design, Adjudication rulings), and GC-PF-004 was re-adjudicated from it.
-- 46 scheduling cases are planned as `it.todo` in `tests/golden/scheduling.golden.test.ts` (#226). They aren't counted above until they're full cases (see §Scheduling families).
+- 48 scheduling cases are planned as `it.todo` in `tests/golden/scheduling.golden.test.ts` (#226). They aren't counted above until they're full cases (see §Scheduling families).
 
 Keep this file current in the same PR that adds, burns or re-adjudicates a case.
 
@@ -131,7 +131,7 @@ Each interaction lists its development cases, its holdout count, and the gaps st
 
 ## Scheduling families (S4, planned)
 
-The scheduling families (T05: AC06–AC08, AC12) are planned in `tests/golden/scheduling.golden.test.ts`. Each is an `it.todo` whose title states the inputs and the adjudicated expectation, from planning/08 §Schedule model and §Constraint formulation, planning/13, planning/14 §First vertical slice and ADR-0010. They become full cases in `packages/test-kit/src/golden/cases/` once the scheduling case kind can be written: it needs the #212 constraint and evidence objects, and the case turns live when its engine issue merges.
+The scheduling families (T05: AC06–AC08, AC12) are planned in `tests/golden/scheduling.golden.test.ts`. Each is an `it.todo` whose title states the inputs and the adjudicated expectation, from planning/08 §Schedule model and §Constraint formulation, planning/13, planning/14 §First vertical slice and ADR-0010. They become full cases in `packages/test-kit/src/golden/cases/` once the scheduling case kind can be written: it uses the #212 constraint objects (merged in #251, which also settles GC-HARD-005's half-open unavailable block) and the #213 outcome shape, and each case turns live when its engine issue merges.
 
 States are the planned expectations, with the same letters as §Rule families.
 
@@ -141,7 +141,7 @@ States are the planned expectations, with the same letters as §Rule families.
 | TERM_DATE_OVERLAP    | GC-HALF-001–004   | P F    | GC-HALF-002, GC-HALF-004 | none (see TBA)             | #218         |
 | TRANSITION_TIME      | GC-TRAVEL-001–008 | P F U  | GC-TRAVEL-002            | GC-TRAVEL-003–004          | #218         |
 | LINKED_SECTION       | GC-LINK-001–007   | P F U  | GC-LINK-005              | GC-LINK-004                | #219         |
-| MEETING_TIME_UNKNOWN | GC-TBA-001–004    | P U    | none                     | GC-TBA-001, GC-TBA-004     | #218, #220   |
+| MEETING_TIME_UNKNOWN | GC-TBA-001–006    | P U    | GC-TBA-005, GC-TBA-006   | GC-TBA-001, GC-TBA-004     | #218, #220   |
 | HARD_VERSUS_SOFT     | GC-HARD-001–005   | P F    | GC-HARD-005              | none                       | #220         |
 | SOLVER_OUTCOME       | GC-SOLVE-001–010  | P F U  | GC-SOLVE-003             | GC-SOLVE-002, GC-SOLVE-008 | #220         |
 
@@ -153,6 +153,7 @@ States are the planned expectations, with the same letters as §Rule families.
 - Linked section × transition time: GC-LINK-007.
 - Linked section × credit load (an included lab): GC-LINK-005, GC-LINK-006. This also closes the "included lab" gap under Allocation × reusable × variable credit, for credit load.
 - Half-term × TBA: GC-TBA-002.
+- Known weekdays × TBA times (ruling GR-02): GC-TBA-005 gives PASS when no possible date is shared, and GC-TBA-006 gives UNKNOWN `MEETING_TIME_UNKNOWN` when one is (GC-TBA-006 is also an unknown case).
 - Date overlap × DST: GC-MEET-007, GC-MEET-008.
 - TBA × hard availability: GC-TBA-004.
 - Transition time × ranking (UNKNOWN after PASS): GC-SOLVE-010.
@@ -160,8 +161,6 @@ States are the planned expectations, with the same letters as §Rule families.
 
 **Open gaps and questions:**
 
-- **Needs a tech-lead ruling:** a meeting with known weekdays and TBA times against a timed meeting on other weekdays. It can't overlap, but planning/08 doesn't say whether a partly known meeting may PASS. Until there's a ruling, there's no case.
-- **Needs #212's constraint semantics:** GC-HARD-005 assumes an unavailable-time block is half-open like meetings. If #212 settles otherwise, the case is re-adjudicated from it, never weakened.
 - No `HARD_VERSUS_SOFT` unknown case beyond GC-TBA-004. Add one for an allowed-campus constraint against a meeting with a TBA location.
 - No holdout case for any scheduling family. The v0.3 holdout refresh (#226) adds them, together with the 10 families listed under Family gaps.
 - Multi-meeting sections (a lecture with an MWF meeting and a separate Friday exam slot) aren't planned yet.
@@ -180,7 +179,7 @@ There are 128 cases today (113 development, 15 holdout). The remaining 72 or mor
    - credit and residency limits;
    - approved exceptions (AC17);
    - catalog-year rules (AC09);
-   - scheduling (T05: AC06–AC08, AC12): 46 cases planned (§Scheduling families).
+   - scheduling (T05: AC06–AC08, AC12): 48 cases planned (§Scheduling families).
 
    The non-scheduling families add about 30 or more cases. Every case is filed as `it.todo` with the issue number until the feature exists.
 

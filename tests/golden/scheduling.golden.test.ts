@@ -118,13 +118,19 @@ describe('golden scheduling cases: MEETING_TIME_UNKNOWN (#218, #220)', () => {
     'GC-TBA-001 (#218, unknown): a whole-term TBA meeting vs a whole-term MWF 09:00–09:50 meeting → UNKNOWN MEETING_TIME_UNKNOWN, never PASS',
   );
   it.todo(
-    'GC-TBA-002 (#218): a first-half TBA meeting vs a second-half MWF 09:00–09:50 meeting → PASS (no shared date, so the unknown time can’t conflict)',
+    'GC-TBA-002 (#218, GR-02): a first-half TBA meeting vs a second-half MWF 09:00–09:50 meeting → PASS (no shared possible date, so the unknown time can’t conflict)',
   );
   it.todo(
     'GC-TBA-003 (#218): an online asynchronous section (no meetings) vs a whole-term MWF 09:00–09:50 meeting → PASS (nothing to conflict on time)',
   );
   it.todo(
     'GC-TBA-004 (#220, unknown): a section with a TBA meeting under a hard "no Fridays" constraint → the option is never PASS: SCHEDULE_FEASIBILITY UNKNOWN MEETING_TIME_UNKNOWN (a TBA meeting can’t satisfy hard availability)',
+  );
+  it.todo(
+    'GC-TBA-005 (#218, GR-02): a whole-term MW meeting with TBA times vs a whole-term TTh 09:00–09:50 meeting → PASS (known weekdays share no possible date, whatever the times)',
+  );
+  it.todo(
+    'GC-TBA-006 (#218, GR-02, unknown): a whole-term MW meeting with TBA times vs a whole-term WF 09:00–09:50 meeting → UNKNOWN MEETING_TIME_UNKNOWN (they share every Wednesday); never PASS and never FAIL',
   );
 });
 
