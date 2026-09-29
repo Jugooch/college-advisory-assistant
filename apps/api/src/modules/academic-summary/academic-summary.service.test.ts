@@ -12,8 +12,13 @@ import type { AuditSnapshotRepository, StudentSnapshotRepository } from '@caa/db
 import { type AuditSnapshot, CheckState, ReasonCode, type StudentSnapshot } from '@caa/domain';
 import { buildActor, buildStudent } from '@caa/test-kit';
 
-import { NotFoundError, SourceUnavailableError } from '../../shared/domain-errors';
+import {
+  NotFoundError,
+  SourceUnavailableError,
+  StaleSourceError,
+} from '../../shared/domain-errors';
 import { buildRecordAudit, buildRecordSnapshot } from '../../testing/academic-fixtures';
+import { TEST_NOW } from '../../testing/fixtures';
 import {
   createInMemoryRepositories,
   createRecordingLogger,
@@ -22,14 +27,18 @@ import { createPinnedRecordsService } from '../pinned-records/pinned-records.ser
 import { createAcademicSummaryService } from './academic-summary.service';
 
 const MAX_SKEW_MS = 3_600_000;
+/** 24 hours, the dev `ACADEMIC_SOURCE_MAX_AGE_MS`. */
+const MAX_AGE_MS = 86_400_000;
 const actor = buildActor();
 const student = buildStudent({ userId: actor.userId });
 const snapshot = buildRecordSnapshot();
 const audit = buildRecordAudit();
 
-/** What the fake repositories hold, and whether the fake access check allows the read. */
+/** What the fake repositories hold, the clock, and whether the fake access check allows the read. */
 interface Setup {
   readonly isAllowed?: boolean;
+  /** The clock reading; defaults to `TEST_NOW`, when the default record is 23.5 hours old. */
+  readonly now?: string;
   readonly studentSnapshots?: readonly StudentSnapshot[];
   readonly audits?: readonly AuditSnapshot[];
   readonly repositories?: {
@@ -42,7 +51,7 @@ interface Setup {
  * Creates the service over in-memory repositories and a fixed access decision, and reads the
  * summary of `student` as `actor`.
  *
- * @param setup - Records, access decision, and optional replacement repositories.
+ * @param setup - Records, clock, access decision, and optional replacement repositories.
  * @returns The read's promise and the recording logger.
  */
 function read(setup: Setup = {}) {
@@ -62,9 +71,8 @@ function read(setup: Setup = {}) {
     pinnedRecords: createPinnedRecordsService({
       studentSnapshots: setup.repositories?.studentSnapshots ?? store.studentSnapshots,
       auditSnapshots: setup.repositories?.auditSnapshots ?? store.auditSnapshots,
-      // NOTE: the summary doesn't apply the freshness gate (#114), so the clock is never read.
-      now: () => new Date(Number.NaN),
-      maxSourceAgeMs: 0,
+      now: () => (setup.now === undefined ? TEST_NOW : new Date(setup.now)),
+      maxSourceAgeMs: MAX_AGE_MS,
     }),
     maxSkewMs: MAX_SKEW_MS,
   });
@@ -116,6 +124,8 @@ describe('AcademicSummaryService.getAcademicSummary', () => {
   it('applies the configured skew: exactly the skew passes, one millisecond more is stale', async () => {
     const at = (offsetMs: number) =>
       read({
+        // NOTE: shortly after the record, so the older audit record time is still fresh.
+        now: '2026-08-31T13:00:00.000Z',
         audits: [
           buildRecordAudit({
             studentRecordEffectiveAt: new Date(
@@ -164,6 +174,59 @@ describe('AcademicSummaryService.getAcademicSummary', () => {
     await expect(read({ studentSnapshots: [] }).result).rejects.toBeInstanceOf(
       SourceUnavailableError,
     );
+  });
+});
+
+/**
+ * Returns an instant a given time after another.
+ *
+ * @param iso - ISO 8601 instant.
+ * @param ms - Milliseconds to add.
+ * @returns The later instant.
+ */
+function after(iso: string, ms: number): string {
+  return new Date(Date.parse(iso) + ms).toISOString();
+}
+
+describe('AcademicSummaryService.getAcademicSummary source freshness', () => {
+  it('serves a record and audit exactly at the maximum age', async () => {
+    const { result } = read({ now: after(snapshot.sourceEffectiveAt, MAX_AGE_MS) });
+
+    expect((await result).studentSnapshot).toEqual(snapshot);
+  });
+
+  it('refers the student with STALE_SOURCE one millisecond past the maximum age', async () => {
+    const { result, logger } = read({ now: after(snapshot.sourceEffectiveAt, MAX_AGE_MS + 1) });
+
+    await expect(result).rejects.toBeInstanceOf(StaleSourceError);
+    expect(logger.entries).toEqual([
+      expect.objectContaining({
+        message: 'academic record unavailable',
+        details: expect.objectContaining({ reason: 'SOURCE_NOT_FRESH' }) as unknown,
+      }),
+    ]);
+  });
+
+  it('refuses a fresh record whose audit ran against a record past the maximum age', async () => {
+    const oldAudit = buildRecordAudit({
+      studentRecordEffectiveAt: after(snapshot.sourceEffectiveAt, -MAX_AGE_MS),
+    });
+
+    await expect(read({ audits: [oldAudit] }).result).rejects.toBeInstanceOf(StaleSourceError);
+  });
+
+  it('refuses a record dated more than 5 minutes after the clock', async () => {
+    const { result } = read({ now: after(snapshot.sourceEffectiveAt, -300_001) });
+
+    await expect(result).rejects.toBeInstanceOf(StaleSourceError);
+  });
+
+  it('checks only the record when the student has no audit', async () => {
+    const fresh = read({ audits: [], now: after(snapshot.sourceEffectiveAt, MAX_AGE_MS) });
+    const stale = read({ audits: [], now: after(snapshot.sourceEffectiveAt, MAX_AGE_MS + 1) });
+
+    expect((await fresh.result).audit).toBeNull();
+    await expect(stale.result).rejects.toBeInstanceOf(StaleSourceError);
   });
 });
 

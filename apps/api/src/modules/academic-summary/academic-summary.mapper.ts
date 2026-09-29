@@ -60,6 +60,7 @@ export function toAcademicSummaryResponse(summary: AcademicSummary): AcademicSum
             programId: audit.audit.programId,
             catalogYear: audit.audit.catalogYear,
             generatedAt: audit.audit.generatedAt,
+            studentRecordEffectiveAt: audit.audit.studentRecordEffectiveAt,
           },
     auditReflectsRecord: audit?.reflectsRecord ?? null,
     programCatalogConsistency: audit?.programCatalogConsistency ?? null,
