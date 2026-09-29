@@ -19,6 +19,7 @@ export * from './enums/repeat-policy.enum';
 export * from './enums/requirement-state.enum';
 export * from './enums/role.enum';
 export * from './enums/schedule-constraint.enum';
+export * from './enums/schedule-outcome.enum';
 export * from './enums/section-modality.enum';
 export * from './enums/weekday.enum';
 export * from './models/academic-policy.model';
