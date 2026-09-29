@@ -1,51 +1,104 @@
 /**
- * @file Unit tests for the academic dev seed plan: the literal inputs each documented scenario
- *   relies on. Expected results are not computed here; they come from the golden corpus.
+ * @file Unit tests for the academic dev seed plan builder: the literal inputs each documented
+ *   scenario relies on, for a fixed run time. Expected results are not computed here; they come
+ *   from the golden corpus.
  */
 import { describe, expect, it } from 'vitest';
 
 import { isSameProgramAndCatalog, RequirementState } from '@caa/domain';
 
-import { DEV_SEED_ACADEMIC_PLAN as PLAN, SEED_RECORD_TIMES } from './dev-seed-academic-plan';
+import { buildDevSeedAcademicPlan } from './dev-seed-academic-plan';
 
 const CURRENT_STUDENT = '30000000-0000-4000-8000-000000000001';
 const STALE_STUDENT = '30000000-0000-4000-8000-000000000002';
-const SEVENTEEN_DAYS_MS = 17 * 24 * 60 * 60 * 1000;
+/** The fixed run time; 1790856000000 ms, `01a0f755f200` in hex. */
+const NOW = new Date('2026-10-01T12:00:00.000Z');
+const PLAN = buildDevSeedAcademicPlan(NOW);
 
 const courseByLabel = (label: string) => PLAN.courses.find((course) => course.label === label);
 const snapshotsOf = (studentId: string) =>
   PLAN.snapshots.filter((snapshot) => snapshot.studentId === studentId);
 const auditOf = (studentId: string) => PLAN.audits.find((audit) => audit.studentId === studentId);
 
-describe('DEV_SEED_ACADEMIC_PLAN', () => {
-  it('uses only DEMO- course codes', () => {
-    const codes = PLAN.courses.flatMap((course) => [course.label, course.sourceCourseId]);
-
-    expect(codes.every((code) => code.startsWith('DEMO-'))).toBe(true);
+describe('buildDevSeedAcademicPlan', () => {
+  it('builds the same plan from the same run time', () => {
+    expect(buildDevSeedAcademicPlan(new Date('2026-10-01T12:00:00.000Z'))).toEqual(PLAN);
   });
 
-  it("pins the current student's audit to that student's snapshot, with no skew", () => {
+  it("times SYN-000001's record 3 hours before the run, and its audit on that record", () => {
     const [snapshot] = snapshotsOf(CURRENT_STUDENT);
     const audit = auditOf(CURRENT_STUDENT);
 
     expect(snapshotsOf(CURRENT_STUDENT)).toHaveLength(1);
-    expect(audit?.studentSnapshotId).toBe(snapshot?.id);
-    expect(audit?.studentRecordEffectiveAt).toBe(snapshot?.sourceEffectiveAt);
+    expect(snapshot).toMatchObject({
+      id: 'a0000000-0001-4000-8000-01a0f755f200',
+      sourceEffectiveAt: '2026-10-01T09:00:00.000Z',
+      ingestedAt: '2026-10-01T10:00:00.000Z',
+    });
+    expect(audit).toMatchObject({
+      id: '70000000-0001-4000-8000-01a0f755f200',
+      studentSnapshotId: 'a0000000-0001-4000-8000-01a0f755f200',
+      auditVersion: 'audit_demo_r1_1790856000000',
+      generatedAt: '2026-10-01T11:00:00.000Z',
+      studentRecordEffectiveAt: '2026-10-01T09:00:00.000Z',
+    });
+    expect(audit?.requirements.map((requirement) => requirement.sourceRef)).toEqual([
+      'requirement/REQ-DEMO-BS',
+      'requirement/REQ-MATH-CORE',
+      'requirement/REQ-PHYS-SEQ',
+      'requirement/REQ-ELECTIVES',
+    ]);
     expect(snapshot && audit && isSameProgramAndCatalog(snapshot, audit)).toBe(true);
   });
 
-  it("pins the stale student's audit to a snapshot 17 days older than the latest", () => {
-    const snapshots = snapshotsOf(STALE_STUDENT);
+  it("pins SYN-000002's audit to a record 17 days older than its latest record", () => {
     const audit = auditOf(STALE_STUDENT);
-    const pinned = snapshots.find((snapshot) => snapshot.id === audit?.studentSnapshotId);
-    const newer = snapshots.find((snapshot) => snapshot.id !== audit?.studentSnapshotId);
 
-    expect(snapshots).toHaveLength(2);
-    expect(pinned?.sourceEffectiveAt).toBe(SEED_RECORD_TIMES.staleRecordEffectiveAt);
-    expect(
-      Date.parse(newer?.sourceEffectiveAt ?? '') - Date.parse(pinned?.sourceEffectiveAt ?? ''),
-    ).toBe(SEVENTEEN_DAYS_MS);
-    expect(pinned && audit && isSameProgramAndCatalog(pinned, audit)).toBe(true);
+    expect(snapshotsOf(STALE_STUDENT)).toEqual([
+      expect.objectContaining({
+        id: 'a0000000-0002-4000-8000-01a0f755f200',
+        sourceEffectiveAt: '2026-09-14T09:00:00.000Z',
+        ingestedAt: '2026-09-14T10:00:00.000Z',
+        attemptIds: [],
+      }),
+      expect.objectContaining({
+        id: 'a0000000-0003-4000-8000-01a0f755f200',
+        sourceEffectiveAt: '2026-10-01T09:00:00.000Z',
+        ingestedAt: '2026-10-01T10:00:00.000Z',
+      }),
+    ]);
+    expect(audit).toMatchObject({
+      id: '70000000-0002-4000-8000-01a0f755f200',
+      studentSnapshotId: 'a0000000-0002-4000-8000-01a0f755f200',
+      auditVersion: 'audit_demo_r2_1790856000000',
+      generatedAt: '2026-09-14T11:00:00.000Z',
+      studentRecordEffectiveAt: '2026-09-14T09:00:00.000Z',
+    });
+  });
+
+  it('gives a later run new snapshot and audit IDs and versions, and the same attempts', () => {
+    const later = buildDevSeedAcademicPlan(new Date('2026-10-02T12:00:00.000Z'));
+
+    expect(later.snapshots.map((snapshot) => snapshot.id)).toEqual([
+      'a0000000-0001-4000-8000-01a0fc7c4e00',
+      'a0000000-0002-4000-8000-01a0fc7c4e00',
+      'a0000000-0003-4000-8000-01a0fc7c4e00',
+    ]);
+    expect(later.audits.map((audit) => audit.auditVersion)).toEqual([
+      'audit_demo_r1_1790942400000',
+      'audit_demo_r2_1790942400000',
+    ]);
+    expect(later.attempts).toEqual(PLAN.attempts);
+  });
+
+  it('refuses an invalid run time', () => {
+    expect(() => buildDevSeedAcademicPlan(new Date('not a date'))).toThrow(RangeError);
+  });
+
+  it('uses only DEMO- course codes', () => {
+    const codes = PLAN.courses.flatMap((course) => [course.label, course.sourceCourseId]);
+
+    expect(codes.every((code) => code.startsWith('DEMO-'))).toBe(true);
   });
 
   it('holds the GC-REP-001 repeat: DEMO-MATH 101 with D in 2025FA, then B in 2026SP', () => {
