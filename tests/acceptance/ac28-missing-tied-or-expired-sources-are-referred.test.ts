@@ -2,12 +2,16 @@
  * @file Acceptance: missing, tied, or expired academic sources are referred, never guessed. No
  * record is 503 SOURCE_UNAVAILABLE; a tie for the latest record or audit is 409 STALE_SOURCE;
  * course checks need an audit and a policy; and a record or audit record time older than the
- * 24-hour maximum age refuses course checks (409) while the summary stays a historical view.
- * Exactly at the limit is still fresh.
+ * 24-hour maximum age refers both reads to an advisor with 409 STALE_SOURCE. There is no 200
+ * historical view: every 200 is fresh (ADR-0008 Amendment 1, the academic summary uses the same
+ * gate, recorded in #199; standard 05 §Source freshness). Exactly at the limit is still fresh.
+ * Until the #114 api change lands, the summary case is a known finding
+ * (tests/support/known-findings.ts).
  * @requirement FR-04
  * @requirement NFR-01
  * @requirement NFR-04
  * @requirement T02
+ * @see docs/adr/0008-api-logic-role-and-source-freshness.md
  * @see docs/planning/13-test-and-evaluation-strategy.md
  * @see docs/planning/09-data-model-and-integration-contracts.md
  * @see docs/planning/07-system-architecture-and-design.md
@@ -26,6 +30,7 @@ import {
   resetAcademicWorld,
 } from '../support/academic-endpoints-harness';
 import { type AcceptanceResponse, summarizeError } from '../support/api-harness';
+import { acceptanceIt } from '../support/known-findings';
 
 const MATH102_ONLY = { courseIds: [SYNTHETIC_COURSES.math102.id] };
 const UNAVAILABLE = { statusCode: 503, bodyKeys: ['error'], code: 'SOURCE_UNAVAILABLE' };
@@ -171,14 +176,40 @@ describe('AC28 missing, tied, or expired sources are referred', () => {
     expect(summarizeError(checks)).toMatchObject(STALE);
   });
 
-  it('keeps the summary readable as history, with its as-of time, past 24 hours', async () => {
-    storeRecordAt(PAST_THE_LIMIT);
+  it('serves the summary on a record exactly 24 hours old', async () => {
+    storeRecordAt(AT_THE_LIMIT);
 
     const summary = await readSummary(app);
 
     expect(summary).toMatchObject({
       statusCode: 200,
-      body: { data: { studentSnapshot: { sourceEffectiveAt: '2026-08-31T11:59:59.999Z' } } },
+      body: { data: { studentSnapshot: { sourceEffectiveAt: '2026-08-31T12:00:00.000Z' } } },
     });
   });
+
+  acceptanceIt(
+    'AC28',
+    'refers the summary to an advisor with 409 STALE_SOURCE past 24 hours',
+    async () => {
+      storeRecordAt(PAST_THE_LIMIT);
+
+      const summary = summarizeError(await readSummary(app));
+
+      expect(summary).toMatchObject(STALE);
+      expect(String(summary.message)).toMatch(/advisor/i);
+    },
+  );
+
+  acceptanceIt(
+    'AC28',
+    'refers the summary to an advisor with 409 when only the audit’s record time is past 24 hours',
+    async () => {
+      storeRecordAt('2026-09-01T06:00:00.000Z', PAST_THE_LIMIT);
+
+      const summary = summarizeError(await readSummary(app));
+
+      expect(summary).toMatchObject(STALE);
+      expect(String(summary.message)).toMatch(/advisor/i);
+    },
+  );
 });

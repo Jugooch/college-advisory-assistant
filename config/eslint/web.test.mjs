@@ -6,9 +6,14 @@
  */
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { lintImport, lintWithRules, loadRepoLintConfig } from './lint-test-harness.mjs';
+import {
+  LINT_CONFIG_LOAD_TIMEOUT_MS,
+  lintImport,
+  lintWithRules,
+  loadRepoLintConfig,
+} from './lint-test-harness.mjs';
 
-beforeAll(loadRepoLintConfig, 120_000);
+beforeAll(loadRepoLintConfig, LINT_CONFIG_LOAD_TIMEOUT_MS);
 
 /**
  * Builds a named import statement.
