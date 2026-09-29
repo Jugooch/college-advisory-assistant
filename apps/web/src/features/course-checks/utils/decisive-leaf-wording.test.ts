@@ -6,9 +6,20 @@ import { describe, expect, it } from 'vitest';
 import { createCheckEvidence, ReasonCode } from '@caa/domain';
 import { SYNTHETIC_COURSES } from '@caa/test-kit';
 
+import { indexCourses } from '@/shared/utils/course-display';
+
 import { describeAsOf, describeCreditLoad, describeLeaf } from './decisive-leaf-wording';
 
 const MATH_101 = SYNTHETIC_COURSES.math101.id;
+const COURSES = indexCourses([
+  {
+    courseId: MATH_101,
+    code: 'DEMO-MATH 101',
+    title: null,
+    credits: { kind: 'FIXED', creditsHundredths: 300 },
+  },
+]);
+const NO_COURSES = indexCourses();
 
 /**
  * Builds the single decisive leaf of a parsed evidence object.
@@ -40,7 +51,22 @@ describe('describeLeaf', () => {
       reasonCode: ReasonCode.InProgressMinGrade,
     });
 
-    expect(describeLeaf(leaf)).toBe(`Requires C or higher in course ${MATH_101}`);
+    expect(describeLeaf(leaf, COURSES)).toBe('Requires C or higher in DEMO-MATH 101');
+  });
+
+  it('names the course by its ID, and says so, when it has no catalog entry', () => {
+    const leaf = parsedLeaf({
+      type: 'COURSE',
+      path: [],
+      courseId: MATH_101,
+      requiredGrade: { scheme: 'LETTER', value: 'C' },
+      attemptIds: [],
+      reasonCode: null,
+    });
+
+    expect(describeLeaf(leaf, NO_COURSES)).toBe(
+      `Requires C or higher in course ${MATH_101} (no catalog details available)`,
+    );
   });
 
   it('asks for a passing grade when the leaf has no minimum', () => {
@@ -53,7 +79,7 @@ describe('describeLeaf', () => {
       reasonCode: null,
     });
 
-    expect(describeLeaf(leaf)).toBe(`Requires a passing grade in course ${MATH_101}`);
+    expect(describeLeaf(leaf, COURSES)).toBe('Requires a passing grade in DEMO-MATH 101');
   });
 
   it('quotes rule text the planner cannot interpret', () => {
@@ -64,7 +90,7 @@ describe('describeLeaf', () => {
       reasonCode: ReasonCode.UnsupportedRule,
     });
 
-    expect(describeLeaf(leaf)).toBe(
+    expect(describeLeaf(leaf, COURSES)).toBe(
       'Rule text the planner can’t interpret: “Consent of the synthetic department”',
     );
   });

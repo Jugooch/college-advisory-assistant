@@ -1,5 +1,6 @@
 /**
- * @file Development sign-in page. Not found in production builds, whose action also refuses.
+ * @file Development sign-in page. Not found in production builds, whose action also refuses, or
+ * when the API doesn't report the `dev` auth mode.
  * @module @caa/web/app/dev/sign-in/page
  * @requirement FR-01
  */
@@ -7,10 +8,11 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import type { ReactElement } from 'react';
 
+import { getHealth } from '@/api/health.api';
 import { devSignInAction } from '@/features/session/actions/dev-sign-in.action';
 import { devSignOutAction } from '@/features/session/actions/dev-sign-out.action';
 import { DevSignInForm } from '@/features/session/components/dev-sign-in-form';
-import { isDevSignInEnabled } from '@/features/session/utils/dev-sign-in';
+import { isDevSignInOffered } from '@/features/session/utils/dev-sign-in';
 
 /** Page title. */
 export const metadata: Metadata = { title: 'Development sign-in' };
@@ -29,7 +31,8 @@ export default async function DevSignInPage({
 }: {
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
 }): Promise<ReactElement> {
-  if (!isDevSignInEnabled(process.env.NODE_ENV)) {
+  const health = await getHealth().catch(() => null);
+  if (!isDevSignInOffered(process.env.NODE_ENV, health?.authMode)) {
     notFound();
   }
   const { error } = await searchParams;

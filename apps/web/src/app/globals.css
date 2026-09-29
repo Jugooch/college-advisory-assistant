@@ -147,6 +147,14 @@ td {
   margin: 0.25rem 0;
 }
 
+.choice__credits {
+  margin: 0.25rem 0 0.5rem 1.5rem;
+}
+
+.choice__credits label {
+  display: block;
+}
+
 .facts__row {
   display: contents;
 }

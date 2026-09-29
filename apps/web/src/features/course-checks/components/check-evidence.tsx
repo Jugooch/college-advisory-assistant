@@ -9,6 +9,8 @@ import type { ReactElement, ReactNode } from 'react';
 
 import type { CheckResult } from '@caa/domain';
 
+import { CourseLabel } from '@/shared/components/course-label';
+import type { CourseLookup } from '@/shared/utils/course-display';
 import { describeReason } from '@/shared/utils/reason-code-wording';
 
 import { describeCreditLoad, describeLeaf } from '../utils/decisive-leaf-wording';
@@ -18,6 +20,8 @@ export interface CheckEvidenceProps {
   /** Name of the dimension, used in the disclosure label. */
   readonly dimension: string;
   readonly check: CheckResult;
+  /** Catalog display entries by course ID, to name the courses in the evidence. */
+  readonly courses: CourseLookup;
 }
 
 /** One term and its detail in the evidence list. */
@@ -48,14 +52,18 @@ function provenanceFacts(check: CheckResult): readonly Fact[] {
  * Lists the rule leaves, courses, and credit arithmetic of a check's evidence.
  *
  * @param evidence - The check's evidence.
+ * @param courses - Catalog display entries by course ID.
  * @returns Zero to three facts.
  */
-function detailFacts(evidence: NonNullable<CheckResult['evidence']>): readonly Fact[] {
+function detailFacts(
+  evidence: NonNullable<CheckResult['evidence']>,
+  courses: CourseLookup,
+): readonly Fact[] {
   const facts: Fact[] = [];
   if (evidence.decisiveLeaves.length > 0) {
     const leaves = evidence.decisiveLeaves.map((leaf) => (
       <li key={leaf.path.join('.')}>
-        {describeLeaf(leaf)}
+        {describeLeaf(leaf, courses)}
         {leaf.reasonCode === null ? null : `: ${describeReason(leaf.reasonCode).explanation}`}
       </li>
     ));
@@ -63,8 +71,12 @@ function detailFacts(evidence: NonNullable<CheckResult['evidence']>): readonly F
   }
   const courseIds = evidence.courseIds ?? [];
   if (courseIds.length > 0) {
-    const codes = courseIds.map((courseId) => <code key={courseId}>{courseId} </code>);
-    facts.push({ term: 'Courses involved', detail: codes });
+    const names = courseIds.map((courseId) => (
+      <li key={courseId}>
+        <CourseLabel courseId={courseId} courses={courses} />
+      </li>
+    ));
+    facts.push({ term: 'Courses involved', detail: <ul>{names}</ul> });
   }
   if (evidence.creditLoad !== undefined && evidence.creditLoad !== null) {
     facts.push({ term: 'Credit arithmetic', detail: describeCreditLoad(evidence.creditLoad) });
@@ -75,13 +87,13 @@ function detailFacts(evidence: NonNullable<CheckResult['evidence']>): readonly F
 /**
  * Renders the evidence in a disclosure.
  *
- * @param props - The dimension name and the check.
+ * @param props - The dimension name, the check, and the display entries.
  * @returns The details element.
  */
-export function CheckEvidence({ dimension, check }: CheckEvidenceProps): ReactElement {
+export function CheckEvidence({ dimension, check, courses }: CheckEvidenceProps): ReactElement {
   const facts = [
     ...provenanceFacts(check),
-    ...(check.evidence === undefined ? [] : detailFacts(check.evidence)),
+    ...(check.evidence === undefined ? [] : detailFacts(check.evidence, courses)),
   ];
   return (
     <details>

@@ -13,6 +13,8 @@ import { CourseIdSchema } from '@caa/domain';
 
 import { readStudentIdQuery, type StudentIdQuery } from '@/shared/utils/student-id-query';
 
+import { CREDIT_FIELD_PREFIX } from './credit-choice';
+
 /** Search params as Next passes them. */
 export type SearchParams = Readonly<Record<string, string | readonly string[] | undefined>>;
 
@@ -34,6 +36,8 @@ export interface CourseCheckQuery {
   /** The selected values, once each, in submitted order. Not yet validated. */
   readonly selectedCourseIds: readonly string[];
   readonly selection: CourseSelection;
+  /** Typed credit text by course ID, from the `credits-<courseId>` fields. Not yet validated. */
+  readonly creditInputs: ReadonlyMap<string, string>;
 }
 
 /**
@@ -58,10 +62,27 @@ function toSelection(courseIds: readonly string[], isSubmitted: boolean): Course
 }
 
 /**
+ * Reads the typed credit values. A repeated field is joined, so it fails parsing and is reported.
+ *
+ * @param query - The page's search params.
+ * @returns The typed text by course ID.
+ */
+function readCreditInputs(query: SearchParams): ReadonlyMap<string, string> {
+  const inputs = new Map<string, string>();
+  for (const [key, value] of Object.entries(query)) {
+    if (key.startsWith(CREDIT_FIELD_PREFIX) && value !== undefined) {
+      inputs.set(key.slice(CREDIT_FIELD_PREFIX.length), [value].flat().join(','));
+    }
+  }
+  return inputs;
+}
+
+/**
  * Reads the course check page's query.
  *
  * @param query - The page's search params.
- * @returns The student, the selected values, and what the selection amounts to.
+ * @returns The student, the selected values, what the selection amounts to, and the typed credit
+ *   values.
  */
 export function readCourseCheckQuery(query: SearchParams): CourseCheckQuery {
   const selectedCourseIds = [...new Set(query.course === undefined ? [] : [query.course].flat())];
@@ -69,6 +90,7 @@ export function readCourseCheckQuery(query: SearchParams): CourseCheckQuery {
     student: readStudentIdQuery(query.studentId),
     selectedCourseIds,
     selection: toSelection(selectedCourseIds, query.submitted !== undefined),
+    creditInputs: readCreditInputs(query),
   };
 }
 

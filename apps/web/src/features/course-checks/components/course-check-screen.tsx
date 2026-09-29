@@ -38,7 +38,9 @@ export function CourseCheckScreen({
       {view.resultError === null ? null : (
         <ApiErrorNotice error={view.resultError} headingId="check-error-heading" />
       )}
-      {view.result === null ? null : <CourseCheckResults result={view.result} />}
+      {view.result === null ? null : (
+        <CourseCheckResults result={view.result} courses={view.courses} />
+      )}
       {view.summaryError === null ? null : (
         <ApiErrorNotice error={view.summaryError} headingId="summary-error-heading" />
       )}
@@ -48,6 +50,8 @@ export function CourseCheckScreen({
         isCandidateListUnavailable={view.isCandidateListUnavailable}
         selectedCourseIds={selectedCourseIds}
         selectionError={view.selectionError}
+        courses={view.courses}
+        credits={view.credits}
       />
     </>
   );

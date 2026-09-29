@@ -1,15 +1,21 @@
 /**
- * @file Picks courses to check together, from the candidates the audit lists. Submits with GET,
- * so it works by keyboard and without JavaScript.
+ * @file Picks courses to check together, from the candidates the audit lists, with a credit
+ * value for each variable-credit course. Submits with GET, so it works by keyboard and without
+ * JavaScript.
  * @module @caa/web/features/course-checks/components/course-picker
  * @requirement FR-04
+ * @requirement FR-05
  * @requirement NFR-02
  */
 import type { ReactElement } from 'react';
 
 import { MAX_COURSE_CHECK_COURSES } from '@caa/api-contract';
 
+import type { CourseLookup } from '@/shared/utils/course-display';
+
 import type { CandidateCourse } from '../utils/candidate-courses';
+import type { CreditChoices } from '../utils/credit-choice';
+import { CourseChoice } from './course-choice';
 
 /** Props for {@link CoursePicker}. */
 export interface CoursePickerProps {
@@ -22,46 +28,17 @@ export interface CoursePickerProps {
   readonly selectedCourseIds: readonly string[];
   /** Why the last submission's selection was rejected, or null. */
   readonly selectionError: string | null;
+  /** Catalog display entries by course ID. */
+  readonly courses: CourseLookup;
+  /** The typed credit values and their errors. */
+  readonly credits: CreditChoices;
 }
 
 /**
- * Renders one candidate checkbox. Ids are prefixed `pick-` so they never collide with results.
+ * Renders the course picker, or says why there is nothing to pick. Credit fields need the
+ * record's catalog entries, so they are offered only when the candidate list loaded.
  *
- * @param props - The candidate and whether it is checked.
- * @returns The choice row.
- */
-function CourseChoice(props: {
-  readonly candidate: CandidateCourse;
-  readonly isChecked: boolean;
-}): ReactElement {
-  const { courseId, requirementLabels } = props.candidate;
-  const inputId = `pick-course-${courseId}`;
-  return (
-    <div className="choice">
-      <input
-        id={inputId}
-        type="checkbox"
-        name="course"
-        value={courseId}
-        defaultChecked={props.isChecked}
-        aria-describedby={`${inputId}-listed`}
-      />
-      <label htmlFor={inputId}>
-        Course <code>{courseId}</code>
-      </label>
-      <span id={`${inputId}-listed`}>
-        {requirementLabels.length === 0
-          ? ' Checked earlier; its requirements can’t be listed right now.'
-          : ` Listed for: ${requirementLabels.join(', ')}`}
-      </span>
-    </div>
-  );
-}
-
-/**
- * Renders the course picker, or says why there is nothing to pick.
- *
- * @param props - The student, the candidates, and the last selection.
+ * @param props - The student, the candidates, the last selection, and the display entries.
  * @returns The picker section.
  */
 export function CoursePicker({
@@ -70,6 +47,8 @@ export function CoursePicker({
   isCandidateListUnavailable,
   selectedCourseIds,
   selectionError,
+  courses,
+  credits,
 }: CoursePickerProps): ReactElement {
   if (candidates.length === 0) {
     return (
@@ -97,6 +76,9 @@ export function CoursePicker({
           <legend>Courses your audit lists for your requirements</legend>
           <p id="picker-hint">
             Choose 1 to {MAX_COURSE_CHECK_COURSES} courses. They are checked together, as one set.
+            {isCandidateListUnavailable
+              ? ' Credit values can be chosen once your record loads.'
+              : ' For a course with a credit range, you can enter the credits you plan to take.'}
           </p>
           {selectionError === null ? null : (
             <p id="picker-error" className="field-error" role="alert">
@@ -108,6 +90,9 @@ export function CoursePicker({
               key={candidate.courseId}
               candidate={candidate}
               isChecked={selectedCourseIds.includes(candidate.courseId)}
+              courses={courses}
+              credits={credits}
+              isCreditChoiceOffered={!isCandidateListUnavailable}
             />
           ))}
         </fieldset>

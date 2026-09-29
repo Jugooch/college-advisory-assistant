@@ -11,8 +11,15 @@ import {
   type CourseChecksResponse,
 } from '@caa/api-contract';
 
+import { type CourseLookup, indexCourses } from '@/shared/utils/course-display';
+
 import { type CandidateCourse, listCandidateCourses } from './candidate-courses';
+import type { CheckRequestPlan } from './check-request-plan';
 import { type CourseCheckQuery, describeSelectionError } from './course-check-query';
+import type { CreditChoices } from './credit-choice';
+
+/** The picker's error when only a credit value stopped the check. */
+export const CREDIT_ERROR_SUMMARY = 'Fix the credit value marked below, then check again.';
 
 /** Everything the course check screen renders. */
 export interface CourseCheckView {
@@ -28,13 +35,19 @@ export interface CourseCheckView {
   readonly isCandidateListUnavailable: boolean;
   /** The picker's selection error, or null. */
   readonly selectionError: string | null;
+  /** Catalog display entries of every course either response names, by course ID. */
+  readonly courses: CourseLookup;
+  /** The typed credit values and their errors. */
+  readonly credits: CreditChoices;
 }
 
 /** The inputs the view is planned from. */
 export interface CourseCheckViewInput {
   readonly query: CourseCheckQuery;
   readonly summary: AcademicSummaryResponse | ApiError;
-  /** The check's outcome, or null when no valid selection was submitted. */
+  /** The planned request, with any credit errors. */
+  readonly plan: CheckRequestPlan;
+  /** The check's outcome, or null when no request was sent. */
   readonly result: CourseChecksResponse | ApiError | null;
 }
 
@@ -42,25 +55,30 @@ export interface CourseCheckViewInput {
  * Plans the screen. A failed summary never hides results, and the picker always stays: without
  * the summary it offers the courses just checked, so the student can check them again.
  *
- * @param input - The query and the API outcomes.
+ * @param input - The query, the planned request, and the API outcomes.
  * @returns What to render.
  */
 export function planCourseCheckView({
   query,
   summary,
+  plan,
   result,
 }: CourseCheckViewInput): CourseCheckView {
   const isSummaryFailed = summary instanceof ApiError;
+  const checked = result instanceof ApiError ? null : result;
   const checkedCourseIds =
     query.selection.kind === 'valid' ? query.selection.request.courseIds : [];
+  const creditError = plan.creditErrors.size > 0 ? CREDIT_ERROR_SUMMARY : null;
   return {
-    result: result instanceof ApiError ? null : result,
+    result: checked,
     resultError: result instanceof ApiError ? result : null,
     summaryError: isSummaryFailed ? summary : null,
     candidates: isSummaryFailed
       ? checkedCourseIds.map((courseId) => ({ courseId, requirementLabels: [] }))
       : listCandidateCourses(summary.requirements),
     isCandidateListUnavailable: isSummaryFailed,
-    selectionError: describeSelectionError(query.selection),
+    selectionError: describeSelectionError(query.selection) ?? creditError,
+    courses: indexCourses(checked?.courses, isSummaryFailed ? undefined : summary.courses),
+    credits: { inputs: query.creditInputs, errors: plan.creditErrors },
   };
 }
