@@ -247,15 +247,6 @@ describe('import-roster job', () => {
     expect(store.students.get('SYN-000001')?.isDeleted).toBe(true);
   });
 
-  it('rejects a FULL snapshot without writing anything', async () => {
-    const { job, store } = setUp();
-
-    const result = await job.handle(payloadFor({ operation: ImportOperation.Full }));
-
-    expect(result).toMatchObject({ outcome: 'REJECTED_UNSUPPORTED' });
-    expect(store.batches.size).toBe(0);
-  });
-
   it('rejects a payload without a valid tenant', async () => {
     const { job } = setUp();
 

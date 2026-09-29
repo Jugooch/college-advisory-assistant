@@ -10,6 +10,7 @@ const ROW: StudentRow = {
   id: '7e2d3c4b-5a6f-4e7d-9c8b-2b3c4d5e6f70',
   tenantId: '0b8f6a36-3f7e-4a53-9c1e-8f1b2c3d4e5f',
   sourceStudentId: 'SYN-0001',
+  sourceId: 'demo-sis',
   userId: null,
   recordVersion: 3,
   sourceEffectiveAt: new Date('2026-09-25T06:00:00.000Z'),
