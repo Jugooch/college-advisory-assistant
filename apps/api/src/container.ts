@@ -185,7 +185,11 @@ export function createContainer(options: ContainerOptions): AppDependencies {
     students: repositories.students,
   });
   const academic = academicRepositories(repositories);
-  const pinnedRecords = createPinnedRecordsService(academic);
+  const pinnedRecords = createPinnedRecordsService({
+    ...academic,
+    now,
+    maxSourceAgeMs: env.ACADEMIC_SOURCE_MAX_AGE_MS,
+  });
   const academicSummaryService = createAcademicSummaryService({
     students: studentsService,
     pinnedRecords,
@@ -197,8 +201,6 @@ export function createContainer(options: ContainerOptions): AppDependencies {
     pinnedRecords,
     maxSkewMs: env.AUDIT_RECORD_MAX_SKEW_MS,
     rulesetVersion: env.ACTIVE_RULESET_VERSION ?? null,
-    maxSourceAgeMs: env.ACADEMIC_SOURCE_MAX_AGE_MS,
-    now,
   });
   return {
     controllers: {

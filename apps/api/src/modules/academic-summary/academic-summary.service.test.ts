@@ -62,6 +62,9 @@ function read(setup: Setup = {}) {
     pinnedRecords: createPinnedRecordsService({
       studentSnapshots: setup.repositories?.studentSnapshots ?? store.studentSnapshots,
       auditSnapshots: setup.repositories?.auditSnapshots ?? store.auditSnapshots,
+      // NOTE: the summary doesn't apply the freshness gate (#114), so the clock is never read.
+      now: () => new Date(Number.NaN),
+      maxSourceAgeMs: 0,
     }),
     maxSkewMs: MAX_SKEW_MS,
   });
