@@ -13,26 +13,19 @@ import { describe, expect, it } from 'vitest';
 import { GOLDEN_DEVELOPMENT_CORPUS, GoldenRuleFamily } from '@caa/test-kit';
 
 import { findGoldenMismatches } from '../support/golden-runner';
-import { KNOWN_FINDINGS } from './known-findings';
+import { itForFinding } from '../support/known-findings';
 
 describe('golden corpus, development set', () => {
   for (const golden of GOLDEN_DEVELOPMENT_CORPUS) {
-    const issue = KNOWN_FINDINGS.get(golden.id);
-    if (issue === undefined) {
-      it(`${golden.id}: ${golden.title}`, () => {
-        expect(findGoldenMismatches(golden)).toEqual([]);
-      });
-    } else {
-      it.fails(`${golden.id}: ${golden.title} (open finding #${String(issue)})`, () => {
-        expect(findGoldenMismatches(golden)).toEqual([]);
-      });
-    }
+    itForFinding(golden.id, `${golden.id}: ${golden.title}`, () => {
+      expect(findGoldenMismatches(golden)).toEqual([]);
+    });
   }
 
-  it('has at least 90 cases covering every rule family', () => {
+  it('has at least 113 cases covering every rule family', () => {
     const families = new Set(GOLDEN_DEVELOPMENT_CORPUS.map((golden) => golden.family));
 
-    expect(GOLDEN_DEVELOPMENT_CORPUS.length).toBeGreaterThanOrEqual(90);
+    expect(GOLDEN_DEVELOPMENT_CORPUS.length).toBeGreaterThanOrEqual(113);
     expect([...families].sort()).toEqual(Object.values(GoldenRuleFamily).sort());
   });
 
@@ -40,7 +33,7 @@ describe('golden corpus, development set', () => {
     const unreviewed = GOLDEN_DEVELOPMENT_CORPUS.filter(
       (golden) =>
         golden.reviewer !== 'pending-academic-review' ||
-        !['2026-09-27', '2026-09-28'].includes(golden.adjudicatedOn),
+        !['2026-09-27', '2026-09-28', '2026-09-29'].includes(golden.adjudicatedOn),
     );
 
     expect(unreviewed.map((golden) => golden.id)).toEqual([]);
