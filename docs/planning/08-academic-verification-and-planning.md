@@ -80,4 +80,6 @@ All identifiers above are fictional examples. The UI shows academic applicabilit
 
 Draft mapping → static checks → academic review → adjudicated test corpus → shadow comparison → published immutable version. Record author, approver, source, affected catalog cohorts, effective date, and rollback version. Catalog publication does not retroactively move students to a new catalog. Fixes to an old cohort require explicit authority and targeted revalidation.
 
+_Decision note (2026-09-29, ADR-0011, #139):_ For the prototype, a published ruleset version is made active per tenant by an append-only activation (`POST /v1/admin/config-releases`), which records the replaced version, the actor, the time and an external approval reference. Only the `CONFIG_RELEASER` role can activate a version. Rollback is a new activation of an earlier version. Author and approver records per version, per-cohort activation and future effective dates are deferred, and so is the check that an activator didn't author the version (planning/04). Until then, the activation's approval reference points to the external approval.
+
 If official audit and institutional reviewer disagree, open a discrepancy and suspend the affected claim. Do not change the official audit, locally conceal the discrepancy, or promote a reviewer comment into an official waiver.
