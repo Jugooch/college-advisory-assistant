@@ -40,7 +40,8 @@ export interface PinnedRecordsServiceDependencies {
 /** The pinned snapshot and audit a validated read is built from. */
 export interface PinnedSources {
   readonly snapshot: StudentSnapshot;
-  readonly audit: AuditSnapshot;
+  /** `null` when the student has no audit; then only the snapshot's time is checked. */
+  readonly audit: AuditSnapshot | null;
 }
 
 /** The latest record revision of one student and, when there is one, their latest audit. */
@@ -68,9 +69,9 @@ export interface PinnedRecordsService {
   loadLatest(actor: Actor, student: Student, context: RequestContext): Promise<PinnedRecords>;
 
   /**
-   * Refuses a validated read when the pinned record or the audit's record time is not fresh:
-   * older than `maxSourceAgeMs`, missing, or too far in the future (standard 05 §Source
-   * freshness). Reads the injected clock.
+   * Refuses a validated read when the pinned record or, when there is an audit, the audit's
+   * record time is not fresh: older than `maxSourceAgeMs`, missing, or too far in the future
+   * (standard 05 §Source freshness). Reads the injected clock.
    *
    * @param scope - The actor, the path student, and the request context.
    * @param sources - The pinned snapshot and audit.
@@ -218,7 +219,7 @@ export function createPinnedRecordsService(
       const policy = { now: now(), maxAgeMs: maxSourceAgeMs };
       if (
         isSourceFresh(sources.snapshot.sourceEffectiveAt, policy) &&
-        isSourceFresh(sources.audit.studentRecordEffectiveAt, policy)
+        (sources.audit === null || isSourceFresh(sources.audit.studentRecordEffectiveAt, policy))
       ) {
         return;
       }

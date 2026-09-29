@@ -62,6 +62,7 @@ export function toAcademicSummaryResponse(summary: AcademicSummary): AcademicSum
             programId: audit.audit.programId,
             catalogYear: audit.audit.catalogYear,
             generatedAt: audit.audit.generatedAt,
+            studentRecordEffectiveAt: audit.audit.studentRecordEffectiveAt,
             // TODO(#187): send the program name once the catalog carries one.
             programName: null,
           },

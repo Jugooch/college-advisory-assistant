@@ -107,6 +107,7 @@ A validated result is built only from sources that are fresh (planning/09 §Prop
 - The 24-hour default is planning/09's proposed age. Each deployment sets the production value from the institution's approved policy. A production value above 24 hours needs that approval on record (planning/04 §Change control).
 - The future tolerance absorbs clock drift between the source system and the API. A time more than 5 minutes ahead is a source error, not fresh data.
 - The service reads the injected clock. The comparison is a `.logic.ts` function, so every endpoint that returns validated results applies the same check.
+- **Gated endpoints:** `POST /v1/students/:studentId/course-checks` and `GET /v1/students/:studentId/academic-summary` (ADR-0008 Amendment 1). The summary has no 200 historical variant, and every 200 from either endpoint is fresh. A new endpoint that returns record- or audit-derived verdicts uses the same gate.
 
 ## Controllers
 
