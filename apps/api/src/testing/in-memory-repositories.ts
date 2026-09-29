@@ -59,6 +59,18 @@ export function createInMemoryRepositories(store: InMemoryStore): Repositories {
           ) ?? null,
         ),
     },
+    studentUserLinks: {
+      findByUserId: (tenantId, userId) => {
+        const linked = store.students.filter(
+          (item) => item.tenantId === tenantId && item.userId === userId,
+        );
+        // NOTE: the same refusal as the PostgreSQL repository: an ambiguous link picks no one.
+        if (linked.length > 1) {
+          return Promise.reject(new Error('More than one student is linked to the user'));
+        }
+        return Promise.resolve(linked[0] ?? null);
+      },
+    },
     ...createInMemoryAcademicRepositories(store),
     advisorAssignments: {
       findActive: (tenantId, { advisorUserId, studentId, at }) => {
