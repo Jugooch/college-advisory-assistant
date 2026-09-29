@@ -9,14 +9,16 @@ import pino from 'pino';
 
 import * as schema from '../schema';
 import { runDevSeed } from './dev-seed-command';
-import { DEV_SEED_PLAN } from './dev-seed-plan';
+import { buildDevSeedPlan } from './dev-seed-plan';
 
 const logger = pino({ name: 'db-seed' });
 
 try {
   await runDevSeed({
     env: process.env,
-    plan: DEV_SEED_PLAN,
+    // NOTE: the one clock reading of the run. Every seeded record and audit time is relative to
+    // it, so the scenarios are fresh right after seeding (#152).
+    plan: buildDevSeedPlan(new Date()),
     openDatabase: (connectionString) => {
       const pool = new pg.Pool({ connectionString });
       return { db: drizzle({ client: pool, schema }), close: () => pool.end() };

@@ -1,7 +1,7 @@
 /**
- * @file The synthetic academic plan the dev seed writes: the catalog module's data plus student
- *   snapshots with attempts and audits with requirements. Data only; built with the domain
- *   factories, so an invalid record fails when this module loads.
+ * @file Builds the synthetic academic plan the dev seed writes: the catalog module's data, fixed
+ *   attempts, and one seed run's snapshots and audits, timed relative to that run. Pure given the
+ *   run's clock reading; built with the domain factories, so an invalid record fails at once.
  * @module @caa/db/seed/dev-seed-academic-plan
  * @requirement FR-01
  * @see docs/planning/07-system-architecture-and-design.md
@@ -19,6 +19,7 @@ import {
   GradeScheme,
   LetterGrade,
   type PrerequisiteRule,
+  type RequirementResultInput,
   RequirementState,
   type StudentSnapshot,
   type TermCalendar,
@@ -32,6 +33,7 @@ import {
   SEED_TERMS,
   seedId,
 } from './dev-seed-academic-catalog';
+import { seedInstantMs, seedRecordTimes, seedRevisionId } from './dev-seed-record-times';
 
 /** Everything academic the dev seed writes, for one tenant. */
 export interface DevSeedAcademicPlan {
@@ -51,31 +53,11 @@ const STALE_STUDENT = '30000000-0000-4000-8000-000000000002';
 const PROGRAM = seedId('80000000', 1);
 const CATALOG_YEAR = '2025-2026';
 
-// SAFETY: every record and audit time lives here, so the skew between them is visible in one
-// place. The current audit's record time equals its snapshot's source time (0 ms apart), so it
-// reflects the record under any non-negative skew the API configures. The stale student's newer
-// snapshot is 17 days after the record its audit was run against.
-/** Source, ingestion, and audit times of the seeded records. ISO 8601 with offset. */
-export const SEED_RECORD_TIMES = {
-  currentRecordEffectiveAt: '2026-09-01T05:00:00.000Z',
-  currentRecordIngestedAt: '2026-09-01T06:00:00.000Z',
-  currentAuditGeneratedAt: '2026-09-01T07:00:00.000Z',
-  staleRecordEffectiveAt: '2026-08-15T05:00:00.000Z',
-  staleRecordIngestedAt: '2026-08-15T06:00:00.000Z',
-  staleAuditGeneratedAt: '2026-08-15T07:00:00.000Z',
-} as const;
-
 const ATTEMPT = {
   math101First: seedId('60000000', 1),
   math101Repeat: seedId('60000000', 2),
   phys201InProgress: seedId('60000000', 3),
   staleStudentMath101: seedId('60000000', 4),
-} as const;
-
-const SNAPSHOT = {
-  current: seedId('a0000000', 1),
-  staleOlder: seedId('a0000000', 2),
-  staleNewer: seedId('a0000000', 3),
 } as const;
 
 /**
@@ -104,6 +86,8 @@ function completed(fields: {
   });
 }
 
+// NOTE: attempts don't change between seed runs, so each run's snapshots list the same rows,
+// as an unchanged attempt belongs to every snapshot that contains it.
 const ATTEMPTS: readonly CourseAttempt[] = [
   // NOTE: DEMO-MATH 101 repeated: D in 2025FA, then B in 2026SP (golden case GC-REP-001).
   completed({
@@ -140,157 +124,176 @@ const ATTEMPTS: readonly CourseAttempt[] = [
   }),
 ];
 
-/**
- * Builds a snapshot on the seeded program and catalog.
- *
- * @param fields - Snapshot ID, student, times, and attempts.
- * @returns The snapshot.
- */
-function snapshot(fields: {
-  readonly id: string;
-  readonly studentId: string;
-  readonly sourceEffectiveAt: string;
-  readonly ingestedAt: string;
-  readonly attemptIds: readonly string[];
-}): StudentSnapshot {
-  return createStudentSnapshot({
-    ...fields,
-    tenantId: SEED_TENANT_ID,
-    programId: PROGRAM,
-    catalogYear: CATALOG_YEAR,
-  });
+/** One seed run's snapshot IDs. */
+interface RunSnapshotIds {
+  readonly current: string;
+  readonly staleOlder: string;
+  readonly staleNewer: string;
 }
 
-const SNAPSHOTS: readonly StudentSnapshot[] = [
-  snapshot({
-    id: SNAPSHOT.current,
-    studentId: CURRENT_STUDENT,
-    sourceEffectiveAt: SEED_RECORD_TIMES.currentRecordEffectiveAt,
-    ingestedAt: SEED_RECORD_TIMES.currentRecordIngestedAt,
-    attemptIds: [ATTEMPT.math101First, ATTEMPT.math101Repeat, ATTEMPT.phys201InProgress],
-  }),
-  snapshot({
-    id: SNAPSHOT.staleOlder,
-    studentId: STALE_STUDENT,
-    sourceEffectiveAt: SEED_RECORD_TIMES.staleRecordEffectiveAt,
-    ingestedAt: SEED_RECORD_TIMES.staleRecordIngestedAt,
-    attemptIds: [],
-  }),
-  // NOTE: a grade posted after the stale student's audit ran; the audit doesn't reflect it.
-  snapshot({
-    id: SNAPSHOT.staleNewer,
-    studentId: STALE_STUDENT,
-    sourceEffectiveAt: SEED_RECORD_TIMES.currentRecordEffectiveAt,
-    ingestedAt: SEED_RECORD_TIMES.currentRecordIngestedAt,
-    attemptIds: [ATTEMPT.staleStudentMath101],
-  }),
-];
-
-/** Fields every seeded requirement shares unless it sets them. */
-const CHILD_REQUIREMENT = {
-  parentSourceRequirementId: 'REQ-DEMO-BS',
-  allocatedAttemptIds: [],
-  remainingCreditsHundredths: null,
-  remainingCourseCount: null,
-  candidateCourseIds: [],
-  isReusable: false,
-} as const;
+/**
+ * Builds one run's snapshots: SYN-000001's current record, and SYN-000002's older record (the
+ * one its audit ran against) and newer record (a grade posted after that audit).
+ *
+ * @param now - The time the seed run started.
+ * @param ids - The run's snapshot IDs.
+ * @returns The snapshots.
+ */
+function buildSnapshots(now: Date, ids: RunSnapshotIds): readonly StudentSnapshot[] {
+  const times = seedRecordTimes(now);
+  const onProgram = { tenantId: SEED_TENANT_ID, programId: PROGRAM, catalogYear: CATALOG_YEAR };
+  return [
+    createStudentSnapshot({
+      ...onProgram,
+      id: ids.current,
+      studentId: CURRENT_STUDENT,
+      sourceEffectiveAt: times.currentRecordEffectiveAt,
+      ingestedAt: times.currentRecordIngestedAt,
+      attemptIds: [ATTEMPT.math101First, ATTEMPT.math101Repeat, ATTEMPT.phys201InProgress],
+    }),
+    createStudentSnapshot({
+      ...onProgram,
+      id: ids.staleOlder,
+      studentId: STALE_STUDENT,
+      sourceEffectiveAt: times.staleRecordEffectiveAt,
+      ingestedAt: times.staleRecordIngestedAt,
+      attemptIds: [],
+    }),
+    createStudentSnapshot({
+      ...onProgram,
+      id: ids.staleNewer,
+      studentId: STALE_STUDENT,
+      sourceEffectiveAt: times.currentRecordEffectiveAt,
+      ingestedAt: times.currentRecordIngestedAt,
+      attemptIds: [ATTEMPT.staleStudentMath101],
+    }),
+  ];
+}
 
 /**
- * Builds the top-level requirement of an audit.
+ * Builds an audit's requirement tree: an INCOMPLETE root, then for SYN-000001 its COMPLETE,
+ * IN_PROGRESS, and INCOMPLETE children.
  *
- * @param auditVersion - The audit's version, used in the source reference.
- * @param remainingCourseCount - Courses still needed.
- * @returns The requirement input.
+ * @param withChildren - Whether to add SYN-000001's child requirements.
+ * @returns The requirements in audit order.
  */
-function degreeRoot(auditVersion: string, remainingCourseCount: number) {
-  return {
-    ...CHILD_REQUIREMENT,
+function requirementTree(withChildren: boolean): RequirementResultInput[] {
+  const node = (fields: Partial<RequirementResultInput> & { sourceRequirementId: string }) => ({
+    parentSourceRequirementId: 'REQ-DEMO-BS',
+    label: fields.sourceRequirementId,
+    state: RequirementState.Incomplete,
+    allocatedAttemptIds: [],
+    remainingCreditsHundredths: null,
+    remainingCourseCount: null,
+    candidateCourseIds: [],
+    isReusable: false,
+    // NOTE: resolved within the audit's source and version, so it doesn't repeat them.
+    sourceRef: `requirement/${fields.sourceRequirementId}`,
+    ...fields,
+  });
+  const root = node({
     sourceRequirementId: 'REQ-DEMO-BS',
     parentSourceRequirementId: null,
     label: 'Demo B.S. requirements',
-    state: RequirementState.Incomplete,
-    remainingCourseCount,
-    sourceRef: `${auditVersion}:REQ-DEMO-BS`,
-  };
+    remainingCourseCount: withChildren ? 2 : 3,
+  });
+  if (!withChildren) {
+    return [root];
+  }
+  const { math101, math102, phys201, phys301, engl101, ind390 } = SEED_CATALOG;
+  return [
+    root,
+    node({
+      sourceRequirementId: 'REQ-MATH-CORE',
+      label: 'Mathematics core',
+      state: RequirementState.Complete,
+      allocatedAttemptIds: [ATTEMPT.math101Repeat],
+      remainingCreditsHundredths: 0,
+      candidateCourseIds: [math101.id],
+    }),
+    node({
+      sourceRequirementId: 'REQ-PHYS-SEQ',
+      label: 'Physics sequence',
+      state: RequirementState.InProgress,
+      allocatedAttemptIds: [ATTEMPT.phys201InProgress],
+      remainingCourseCount: 1,
+      candidateCourseIds: [phys201.id, phys301.id],
+    }),
+    node({
+      sourceRequirementId: 'REQ-ELECTIVES',
+      label: 'Electives',
+      remainingCreditsHundredths: 300,
+      candidateCourseIds: [engl101.id, ind390.id, math102.id],
+    }),
+  ];
 }
 
-/** Audit fields both seeded audits share. */
-const AUDIT_BASE = {
-  tenantId: SEED_TENANT_ID,
-  programId: PROGRAM,
-  auditSource: 'demo-audit',
-  catalogYear: CATALOG_YEAR,
-} as const;
+/**
+ * Builds one run's audits. Each run's audit versions carry the run time, so they never collide
+ * with an earlier run's.
+ *
+ * @param now - The time the seed run started.
+ * @param snapshots - The run's snapshot IDs.
+ * @returns SYN-000001's current audit and SYN-000002's stale one.
+ */
+function buildAudits(now: Date, snapshots: RunSnapshotIds): readonly AuditSnapshot[] {
+  const times = seedRecordTimes(now);
+  const run = String(seedInstantMs(now));
+  const base = {
+    tenantId: SEED_TENANT_ID,
+    programId: PROGRAM,
+    auditSource: 'demo-audit',
+    catalogYear: CATALOG_YEAR,
+  };
+  return [
+    createAuditSnapshot({
+      ...base,
+      id: seedRevisionId('70000000', 1, now),
+      studentId: CURRENT_STUDENT,
+      // SAFETY: pinned to this run's snapshot of the same student, program, and catalog, at the
+      // same record time, so the happy path shows neither AUDIT_STALE nor AUDIT_PROGRAM_MISMATCH.
+      studentSnapshotId: snapshots.current,
+      auditVersion: `audit_demo_r1_${run}`,
+      generatedAt: times.currentAuditGeneratedAt,
+      studentRecordEffectiveAt: times.currentRecordEffectiveAt,
+      requirements: requirementTree(true),
+    }),
+    createAuditSnapshot({
+      ...base,
+      id: seedRevisionId('70000000', 2, now),
+      studentId: STALE_STUDENT,
+      // SAFETY: deliberately pinned to the older snapshot; the newer one makes this audit stale.
+      studentSnapshotId: snapshots.staleOlder,
+      auditVersion: `audit_demo_r2_${run}`,
+      generatedAt: times.staleAuditGeneratedAt,
+      studentRecordEffectiveAt: times.staleRecordEffectiveAt,
+      requirements: requirementTree(false),
+    }),
+  ];
+}
 
-const AUDITS: readonly AuditSnapshot[] = [
-  createAuditSnapshot({
-    ...AUDIT_BASE,
-    id: seedId('70000000', 1),
-    studentId: CURRENT_STUDENT,
-    // SAFETY: pinned to the student's only snapshot, on the same program and catalog, so the
-    // happy path shows neither AUDIT_STALE nor AUDIT_PROGRAM_MISMATCH.
-    studentSnapshotId: SNAPSHOT.current,
-    auditVersion: 'audit_demo_r1',
-    generatedAt: SEED_RECORD_TIMES.currentAuditGeneratedAt,
-    studentRecordEffectiveAt: SEED_RECORD_TIMES.currentRecordEffectiveAt,
-    requirements: [
-      degreeRoot('audit_demo_r1', 2),
-      {
-        ...CHILD_REQUIREMENT,
-        sourceRequirementId: 'REQ-MATH-CORE',
-        label: 'Mathematics core',
-        state: RequirementState.Complete,
-        allocatedAttemptIds: [ATTEMPT.math101Repeat],
-        remainingCreditsHundredths: 0,
-        candidateCourseIds: [SEED_CATALOG.math101.id],
-        sourceRef: 'audit_demo_r1:REQ-MATH-CORE',
-      },
-      {
-        ...CHILD_REQUIREMENT,
-        sourceRequirementId: 'REQ-PHYS-SEQ',
-        label: 'Physics sequence',
-        state: RequirementState.InProgress,
-        allocatedAttemptIds: [ATTEMPT.phys201InProgress],
-        remainingCourseCount: 1,
-        candidateCourseIds: [SEED_CATALOG.phys201.id, SEED_CATALOG.phys301.id],
-        sourceRef: 'audit_demo_r1:REQ-PHYS-SEQ',
-      },
-      {
-        ...CHILD_REQUIREMENT,
-        sourceRequirementId: 'REQ-ELECTIVES',
-        label: 'Electives',
-        state: RequirementState.Incomplete,
-        remainingCreditsHundredths: 300,
-        candidateCourseIds: [
-          SEED_CATALOG.engl101.id,
-          SEED_CATALOG.ind390.id,
-          SEED_CATALOG.math102.id,
-        ],
-        sourceRef: 'audit_demo_r1:REQ-ELECTIVES',
-      },
-    ],
-  }),
-  createAuditSnapshot({
-    ...AUDIT_BASE,
-    id: seedId('70000000', 2),
-    studentId: STALE_STUDENT,
-    // SAFETY: deliberately pinned to the older snapshot; the newer one makes this audit stale.
-    studentSnapshotId: SNAPSHOT.staleOlder,
-    auditVersion: 'audit_demo_r2',
-    generatedAt: SEED_RECORD_TIMES.staleAuditGeneratedAt,
-    studentRecordEffectiveAt: SEED_RECORD_TIMES.staleRecordEffectiveAt,
-    requirements: [degreeRoot('audit_demo_r2', 3)],
-  }),
-];
-
-/** The fixed, fully synthetic academic seed. Every code and ID is fictional. */
-export const DEV_SEED_ACADEMIC_PLAN: DevSeedAcademicPlan = {
-  courses: Object.values(SEED_CATALOG),
-  rules: SEED_RULES,
-  policy: SEED_POLICY,
-  terms: SEED_TERMS,
-  attempts: ATTEMPTS,
-  snapshots: SNAPSHOTS,
-  audits: AUDITS,
-};
+/**
+ * Builds the fully synthetic academic plan for one seed run. The catalog, rules, policy, terms,
+ * and attempts are fixed; the snapshots and audits are new revisions timed relative to `now`.
+ *
+ * @param now - The time the seed run started, read once by the caller.
+ * @returns The plan. The same `now` always gives the same plan.
+ * @throws {RangeError} When `now` is invalid.
+ * @throws {z.ZodError} When a built record violates its domain schema.
+ */
+export function buildDevSeedAcademicPlan(now: Date): DevSeedAcademicPlan {
+  const snapshotIds: RunSnapshotIds = {
+    current: seedRevisionId('a0000000', 1, now),
+    staleOlder: seedRevisionId('a0000000', 2, now),
+    staleNewer: seedRevisionId('a0000000', 3, now),
+  };
+  return {
+    courses: Object.values(SEED_CATALOG),
+    rules: SEED_RULES,
+    policy: SEED_POLICY,
+    terms: SEED_TERMS,
+    attempts: ATTEMPTS,
+    snapshots: buildSnapshots(now, snapshotIds),
+    audits: buildAudits(now, snapshotIds),
+  };
+}

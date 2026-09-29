@@ -8,7 +8,9 @@ import { z } from 'zod';
 
 import { IdentityStatus, InstitutionIdSchema, Role, UserIdentitySchema } from '@caa/domain';
 
-import { DEV_SEED_ISSUER, DEV_SEED_PLAN } from './dev-seed-plan';
+import { buildDevSeedPlan, DEV_SEED_ISSUER } from './dev-seed-plan';
+
+const DEV_SEED_PLAN = buildDevSeedPlan(new Date('2026-10-01T12:00:00.000Z'));
 
 const EnvExampleTokensSchema = z.record(
   z.string(),
@@ -25,7 +27,7 @@ function readExampleDevTokens(): z.infer<typeof EnvExampleTokensSchema> {
   return EnvExampleTokensSchema.parse(JSON.parse(json));
 }
 
-describe('DEV_SEED_PLAN', () => {
+describe('buildDevSeedPlan', () => {
   it('seeds the two synthetic institutions', () => {
     const names = DEV_SEED_PLAN.institutions.map((institution) => institution.name);
 

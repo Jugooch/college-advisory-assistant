@@ -37,9 +37,13 @@ import { termTable } from '../tables/term.table';
 import { userIdentityTable } from '../tables/user-identity.table';
 import { openTestDatabase, type TestDatabase } from '../testing/integration-fixtures';
 import { AcademicSeedReferenceError } from './academic-plan-references';
-import { DEV_SEED_ISSUER, DEV_SEED_PLAN } from './dev-seed-plan';
+import { buildDevSeedPlan, DEV_SEED_ISSUER } from './dev-seed-plan';
 import { seedDevData } from './seed-dev-data';
 
+/** The first seed run's time, and a run one day later. */
+const FIRST_RUN = new Date('2026-10-01T12:00:00.000Z');
+const LATER_RUN = new Date('2026-10-02T12:00:00.000Z');
+const DEV_SEED_PLAN = buildDevSeedPlan(FIRST_RUN);
 const TENANT_IDS = DEV_SEED_PLAN.institutions.map((institution) => institution.id);
 const TENANT_A = InstitutionIdSchema.parse(DEV_SEED_PLAN.institutions[0]?.id);
 
@@ -223,6 +227,41 @@ describe('seedDevData', () => {
       maxCreditsHundredths: 1800,
     });
     expect(terms.map((term) => term.termCode)).toEqual(['2025FA', '2026SP', '2026FA', '2027SP']);
+  });
+
+  it('adds one run of new snapshot and audit revisions when a later run seeds again', async () => {
+    const before = await countSeededRows();
+    const studentId = await seededStudentId(testDatabase, 'SYN-000001');
+
+    await seedDevData(testDatabase.db, buildDevSeedPlan(LATER_RUN));
+
+    const after = await countSeededRows();
+    const snapshot = await createStudentSnapshotRepository(testDatabase.db).findLatest(
+      TENANT_A,
+      studentId,
+    );
+    const audit = await createAuditSnapshotRepository(testDatabase.db).findLatest(
+      TENANT_A,
+      studentId,
+    );
+    const grew = (name: string) => (after[name] ?? 0) - (before[name] ?? 0);
+    expect(
+      Object.keys(after)
+        .filter((name) => grew(name) !== 0)
+        .map((name) => [name, grew(name)]),
+    ).toEqual([
+      ['studentSnapshots', 3],
+      ['auditSnapshots', 2],
+      ['snapshotAttemptLinks', 4],
+      ['requirementResults', 5],
+    ]);
+    expect(snapshot?.status === 'FOUND' && snapshot.revision.snapshot).toMatchObject({
+      id: 'a0000000-0001-4000-8000-01a0fc7c4e00',
+      sourceEffectiveAt: '2026-10-02T09:00:00.000Z',
+    });
+    expect(audit?.status === 'FOUND' && audit.audit.studentSnapshotId).toBe(
+      'a0000000-0001-4000-8000-01a0fc7c4e00',
+    );
   });
 
   it('refuses a plan whose rule names an uncatalogued course and writes nothing', async () => {

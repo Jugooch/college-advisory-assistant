@@ -37,10 +37,13 @@ type SeedWriter = Pick<Database, 'insert'>;
 /** Resolves a plan student ID to the ID of the stored student row. */
 type ResolveStudentId = (planStudentId: string) => string;
 
-// NOTE: every insert below ignores a conflict on the row's own key, so a second run leaves the
-// same rows. Seeded revisions are immutable, so nothing is updated; a row that clashes on another
-// key (for example a term code under a different ID) makes the seed fail instead of being
-// overwritten. Reset the database to pick up changes to the plan.
+// NOTE: every insert below ignores a conflict on the row's own key, and nothing is updated,
+// because seeded revisions are immutable. The catalog, rules, policy, terms, and attempts have
+// fixed IDs, so a re-run leaves them as they are. Each run's snapshots and audits have IDs and
+// audit versions derived from the run time, so a later run adds a fresh revision of each, which
+// "latest" then picks, and a run with the same time writes nothing new. A row that clashes on
+// another key (for example a term code under a different ID) makes the seed fail instead of being
+// overwritten. Changes to the fixed records need a database reset.
 
 /**
  * Writes the catalog, rules, policy, and terms.

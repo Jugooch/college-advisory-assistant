@@ -4,7 +4,9 @@
 import { describe, expect, it } from 'vitest';
 
 import { type DevSeedDependencies, runDevSeed, SeedRefusedError } from './dev-seed-command';
-import { DEV_SEED_PLAN } from './dev-seed-plan';
+import { buildDevSeedPlan } from './dev-seed-plan';
+
+const DEV_SEED_PLAN = buildDevSeedPlan(new Date('2026-10-01T12:00:00.000Z'));
 
 function buildDependencies(env: NodeJS.ProcessEnv): {
   dependencies: DevSeedDependencies;

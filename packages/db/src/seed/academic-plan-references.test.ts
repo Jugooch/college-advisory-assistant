@@ -14,7 +14,9 @@ import {
   AcademicSeedReferenceError,
   assertAcademicPlanReferences,
 } from './academic-plan-references';
-import { DEV_SEED_ACADEMIC_PLAN as PLAN, type DevSeedAcademicPlan } from './dev-seed-academic-plan';
+import { buildDevSeedAcademicPlan, type DevSeedAcademicPlan } from './dev-seed-academic-plan';
+
+const PLAN = buildDevSeedAcademicPlan(new Date('2026-10-01T12:00:00.000Z'));
 
 /** A course ID that the seeded catalog doesn't contain. */
 const UNCATALOGUED = '50000000-0000-4000-8000-00000000ffff';
