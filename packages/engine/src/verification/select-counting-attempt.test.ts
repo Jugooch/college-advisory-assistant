@@ -7,6 +7,7 @@ import type { RepeatPolicy } from '@caa/domain';
 import {
   buildAcademicPolicy,
   buildGrade,
+  buildTermCalendar,
   completedAttempt,
   fail,
   letter,
@@ -27,7 +28,11 @@ function buildContext(repeatPolicy: RepeatPolicy | null): AttemptResolutionConte
       letterGradeOrder: ['A', 'B', 'C', 'D', 'F'],
       repeatPolicy,
     }),
-    termCodesOldestFirst: ['2025SP', '2025FA', '2026SP'],
+    termCalendar: buildTermCalendar([
+      { termCode: '2025SP' },
+      { termCode: '2025FA' },
+      { termCode: '2026SP' },
+    ]),
   };
 }
 

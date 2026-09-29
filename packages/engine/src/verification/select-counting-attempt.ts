@@ -14,18 +14,22 @@ import {
   PassFailGrade,
   ReasonCode,
   RepeatPolicy,
+  type TermCalendar,
 } from '@caa/domain';
 
 import { rankLetterGrade } from './rank-letter-grade';
-import { type TermOrder, termPositionOf } from './term-position';
+import { termPositionOf } from './term-position';
 
-/**
- * Institution inputs needed to decide which attempt of a repeated course counts: the academic
- * policy, which supplies `repeatPolicy` (`null` = undetermined) and the letter order for
- * HIGHEST_GRADE, and the tenant's term order, used by MOST_RECENT. Term codes are never
- * compared as strings: `termCalendar` orders terms by `sequence` (see `termPositionOf`).
- */
-export type AttemptResolutionContext = { readonly academicPolicy: AcademicPolicy } & TermOrder;
+/** Institution inputs needed to decide which attempt of a repeated course counts. */
+export interface AttemptResolutionContext {
+  /** Supplies `repeatPolicy` (`null` = undetermined) and the letter order for HIGHEST_GRADE. */
+  readonly academicPolicy: AcademicPolicy;
+  /**
+   * The tenant's term calendar, used by MOST_RECENT. Term codes are never compared as strings:
+   * terms are ordered by `sequence` (see `termPositionOf`).
+   */
+  readonly termCalendar: TermCalendar;
+}
 
 /** Why a group's counting attempt is undetermined. */
 export type UndeterminedCountingReason =
@@ -92,7 +96,7 @@ export function selectCountingAttempt(
   const rank =
     repeatPolicy === RepeatPolicy.MostRecent
       ? (attempt: CourseAttempt): number | null =>
-          termPositionOf(context, context.academicPolicy.tenantId, attempt.termCode)
+          termPositionOf(context.termCalendar, context.academicPolicy.tenantId, attempt.termCode)
       : gradeRanker(completed, context.academicPolicy);
   const best = pickUniqueBest(completed, rank);
   return best === null ? undeterminedCounting(ReasonCode.RepeatOrderUndetermined) : counted(best);

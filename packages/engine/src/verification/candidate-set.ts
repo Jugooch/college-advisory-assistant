@@ -35,7 +35,6 @@ export type CandidateSetInputIssue =
   | 'selectedCredits'
   | 'courseCredits'
   | 'bounds'
-  | 'boundsSourceRef'
   | 'totalCredits';
 
 /** Thrown when a candidate set or its credit bounds are malformed, instead of guessing. */

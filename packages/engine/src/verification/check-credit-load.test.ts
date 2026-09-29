@@ -3,19 +3,26 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import type { Course } from '@caa/domain';
-import { buildCourse, SYNTHETIC_COURSES } from '@caa/test-kit';
+import type { AcademicPolicy, Course } from '@caa/domain';
+import { buildAcademicPolicy, buildCourse, SYNTHETIC_COURSES } from '@caa/test-kit';
 
 import { CandidateSetInputError, type CourseSelection } from './candidate-set';
-import { checkCreditLoad, type CreditLoadBounds } from './check-credit-load';
+import { checkCreditLoad } from './check-credit-load';
 
 const { math102, phys201, phys201Lab, ind390 } = SYNTHETIC_COURSES;
-/** 12.00 to 18.00 credits under a fictional load policy. */
-const FULL_TIME: CreditLoadBounds = {
-  minCreditsHundredths: 1200,
-  maxCreditsHundredths: 1800,
-  sourceRef: 'demo-policy/load/full-time',
-};
+/**
+ * Builds the ruleset `demo-2026.1` policy with the given term credit bounds.
+ *
+ * @param minCreditsHundredths - The minimum load.
+ * @param maxCreditsHundredths - The maximum load; 18.00 credits by default.
+ * @returns The academic policy.
+ */
+function boundedPolicy(minCreditsHundredths: number, maxCreditsHundredths = 1800): AcademicPolicy {
+  return buildAcademicPolicy({ termCreditBounds: { minCreditsHundredths, maxCreditsHundredths } });
+}
+
+/** 12.00 to 18.00 credits under ruleset `demo-2026.1`. */
+const FULL_TIME = boundedPolicy(1200);
 
 /**
  * Builds a credit-bearing selection.
@@ -53,12 +60,12 @@ describe('checkCreditLoad totals', () => {
       select(fixed(300, 1)),
     ];
 
-    expect(checkCreditLoad(selections, { ...FULL_TIME, minCreditsHundredths: 1250 })).toEqual({
+    expect(checkCreditLoad(selections, boundedPolicy(1250))).toEqual({
       kind: 'CREDIT_LOAD',
       state: 'PASS',
-      sourceRef: 'demo-policy/load/full-time',
+      sourceRef: 'demo-2026.1:termCreditBounds',
       evidence: {
-        rulesetVersion: null,
+        rulesetVersion: 'demo-2026.1',
         decisiveLeaves: [],
         courseIds: [math102.id, phys201.id, ind390.id, buildCourse({}, 1).id],
         creditLoad: {
@@ -73,7 +80,7 @@ describe('checkCreditLoad totals', () => {
   it('sums fractional credits exactly in hundredths', () => {
     const selections = [select(fixed(333, 1)), select(fixed(333, 2)), select(fixed(334, 3))];
 
-    const check = checkCreditLoad(selections, { ...FULL_TIME, minCreditsHundredths: 1000 });
+    const check = checkCreditLoad(selections, boundedPolicy(1000));
 
     expect(check.evidence?.creditLoad?.totalCreditsHundredths).toBe(1000);
     expect(check.state).toBe('PASS');
@@ -92,9 +99,9 @@ describe('checkCreditLoad totals', () => {
       kind: 'CREDIT_LOAD',
       state: 'FAIL',
       reasonCode: 'CREDIT_LIMIT_EXCEEDED',
-      sourceRef: 'demo-policy/load/full-time',
+      sourceRef: 'demo-2026.1:termCreditBounds',
       evidence: {
-        rulesetVersion: null,
+        rulesetVersion: 'demo-2026.1',
         decisiveLeaves: [],
         courseIds: [buildCourse({}, 1).id, buildCourse({}, 2).id],
         creditLoad: {
@@ -127,10 +134,10 @@ describe('checkCreditLoad totals', () => {
   });
 
   it('passes an empty set when the minimum is zero', () => {
-    const bounds = { ...FULL_TIME, minCreditsHundredths: 0 };
+    const bounds = boundedPolicy(0);
 
     expect(checkCreditLoad([], bounds).evidence).toEqual({
-      rulesetVersion: null,
+      rulesetVersion: 'demo-2026.1',
       decisiveLeaves: [],
       courseIds: [],
       creditLoad: {
@@ -145,7 +152,7 @@ describe('checkCreditLoad totals', () => {
 describe('checkCreditLoad linked sections', () => {
   it('does not count a lab whose credits the lecture total already includes', () => {
     const selections = [select(phys201), select(phys201Lab, null, false)];
-    const bounds = { ...FULL_TIME, minCreditsHundredths: 400, maxCreditsHundredths: 400 };
+    const bounds = boundedPolicy(400, 400);
 
     const check = checkCreditLoad(selections, bounds);
 
@@ -156,7 +163,7 @@ describe('checkCreditLoad linked sections', () => {
 
   it('counts a lab that awards its own credits', () => {
     const selections = [select(phys201), select(phys201Lab)];
-    const bounds = { ...FULL_TIME, minCreditsHundredths: 400, maxCreditsHundredths: 400 };
+    const bounds = boundedPolicy(400, 400);
 
     const check = checkCreditLoad(selections, bounds);
 
@@ -173,9 +180,9 @@ describe('checkCreditLoad variable credit', () => {
       kind: 'CREDIT_LOAD',
       state: 'UNKNOWN',
       reasonCode: 'VARIABLE_CREDIT_UNSELECTED',
-      sourceRef: 'demo-policy/load/full-time',
+      sourceRef: 'demo-2026.1:termCreditBounds',
       evidence: {
-        rulesetVersion: null,
+        rulesetVersion: 'demo-2026.1',
         decisiveLeaves: [],
         courseIds: [ind390.id],
         creditLoad: null,
@@ -206,19 +213,18 @@ describe('checkCreditLoad variable credit', () => {
 
 describe('checkCreditLoad input errors', () => {
   it.each([
-    ['a fractional minimum', { ...FULL_TIME, minCreditsHundredths: 1200.5 }],
-    ['a negative minimum', { ...FULL_TIME, minCreditsHundredths: -1 }],
-    ['a non-finite maximum', { ...FULL_TIME, maxCreditsHundredths: Number.POSITIVE_INFINITY }],
-    ['a minimum above the maximum', { ...FULL_TIME, minCreditsHundredths: 1801 }],
-  ])('rejects %s', (_label, bounds) => {
-    expect(() => checkCreditLoad([select(math102)], bounds)).toThrow(
-      new CandidateSetInputError('bounds'),
-    );
-  });
+    ['a fractional minimum', 1200.5, 1800],
+    ['a negative minimum', -1, 1800],
+    ['a non-finite maximum', 1200, Number.POSITIVE_INFINITY],
+    ['a minimum above the maximum', 1801, 1800],
+  ])('rejects %s in bounds that bypassed the schema', (_label, min, max) => {
+    const policy: AcademicPolicy = {
+      ...FULL_TIME,
+      termCreditBounds: { minCreditsHundredths: min, maxCreditsHundredths: max },
+    };
 
-  it('rejects an empty policy reference', () => {
-    expect(() => checkCreditLoad([select(math102)], { ...FULL_TIME, sourceRef: '' })).toThrow(
-      new CandidateSetInputError('boundsSourceRef'),
+    expect(() => checkCreditLoad([select(math102)], policy)).toThrow(
+      new CandidateSetInputError('bounds'),
     );
   });
 

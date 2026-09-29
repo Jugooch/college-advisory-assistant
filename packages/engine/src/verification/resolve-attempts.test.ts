@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import type { RepeatPolicy } from '@caa/domain';
 import {
   buildAcademicPolicy,
+  buildTermCalendar,
   completedAttempt,
   incompleteAttempt,
   inProgressAttempt,
@@ -37,7 +38,7 @@ const MISSING_ID = syntheticId('course', 0x999);
 function buildContext(repeatPolicy: RepeatPolicy | null): AttemptResolutionContext {
   return {
     academicPolicy: buildAcademicPolicy({ repeatPolicy }),
-    termCodesOldestFirst: ['2025FA', '2026SP'],
+    termCalendar: buildTermCalendar([{ termCode: '2025FA' }, { termCode: '2026SP' }]),
   };
 }
 

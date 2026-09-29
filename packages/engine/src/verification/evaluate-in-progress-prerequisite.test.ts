@@ -7,6 +7,7 @@ import type { AcademicPolicyInput, CourseAttempt, PrerequisiteExpression } from 
 import {
   buildAcademicPolicy,
   buildPrerequisiteRule,
+  buildTermCalendar,
   completedAttempt,
   course,
   inProgressAttempt,
@@ -45,7 +46,10 @@ function outcomeOf(
   const check = evaluatePrerequisite(
     buildPrerequisiteRule({ expression }),
     { attempts, courses: COURSES },
-    { academicPolicy: buildAcademicPolicy(policy), termCodesOldestFirst: ['2026SP', '2026FA'] },
+    {
+      academicPolicy: buildAcademicPolicy(policy),
+      termCalendar: buildTermCalendar([{ termCode: '2026SP' }, { termCode: '2026FA' }]),
+    },
   );
   return [check.state, check.reasonCode];
 }
