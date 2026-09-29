@@ -32,13 +32,16 @@ const NODE_PREFIX = '^node:';
 /** Why the engine may not import Node built-ins. */
 const NODE_BUILTIN_MESSAGE =
   'engine is pure (NFR-01): no Node built-ins, so no I/O, clock, or randomness.';
+/** Why domain production code may not import Node built-ins. */
+const DOMAIN_NODE_BUILTIN_MESSAGE =
+  'domain invariants are pure (ADR-0005, NFR-01): no Node built-ins, so no I/O, clock, or randomness.';
 /** Why an api `.logic.ts` file may not import Node built-ins. */
 const LOGIC_NODE_BUILTIN_MESSAGE =
   '.logic.ts is pure (ADR-0008): no Node built-ins, so no I/O, clock, or randomness.';
 
 /** Clock and randomness reads that make code nondeterministic (NFR-01). */
 const NONDETERMINISTIC_PROPERTIES = [
-  { object: 'Math', property: 'random', message: 'The engine must be deterministic (NFR-01).' },
+  { object: 'Math', property: 'random', message: 'Pure code must be deterministic (NFR-01).' },
   { object: 'Date', property: 'now', message: 'Pass the time in as an argument (NFR-01).' },
 ];
 
@@ -63,6 +66,16 @@ export const LANGUAGE_SYNTAX_BANS = [
   },
   { selector: 'ExportDefaultDeclaration', message: 'Use named exports (standards/02).' },
 ];
+
+/**
+ * Clock, randomness, and environment bans for pure packages: the engine and the domain's shared
+ * invariants (NFR-01, ADR-0005). Test files keep them too, like engine tests always have.
+ */
+const DETERMINISM_BANS = {
+  'no-restricted-properties': ['error', ...NONDETERMINISTIC_PROPERTIES],
+  'no-restricted-globals': ['error', ...NONDETERMINISTIC_GLOBALS],
+  'no-restricted-syntax': ['error', ...LANGUAGE_SYNTAX_BANS, DATE_CALL],
+};
 
 /** Deployable apps; no workspace imports another app, by name or by subpath. */
 const APPS = ['api', 'web', 'worker'];
@@ -153,7 +166,9 @@ export const layerBoundaries = [
       'no-restricted-imports': forbid(
         ['@caa/*', ...FRAMEWORKS, ...SERVER_ONLY],
         'domain depends only on zod.',
+        { paths: NODE_BUILTINS, regex: NODE_PREFIX, message: DOMAIN_NODE_BUILTIN_MESSAGE },
       ),
+      ...DETERMINISM_BANS,
     },
   },
   {
@@ -164,9 +179,7 @@ export const layerBoundaries = [
         'engine is pure: it depends only on @caa/domain.',
         { paths: NODE_BUILTINS, regex: NODE_PREFIX, message: NODE_BUILTIN_MESSAGE },
       ),
-      'no-restricted-properties': ['error', ...NONDETERMINISTIC_PROPERTIES],
-      'no-restricted-globals': ['error', ...NONDETERMINISTIC_GLOBALS],
-      'no-restricted-syntax': ['error', ...LANGUAGE_SYNTAX_BANS, DATE_CALL],
+      ...DETERMINISM_BANS,
     },
   },
   {

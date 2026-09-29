@@ -29,6 +29,8 @@ jobs:
           HEAD_REF: ${{ github.head_ref }}
           BASE_REF: ${{ github.base_ref }}
           OWNERSHIP_OVERRIDE: ${{ contains(github.event.pull_request.labels.*.name, 'ownership-override') }}
+          # SECURITY: the body reaches the script only as data in env, never inside `run:`.
+          PR_BODY: ${{ github.event.pull_request.body }}
 
   pr-title:
     name: PR title
