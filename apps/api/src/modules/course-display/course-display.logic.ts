@@ -31,7 +31,8 @@ function creditRuleOf(course: Course): CreditRule | null {
 
 /**
  * Picks the display entries of the named courses, one per course, in first-named order. A course
- * that isn't in the catalog gets no entry.
+ * that isn't in the catalog gets no entry, and neither does a variable-credit course missing a
+ * credit bound: no range is invented.
  *
  * @param courseIds - The courses the response names; repeats are allowed.
  * @param catalog - The session tenant's catalog.

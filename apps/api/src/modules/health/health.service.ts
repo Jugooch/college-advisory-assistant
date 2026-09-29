@@ -26,7 +26,7 @@ export interface HealthService {
   /**
    * Reads the current process status.
    *
-   * @returns The version and the time of the check.
+   * @returns The version, the time of the check, and the configured auth mode.
    */
   getSnapshot(): HealthSnapshot;
 }
@@ -34,7 +34,7 @@ export interface HealthService {
 /**
  * Creates the health service.
  *
- * @param dependencies - Application version and clock.
+ * @param dependencies - Application version, clock, and validated auth mode.
  * @returns A {@link HealthService}.
  */
 export function createHealthService(dependencies: HealthServiceDependencies): HealthService {
