@@ -4,12 +4,13 @@
  * @see docs/team/README.md
  */
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { disableBackgroundGit, removeTempDir } from '../test/temp-git-repo.mjs';
 import { isOutsideRepo, loadOwnership, mayChange, toRepoPath } from './ownership.mjs';
 import { commonGitDir, findCheckoutRoot } from './worktree-root.mjs';
 
@@ -37,13 +38,14 @@ beforeAll(() => {
   mkdirSync(join(repo, 'scripts'), { recursive: true });
   writeFileSync(join(repo, 'scripts', 'a.mjs'), '');
   git('init', '-q', '-b', 'main');
+  disableBackgroundGit(repo);
   git('add', '.');
   git('commit', '-q', '-m', 'init');
   git('worktree', 'add', '-q', '-b', 'feature', worktree);
 });
 
 afterAll(() => {
-  rmSync(base, { recursive: true, force: true });
+  removeTempDir(base);
 });
 
 describe('toRepoPath', () => {
