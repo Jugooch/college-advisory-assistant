@@ -8,20 +8,17 @@ import { describe, expect, it } from 'vitest';
 
 import { CheckState, ReasonCode } from '@caa/domain';
 import { CandidateSetInputError, checkCreditLoad } from '@caa/engine';
-import { buildCourse, planned, SYNTHETIC_COURSES } from '@caa/test-kit';
+import { buildCourse, loadPolicy, planned, SYNTHETIC_COURSES } from '@caa/test-kit';
 
 const { math101, math102, phys201, ind390 } = SYNTHETIC_COURSES;
 /** 3.00 + 3.00 + 4.00 + 3.00 = 13.00 fixed credits. */
 const FIXED = [planned(math101), planned(math102), planned(phys201), planned(buildCourse({}, 11))];
-const BOUNDS = {
-  minCreditsHundredths: 1200,
-  maxCreditsHundredths: 1500,
-  sourceRef: 'demo-load-policy-2026FA',
-};
+/** Ruleset `demo-2026.1`'s policy with term credit bounds 12.00 to 15.00. */
+const POLICY = loadPolicy(1200, 1500);
 
 describe('AC18 variable-credit independent study', () => {
   it('counts a selected 1.50 credits exactly', () => {
-    const check = checkCreditLoad([...FIXED, planned(ind390, 150)], BOUNDS);
+    const check = checkCreditLoad([...FIXED, planned(ind390, 150)], POLICY);
 
     expect(check).toMatchObject({
       state: CheckState.Pass,
@@ -36,7 +33,7 @@ describe('AC18 variable-credit independent study', () => {
   });
 
   it('fails the cap when the selected 3.00 credits push the total to 16.00', () => {
-    const check = checkCreditLoad([...FIXED, planned(ind390, 300)], BOUNDS);
+    const check = checkCreditLoad([...FIXED, planned(ind390, 300)], POLICY);
 
     expect(check).toMatchObject({
       state: CheckState.Fail,
@@ -46,7 +43,7 @@ describe('AC18 variable-credit independent study', () => {
   });
 
   it('is UNKNOWN VARIABLE_CREDIT_UNSELECTED naming the course when no value is chosen', () => {
-    const check = checkCreditLoad([...FIXED, planned(ind390)], BOUNDS);
+    const check = checkCreditLoad([...FIXED, planned(ind390)], POLICY);
 
     expect(check).toMatchObject({
       state: CheckState.Unknown,
@@ -56,7 +53,7 @@ describe('AC18 variable-credit independent study', () => {
   });
 
   it('rejects a selected value outside the course range instead of guessing', () => {
-    expect(() => checkCreditLoad([...FIXED, planned(ind390, 350)], BOUNDS)).toThrow(
+    expect(() => checkCreditLoad([...FIXED, planned(ind390, 350)], POLICY)).toThrow(
       CandidateSetInputError,
     );
   });

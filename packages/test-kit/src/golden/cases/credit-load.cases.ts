@@ -13,14 +13,18 @@ import { SYNTHETIC_COURSES } from '../../fixtures/synthetic-courses';
 import { type GoldenCase } from '../golden-case.schema';
 import { creditLoadCase } from '../golden-case-factories';
 import { expectedCheck, mustNot, NEVER_PASS_WHEN_UNKNOWN } from '../golden-expectations';
-import { planned } from '../golden-inputs';
+import { loadPolicy, planned, S3_ADJUDICATED_ON } from '../golden-inputs';
 import { GoldenRuleFamily } from '../golden-rule-family';
 
 const { math101, math102, phys201, phys201Lab, ind390 } = SYNTHETIC_COURSES;
 const LOAD = CheckKind.CreditLoad;
-const POLICY_REF = 'demo-load-policy-2026FA';
-const BOUNDS = { minCreditsHundredths: 1200, maxCreditsHundredths: 1800, sourceRef: POLICY_REF };
+/** The policy of ruleset `demo-2026.1` with term credit bounds 12.00 to 18.00. */
+const POLICY = loadPolicy(1200, 1800);
+/** The bounds' reference: they belong to the `demo-2026.1` ruleset's policy. */
+const POLICY_REF = 'demo-2026.1:termCreditBounds';
 const BOUNDS_TEXT = 'planning/08 §Constraint formulation (L ≤ Σ credits ≤ U, exact values)';
+const PINNED_POLICY =
+  'planning/08 §Evidence contract example (source_ref and ruleset_version pin the result); PR #124 (bounds from the policy, `<ruleset>:termCreditBounds`)';
 /** DEMO-MATH 101, DEMO-MATH 102, DEMO-PHYS 201: 3.00 + 3.00 + 4.00 = 10.00 credits. */
 const TEN_CREDITS = [planned(math101), planned(math102), planned(phys201)];
 /** Ten credits plus two generic 3.00-credit courses: 16.00 credits. */
@@ -50,6 +54,7 @@ function load(
     reasonCode,
     sourceRef: POLICY_REF,
     evidence: {
+      rulesetVersion: 'demo-2026.1',
       creditLoad: {
         totalCreditsHundredths,
         minCreditsHundredths: 1200,
@@ -68,57 +73,66 @@ export const CREDIT_LOAD_CASES: readonly GoldenCase[] = [
     requirementIds: ['FR-06', 'T04'],
     inputs: {
       selections: [...TEN_CREDITS, planned(phys201Lab), planned(ind390, 300)],
-      bounds: BOUNDS,
+      academicPolicy: POLICY,
     },
     expected: [load(CheckState.Pass, null, 1400)],
     prohibitedClaims: [NOT_OVER],
     rationale:
       '3.00 + 3.00 + 4.00 + 1.00 (a lab with its own credit) + 3.00 = 14.00; not every course is three credits.',
-    citations: [BOUNDS_TEXT, 'issue #57 (sums exact hundredths)'],
+    citations: [BOUNDS_TEXT, 'issue #57 (sums exact hundredths)', PINNED_POLICY],
+    adjudicatedOn: S3_ADJUDICATED_ON,
   }),
   creditLoadCase({
     id: 'GC-LOAD-002',
     family: GoldenRuleFamily.CreditBounds,
     title: 'One hundredth over the maximum fails',
     requirementIds: ['FR-06', 'T04'],
-    inputs: { selections: [...SIXTEEN_CREDITS, planned(ind390, 201)], bounds: BOUNDS },
+    inputs: { selections: [...SIXTEEN_CREDITS, planned(ind390, 201)], academicPolicy: POLICY },
     expected: [load(CheckState.Fail, ReasonCode.CreditLimitExceeded, 1801)],
     prohibitedClaims: [NOT_WITHIN],
     rationale: '16.00 + 2.01 = 18.01 exceeds 18.00; scaled integers keep the hundredth.',
-    citations: [BOUNDS_TEXT, 'issue #57 (above the maximum → CREDIT_LIMIT_EXCEEDED)'],
+    citations: [
+      BOUNDS_TEXT,
+      'issue #57 (above the maximum → CREDIT_LIMIT_EXCEEDED)',
+      PINNED_POLICY,
+    ],
+    adjudicatedOn: S3_ADJUDICATED_ON,
   }),
   creditLoadCase({
     id: 'GC-LOAD-003',
     family: GoldenRuleFamily.CreditBounds,
     title: 'Exactly the maximum passes',
     requirementIds: ['FR-06', 'T04'],
-    inputs: { selections: [...SIXTEEN_CREDITS, planned(ind390, 200)], bounds: BOUNDS },
+    inputs: { selections: [...SIXTEEN_CREDITS, planned(ind390, 200)], academicPolicy: POLICY },
     expected: [load(CheckState.Pass, null, 1800)],
     prohibitedClaims: [NOT_OVER],
     rationale: 'L ≤ Σ ≤ U is inclusive: 18.00 is within 12.00 to 18.00.',
-    citations: [BOUNDS_TEXT],
+    citations: [BOUNDS_TEXT, PINNED_POLICY],
+    adjudicatedOn: S3_ADJUDICATED_ON,
   }),
   creditLoadCase({
     id: 'GC-LOAD-004',
     family: GoldenRuleFamily.CreditBounds,
     title: 'Ten credits is below a twelve-credit minimum',
     requirementIds: ['FR-06', 'T04'],
-    inputs: { selections: TEN_CREDITS, bounds: BOUNDS },
+    inputs: { selections: TEN_CREDITS, academicPolicy: POLICY },
     expected: [load(CheckState.Fail, ReasonCode.CreditBelowMinimum, 1000)],
     prohibitedClaims: [NOT_WITHIN],
     rationale: '10.00 is under the 12.00 minimum load.',
-    citations: [BOUNDS_TEXT, 'issue #57 (below the minimum → CREDIT_BELOW_MINIMUM)'],
+    citations: [BOUNDS_TEXT, 'issue #57 (below the minimum → CREDIT_BELOW_MINIMUM)', PINNED_POLICY],
+    adjudicatedOn: S3_ADJUDICATED_ON,
   }),
   creditLoadCase({
     id: 'GC-LOAD-005',
     family: GoldenRuleFamily.CreditBounds,
     title: 'Exactly the minimum passes',
     requirementIds: ['FR-06', 'T04'],
-    inputs: { selections: [...TEN_CREDITS, planned(ind390, 200)], bounds: BOUNDS },
+    inputs: { selections: [...TEN_CREDITS, planned(ind390, 200)], academicPolicy: POLICY },
     expected: [load(CheckState.Pass, null, 1200)],
     prohibitedClaims: [NOT_OVER],
     rationale: '10.00 + 2.00 = 12.00 meets the inclusive minimum.',
-    citations: [BOUNDS_TEXT],
+    citations: [BOUNDS_TEXT, PINNED_POLICY],
+    adjudicatedOn: S3_ADJUDICATED_ON,
   }),
   creditLoadCase({
     id: 'GC-LOAD-006',
@@ -127,7 +141,7 @@ export const CREDIT_LOAD_CASES: readonly GoldenCase[] = [
     requirementIds: ['FR-06', 'T04'],
     inputs: {
       selections: [...TEN_CREDITS, planned(phys201Lab, null, false), planned(buildCourse({}, 11))],
-      bounds: { minCreditsHundredths: 1200, maxCreditsHundredths: 1300, sourceRef: POLICY_REF },
+      academicPolicy: loadPolicy(1200, 1300),
     },
     expected: [
       expectedCheck(LOAD, {
@@ -154,7 +168,7 @@ export const CREDIT_LOAD_CASES: readonly GoldenCase[] = [
     family: GoldenRuleFamily.VariableCredit,
     title: 'A variable-credit course with no chosen value is unknown',
     requirementIds: ['FR-06', 'T04', 'AC18'],
-    inputs: { selections: [...TEN_CREDITS, planned(ind390)], bounds: BOUNDS },
+    inputs: { selections: [...TEN_CREDITS, planned(ind390)], academicPolicy: POLICY },
     expected: [
       expectedCheck(LOAD, {
         state: CheckState.Unknown,
@@ -181,13 +195,14 @@ export const CREDIT_LOAD_CASES: readonly GoldenCase[] = [
     requirementIds: ['FR-06', 'T04', 'AC18'],
     inputs: {
       selections: [...TEN_CREDITS, planned(buildCourse({}, 11)), planned(ind390, 150)],
-      bounds: BOUNDS,
+      academicPolicy: POLICY,
     },
     expected: [load(CheckState.Pass, null, 1450)],
     prohibitedClaims: [NOT_OVER],
     rationale:
       '13.00 + 1.50 = 14.50: the selected value, not the minimum, maximum, or a default of 3.00.',
-    citations: ['planning/13 AC18', BOUNDS_TEXT],
+    citations: ['planning/13 AC18', BOUNDS_TEXT, PINNED_POLICY],
+    adjudicatedOn: S3_ADJUDICATED_ON,
   }),
   creditLoadCase({
     id: 'GC-VAR-003',
@@ -196,7 +211,7 @@ export const CREDIT_LOAD_CASES: readonly GoldenCase[] = [
     requirementIds: ['FR-06', 'T04', 'AC18'],
     inputs: {
       selections: [...SIXTEEN_CREDITS, planned(buildCourse({}, 13)), planned(ind390)],
-      bounds: BOUNDS,
+      academicPolicy: POLICY,
     },
     expected: [
       expectedCheck(LOAD, {

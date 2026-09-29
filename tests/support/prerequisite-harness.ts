@@ -10,17 +10,12 @@ import { prerequisiteInputs, type PrerequisiteVariation } from '@caa/test-kit';
 
 /**
  * Evaluates the default rule (DEMO-MATH 102 needs DEMO-MATH 101 ≥ C) or the given one against the
- * full synthetic catalog and term order.
+ * full synthetic catalog and the synthetic term calendar.
  *
  * @param variation - Policy switches, attempts, and optionally the rule.
  * @returns The PREREQUISITE check.
  */
 export function evaluateDefaultPrerequisite(variation: PrerequisiteVariation): CheckResult {
-  const { rule, attempts, courses, academicPolicy, termCodesOldestFirst } =
-    prerequisiteInputs(variation);
-  return evaluatePrerequisite(
-    rule,
-    { attempts, courses },
-    { academicPolicy, termCodesOldestFirst },
-  );
+  const { rule, attempts, courses, academicPolicy, termCalendar } = prerequisiteInputs(variation);
+  return evaluatePrerequisite(rule, { attempts, courses }, { academicPolicy, termCalendar });
 }

@@ -13,7 +13,8 @@ import {
   buildAcademicPolicy,
   completedAttempt,
   GOLDEN_CATALOG,
-  GOLDEN_TERM_ORDER,
+  GOLDEN_TERM_CALENDAR,
+  loadPolicy,
   planned,
   SYNTHETIC_COURSES,
   syntheticId,
@@ -28,7 +29,7 @@ describe('AC04 equivalents and repeats earn credit once', () => {
   it('resolves two equivalents to one group with 3.00 credits, not 6.00', () => {
     const groups = resolveAttempts(MATH101_THEN_MATH111, GOLDEN_CATALOG, {
       academicPolicy: buildAcademicPolicy({ repeatPolicy: RepeatPolicy.MostRecent }),
-      termCodesOldestFirst: GOLDEN_TERM_ORDER,
+      termCalendar: GOLDEN_TERM_CALENDAR,
     });
 
     expect(groups).toHaveLength(1);
@@ -42,7 +43,7 @@ describe('AC04 equivalents and repeats earn credit once', () => {
   it('leaves earned credit unknown, never 6.00, when no repeat policy says which attempt counts', () => {
     const groups = resolveAttempts(MATH101_THEN_MATH111, GOLDEN_CATALOG, {
       academicPolicy: buildAcademicPolicy({ repeatPolicy: null }),
-      termCodesOldestFirst: GOLDEN_TERM_ORDER,
+      termCalendar: GOLDEN_TERM_CALENDAR,
     });
 
     expect(groups[0]?.counting).toMatchObject({
@@ -54,12 +55,6 @@ describe('AC04 equivalents and repeats earn credit once', () => {
   it('refuses to load two equivalents into one candidate set instead of counting both', () => {
     const selections = [planned(SYNTHETIC_COURSES.math101), planned(SYNTHETIC_COURSES.math111)];
 
-    expect(() =>
-      checkCreditLoad(selections, {
-        minCreditsHundredths: 0,
-        maxCreditsHundredths: 1800,
-        sourceRef: 'demo-load-policy-2026FA',
-      }),
-    ).toThrow(CandidateSetInputError);
+    expect(() => checkCreditLoad(selections, loadPolicy(0, 1800))).toThrow(CandidateSetInputError);
   });
 });
