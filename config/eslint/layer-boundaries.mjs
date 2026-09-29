@@ -97,6 +97,19 @@ export function withPatterns(entry, extra) {
 }
 
 /**
+ * Builds a `@typescript-eslint/no-restricted-imports` entry that allows only type imports
+ * (`import type` or all-`type` specifiers) from the given modules. Core `no-restricted-imports`
+ * can't tell type imports from value imports, so this runs beside it.
+ *
+ * @param {string[]} names - Import specifiers or globs that may provide types only.
+ * @param {string} message - Explanation shown to the developer.
+ * @returns {import('eslint').Linter.RuleEntry} The rule entry.
+ */
+export function typesOnly(names, message) {
+  return ['error', { patterns: [{ group: names, allowTypeImports: true, message }] }];
+}
+
+/**
  * Builds a no-restricted-imports rule entry from package names and path patterns. The entry
  * always forbids the test-only entry points as well, because a later flat-config block replaces
  * the whole rule for the files it matches.
@@ -207,6 +220,10 @@ export const layerBoundaries = [
         ['fastify', '**/*.controller', '**/*.routes', 'drizzle-orm', 'pg', ...otherApps('api')],
         'Services have no HTTP or SQL; use repositories.',
       ),
+      '@typescript-eslint/no-restricted-imports': typesOnly(
+        ['**/*.service'],
+        'Import only types from another service; share pure helpers through .logic.ts and behavior through the injected interface.',
+      ),
     },
   },
   {
@@ -250,6 +267,10 @@ export const layerBoundaries = [
             message: 'Logic may import only types from @caa/db (ADR-0008).',
           },
         ],
+      ),
+      '@typescript-eslint/no-restricted-imports': typesOnly(
+        ['@caa/api-contract'],
+        'Logic may import only types from @caa/api-contract (ADR-0008).',
       ),
       'no-restricted-properties': ['error', ...NONDETERMINISTIC_PROPERTIES],
       'no-restricted-globals': ['error', ...NONDETERMINISTIC_GLOBALS],

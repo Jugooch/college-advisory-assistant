@@ -218,3 +218,58 @@ describe('engine production code reads no clock, randomness, or environment (NFR
     expect(banned.join('\n')).toContain('as const');
   });
 });
+
+describe('type-only imports between services and from the contract into logic (ADR-0008)', () => {
+  const SERVICE = 'apps/api/src/modules/course-checks/course-checks.service.ts';
+  const LOGIC = 'apps/api/src/modules/x/x.logic.ts';
+  const RULES = ['no-restricted-imports', '@typescript-eslint/no-restricted-imports'];
+
+  it.each([
+    "import type { PinnedRecordsService } from '../pinned-records/pinned-records.service';",
+    "import { type PinnedRecordsService } from '../pinned-records/pinned-records.service';",
+    "export type { PinnedRecordsService } from '../pinned-records/pinned-records.service';",
+    "import { isSourceFresh } from '../source-freshness/source-freshness.logic';",
+  ])('lets a service use %s', async (statement) => {
+    expect(await lintWithRules(SERVICE, statement, RULES)).toEqual([]);
+  });
+
+  it.each([
+    "import { assertSourcesFresh } from '../pinned-records/pinned-records.service';",
+    "import { SOURCE_TIME_FUTURE_TOLERANCE_MS } from '../pinned-records/pinned-records.service';",
+    "import { createPinnedRecordsService } from '../pinned-records/pinned-records.service';",
+    "import { PinnedRecordsService } from '../pinned-records/pinned-records.service';",
+    "import { type PinnedRecordsService, createPinnedRecordsService } from '../pinned-records/pinned-records.service';",
+    "import * as pinned from '../pinned-records/pinned-records.service';",
+    "import '../pinned-records/pinned-records.service';",
+    "export { createPinnedRecordsService } from '../pinned-records/pinned-records.service';",
+  ])('forbids a service from using %s', async (statement) => {
+    const messages = await lintWithRules(SERVICE, statement, RULES);
+
+    expect(messages.join('\n')).toContain('Import only types from another service');
+  });
+
+  it('still lets the container construct services', async () => {
+    const statement =
+      "import { createPinnedRecordsService } from './modules/pinned-records/pinned-records.service';";
+
+    expect(await lintWithRules('apps/api/src/container.ts', statement, RULES)).toEqual([]);
+  });
+
+  it.each([
+    "import type { CourseCheckResponse } from '@caa/api-contract';",
+    "import { type CourseCheckResponse } from '@caa/api-contract';",
+  ])('lets logic use %s', async (statement) => {
+    expect(await lintWithRules(LOGIC, statement, RULES)).toEqual([]);
+  });
+
+  it.each([
+    "import { MAX_COURSE_CHECK_COURSES } from '@caa/api-contract';",
+    "import { CourseChecksRequestSchema } from '@caa/api-contract';",
+    "import { ApiError } from '@caa/api-contract';",
+    "import * as contract from '@caa/api-contract';",
+  ])('forbids logic from using %s', async (statement) => {
+    const messages = await lintWithRules(LOGIC, statement, RULES);
+
+    expect(messages.join('\n')).toContain('only types from @caa/api-contract');
+  });
+});
