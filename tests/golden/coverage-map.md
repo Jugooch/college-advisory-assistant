@@ -5,7 +5,7 @@ Which rule families and interactions the golden corpus covers, and which gaps re
 Status as of 2026-09-29 (#103):
 
 - The development corpus has 113 cases across 20 rule families (`GOLDEN_DEVELOPMENT_CORPUS` in `@caa/test-kit`).
-- The holdout has 15 cases, version v0.2.
+- The holdout has 31 cases, version v0.3 (#226). Every non-scheduling rule family now has at least one.
 - Every case is `pending-academic-review`.
 - No open findings. #183 was settled by tech-lead ruling GR-01 (planning/13 §Golden corpus design, Adjudication rulings), and GC-PF-004 was re-adjudicated from it.
 
@@ -30,24 +30,24 @@ States are the adjudicated `expected` states:
 | --------------------- | -------------------------------- | ------- | ------------------------------------- | ------- |
 | MINIMUM_GRADE         | GC-MIN-001–005                   | P F     | GC-MIN-002, GC-MIN-003                | 1       |
 | PASS_FAIL_EQUIVALENCE | GC-PF-001–006                    | P F U   | none                                  | 2       |
-| PASSING_CUTOFF        | GC-CUT-001–006                   | P F U   | GC-CUT-002, GC-CUT-006                | 0       |
-| UNRANKED_GRADE        | GC-UNR-001–002                   | U       | none                                  | 0       |
-| IN_PROGRESS           | GC-IP-001–002                    | C F     | none                                  | 0       |
+| PASSING_CUTOFF        | GC-CUT-001–006                   | P F U   | GC-CUT-002, GC-CUT-006                | 2       |
+| UNRANKED_GRADE        | GC-UNR-001–002                   | U       | none                                  | 1       |
+| IN_PROGRESS           | GC-IP-001–002                    | C F     | none                                  | 1       |
 | PENDING_TRANSFER      | GC-PT-001–008                    | P U     | none                                  | 3       |
-| INCOMPLETE_ATTEMPT    | GC-INC-001                       | U       | none                                  | 0       |
+| INCOMPLETE_ATTEMPT    | GC-INC-001                       | U       | none                                  | 1       |
 | REPEAT                | GC-REP-001–014                   | P F U C | GC-REP-005, GC-REP-006, GC-REP-014    | 1       |
-| EQUIVALENCY           | GC-EQV-001–003                   | P U     | none                                  | 0       |
+| EQUIVALENCY           | GC-EQV-001–003                   | P U     | none                                  | 2       |
 | AND_OR_EXPRESSION     | GC-EXP-001–006                   | P F U C | none                                  | 1       |
-| UNSUPPORTED_RULE      | GC-UNS-001                       | U       | none                                  | 0       |
-| CATALOG_GAP           | GC-CAT-001–002                   | U       | none                                  | 0       |
+| UNSUPPORTED_RULE      | GC-UNS-001                       | U       | none                                  | 1       |
+| CATALOG_GAP           | GC-CAT-001–002                   | U       | none                                  | 2       |
 | APPLICABILITY         | GC-APP-001–010                   | P F U C | none                                  | 2       |
 | AUDIT_STALE           | GC-STALE-001–007                 | P U     | GC-STALE-002, GC-STALE-005            | 1       |
-| AUDIT_RECORD_MISMATCH | GC-PIN-001–004                   | U       | none                                  | 0       |
-| PROGRAM_CATALOG       | GC-PROG-001–006                  | U       | none                                  | 0       |
+| AUDIT_RECORD_MISMATCH | GC-PIN-001–004                   | U       | none                                  | 2       |
+| PROGRAM_CATALOG       | GC-PROG-001–006                  | U       | none                                  | 2       |
 | ALLOCATION            | GC-ALLOC-001–006                 | P U     | none                                  | 1       |
 | CREDIT_BOUNDS         | GC-LOAD-001–009                  | P F U   | GC-LOAD-002, GC-LOAD-003, GC-LOAD-005 | 1       |
 | VARIABLE_CREDIT       | GC-VAR-001–003, GC-ALLOC-007–012 | P U     | GC-ALLOC-009, GC-ALLOC-010            | 2       |
-| TERM_ORDER            | GC-TERM-001–006                  | P F U   | GC-TERM-005                           | 0       |
+| TERM_ORDER            | GC-TERM-001–006                  | P F U   | GC-TERM-005                           | 2       |
 
 **Family gaps** (planning/13 release gate: every supported family needs positive, negative, boundary and unknown cases):
 
@@ -56,7 +56,7 @@ States are the adjudicated `expected` states:
   - UNKNOWN-only by nature, with no positive or negative case: UNSUPPORTED_RULE, INCOMPLETE_ATTEMPT, CATALOG_GAP.
   - UNKNOWN-only so far: AUDIT_RECORD_MISMATCH, PROGRAM_CATALOG (no matching-record PASS case in the family).
 - **No boundary case:** IN_PROGRESS, EQUIVALENCY, PENDING_TRANSFER, ALLOCATION (room exactly used by fixed credits), APPLICABILITY.
-- **No holdout case:** 10 families: PASSING_CUTOFF, UNRANKED_GRADE, IN_PROGRESS, INCOMPLETE_ATTEMPT, EQUIVALENCY, UNSUPPORTED_RULE, CATALOG_GAP, AUDIT_RECORD_MISMATCH, PROGRAM_CATALOG, TERM_ORDER.
+- **No holdout case:** none among the rule families above since v0.3.
 
 ## Interactions
 
@@ -99,8 +99,8 @@ Each interaction lists its development cases, its holdout count, and the gaps st
 ### Allocation × staleness, pinning and program
 
 - **Development:** GC-STALE-003, GC-PIN-002, GC-PROG-002, GC-PROG-004, GC-PROG-006.
-- **Holdout:** 0.
-- **Open gaps:** holdout coverage.
+- **Holdout:** 1.
+- **Open gaps:** holdout coverage of staleness and record identity in allocation.
 
 ### Credit load × variable credit × bounds
 
@@ -111,8 +111,8 @@ Each interaction lists its development cases, its holdout count, and the gaps st
 ### Term order × repeat
 
 - **Development:** GC-TERM-001–006, GC-REP-005, GC-EQV-002.
-- **Holdout:** 0.
-- **Open gaps:** holdout coverage; a calendar gap between an in-progress and a completed attempt.
+- **Holdout:** 2.
+- **Open gaps:** a calendar gap between an in-progress and a completed attempt.
 
 ### Expression × attempt status
 
@@ -130,11 +130,11 @@ Each interaction lists its development cases, its holdout count, and the gaps st
 
 ## Path to the 200-case G1 gate
 
-There are 128 cases today (113 development, 15 holdout). The remaining 72 or more should come from:
+There are 144 cases today (113 development, 31 holdout). The remaining 56 or more should come from:
 
 1. **The open interaction gaps above:** about 20 cases, all testable with today's engine.
 2. **The family gaps above** (boundary and unknown cases): about 12 cases.
-3. **A holdout refresh** for the 10 families with no holdout case (listed under Family gaps): about 10 cases, to be cut as v0.3.
+3. **A holdout refresh** for the 10 families that had no holdout case: done in v0.3 (16 cases, #226).
 4. **Families the engine doesn't support yet**, each added with its engine feature:
    - co-requisites;
    - permission requirements;
