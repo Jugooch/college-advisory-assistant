@@ -41,4 +41,19 @@ describe('MeResponseSchema', () => {
 
     expect(MeResponseSchema.safeParse(withoutTenant).success).toBe(false);
   });
+
+  it("accepts the signed-in student's own student ID, or null for a user with none", () => {
+    const studentId = '2b3c4d5e-0000-4000-8000-000000000001';
+
+    expect(MeResponseSchema.parse({ ...VALID, studentId }).studentId).toBe(studentId);
+    expect(MeResponseSchema.parse({ ...VALID, studentId: null }).studentId).toBeNull();
+  });
+
+  it('accepts an omitted studentId while it is still optional (#169)', () => {
+    expect(MeResponseSchema.parse(VALID).studentId).toBeUndefined();
+  });
+
+  it('rejects a non-UUID studentId', () => {
+    expect(MeResponseSchema.safeParse({ ...VALID, studentId: 'DEMO-S-0001' }).success).toBe(false);
+  });
 });
