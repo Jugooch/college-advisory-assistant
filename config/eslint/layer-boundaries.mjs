@@ -17,7 +17,11 @@ export const SERVER_ONLY = [
 ];
 /** Frameworks that must never leak into framework-free packages. */
 export const FRAMEWORKS = ['fastify', 'next', 'next/*', 'react', 'react-dom'];
-/** Test-only `./testing` entry points of the apps (standards/01, test entry points). */
+/**
+ * Test-only `./testing` entry points of the allowlisted workspaces: apps/api, apps/worker and
+ * packages/db (standards/01 §Test entry points, ADR-0009). The convention check keeps other
+ * workspaces from exporting one; this glob bans them all from production code either way.
+ */
 export const TEST_ONLY = ['@caa/*/testing'];
 /** Every production source file; test files re-enable these imports in eslint.config.mjs. */
 export const PRODUCTION_SOURCES = ['apps/*/src/**', 'packages/*/src/**'];
