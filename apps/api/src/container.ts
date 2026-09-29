@@ -20,6 +20,7 @@ import {
   type PrerequisiteRuleRepository,
   type StudentRepository,
   type StudentSnapshotRepository,
+  type StudentUserLinkRepository,
   type TermRepository,
   type UserIdentityRepository,
 } from '@caa/db';
@@ -46,6 +47,7 @@ import {
 import {
   createDenyAllSessionResolver,
   createDevSessionResolver,
+  createSessionService,
   type SessionResolver,
 } from './modules/session/session.service';
 import {
@@ -67,6 +69,8 @@ export interface Controllers {
 export interface Repositories {
   readonly userIdentities: UserIdentityRepository;
   readonly students: StudentRepository;
+  /** Finds a signed-in user's own student record, for `GET /v1/me`. */
+  readonly studentUserLinks: StudentUserLinkRepository;
   readonly advisorAssignments: AdvisorAssignmentRepository;
   readonly studentSnapshots: StudentSnapshotRepository;
   readonly auditSnapshots: AuditSnapshotRepository;
@@ -112,7 +116,11 @@ function createSessionResolver(env: ApiEnv, identities: UserIdentityRepository):
  */
 export function createContainer(options: ContainerOptions): AppDependencies {
   const { env, repositories, now } = options;
-  const healthService = createHealthService({ version: env.APP_VERSION, now });
+  const healthService = createHealthService({
+    version: env.APP_VERSION,
+    now,
+    authMode: env.AUTH_MODE,
+  });
   const accessService = createAccessService({
     students: repositories.students,
     advisorAssignments: repositories.advisorAssignments,
@@ -132,6 +140,7 @@ export function createContainer(options: ContainerOptions): AppDependencies {
     students: studentsService,
     pinnedRecords,
     maxSkewMs: env.AUDIT_RECORD_MAX_SKEW_MS,
+    courseCatalog: repositories.courseCatalog,
   });
   const courseChecksService = createCourseChecksService({
     courseCatalog: repositories.courseCatalog,
@@ -146,7 +155,9 @@ export function createContainer(options: ContainerOptions): AppDependencies {
   return {
     controllers: {
       health: createHealthController(healthService),
-      session: createSessionController(),
+      session: createSessionController(
+        createSessionService({ studentUserLinks: repositories.studentUserLinks }),
+      ),
       students: createStudentsController(studentsService),
       academicSummary: createAcademicSummaryController(academicSummaryService),
       courseChecks: createCourseChecksController(courseChecksService),
@@ -163,9 +174,12 @@ export function createContainer(options: ContainerOptions): AppDependencies {
  */
 export function createRuntimeDependencies(env: ApiEnv): AppDependencies {
   const db = createDatabase(env.DATABASE_URL);
+  // NOTE: one student repository serves both the record reads and the user link.
+  const students = createStudentRepository(db);
   const repositories: Repositories = {
     userIdentities: createUserIdentityRepository(db),
-    students: createStudentRepository(db),
+    students,
+    studentUserLinks: students,
     advisorAssignments: createAdvisorAssignmentRepository(db),
     studentSnapshots: createStudentSnapshotRepository(db),
     auditSnapshots: createAuditSnapshotRepository(db),

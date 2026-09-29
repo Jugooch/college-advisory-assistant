@@ -1,15 +1,40 @@
 /**
- * @file HTTP-level tests for `GET /v1/me`, including every 401 path of the auth plugin.
+ * @file HTTP-level tests for `GET /v1/me`, including every 401 path of the auth plugin and the
+ * linked student ID of each kind of session.
  * @requirement FR-01
  */
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { z } from 'zod';
 
 import { ErrorCode, Role } from '@caa/domain';
-import { SYNTHETIC_TENANTS } from '@caa/test-kit';
+import { buildStudent, SYNTHETIC_TENANTS } from '@caa/test-kit';
 
-import { bearer, buildWorldApp, IDENTITIES, readError, TOKENS } from '../../testing/fixtures';
+import {
+  bearer,
+  buildWorldApp,
+  IDENTITIES,
+  readError,
+  STUDENTS,
+  TOKENS,
+} from '../../testing/fixtures';
 
-const { app } = buildWorldApp();
+const { app, store } = buildWorldApp();
+
+beforeEach(() => {
+  store.students = Object.values(STUDENTS);
+});
+
+/**
+ * Reads `/v1/me` with a dev token.
+ *
+ * @param token - Dev token.
+ * @returns The linked student ID in the response.
+ */
+async function studentIdFor(token: string): Promise<unknown> {
+  const response = await app.inject({ method: 'GET', url: '/v1/me', headers: bearer(token) });
+  return z.object({ data: z.looseObject({ studentId: z.unknown() }) }).parse(response.json()).data
+    .studentId;
+}
 
 describe('GET /v1/me', () => {
   it('returns the actor resolved from the bearer token', async () => {
@@ -25,6 +50,7 @@ describe('GET /v1/me', () => {
         userId: IDENTITIES.advisor.id,
         tenantId: SYNTHETIC_TENANTS.a.id,
         roles: [Role.Advisor],
+        studentId: null,
       },
     });
   });
@@ -47,6 +73,7 @@ describe('GET /v1/me', () => {
         userId: IDENTITIES.student.id,
         tenantId: SYNTHETIC_TENANTS.a.id,
         roles: [Role.Student],
+        studentId: STUDENTS.own.id,
       },
     });
   });
@@ -65,5 +92,35 @@ describe('GET /v1/me', () => {
       code: ErrorCode.Unauthorized,
       message: 'Sign in to continue',
     });
+  });
+});
+
+describe('GET /v1/me studentId', () => {
+  it('is the linked student for a student session', async () => {
+    expect(await studentIdFor(TOKENS.student)).toBe(STUDENTS.own.id);
+  });
+
+  it.each([
+    ['an advisor', TOKENS.advisor],
+    ['an admin of the same tenant', TOKENS.tenantAdmin],
+    ['an admin of another tenant', TOKENS.admin],
+  ])('is null for %s', async (_case, token) => {
+    expect(await studentIdFor(token)).toBeNull();
+  });
+
+  it('is null for a student session with no linked record', async () => {
+    store.students = [STUDENTS.other];
+
+    expect(await studentIdFor(TOKENS.student)).toBeNull();
+  });
+
+  it("is null when the user's only link is a student in another tenant", async () => {
+    const foreign = buildStudent(
+      { tenantId: SYNTHETIC_TENANTS.b.id, userId: IDENTITIES.student.id },
+      9,
+    );
+    store.students = [STUDENTS.other, foreign];
+
+    expect(await studentIdFor(TOKENS.student)).toBeNull();
   });
 });
