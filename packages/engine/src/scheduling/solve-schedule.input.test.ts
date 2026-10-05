@@ -88,6 +88,22 @@ function solve(
   });
 }
 
+/**
+ * Removes a course's credit inclusion key, as a producer that hasn't set it yet would.
+ *
+ * NOTE: stages #229. It omits the key after validation, so it compiles whether the domain field
+ * is optional or required.
+ * TODO(#229): remove with the omitted-value branch once the field is required.
+ *
+ * @param course - A valid course.
+ * @returns The course without `creditsIncludedInCourseId`.
+ */
+function withoutInclusion(course: Course): Course {
+  const omitted: Record<string, unknown> = { ...course };
+  delete omitted.creditsIncludedInCourseId;
+  return omitted as Course;
+}
+
 describe('solveSchedule input errors', () => {
   const one = [requestOf(LECTURE_COURSE, [LECTURE])];
 
@@ -115,10 +131,7 @@ describe('solveSchedule input errors', () => {
   });
 
   it('throws creditInclusionUnknown when an omitted inclusion could matter', () => {
-    const unknownLab = buildCourse(
-      { creditsHundredths: 100, creditsIncludedInCourseId: undefined },
-      3,
-    );
+    const unknownLab = withoutInclusion(buildCourse({ creditsHundredths: 100 }, 3));
     const labSection = buildSection(
       { courseId: unknownLab.id, meetings: [buildMeetingPattern({ weekdays: [Weekday.Tuesday] })] },
       3,
