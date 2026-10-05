@@ -79,10 +79,13 @@ describe('boundsOf', () => {
     });
   });
 
-  it('has no student bounds without policy bounds, leaving the load UNKNOWN', () => {
+  it('keeps the hard range without policy bounds, filling its open side with no limit', () => {
     expect(boundsOf(NO_BOUNDS, [HARD_RANGE])).toEqual({
       policyBounds: null,
-      studentBounds: null,
+      studentBounds: {
+        constraintIndex: 0,
+        bounds: { minCreditsHundredths: 0, maxCreditsHundredths: 1500 },
+      },
       preferredBounds: null,
     });
   });
@@ -120,6 +123,17 @@ describe('creditVerdictOf and missesPreferredRange', () => {
     });
     expect(creditVerdictOf(withRange, 1500)).toEqual({ state: 'PASS', reasonCode: null });
     expect(creditVerdictOf(boundsOf(POLICY, []), 1700).state).toBe('PASS');
+  });
+
+  it('fails a known total over the hard range without policy bounds, else is UNKNOWN', () => {
+    const noPolicy = boundsOf(NO_BOUNDS, [HARD_RANGE]);
+
+    expect(creditVerdictOf(noPolicy, 1600)).toEqual({
+      state: 'FAIL',
+      reasonCode: 'CREDIT_LIMIT_EXCEEDED',
+    });
+    expect(creditVerdictOf(noPolicy, 1500)).toEqual({ state: 'UNKNOWN', reasonCode: null });
+    expect(creditVerdictOf(noPolicy, null)).toEqual({ state: 'UNKNOWN', reasonCode: null });
   });
 
   it('misses the preferred range when outside it or unknown', () => {
@@ -167,6 +181,21 @@ describe('creditLoadCheckOf', () => {
       reasonCode: 'CREDIT_LIMIT_EXCEEDED',
       sourceRef: 'demo-2026.1:constraints[1]',
       evidence: { creditLoad: { totalCreditsHundredths: 1600, maxCreditsHundredths: 1500 } },
+    });
+  });
+
+  it('fails a known total over the hard range when the policy has no bounds', () => {
+    const noPolicy = boundsOf(NO_BOUNDS, [buildCreditRange(), HARD_RANGE]);
+
+    expect(creditLoadCheckOf(selectionsOf([800, 800]), NO_BOUNDS, noPolicy)).toMatchObject({
+      state: 'FAIL',
+      reasonCode: 'CREDIT_LIMIT_EXCEEDED',
+      sourceRef: 'demo-2026.1:constraints[1]',
+      evidence: { creditLoad: { totalCreditsHundredths: 1600, maxCreditsHundredths: 1500 } },
+    });
+    expect(creditLoadCheckOf(selectionsOf([600, 700]), NO_BOUNDS, noPolicy)).toMatchObject({
+      state: 'UNKNOWN',
+      reasonCode: 'CREDIT_BOUNDS_UNDEFINED',
     });
   });
 

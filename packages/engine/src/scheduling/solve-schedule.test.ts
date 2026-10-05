@@ -8,6 +8,7 @@ import {
   buildAcademicPolicy,
   buildAllowedModalities,
   buildCourse,
+  buildCreditRange,
   buildLinkedSectionComponent,
   buildLinkedSectionGroup,
   buildMeetingPattern,
@@ -273,6 +274,35 @@ describe('solveSchedule infeasibility', () => {
     expect(solution.conflictSet?.items[0]).toMatchObject({
       kind: 'CREDIT_LOAD',
       reasonCode: 'CREDIT_LIMIT_EXCEEDED',
+    });
+  });
+
+  it("is NO_FEASIBLE_PLAN when every candidate breaks the student's hard range and the policy has no bounds", () => {
+    const hardMax = buildCreditRange({
+      ...HARD_STRENGTH,
+      minCreditsHundredths: null,
+      maxCreditsHundredths: 500,
+    });
+
+    const solution = solve([requestOf(COURSE_A, [A1]), requestOf(COURSE_B, [B2])], {
+      policy: buildAcademicPolicy(),
+      constraints: [hardMax],
+    });
+
+    expect(solution).toMatchObject({
+      outcome: 'NO_FEASIBLE_PLAN',
+      searchComplete: true,
+      options: [],
+      conflictSet: {
+        items: [
+          {
+            kind: 'CREDIT_LOAD',
+            state: 'FAIL',
+            reasonCode: 'CREDIT_LIMIT_EXCEEDED',
+            sourceRef: 'demo-2026.1:constraints[0]',
+          },
+        ],
+      },
     });
   });
 });

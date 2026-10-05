@@ -15,6 +15,7 @@ import {
   buildConflictSet,
   buildOptions,
   creditConflictsOf,
+  type OptionContext,
   type SolverBundle,
 } from './build-schedule-options';
 import { buildPairTable } from './bundle-pair-table';
@@ -22,7 +23,7 @@ import { boundsOf, creditsByCourse } from './candidate-credits';
 import { type PreparedRequest, prepareSolverRequest } from './prepare-solver-requests';
 import { compareRankKeys } from './schedule-rank';
 import type { ScheduleSolution, SolveScheduleInput } from './schedule-solution';
-import { searchSchedules, type SearchSpace } from './search-schedules';
+import { type SearchResult, searchSchedules, type SearchSpace } from './search-schedules';
 import { compareText } from './tie-break-key';
 
 /**
@@ -33,6 +34,10 @@ import { compareText } from './tie-break-key';
  * - every bundle broke a hard rule on known data: `NO_FEASIBLE_PLAN` with the FAILs;
  * - otherwise data is missing (no sections, or a linked component with none):
  *   `NEEDS_VERIFICATION` with the UNKNOWN results, and no search.
+ *
+ * A course that keeps some bundles but had sections dropped for missing data still enters the
+ * search; if the search then finishes with no candidate, the outcome is `NEEDS_VERIFICATION`
+ * with those UNKNOWN results, never `NO_FEASIBLE_PLAN`.
  *
  * The search then tries one bundle per course, never relaxing the pairwise meeting and travel
  * rules or the credit load against the policy and the student's hard range. It counts each
@@ -124,11 +129,42 @@ function search(input: SolveScheduleInput, prepared: PreparedRequest): ScheduleS
       conflictSet: null,
     };
   }
+  return noCandidateSolution(result, prepared, context);
+}
+
+/**
+ * Builds the answer for a search that finished within the cap with no candidate.
+ *
+ * @param result - The search result.
+ * @param prepared - The screened courses.
+ * @param context - The option context, for the credit FAILs.
+ * @returns `NEEDS_VERIFICATION` when a course had sections dropped for missing data,
+ *   otherwise `NO_FEASIBLE_PLAN` with the conflict set.
+ */
+function noCandidateSolution(
+  result: SearchResult,
+  prepared: PreparedRequest,
+  context: OptionContext,
+): ScheduleSolution {
+  const base = { workCap: context.input.workCap, workUsed: result.workUsed, options: [] };
+  const dropped = prepared.courses.flatMap((course) => course.dropped);
+  // SAFETY: when sections were dropped for missing data, finding nothing among the rest proves
+  // nothing about them, so the answer needs verification, never NO_FEASIBLE_PLAN (ADR-0010 §5:
+  // proven on known data only; §6: a linked component with no permitted section is UNKNOWN).
+  if (dropped.length > 0) {
+    return {
+      ...base,
+      outcome: ScheduleOutcome.NeedsVerification,
+      searchComplete: false,
+      conflictSet: null,
+      unresolved: dropped,
+    };
+  }
   return {
     ...base,
     outcome: ScheduleOutcome.NoFeasiblePlan,
     searchComplete: true,
-    options: [],
+    unresolved: [],
     conflictSet: buildConflictSet(
       [...prepared.conflicts, ...result.pairFails],
       creditConflictsOf(result, context),

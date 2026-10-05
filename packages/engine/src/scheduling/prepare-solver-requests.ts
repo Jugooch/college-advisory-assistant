@@ -47,6 +47,8 @@ export interface PreparedCourse {
   readonly isInfeasible: boolean;
   /** Why it has no bundle because data is missing; empty when it has one or is infeasible. */
   readonly unresolved: readonly CheckResult[];
+  /** Why some of its sections were dropped for missing data although it kept a bundle. */
+  readonly dropped: readonly CheckResult[];
 }
 
 /** The screened request. */
@@ -109,8 +111,13 @@ export function prepareSolverRequest(input: SolveScheduleInput): PreparedRequest
  */
 function classify(request: ScheduleCourseRequest, kept: readonly ScreenedBundle[]): PreparedCourse {
   const { courseId, bundles } = request;
-  const base = { courseId, kept, isInfeasible: false, unresolved: [] };
-  if (kept.length > 0) return base;
+  const base = { courseId, kept, isInfeasible: false, unresolved: [], dropped: [] };
+  // SAFETY: a section dropped for an unavailable linked component was never evaluated, so its
+  // check is kept even when the course has other bundles; a search that then finds nothing has
+  // not proven that nothing fits (ADR-0010 §5 and §6).
+  if (kept.length > 0) {
+    return { ...base, dropped: bundles.unavailable === null ? [] : [bundles.unavailable] };
+  }
   const hasAnyBundle = bundles.bundles.length + bundles.blocked.length > 0;
   // SAFETY: a course whose every bundle broke a hard rule on known data is infeasible; if data
   // is missing too, it needs verification instead, never a claim that nothing fits (ADR-0010
