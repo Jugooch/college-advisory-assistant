@@ -18,7 +18,6 @@ import {
   type Course,
   type CourseId,
   createAuditSnapshot,
-  createCourse,
   ReasonCode,
   RequirementState,
   type StudentSnapshot,
@@ -208,24 +207,18 @@ describe('verifyCourseSet on the seeded scenarios (README)', () => {
 
 /**
  * Returns a copy of a course from a producer that doesn't state `creditsIncludedInCourseId` yet
- * (staged rollout, #229).
+ * (staged rollout, #229). The key is removed after validation so this compiles whether the
+ * field is optional or required.
  *
- * @param course - A seeded course.
+ * TODO(#229): remove with the staged-rollout cleanup once the field is required.
+ *
+ * @param course - A valid seeded course.
  * @returns The same course with the field omitted.
  */
 function withoutInclusionLink(course: Course): Course {
-  const { id, tenantId, sourceCourseId, label, creditsHundredths, equivalencyGroupId } = course;
-  const { minCreditsHundredths, maxCreditsHundredths } = course;
-  return createCourse({
-    id,
-    tenantId,
-    sourceCourseId,
-    label,
-    creditsHundredths,
-    minCreditsHundredths,
-    maxCreditsHundredths,
-    equivalencyGroupId,
-  });
+  const omitted: Record<string, unknown> = { ...course };
+  delete omitted.creditsIncludedInCourseId;
+  return omitted as Course;
 }
 
 /**
