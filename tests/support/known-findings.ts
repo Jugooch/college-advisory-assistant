@@ -19,7 +19,46 @@ import { it } from 'vitest';
  *
  * The fixing PR removes its entry, and nothing else in `tests/`.
  */
-export const KNOWN_FINDINGS: ReadonlyMap<string, number> = new Map<string, number>([]);
+export const KNOWN_FINDINGS: ReadonlyMap<string, number> = new Map<string, number>([
+  // NOTE: the schedule-options endpoint isn't built yet (#221), so every case through it fails
+  // until it lands. #221's PR removes these entries.
+  ['AC06: blocks the lecture when its only lab conflicts, with the conflict as evidence', 221],
+  ['AC06: offers the lecture only with the lab that fits', 221],
+  ['AC06: needs verification when the lab component permits no section', 221],
+  ['AC07: allows the same weekly time in the two halves of the term', 221],
+  ['AC07: rejects the same weekly time in the same half', 221],
+  ['AC07: rejects halves that share a single meeting date', 221],
+  ['AC08: rejects ten minutes between campuses when fifteen are required', 221],
+  ['AC08: allows a gap exactly equal to the required transition time', 221],
+  ['AC08: is unknown, never feasible, when the pair is not configured', 221],
+  ['AC08: is unknown when the tenant has no transition table at all', 221],
+  [
+    'AC12: reports SEARCH_TIMEOUT, never NO_FEASIBLE_PLAN, when the cap stops before a candidate',
+    221,
+  ],
+  ['AC12: completes a search that needs exactly the cap', 221],
+  ['AC12: finds the option under the documented default cap', 221],
+  ['AC32: gives exactly two options from four sections with conflicts', 221],
+  ['AC32: blocks the prerequisite on every option after the grade changes to a D', 221],
+  ['AC32: shows UNKNOWN, never PASS, where a removed meeting time could conflict', 221],
+  ['AC32: refers a stale section snapshot with 409 STALE_SOURCE', 221],
+  ['AC33: pins the section snapshot, transition version, work cap, and request hash', 221],
+  ['AC33: replays the same request on unchanged inputs deep-equal', 221],
+  ['AC33: hashes the same request with its courses in another order the same', 221],
+  ['AC33: needs verification when a requested course has no section', 221],
+  ['AC33: is 503 SOURCE_UNAVAILABLE when the term has no published snapshot', 221],
+  ['AC33: refers a tie for the latest snapshot with 409 STALE_SOURCE', 221],
+  ['AC33: still serves a snapshot exactly 24 hours old', 221],
+  ['AC34: serves the student and the assigned advisor', 221],
+  ['AC34: answers everyone else exactly as it answers a missing student', 221],
+  ['AC34: rejects a body that names a tenant, a role, or a user with 400', 221],
+  ['AC34: never offers a section inside a hard unavailable time', 221],
+  [
+    'AC34: proves no plan, never a relaxed one, when every section is inside the hard unavailable time',
+    221,
+  ],
+  ['AC34: states seats and registration only as the fixed limitation codes', 221],
+]);
 
 /** A key of the register: a golden case ID, or an acceptance case and its exact test title. */
 export const FINDING_KEY = /^(G[CH]-[A-Z]+-\d{3}|AC\d{2}: \S.*)$/;
