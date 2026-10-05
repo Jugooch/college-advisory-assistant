@@ -23,11 +23,27 @@ const POLICY = buildAcademicPolicy({
 /**
  * Builds a 1-credit lab course with the given inclusion.
  *
- * @param creditsIncludedInCourseId - The including course, `null`, or `undefined` (omitted).
+ * @param creditsIncludedInCourseId - The including course, or `null`.
  * @returns The lab course.
  */
-function labCourse(creditsIncludedInCourseId: string | null | undefined): Course {
+function labCourse(creditsIncludedInCourseId: string | null): Course {
   return buildCourse({ creditsHundredths: 100, creditsIncludedInCourseId }, 2);
+}
+
+/**
+ * Removes a course's credit inclusion key, as a producer that hasn't set it yet would.
+ *
+ * NOTE: stages #229. It omits the key after validation, so it compiles whether the domain field
+ * is optional or required.
+ * TODO(#229): remove with the omitted-value branch once the field is required.
+ *
+ * @param course - A valid course.
+ * @returns The course without `creditsIncludedInCourseId`.
+ */
+function withoutInclusion(course: Course): Course {
+  const omitted: Record<string, unknown> = { ...course };
+  delete omitted.creditsIncludedInCourseId;
+  return omitted as Course;
 }
 
 /**
@@ -86,7 +102,7 @@ describe('toBundleCourseSelections', () => {
   });
 
   it('is unknown for an omitted inclusion when another bundle of the plan could include it', () => {
-    const lab = labCourse(undefined);
+    const lab = withoutInclusion(labCourse(null));
 
     expect(
       toBundleCourseSelections([{ courses: [LECTURE_COURSE] }, { courses: [lab] }], new Map()),
@@ -94,7 +110,7 @@ describe('toBundleCourseSelections', () => {
   });
 
   it('counts a lone course with an omitted inclusion, since nothing in the plan includes it', () => {
-    const lone = buildCourse({ creditsIncludedInCourseId: undefined }, 1);
+    const lone = withoutInclusion(buildCourse({}, 1));
 
     expect(totalOf([[lone]])).toBe(300);
   });
