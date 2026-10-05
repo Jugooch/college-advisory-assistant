@@ -123,22 +123,23 @@ function checkAgainstBounds(
     maxCreditsHundredths: bounds.maxCreditsHundredths,
   };
   const courseIds = selections.map((selection) => selection.course.id);
-  return toCheck(outcomeOf(creditLoad), source, { courseIds, creditLoad });
+  return toCheck(creditLoadOutcomeOf(creditLoad), source, { courseIds, creditLoad });
 }
 
 /** The state and reason of a load check. */
-interface LoadOutcome {
+export interface LoadOutcome {
   readonly state: CheckState;
   readonly reasonCode: ReasonCode | null;
 }
 
 /**
- * Compares a known total with the bounds.
+ * Compares a known total with inclusive bounds: the one rule every credit-load decision uses,
+ * including the schedule solver's search, so the two never disagree.
  *
  * @param load - The total and the bounds.
  * @returns FAIL above the maximum or below the minimum, otherwise PASS.
  */
-function outcomeOf(load: CreditLoadEvidence): LoadOutcome {
+export function creditLoadOutcomeOf(load: CreditLoadEvidence): LoadOutcome {
   if (load.totalCreditsHundredths > load.maxCreditsHundredths) {
     return { state: CheckState.Fail, reasonCode: ReasonCode.CreditLimitExceeded };
   }
