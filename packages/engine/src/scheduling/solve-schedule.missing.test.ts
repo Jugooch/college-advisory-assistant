@@ -134,6 +134,28 @@ describe('solveSchedule missing data', () => {
     ]);
   });
 
+  it('needs verification, not NO_FEASIBLE_PLAN, when the kept bundles conflict and a section was dropped', () => {
+    const a2 = sectionAt(COURSE_A, '10', 2);
+    const group = buildLinkedSectionGroup({
+      primarySectionId: a2.id,
+      components: [buildLinkedSectionComponent({ permittedSectionIds: [] })],
+    });
+
+    const solution = solve([
+      requestOf(COURSE_A, [A1, a2], { groups: [group], courses: [] }),
+      requestOf(COURSE_B, [B1]),
+    ]);
+
+    expect(solution).toMatchObject({
+      outcome: 'NEEDS_VERIFICATION',
+      searchComplete: false,
+      options: [],
+      conflictSet: null,
+      unresolved: [{ state: 'UNKNOWN', reasonCode: 'LINKED_SECTION_UNAVAILABLE' }],
+    });
+    expect(solution.workUsed).toBeGreaterThan(0);
+  });
+
   it('reports infeasibility before missing data', () => {
     const constraints = [
       buildAllowedModalities({ ...HARD_STRENGTH, modalities: [SectionModality.Hybrid] }),

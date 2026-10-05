@@ -31,6 +31,12 @@ interface Bounds {
   readonly maxCreditsHundredths: number;
 }
 
+/** Bounds that admit any load, for filling a range's open sides when nothing narrows them. */
+const UNBOUNDED: Bounds = {
+  minCreditsHundredths: 0,
+  maxCreditsHundredths: Number.MAX_SAFE_INTEGER,
+};
+
 /** One course's credits and the course that can include them, by position. */
 export interface CourseCredits {
   readonly courseId: CourseId;
@@ -43,7 +49,7 @@ export interface CourseCredits {
 /** The bounds a candidate's credit load is judged by. */
 export interface CreditModel {
   readonly policyBounds: Bounds | null;
-  /** The student's hard credit range, filled from the policy on an open side. */
+  /** The student's hard credit range, filled from the policy (or unbounded) on an open side. */
   readonly studentBounds: { readonly constraintIndex: number; readonly bounds: Bounds } | null;
   /** The preferred credit range, open sides unbounded. */
   readonly preferredBounds: Bounds | null;
@@ -124,19 +130,18 @@ export function boundsOf(
   );
   const hard = ranges.find(({ constraint }) => constraint.priorityRank === null);
   const preferred = ranges.find(({ constraint }) => constraint.priorityRank !== null);
+  // SAFETY: the student's hard range is kept even when the policy has no bounds, so a known
+  // total outside it still fails; hard rules are never relaxed (ADR-0010 §3).
   return {
     policyBounds,
     studentBounds:
-      hard === undefined || policyBounds === null
+      hard === undefined
         ? null
-        : { constraintIndex: hard.constraintIndex, bounds: within(hard.constraint, policyBounds) },
-    preferredBounds:
-      preferred === undefined
-        ? null
-        : within(preferred.constraint, {
-            minCreditsHundredths: 0,
-            maxCreditsHundredths: Number.MAX_SAFE_INTEGER,
-          }),
+        : {
+            constraintIndex: hard.constraintIndex,
+            bounds: within(hard.constraint, policyBounds ?? UNBOUNDED),
+          },
+    preferredBounds: preferred === undefined ? null : within(preferred.constraint, UNBOUNDED),
   };
 }
 
@@ -173,20 +178,26 @@ function within(
  *
  * @param model - The credit model.
  * @param total - The candidate's total, or `null` when a variable value isn't chosen.
- * @returns FAIL when the policy or the student's hard range is broken, UNKNOWN when the
- *   total or the policy bounds are unknown, otherwise PASS.
+ * @returns FAIL when the policy or the student's hard range is broken on a known total,
+ *   otherwise UNKNOWN when the total or the policy bounds are unknown, otherwise PASS.
  */
 export function creditVerdictOf(model: CreditModel, total: number | null): CreditVerdict {
-  // SAFETY: an unknown total or missing policy bounds can't be decided, so the load is
-  // UNKNOWN, never PASS (planning/08 §Constraint formulation; AC18).
-  if (total === null || model.policyBounds === null) {
-    return { state: CheckState.Unknown, reasonCode: null };
+  const unknown = { state: CheckState.Unknown, reasonCode: null };
+  // SAFETY: an unknown total can't be decided, so the load is UNKNOWN, never PASS
+  // (planning/08 §Constraint formulation; AC18).
+  if (total === null) return unknown;
+  const student =
+    model.studentBounds === null
+      ? null
+      : creditLoadOutcomeOf({ totalCreditsHundredths: total, ...model.studentBounds.bounds });
+  // SAFETY: missing policy bounds leave the load UNKNOWN, but a known total outside the
+  // student's hard range is still a FAIL; FAIL takes precedence over UNKNOWN (ADR-0010 §3;
+  // planning/08 §Authority and result semantics).
+  if (model.policyBounds === null) {
+    return student?.state === CheckState.Fail ? student : unknown;
   }
   const policy = creditLoadOutcomeOf({ totalCreditsHundredths: total, ...model.policyBounds });
-  if (policy.state === CheckState.Fail || model.studentBounds === null) {
-    return policy;
-  }
-  return creditLoadOutcomeOf({ totalCreditsHundredths: total, ...model.studentBounds.bounds });
+  return policy.state === CheckState.Fail || student === null ? policy : student;
 }
 
 /**
@@ -206,8 +217,8 @@ export function missesPreferredRange(model: CreditModel, total: number | null): 
 }
 
 /**
- * Builds a plan's real credit-load check: the policy's, unless it passes and the student's
- * hard range fails, which is reported with a reference naming that constraint.
+ * Builds a plan's real credit-load check: the policy's, unless it doesn't fail and the
+ * student's hard range fails, which is reported with a reference naming that constraint.
  *
  * @param selections - The plan's selections.
  * @param policy - The academic policy.
@@ -221,14 +232,17 @@ export function creditLoadCheckOf(
 ): CheckResult {
   const policyCheck = checkCreditLoad(selections, policy);
   const { studentBounds } = model;
-  if (policyCheck.state !== CheckState.Pass || studentBounds === null) {
+  if (policyCheck.state === CheckState.Fail || studentBounds === null) {
     return policyCheck;
   }
   const studentCheck = checkCreditLoad(selections, {
     ...policy,
     termCreditBounds: studentBounds.bounds,
   });
-  if (studentCheck.state === CheckState.Pass) {
+  // SAFETY: a policy check that is UNKNOWN for missing bounds doesn't hide a known total
+  // outside the student's hard range; that is a FAIL (ADR-0010 §3). An unknown total leaves
+  // both UNKNOWN, and the policy's check is returned.
+  if (studentCheck.state !== CheckState.Fail) {
     return policyCheck;
   }
   return createCheckResult({
