@@ -60,11 +60,18 @@ jobs:
       - run: pnpm test:coverage
         env:
           DATABASE_URL: postgres://caa:caa@localhost:5432/caa
-      - name: Solver calibration (ADR-0010 §1)
+      # ADR-0010 Amendment 3: the 2 s target is measured without coverage, so this is a separate
+      # run from `pnpm test:coverage`. It needs the same DATABASE_URL: the root vitest config
+      # throws in CI without it (integration mode `fail`), which stays enforced. The engine
+      # project filter keeps the run to the calibration file; no integration test is selected.
+      - name: Solver calibration (ADR-0010 §1, Amendment 3)
         run: >-
-          pnpm exec vitest run packages/engine/src/scheduling/solve-schedule.calibration.test.ts
+          pnpm exec vitest run --project packages/engine
+          packages/engine/src/scheduling/solve-schedule.calibration.test.ts
           --reporter=default --reporter=json --outputFile=solver-calibration.json
           && node scripts/check-solver-calibration.mjs solver-calibration.json
+        env:
+          DATABASE_URL: postgres://caa:caa@localhost:5432/caa
 
   build:
     name: Build

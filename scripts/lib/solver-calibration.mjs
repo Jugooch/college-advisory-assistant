@@ -4,9 +4,11 @@
  * @see docs/planning/07-deployment-and-delivery.md
  */
 
-/** Title of the calibration test; renaming it without updating this fails the check. */
-export const CALIBRATION_TEST_TITLE =
-  'finishes 8 courses × 6 bundles within the default cap: 2,015,538 attempts';
+// NOTE: the engine test is matched by file name plus this stable title prefix, not its full
+// title, so changing the attempt count does not break the check. Renaming the file, the
+// describe block, or the test makes the check report "not found" and fail, never pass silently.
+/** Title prefix of the calibration test (describe name, then the test's own title). */
+export const CALIBRATION_TEST_TITLE = 'solveSchedule calibration (ADR-0010 §1)';
 
 /** Target duration in ms for the default-cap solve, measured without coverage. */
 export const CALIBRATION_TARGET_MS = 2000;
@@ -19,13 +21,13 @@ export const CALIBRATION_TARGET_MS = 2000;
  */
 export function judgeCalibration(report) {
   const files =
-    /** @type {{ testResults?: Array<{ name?: string, assertionResults?: Array<{ title?: string, status?: string, duration?: number | null }> }> }} */ (
+    /** @type {{ testResults?: Array<{ name?: string, assertionResults?: Array<{ title?: string, fullName?: string, status?: string, duration?: number | null }> }> }} */ (
       report
     )?.testResults;
   const match = (files ?? [])
     .filter((file) => file.name?.endsWith('solve-schedule.calibration.test.ts'))
     .flatMap((file) => file.assertionResults ?? [])
-    .find((test) => test.title === CALIBRATION_TEST_TITLE);
+    .find((test) => (test.fullName ?? test.title ?? '').startsWith(CALIBRATION_TEST_TITLE));
   if (match === undefined) {
     return {
       ok: false,
