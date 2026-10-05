@@ -10,17 +10,20 @@ import { z } from 'zod';
 import {
   AcademicPolicySchema,
   AuditSnapshotSchema,
+  CampusTransitionPolicySchema,
   CheckKind,
+  CheckState,
   CourseAttemptSchema,
   CourseIdSchema,
   CourseSchema,
   PrerequisiteRuleSchema,
+  SectionSchema,
   StudentSnapshotSchema,
   TermCalendarSchema,
 } from '@caa/domain';
 
 import { ExpectedCheckSchema, ProhibitedClaimSchema } from './golden-expectation.schema';
-import { GoldenRuleFamilySchema } from './golden-rule-family';
+import { GoldenRuleFamilySchema, GoldenScheduleFamilySchema } from './golden-rule-family';
 
 /** Reviewer recorded until an academic domain owner adjudicates the case (planning/13). */
 export const PENDING_ACADEMIC_REVIEW = 'pending-academic-review';
@@ -144,6 +147,33 @@ const CreditLoadCaseSchema = z.object({
 });
 
 /**
+ * Schema for a case that checks two sections' meetings against each other for time conflicts
+ * and campus travel (#218), under the tenant's transition table (`null` when it has none). A
+ * non-PASS expectation states the schedule issues that explain it.
+ */
+const MeetingConflictCaseSchema = z
+  .object({
+    ...commonFields,
+    family: GoldenScheduleFamilySchema,
+    check: z.literal(CheckKind.ScheduleFeasibility),
+    inputs: z
+      .object({
+        first: SectionSchema,
+        second: SectionSchema,
+        transitionPolicy: CampusTransitionPolicySchema.nullable(),
+      })
+      .strict()
+      .readonly(),
+  })
+  .refine(
+    (golden) =>
+      [golden.expected, ...golden.allowedAlternatives]
+        .flat()
+        .every((check) => check.state === CheckState.Pass || check.evidence?.scheduleIssues),
+    { message: 'A non-PASS meeting check states its scheduleIssues', path: ['expected'] },
+  );
+
+/**
  * Schema for one golden case (planning/13 §Golden corpus design). `check` names the engine check
  * the runner invokes, and `inputs` holds everything that check reads, so a case replays alone.
  */
@@ -153,6 +183,7 @@ export const GoldenCaseSchema = z
     ApplicabilityCaseSchema,
     AllocationCaseSchema,
     CreditLoadCaseSchema,
+    MeetingConflictCaseSchema,
   ])
   // SAFETY: an oracle that expects a result it also prohibits can never be met, and would hide
   // which of the two the adjudicator meant.
