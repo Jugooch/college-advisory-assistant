@@ -44,7 +44,12 @@ describe('createCourse creditsIncludedInCourseId', () => {
   it('rejects an omitted value: unknown is explicit', () => {
     const withoutField: Record<string, unknown> = { ...LECTURE };
     delete withoutField.creditsIncludedInCourseId;
-    expect(() => createCourse(withoutField as CourseInput)).toThrow();
+    const result = CourseSchema.safeParse(withoutField);
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues.map((issue) => issue.path)).toContainEqual([
+      'creditsIncludedInCourseId',
+    ]);
   });
 
   it('rejects a course whose credits are included in itself', () => {
