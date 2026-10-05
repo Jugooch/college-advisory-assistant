@@ -125,9 +125,12 @@ export const ExpectedScheduleIssueSchema = z
 export type ExpectedScheduleIssue = z.infer<typeof ExpectedScheduleIssueSchema>;
 
 /**
- * Returns whether a check's issues explain it the way `CheckResultSchema` requires (#266): PASS
- * has none; otherwise every issue's reason means the check's state and the check's own reason is
- * one of them, except an UNKNOWN credit-load reason, which may have none.
+ * Returns whether a check's issues explain it exactly as the domain's
+ * `scheduleIssuesExplainCheck` (`CheckResultSchema`, #266) requires: PASS has none; any other
+ * state has issues whose reasons all mean that state, and the check's own reason is one of
+ * them, unless the check is UNKNOWN for an undecided credit load (`VARIABLE_CREDIT_UNSELECTED`
+ * or `CREDIT_BOUNDS_UNDEFINED`), which needs no issue of its own reason and may have none. So a
+ * CONDITIONAL schedule check is always rejected. Only a schedule check carries issues here.
  *
  * @param scheduled - The check and its issues.
  * @param scheduled.check - The expected check.
@@ -142,12 +145,11 @@ function issuesExplainCheck(scheduled: {
   if (check.kind !== CheckKind.ScheduleFeasibility || check.state === CheckState.Pass) {
     return issues.length === 0;
   }
-  if (issues.length === 0) {
-    return CREDIT_LOAD_UNKNOWN_REASONS.has(check.reasonCode ?? '');
-  }
+  const isUnknownLoad =
+    check.state === CheckState.Unknown && CREDIT_LOAD_UNKNOWN_REASONS.has(check.reasonCode ?? '');
   return (
     issues.every((issue) => SCHEDULE_REASON_STATE[issue.reasonCode] === check.state) &&
-    issues.some((issue) => issue.reasonCode === check.reasonCode)
+    (isUnknownLoad || issues.some((issue) => issue.reasonCode === check.reasonCode))
   );
 }
 

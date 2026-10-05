@@ -27,10 +27,10 @@ import {
 } from '@caa/domain';
 
 import { GOLDEN_ADJUDICATION_FIELDS } from './golden-case.schema';
-import { isAscendingIds } from './golden-schedule-expectation.schema';
 import {
   type ExpectedSchedule,
   ExpectedScheduleSchema,
+  isAscendingIds,
 } from './golden-schedule-expectation.schema';
 
 /** Most work units a solve may use (ADR-0010 §1). */
