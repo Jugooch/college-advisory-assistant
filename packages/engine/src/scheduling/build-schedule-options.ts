@@ -19,12 +19,7 @@ import {
 
 import { type CourseSelection, selectedCreditsOf } from '../verification/candidate-set';
 import type { PairTable } from './bundle-pair-table';
-import {
-  creditLoadCheckOf,
-  type CreditModel,
-  knownSelectionsOf,
-  missesPreferredRange,
-} from './candidate-credits';
+import { creditLoadCheckOf, type CreditModel, missesPreferredRange } from './candidate-credits';
 import { toScheduleFeasibilityCheck } from './schedule-feasibility-check';
 import {
   MAX_CONFLICT_ITEMS,
@@ -35,6 +30,7 @@ import {
 } from './schedule-solution';
 import type { ConflictEntry, PreferenceSlot, ScreenedBundle } from './screen-bundles';
 import type { FoundCandidate, SearchBundle, SearchResult } from './search-schedules';
+import { toBundleCourseSelections } from './section-bundle-credits';
 import { compareText, tieBreakKeyOf } from './tie-break-key';
 
 /** One bundle as the solver holds it: its course, screening and search data. */
@@ -153,7 +149,7 @@ function selectionsOf(
   chosen: readonly SolverBundle[],
   context: OptionContext,
 ): readonly CourseSelection[] {
-  return knownSelectionsOf(
+  return toBundleCourseSelections(
     chosen.map((entry) => entry.screened.bundle),
     context.input.selectedCredits,
   );
