@@ -10,7 +10,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { GOLDEN_DEVELOPMENT_CORPUS, GoldenRuleFamily } from '@caa/test-kit';
+import { GOLDEN_DEVELOPMENT_CORPUS, GoldenRuleFamily, GoldenScheduleFamily } from '@caa/test-kit';
 
 import { findGoldenMismatches } from '../support/golden-runner';
 import { itForFinding } from '../support/known-findings';
@@ -22,18 +22,27 @@ describe('golden corpus, development set', () => {
     });
   }
 
-  it('has at least 113 cases covering every rule family', () => {
-    const families = new Set(GOLDEN_DEVELOPMENT_CORPUS.map((golden) => golden.family));
+  it('has at least 137 cases covering every rule family and the #218 scheduling families', () => {
+    const families = new Set<string>(GOLDEN_DEVELOPMENT_CORPUS.map((golden) => golden.family));
+    const ruleFamilies: readonly string[] = Object.values(GoldenRuleFamily);
 
-    expect(GOLDEN_DEVELOPMENT_CORPUS.length).toBeGreaterThanOrEqual(113);
-    expect([...families].sort()).toEqual(Object.values(GoldenRuleFamily).sort());
+    expect(GOLDEN_DEVELOPMENT_CORPUS.length).toBeGreaterThanOrEqual(137);
+    expect([...families].filter((family) => ruleFamilies.includes(family)).sort()).toEqual(
+      [...ruleFamilies].sort(),
+    );
+    expect([...families].filter((family) => !ruleFamilies.includes(family)).sort()).toEqual([
+      GoldenScheduleFamily.MeetingOverlap,
+      GoldenScheduleFamily.MeetingTimeUnknown,
+      GoldenScheduleFamily.TermDateOverlap,
+      GoldenScheduleFamily.TransitionTime,
+    ]);
   });
 
-  it('records a pending academic reviewer and an S2 or S3 adjudication date on every case', () => {
+  it('records a pending academic reviewer and an S2 to S4 adjudication date on every case', () => {
     const unreviewed = GOLDEN_DEVELOPMENT_CORPUS.filter(
       (golden) =>
         golden.reviewer !== 'pending-academic-review' ||
-        !['2026-09-27', '2026-09-28', '2026-09-29'].includes(golden.adjudicatedOn),
+        !['2026-09-27', '2026-09-28', '2026-09-29', '2026-10-05'].includes(golden.adjudicatedOn),
     );
 
     expect(unreviewed.map((golden) => golden.id)).toEqual([]);

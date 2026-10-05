@@ -20,72 +20,13 @@ import { describe, it } from 'vitest';
 // SYNTHETIC_CAMPUSES (north, south). Section IDs ascend in the order sections are named. Reason
 // codes are the names #212 lists and ADR-0010 settles; if #212 renames one, the case follows it.
 
-describe('golden scheduling cases: MEETING_OVERLAP (#218)', () => {
-  it.todo(
-    'GC-MEET-001 (#218): MWF 10:00–10:50 vs WF 10:30–11:20, whole term, same campus → SCHEDULE_FEASIBILITY FAIL MEETING_CONFLICT naming both sections, a shared weekday, both local time ranges and the dates 2027-01-11 to 2027-05-07',
-  );
-  it.todo(
-    'GC-MEET-002 (#218): MWF 09:00–09:50 vs TTh 09:00–09:50, whole term, same campus → PASS (no shared weekday)',
-  );
-  it.todo(
-    'GC-MEET-003 (#218, boundary): MWF 09:00–09:50 then MWF 09:50–10:40, same campus → PASS (half-open intervals; the same campus needs no transition)',
-  );
-  it.todo(
-    'GC-MEET-004 (#218, boundary): MWF 09:00–09:51 vs MWF 09:50–10:40, same campus → FAIL MEETING_CONFLICT (one minute of overlap)',
-  );
-  it.todo(
-    'GC-MEET-005 (#218): a Saturday-only meeting on 2027-02-13 vs a weekly Saturday 10:00–12:00 meeting that excludes 2027-02-13, same times → PASS (the only shared date is excluded)',
-  );
-  it.todo(
-    'GC-MEET-006 (#218): the GC-MEET-005 meetings with no excluded date → FAIL MEETING_CONFLICT naming 2027-02-13 as the overlapping date range',
-  );
-  it.todo(
-    'GC-MEET-007 (#218, DST): MWF 09:00–09:50 vs MWF 10:00–10:50, both 2027-03-08 to 2027-05-07 across the 2027-03-14 DST change → PASS (local wall-clock times never shift)',
-  );
-  it.todo(
-    'GC-MEET-008 (#218, DST): MWF 09:00–09:50 vs MWF 09:30–10:20, both 2027-03-08 to 2027-05-07 → FAIL MEETING_CONFLICT with dates 2027-03-08 to 2027-05-07, on both sides of the DST change',
-  );
-});
+// NOTE: GC-MEET-001–008, GC-HALF-001–004, GC-TRAVEL-001–006 and -008, and GC-TBA-001–003, -005
+// and -006 are full section-pair cases in `packages/test-kit/src/golden/cases/` since #218
+// merged. The todos below need three sections or the solver.
 
-describe('golden scheduling cases: TERM_DATE_OVERLAP (#218, AC07)', () => {
+describe('golden scheduling cases: TRANSITION_TIME (#220, AC08)', () => {
   it.todo(
-    'GC-HALF-001 (#218, AC07): MWF 09:00–09:50 in the first half vs the same time in the second half → PASS (disjoint half-terms)',
-  );
-  it.todo(
-    'GC-HALF-002 (#218, boundary): a first-half MWF 09:00–09:50 meeting vs one at the same time from Friday 2027-03-05 → FAIL MEETING_CONFLICT naming 2027-03-05 as the only overlapping date',
-  );
-  it.todo(
-    'GC-HALF-003 (#218): a first-half MWF 09:00–09:50 meeting vs a whole-term one at the same time → FAIL MEETING_CONFLICT with dates 2027-01-11 to 2027-03-05',
-  );
-  it.todo(
-    'GC-HALF-004 (#218, boundary): a first-half MWF meeting vs a TTh meeting at the same time from 2027-03-05 → PASS (calendar ranges share 2027-03-05 but no meeting instance does)',
-  );
-});
-
-describe('golden scheduling cases: TRANSITION_TIME (#218, AC08)', () => {
-  it.todo(
-    'GC-TRAVEL-001 (#218, AC08): north MWF 09:00–09:50 then south MWF 10:00–10:50, north→south 15 minutes → FAIL TRANSITION_TIME_INSUFFICIENT naming both campuses, 15 required and 10 available',
-  );
-  it.todo(
-    'GC-TRAVEL-002 (#218, boundary): the GC-TRAVEL-001 meetings with north→south 10 minutes → PASS (the gap equals the required time)',
-  );
-  it.todo(
-    'GC-TRAVEL-003 (#218, unknown): north MWF 09:00–09:50 then south MWF 11:00–11:50 with an empty transition table → UNKNOWN TRANSITION_TIME_UNDEFINED, whatever the 70-minute gap; never PASS',
-  );
-  it.todo(
-    'GC-TRAVEL-004 (#218, unknown): north then south back to back, the table lists only south→north 10 → UNKNOWN TRANSITION_TIME_UNDEFINED (pairs are ordered from the earlier meeting)',
-  );
-  it.todo(
-    'GC-TRAVEL-005 (#218): north MWF 09:00–09:50 then north MWF 09:50–10:40 with an empty table → PASS (the same campus needs no transition)',
-  );
-  it.todo(
-    'GC-TRAVEL-006 (#218): an online MWF 09:00–09:50 meeting then a south MWF 09:50–10:40 meeting with an empty table → PASS (an online meeting is not subject to travel)',
-  );
-  it.todo(
-    'GC-TRAVEL-007 (#218): north MWF 09:00–09:50, campus seed 3 MWF 10:00–10:50, south MWF 12:00–12:50; north→3 10, 3→south 60, north→south 180 → FAIL TRANSITION_TIME_INSUFFICIENT for north→south, 180 required and 130 available, though each consecutive pair passes (every pair on a shared date counts)',
-  );
-  it.todo(
-    'GC-TRAVEL-008 (#218): north MWF 09:00–09:50 and south TTh 09:50–10:40 with an empty table → PASS (no shared active date, so no transition applies)',
+    'GC-TRAVEL-007 (#220): north MWF 09:00–09:50, campus seed 3 MWF 10:00–10:50, south MWF 12:00–12:50; north→3 10, 3→south 60, north→south 180 → FAIL TRANSITION_TIME_INSUFFICIENT for north→south, 180 required and 130 available, though each consecutive pair passes (every pair on a shared date counts)',
   );
 });
 
@@ -113,24 +54,9 @@ describe('golden scheduling cases: LINKED_SECTION (#219, AC06)', () => {
   );
 });
 
-describe('golden scheduling cases: MEETING_TIME_UNKNOWN (#218, #220)', () => {
-  it.todo(
-    'GC-TBA-001 (#218, unknown): a whole-term TBA meeting vs a whole-term MWF 09:00–09:50 meeting → UNKNOWN MEETING_TIME_UNKNOWN, never PASS',
-  );
-  it.todo(
-    'GC-TBA-002 (#218, GR-02): a first-half TBA meeting vs a second-half MWF 09:00–09:50 meeting → PASS (no shared possible date, so the unknown time can’t conflict)',
-  );
-  it.todo(
-    'GC-TBA-003 (#218): an online asynchronous section (no meetings) vs a whole-term MWF 09:00–09:50 meeting → PASS (nothing to conflict on time)',
-  );
+describe('golden scheduling cases: MEETING_TIME_UNKNOWN (#220)', () => {
   it.todo(
     'GC-TBA-004 (#220, unknown): a section with a TBA meeting under a hard "no Fridays" constraint → the option is never PASS: SCHEDULE_FEASIBILITY UNKNOWN MEETING_TIME_UNKNOWN (a TBA meeting can’t satisfy hard availability)',
-  );
-  it.todo(
-    'GC-TBA-005 (#218, GR-02): a whole-term MW meeting with TBA times vs a whole-term TTh 09:00–09:50 meeting → PASS (known weekdays share no possible date, whatever the times)',
-  );
-  it.todo(
-    'GC-TBA-006 (#218, GR-02, unknown): a whole-term MW meeting with TBA times vs a whole-term WF 09:00–09:50 meeting → UNKNOWN MEETING_TIME_UNKNOWN (they share every Wednesday); never PASS and never FAIL',
   );
 });
 
