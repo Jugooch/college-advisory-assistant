@@ -9,8 +9,10 @@
  * What is wrong with scheduling input.
  * - `sameSection`: a section was compared with itself.
  * - `tenantMismatch`: sections or the transition table belong to different tenants.
+ * - `linkCycle`: linked-section groups require each other in a cycle.
+ * - `courseMissing`: a bundle's section belongs to a course the caller didn't supply.
  */
-export type ScheduleInputIssue = 'sameSection' | 'tenantMismatch';
+export type ScheduleInputIssue = 'sameSection' | 'tenantMismatch' | 'linkCycle' | 'courseMissing';
 
 /** Thrown when scheduling input is malformed, instead of guessing. */
 export class ScheduleInputError extends Error {
