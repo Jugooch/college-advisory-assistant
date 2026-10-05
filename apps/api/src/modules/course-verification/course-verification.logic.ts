@@ -25,6 +25,7 @@ import {
   aggregateCheckStates,
   checkAllocation,
   checkCreditLoad,
+  countsCreditsInPlan,
   type CourseSelection,
   evaluateApplicability,
   evaluatePrerequisite,
@@ -110,23 +111,17 @@ export class CreditInclusionUnknownError extends Error {
  *   the set holds another course.
  */
 function countsCreditsOf(course: Course, requestedIds: ReadonlySet<CourseId>): boolean {
-  const includedIn = course.creditsIncludedInCourseId;
-  // SAFETY: an omitted link is unknown, never `null`: the course might be a lab whose credits
-  // another requested course already includes. With another course in the set the load can't be
-  // decided, so the run is refused rather than counting the credits twice or dropping them
-  // (planning/08 §Authority and result semantics). Alone, the course counts its own credits
-  // either way, because no course in the set can include them.
-  // TODO(#229): remove the omitted case once the course schema requires the field.
-  if (includedIn === undefined) {
-    if (requestedIds.size > 1) {
-      throw new CreditInclusionUnknownError();
-    }
-    return true;
+  // NOTE: the rule is the engine's, shared with the schedule solver, so both count included
+  // credits the same way (planning/08 §Constraint formulation).
+  const isCounted = countsCreditsInPlan(course, requestedIds);
+  // SAFETY: `null` means the catalog hasn't said whether another requested course includes
+  // these credits. Course checks can't report the load as UNKNOWN for that, so the run is
+  // refused rather than counting the credits twice or dropping them (planning/08 §Authority and
+  // result semantics).
+  if (isCounted === null) {
+    throw new CreditInclusionUnknownError();
   }
-  // SAFETY: credits included in a requested course are already in that course's total, so they
-  // count once (planning/08 §Constraint formulation). Credits included in a course outside the
-  // set still count, because nothing else in the set carries them.
-  return includedIn === null || !requestedIds.has(includedIn);
+  return isCounted;
 }
 
 /**
