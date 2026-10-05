@@ -80,11 +80,9 @@ export const CourseSchema = z
      * Credit-load callers derive `CourseSelection.countsCredits` from it, so the credits are
      * counted once.
      *
-     * An omitted value means unknown: the source hasn't said. It will be required once every
-     * producer sets it (standard 08 §Required-field ripple, staged rollout).
+     * Required: `null` means the course counts its own credits; a value is never omitted.
      */
-    // TODO(#229): remove `.optional()` once the db mapper, seed, and test-kit fixtures set it.
-    creditsIncludedInCourseId: CourseIdSchema.nullable().optional(),
+    creditsIncludedInCourseId: CourseIdSchema.nullable(),
     /**
      * The institution's statement that attempts of this course may each earn credit, with any
      * caps. `null` means the institution doesn't state that, so only one attempt counts (AC04:
@@ -167,7 +165,7 @@ export function createCourse(input: CourseInput): Course {
  */
 function hasCreditInclusionCycle(courses: readonly Course[]): boolean {
   const includedIn = new Map(
-    courses.map((course) => [course.id, course.creditsIncludedInCourseId ?? null] as const),
+    courses.map((course) => [course.id, course.creditsIncludedInCourseId] as const),
   );
   return courses.some((course) => {
     let next = includedIn.get(course.id) ?? null;
@@ -205,9 +203,7 @@ export const CourseCatalogSchema = z
       const ids = new Set<string>(courses.map((course) => course.id));
       return courses.every(
         (course) =>
-          course.creditsIncludedInCourseId === null ||
-          course.creditsIncludedInCourseId === undefined ||
-          ids.has(course.creditsIncludedInCourseId),
+          course.creditsIncludedInCourseId === null || ids.has(course.creditsIncludedInCourseId),
       );
     },
     { message: 'creditsIncludedInCourseId must name a course in the same catalog' },
