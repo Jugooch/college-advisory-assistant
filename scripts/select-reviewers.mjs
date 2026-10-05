@@ -9,8 +9,9 @@
  * @see docs/standards/08-git-and-pull-requests.md
  */
 import { execFileSync } from 'node:child_process';
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, readFileSync } from 'node:fs';
 
+import { parseAgentModel } from './lib/agent-model.mjs';
 import {
   formatStatus,
   resolvePrReviewStatus,
@@ -43,6 +44,18 @@ if (PR_NUMBER && HEAD_SHA && GITHUB_REPOSITORY) {
 
 const output = JSON.stringify(reviewers);
 console.log(output);
+// Models come from each agent file's frontmatter so it stays the single source of truth.
+const models = Object.fromEntries(
+  reviewers.map((name) => {
+    const model = parseAgentModel(readFileSync(`.claude/agents/${name}.md`, 'utf8'));
+    if (!model) throw new Error(`${name}: no model in .claude/agents/${name}.md frontmatter`);
+    return [name, model];
+  }),
+);
+console.log(JSON.stringify(models));
 if (process.env.GITHUB_OUTPUT) {
-  appendFileSync(process.env.GITHUB_OUTPUT, `reviewers=${output}\n`);
+  appendFileSync(
+    process.env.GITHUB_OUTPUT,
+    `reviewers=${output}\nmodels=${JSON.stringify(models)}\n`,
+  );
 }
