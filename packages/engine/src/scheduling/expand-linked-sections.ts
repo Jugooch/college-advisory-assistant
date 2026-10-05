@@ -19,6 +19,7 @@ import {
 } from '@caa/domain';
 
 import { ScheduleInputError } from './schedule-input-error';
+import { compareText } from './tie-break-key';
 
 /** A snapshot's sections and linked groups, indexed for lookups. */
 export interface LinkIndex {
@@ -107,7 +108,8 @@ function expandComponent(link: {
   readonly path: readonly SectionId[];
 }): LinkedExpansion {
   const { primary, component, index, path } = link;
-  const permitted = component.permittedSectionIds.flatMap((id) => {
+  // NOTE: sorted by ID so the lists and issues never depend on the published list's order.
+  const permitted = [...component.permittedSectionIds].sort(compareText).flatMap((id) => {
     const linked = index.sectionsById.get(id);
     return linked === undefined ? [] : [linked];
   });

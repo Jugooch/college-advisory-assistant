@@ -21,7 +21,7 @@ import {
 import { expandLinkedSections, indexLinks, type LinkIndex } from './expand-linked-sections';
 import { findMeetingIssues } from './find-meeting-conflicts';
 import { toScheduleFeasibilityCheck } from './schedule-feasibility-check';
-import { type BundleCourseCredits, creditsOfBundle } from './section-bundle-credits';
+import { coursesOfBundle } from './section-bundle-credits';
 import { compareText, tieBreakKeyOf } from './tie-break-key';
 
 /** The requested course, the pinned section data, and the catalog courses it links to. */
@@ -41,8 +41,11 @@ export interface SectionBundle {
   readonly courseId: CourseId;
   /** The course's section first, then its linked sections in component order. */
   readonly sections: readonly Section[];
-  /** Each distinct course of the bundle and whether it adds its credits. */
-  readonly credits: readonly BundleCourseCredits[];
+  /**
+   * Each distinct course of the bundle, the requested course first. Whether each adds its
+   * credits depends on the whole plan (`toBundleCourseSelections`).
+   */
+  readonly courses: readonly Course[];
   /** The bundle's sections checked against each other: PASS, FAIL or UNKNOWN. */
   readonly feasibility: CheckResult;
 }
@@ -83,16 +86,21 @@ export function buildSectionBundles(input: SectionBundleInput): SectionBundles {
   const courseById = new Map(
     [course, ...input.linkedCourses].map((entry) => [entry.id, entry] as const),
   );
-  const expansions = ownSectionsOf(course.id, snapshot, index).map((section) =>
-    expandLinkedSections(section, index),
-  );
+  const expansions = ownSectionsOf(course.id, snapshot, index).map((own) => ({
+    own,
+    ...expandLinkedSections(own, index),
+  }));
   const sectionLists = uniqueBySections(
-    expansions.flatMap((expansion) => expansion.sectionLists.map(withoutRepeats)),
+    expansions
+      .flatMap(({ own, sectionLists: lists }) =>
+        lists.map((sections) => canonicalSections(own, sections)),
+      )
+      .filter((sections) => hasOneSectionPerComponent(sections, index)),
   );
   const bundles = sectionLists.map((sections): SectionBundle => ({
     courseId: course.id,
     sections,
-    credits: creditsOfBundle(sections, courseById),
+    courses: coursesOfBundle(sections, courseById),
     feasibility: checkBundleMeetings(sections, transitionPolicy),
   }));
   const unavailableIssues = expansions.flatMap((expansion) => expansion.unavailable);
@@ -138,24 +146,49 @@ function ownSectionsOf(
 }
 
 /**
- * Removes repeated sections from a list, keeping the first of each.
+ * Puts a section list in its canonical order: the course's own section first, then every other
+ * section once, sorted by ID by code unit, so the order never depends on input order.
  *
- * @param sections - A section list, which may name a section twice through nested groups.
- * @returns The list with each section once.
+ * @param own - The course's own section the list was expanded from.
+ * @param sections - The expanded list, which may name a section twice through nested groups.
+ * @returns The canonical list.
  */
-function withoutRepeats(sections: readonly Section[]): readonly Section[] {
-  return sections.filter(
-    (section, position) => sections.findIndex((other) => other.id === section.id) === position,
+function canonicalSections(own: Section, sections: readonly Section[]): readonly Section[] {
+  const linked = new Map(
+    sections.filter((section) => section.id !== own.id).map((section) => [section.id, section]),
+  );
+  return [own, ...[...linked.values()].sort((first, second) => compareText(first.id, second.id))];
+}
+
+/**
+ * Returns whether a section list takes exactly one section of every component that any of its
+ * sections requires, across groups too.
+ *
+ * @param sections - The section list.
+ * @param index - The snapshot's lookups.
+ * @returns `false` when some component is satisfied by two different sections of the list.
+ */
+function hasOneSectionPerComponent(sections: readonly Section[], index: LinkIndex): boolean {
+  const ids = new Set(sections.map((section) => section.id));
+  // SAFETY: a student takes exactly one permitted section of each required component, so a list
+  // that nested groups filled with two of them can't be registered for and is never a bundle
+  // (planning/08 §Constraint formulation: required linked sections).
+  return sections.every((section) =>
+    (index.groupsByPrimary.get(section.id)?.components ?? []).every(
+      (component) => component.permittedSectionIds.filter((id) => ids.has(id)).length === 1,
+    ),
   );
 }
 
 /**
  * Orders section lists by the tie-break key and drops lists with the same sections.
  *
- * @param lists - The section lists.
+ * @param lists - Canonical section lists.
  * @returns Distinct lists, in tie-break key order (ADR-0010 §4).
  */
 function uniqueBySections(lists: readonly (readonly Section[])[]): (readonly Section[])[] {
+  // NOTE: lists with one key hold the same sections in canonical order, and the lists arrive in
+  // own-section ID order, so which duplicate the map keeps never depends on input order.
   const byKey = new Map(
     lists.map((sections) => [tieBreakKeyOf(sections.map((section) => section.id)), sections]),
   );

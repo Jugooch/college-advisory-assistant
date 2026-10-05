@@ -1,5 +1,5 @@
 /**
- * @file Tests for counting a bundle's included credits once, and unknown inclusion as UNKNOWN.
+ * @file Tests for counting included credits once across a plan, and unknown inclusion as UNKNOWN.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -13,10 +13,12 @@ import {
 
 import { checkCreditLoad } from '../verification/check-credit-load';
 import { ScheduleInputError } from './schedule-input-error';
-import { creditsOfBundle, toBundleCourseSelections } from './section-bundle-credits';
+import { coursesOfBundle, toBundleCourseSelections } from './section-bundle-credits';
 
 const LECTURE_COURSE = buildCourse({}, 1);
-const LECTURE = buildSection({}, 1);
+const POLICY = buildAcademicPolicy({
+  termCreditBounds: { minCreditsHundredths: 0, maxCreditsHundredths: 1800 },
+});
 
 /**
  * Builds a 1-credit lab course with the given inclusion.
@@ -29,98 +31,82 @@ function labCourse(creditsIncludedInCourseId: string | null | undefined): Course
 }
 
 /**
- * Works out the credits of the lecture with one lab of the given course.
+ * Totals a plan's credit load through `checkCreditLoad`.
  *
- * @param lab - The lab course.
- * @returns Each course of the bundle and whether it counts.
+ * @param bundles - The plan's bundles, as course lists.
+ * @returns The counted total in hundredths.
  */
-function creditsWithLab(lab: Course): ReturnType<typeof creditsOfBundle> {
-  const labSection = buildSection({ courseId: lab.id }, 2);
-  const courseById = new Map<CourseId, Course>([
-    [LECTURE_COURSE.id, LECTURE_COURSE],
-    [lab.id, lab],
-  ]);
-  return creditsOfBundle([LECTURE, labSection], courseById);
+function totalOf(bundles: readonly (readonly Course[])[]): number | undefined {
+  const result = toBundleCourseSelections(
+    bundles.map((courses) => ({ courses })),
+    new Map(),
+  );
+  const selections = result.isKnown ? result.selections : [];
+  return checkCreditLoad(selections, POLICY).evidence?.creditLoad?.totalCreditsHundredths;
 }
 
-describe('creditsOfBundle', () => {
-  it('counts no credits for a lab included in its lecture', () => {
-    const lab = labCourse(LECTURE_COURSE.id);
-
-    expect(creditsWithLab(lab)).toEqual([
-      { course: LECTURE_COURSE, countsCredits: true },
-      { course: lab, countsCredits: false },
+describe('coursesOfBundle', () => {
+  it('lists each course once, in the order its first section appears', () => {
+    const lab = labCourse(null);
+    const sections = [
+      buildSection({}, 1),
+      buildSection({ courseId: lab.id }, 2),
+      buildSection({ courseId: lab.id }, 3),
+    ];
+    const courseById = new Map<CourseId, Course>([
+      [lab.id, lab],
+      [LECTURE_COURSE.id, LECTURE_COURSE],
     ]);
-  });
 
-  it('counts a lab that awards its own credits', () => {
-    expect(creditsWithLab(labCourse(null))[1]?.countsCredits).toBe(true);
-  });
-
-  it('counts a lab whose credits are included in a course outside the bundle', () => {
-    const elsewhere = buildCourse({}, 9).id;
-
-    expect(creditsWithLab(labCourse(elsewhere))[1]?.countsCredits).toBe(true);
-  });
-
-  it('leaves an omitted inclusion unknown when another course could include it', () => {
-    expect(creditsWithLab(labCourse(undefined))[1]?.countsCredits).toBeNull();
-  });
-
-  it('counts a lone course with an omitted inclusion, since nothing in the bundle includes it', () => {
-    const lone = buildCourse({ creditsIncludedInCourseId: undefined }, 1);
-
-    expect(creditsOfBundle([LECTURE], new Map([[lone.id, lone]]))).toEqual([
-      { course: lone, countsCredits: true },
-    ]);
+    expect(coursesOfBundle(sections, courseById)).toEqual([LECTURE_COURSE, lab]);
   });
 
   it("throws courseMissing when a section's course isn't supplied", () => {
-    expect(() => creditsOfBundle([LECTURE], new Map())).toThrow(
+    expect(() => coursesOfBundle([buildSection({}, 1)], new Map())).toThrow(
       new ScheduleInputError('courseMissing'),
     );
   });
 });
 
 describe('toBundleCourseSelections', () => {
-  const policy = buildAcademicPolicy({
-    termCreditBounds: { minCreditsHundredths: 0, maxCreditsHundredths: 1800 },
+  it('counts a 3-credit lecture with an included 1-credit lab in its bundle as 3 credits', () => {
+    expect(totalOf([[LECTURE_COURSE, labCourse(LECTURE_COURSE.id)]])).toBe(300);
   });
 
-  it('counts a 3-credit lecture with an included 1-credit lab as 3 credits', () => {
-    const credits = creditsWithLab(labCourse(LECTURE_COURSE.id));
+  it('counts an included lab once when its lecture is in another bundle of the plan', () => {
+    expect(totalOf([[LECTURE_COURSE], [labCourse(LECTURE_COURSE.id)]])).toBe(300);
+  });
 
-    const result = toBundleCourseSelections([{ credits }], new Map());
+  it('counts its own credits for a lab whose including course is not in the plan', () => {
+    expect(totalOf([[buildCourse({}, 3)], [labCourse(LECTURE_COURSE.id)]])).toBe(400);
+  });
 
-    expect(result.isKnown).toBe(true);
-    const selections = result.isKnown ? result.selections : [];
-    expect(checkCreditLoad(selections, policy).evidence?.creditLoad).toEqual({
-      totalCreditsHundredths: 300,
-      minCreditsHundredths: 0,
-      maxCreditsHundredths: 1800,
-    });
+  it('counts its own credits for a lab whose credits are included nowhere', () => {
+    expect(totalOf([[LECTURE_COURSE, labCourse(null)]])).toBe(400);
+  });
+
+  it('is unknown for an omitted inclusion when another bundle of the plan could include it', () => {
+    const lab = labCourse(undefined);
+
+    expect(
+      toBundleCourseSelections([{ courses: [LECTURE_COURSE] }, { courses: [lab] }], new Map()),
+    ).toEqual({ isKnown: false, unknownCourseIds: [lab.id] });
+  });
+
+  it('counts a lone course with an omitted inclusion, since nothing in the plan includes it', () => {
+    const lone = buildCourse({ creditsIncludedInCourseId: undefined }, 1);
+
+    expect(totalOf([[lone]])).toBe(300);
   });
 
   it('passes the chosen value of a variable-credit course', () => {
     const variable = buildVariableCreditCourse({}, 3);
 
-    const result = toBundleCourseSelections(
-      [{ credits: [{ course: variable, countsCredits: true }] }],
-      new Map([[variable.id, 200]]),
-    );
-
-    expect(result).toEqual({
+    expect(
+      toBundleCourseSelections([{ courses: [variable] }], new Map([[variable.id, 200]])),
+    ).toEqual({
       isKnown: true,
       selections: [{ course: variable, selectedCreditsHundredths: 200, countsCredits: true }],
-    });
-  });
-
-  it('names the courses whose inclusion is unknown instead of any selections', () => {
-    const lab = labCourse(undefined);
-
-    expect(toBundleCourseSelections([{ credits: creditsWithLab(lab) }], new Map())).toEqual({
-      isKnown: false,
-      unknownCourseIds: [lab.id],
     });
   });
 });

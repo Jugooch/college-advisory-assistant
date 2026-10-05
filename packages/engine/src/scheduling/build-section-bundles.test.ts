@@ -16,7 +16,7 @@ import {
 import { buildSectionBundles, type SectionBundles } from './build-section-bundles';
 import { ScheduleInputError } from './schedule-input-error';
 
-const { Tuesday, Thursday } = Weekday;
+const { Tuesday, Thursday, Friday } = Weekday;
 const LECTURE_COURSE = buildCourse({}, 1);
 const LAB_COURSE = buildCourse(
   { creditsHundredths: 100, creditsIncludedInCourseId: LECTURE_COURSE.id },
@@ -60,6 +60,26 @@ function bundlesOf(
 }
 
 /**
+ * Builds the reviewer's nested setup: the lecture requires lab L01 and one recitation, and
+ * L01 requires one of the same recitations.
+ *
+ * @param recitationIds - The permitted recitations, in the order the groups list them.
+ * @returns The lecture's group and L01's group.
+ */
+function nestedRecitationGroups(recitationIds: readonly string[]): LinkedSectionGroup[] {
+  const recitation = buildLinkedSectionComponent({
+    name: 'Recitation',
+    permittedSectionIds: recitationIds,
+  });
+  return [
+    buildLinkedSectionGroup({
+      components: [buildLinkedSectionComponent({ permittedSectionIds: [L01.id] }), recitation],
+    }),
+    buildLinkedSectionGroup({ primarySectionId: L01.id, components: [recitation] }, 2),
+  ];
+}
+
+/**
  * Lists each bundle's section IDs.
  *
  * @param bundles - The bundles.
@@ -80,10 +100,7 @@ describe('buildSectionBundles linked labs', () => {
     expect(result.bundles[0]).toEqual({
       courseId: LECTURE_COURSE.id,
       sections: [LECTURE, L01],
-      credits: [
-        { course: LECTURE_COURSE, countsCredits: true },
-        { course: LAB_COURSE, countsCredits: false },
-      ],
+      courses: [LECTURE_COURSE, LAB_COURSE],
       feasibility: PASS,
     });
     expect(result.blocked).toEqual([]);
@@ -132,7 +149,7 @@ describe('buildSectionBundles linked labs', () => {
     const result = bundlesOf([second, LECTURE], []);
 
     expect(idsOf(result.bundles)).toEqual([[LECTURE.id], [second.id]]);
-    expect(result.bundles[0]?.credits).toEqual([{ course: LECTURE_COURSE, countsCredits: true }]);
+    expect(result.bundles[0]?.courses).toEqual([LECTURE_COURSE]);
   });
 });
 
@@ -202,7 +219,7 @@ describe('buildSectionBundles nested and same-course links', () => {
     const result = bundlesOf([LECTURE, recitation], [group]);
 
     expect(idsOf(result.bundles)).toEqual([[LECTURE.id, recitation.id]]);
-    expect(result.bundles[0]?.credits).toEqual([{ course: LECTURE_COURSE, countsCredits: true }]);
+    expect(result.bundles[0]?.courses).toEqual([LECTURE_COURSE]);
   });
 
   it('expands a linked section that requires its own linked section, each section once', () => {
@@ -226,6 +243,27 @@ describe('buildSectionBundles nested and same-course links', () => {
     const result = bundlesOf([LECTURE, L01, recitation], [lectureGroup, labGroup]);
 
     expect(idsOf(result.bundles)).toEqual([[LECTURE.id, L01.id, recitation.id]]);
+  });
+
+  it('never bundles two sections of one component reached through nested groups', () => {
+    const r1 = buildSection({ courseId: LAB_COURSE.id, meetings: [lab(Thursday)] }, 6);
+    const r2 = buildSection({ courseId: LAB_COURSE.id, meetings: [lab(Friday)] }, 7);
+
+    const result = bundlesOf([LECTURE, L01, r1, r2], nestedRecitationGroups([r1.id, r2.id]));
+
+    expect(idsOf(result.bundles)).toEqual([
+      [LECTURE.id, L01.id, r1.id],
+      [LECTURE.id, L01.id, r2.id],
+    ]);
+  });
+
+  it('gives a deep-equal result for nested groups whatever the input order', () => {
+    const r1 = buildSection({ courseId: LAB_COURSE.id, meetings: [lab(Thursday)] }, 6);
+    const r2 = buildSection({ courseId: LAB_COURSE.id, meetings: [lab(Friday)] }, 7);
+
+    expect(bundlesOf([r2, L01, r1, LECTURE], nestedRecitationGroups([r2.id, r1.id]))).toEqual(
+      bundlesOf([LECTURE, L01, r1, r2], nestedRecitationGroups([r1.id, r2.id])),
+    );
   });
 
   it('throws linkCycle when linked groups require each other', () => {
