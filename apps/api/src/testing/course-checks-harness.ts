@@ -17,7 +17,12 @@ import {
   type CourseChecksResult,
   createCourseChecksService,
 } from '../modules/course-checks/course-checks.service';
+import {
+  type CourseSetInputsService,
+  createCourseSetInputsService,
+} from '../modules/course-set-inputs/course-set-inputs.service';
 import { createPinnedRecordsService } from '../modules/pinned-records/pinned-records.service';
+import { createPinnedSectionsService } from '../modules/pinned-sections/pinned-sections.service';
 import { NotFoundError } from '../shared/domain-errors';
 import { bearer, buildWorldApp } from './fixtures';
 import {
@@ -29,7 +34,12 @@ import {
   type InMemoryStore,
   type RecordingLogger,
 } from './in-memory-repositories';
+import {
+  createInMemoryScheduleRepositories,
+  type InMemoryScheduleStore,
+} from './in-memory-schedule-repositories';
 import { buildSeedAcademicStore, SEED_RULES, SEED_STUDENTS } from './seed-scenario-fixtures';
+import type { TestAppOptions } from './test-app';
 
 /** The actor every service-level check runs as: a user of tenant A. */
 export const CHECK_ACTOR = buildActor({ tenantId: SYNTHETIC_TENANTS.a.id });
@@ -59,22 +69,26 @@ export interface CheckRun {
 }
 
 /**
- * Creates the service over the seeded store and checks a query for SYN-000001.
+ * Creates the shared course set loader over a store, allowing or denying SYN-000001.
  *
- * @param query - Courses and credit choices.
- * @param setup - Store changes, ruleset, clock, rule changes, and access decision.
- * @returns The check's promise, the recording logger, and the rule lookups made.
+ * @param store - Academic and schedule backing data.
+ * @param setup - Ruleset, clock, rule changes, and access decision.
+ * @param ruleLookups - Collects the arguments of every rule lookup.
+ * @returns The loader.
  */
-export function runCourseChecks(
-  query: Omit<CourseChecksQuery, 'studentId'>,
-  setup: CheckSetup = {},
-): CheckRun {
-  const store = (setup.change ?? ((seeded) => seeded))(buildSeedAcademicStore());
+export function createSeededCourseSetInputs(
+  store: InMemoryAcademicStore & InMemoryScheduleStore,
+  setup: CheckSetup,
+  ruleLookups: unknown[] = [],
+): CourseSetInputsService {
   const repositories = createInMemoryAcademicRepositories(store);
-  const ruleLookups: unknown[] = [];
-  const logger = createRecordingLogger();
   const { mapRule } = setup;
-  const service = createCourseChecksService({
+  const pinnedRecords = createPinnedRecordsService({
+    ...repositories,
+    maxSourceAgeMs: MAX_AGE_MS,
+    now: () => new Date(setup.now ?? CHECK_NOW),
+  });
+  return createCourseSetInputsService({
     ...repositories,
     prerequisiteRules: {
       findRule: (...args) => {
@@ -90,13 +104,32 @@ export function runCourseChecks(
           ? Promise.reject(new NotFoundError())
           : Promise.resolve(CHECK_STUDENT),
     },
-    pinnedRecords: createPinnedRecordsService({
-      ...repositories,
-      maxSourceAgeMs: MAX_AGE_MS,
-      now: () => new Date(setup.now ?? CHECK_NOW),
+    pinnedRecords,
+    pinnedSections: createPinnedSectionsService({
+      ...createInMemoryScheduleRepositories(store),
+      pinnedRecords,
     }),
     maxSkewMs: 3_600_000,
     rulesetVersion: setup.rulesetVersion === undefined ? 'demo-2026.1' : setup.rulesetVersion,
+  });
+}
+
+/**
+ * Creates the service over the seeded store and checks a query for SYN-000001.
+ *
+ * @param query - Courses and credit choices.
+ * @param setup - Store changes, ruleset, clock, rule changes, and access decision.
+ * @returns The check's promise, the recording logger, and the rule lookups made.
+ */
+export function runCourseChecks(
+  query: Omit<CourseChecksQuery, 'studentId'>,
+  setup: CheckSetup = {},
+): CheckRun {
+  const store = (setup.change ?? ((seeded) => seeded))(buildSeedAcademicStore());
+  const ruleLookups: unknown[] = [];
+  const logger = createRecordingLogger();
+  const service = createCourseChecksService({
+    courseSetInputs: createSeededCourseSetInputs(store, setup, ruleLookups),
   });
   const result = service.checkCourses(
     CHECK_ACTOR,
@@ -168,15 +201,23 @@ export function readLogLines(lines: readonly string[]): LogLine[] {
  * Builds the world app over the seeded academic store, capturing its JSON log lines.
  *
  * @param repositoryOverrides - Repositories to use instead of the in-memory ones.
+ * @param settings - Settings a test varies, such as the solver work cap.
  * @returns The app, its mutable store, and the captured lines.
  */
-export function buildSeededWorldApp(repositoryOverrides: Partial<Repositories> = {}): {
+export function buildSeededWorldApp(
+  repositoryOverrides: Partial<Repositories> = {},
+  settings: Pick<TestAppOptions, 'solverWorkCap'> = {},
+): {
   readonly app: FastifyInstance;
   readonly store: InMemoryStore;
   readonly lines: string[];
 } {
   const lines: string[] = [];
-  const { app, store } = buildWorldApp({ write: (line) => lines.push(line) }, repositoryOverrides);
+  const { app, store } = buildWorldApp(
+    { write: (line) => lines.push(line) },
+    repositoryOverrides,
+    settings,
+  );
   Object.assign(store, buildSeedAcademicStore());
   return { app, store, lines };
 }

@@ -17,7 +17,14 @@ import type {
   StudentSnapshotRepository,
   StudentSnapshotRevision,
 } from '@caa/db';
-import type { Actor, AuditSnapshot, Student, StudentId, StudentSnapshot } from '@caa/domain';
+import type {
+  Actor,
+  AuditSnapshot,
+  SectionSnapshot,
+  Student,
+  StudentId,
+  StudentSnapshot,
+} from '@caa/domain';
 
 import {
   NotFoundError,
@@ -42,6 +49,11 @@ export interface PinnedSources {
   readonly snapshot: StudentSnapshot;
   /** `null` when the student has no audit; then only the snapshot's time is checked. */
   readonly audit: AuditSnapshot | null;
+  /**
+   * The term's pinned section snapshot, for reads that use sections (schedule options, ADR-0010
+   * §6); omitted for reads that don't.
+   */
+  readonly sectionSnapshot?: Pick<SectionSnapshot, 'sourceEffectiveAt'>;
 }
 
 /** The latest record revision of one student and, when there is one, their latest audit. */
@@ -69,13 +81,14 @@ export interface PinnedRecordsService {
   loadLatest(actor: Actor, student: Student, context: RequestContext): Promise<PinnedRecords>;
 
   /**
-   * Refuses a validated read when the pinned record or, when there is an audit, the audit's
-   * record time is not fresh: older than `maxSourceAgeMs`, missing, or too far in the future
-   * (standard 05 §Source freshness). Reads the injected clock.
+   * Refuses a validated read when the pinned record, the audit's record time when there is an
+   * audit, or the section snapshot's source time when one is given, is not fresh: older than
+   * `maxSourceAgeMs`, missing, or too far in the future (standard 05 §Source freshness). Reads
+   * the injected clock.
    *
    * @param scope - The actor, the path student, and the request context.
-   * @param sources - The pinned snapshot and audit.
-   * @throws {StaleSourceError} When either time is not fresh, after logging the reason.
+   * @param sources - The pinned snapshot, audit, and section snapshot.
+   * @throws {StaleSourceError} When any time is not fresh, after logging the reason.
    */
   assertFresh(scope: RecordScope, sources: PinnedSources): void;
 
@@ -95,6 +108,8 @@ export type RecordUnavailableReason =
   | 'AUDIT_AMBIGUOUS'
   | 'NO_AUDIT'
   | 'NO_ACADEMIC_POLICY'
+  | 'NO_SECTION_SNAPSHOT'
+  | 'SECTION_SNAPSHOT_AMBIGUOUS'
   | 'SOURCE_NOT_FRESH';
 
 /** The session's tenant and the path student every loaded record must belong to. */
@@ -217,15 +232,18 @@ export function createPinnedRecordsService(
 
     assertFresh(scope, sources) {
       const policy = { now: now(), maxAgeMs: maxSourceAgeMs };
-      if (
-        isSourceFresh(sources.snapshot.sourceEffectiveAt, policy) &&
-        (sources.audit === null || isSourceFresh(sources.audit.studentRecordEffectiveAt, policy))
-      ) {
+      const times = [
+        sources.snapshot.sourceEffectiveAt,
+        sources.audit?.studentRecordEffectiveAt,
+        sources.sectionSnapshot?.sourceEffectiveAt,
+      ];
+      if (times.every((time) => time === undefined || isSourceFresh(time, policy))) {
         return;
       }
-      // SAFETY: a transcript, program, or audit older than the maximum age is historical only,
-      // so it never yields a PASS or a validated plan; the student is referred to refresh first
-      // (planning/09 §Proposed freshness policies; CLAUDE.md: stale data is never PASS).
+      // SAFETY: a transcript, program, audit, or published section structure older than the
+      // maximum age is historical only, so it never yields a PASS or a validated plan; the
+      // student is referred to refresh first (planning/09 §Proposed freshness policies;
+      // ADR-0010 §6; CLAUDE.md: stale data is never PASS).
       logUnavailable(scope, 'SOURCE_NOT_FRESH');
       throw new StaleSourceError();
     },

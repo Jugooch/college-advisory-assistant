@@ -6,18 +6,22 @@ import {
   type AcademicPolicyRepository,
   type AdvisorAssignmentRepository,
   type AuditSnapshotRepository,
+  type CampusTransitionRepository,
   type CourseCatalogRepository,
   createAcademicPolicyRepository,
   createAdvisorAssignmentRepository,
   createAuditSnapshotRepository,
+  createCampusTransitionRepository,
   createCourseCatalogRepository,
   createDatabase,
   createPrerequisiteRuleRepository,
+  createSectionSnapshotRepository,
   createStudentRepository,
   createStudentSnapshotRepository,
   createTermRepository,
   createUserIdentityRepository,
   type PrerequisiteRuleRepository,
+  type SectionSnapshotRepository,
   type StudentRepository,
   type StudentSnapshotRepository,
   type StudentUserLinkRepository,
@@ -37,9 +41,16 @@ import {
   createCourseChecksController,
 } from './modules/course-checks/course-checks.controller';
 import { createCourseChecksService } from './modules/course-checks/course-checks.service';
+import { createCourseSetInputsService } from './modules/course-set-inputs/course-set-inputs.service';
 import { createHealthController, type HealthController } from './modules/health/health.controller';
 import { createHealthService } from './modules/health/health.service';
 import { createPinnedRecordsService } from './modules/pinned-records/pinned-records.service';
+import { createPinnedSectionsService } from './modules/pinned-sections/pinned-sections.service';
+import {
+  createScheduleOptionsController,
+  type ScheduleOptionsController,
+} from './modules/schedule-options/schedule-options.controller';
+import { createScheduleOptionsService } from './modules/schedule-options/schedule-options.service';
 import {
   createSessionController,
   type SessionController,
@@ -54,7 +65,7 @@ import {
   createStudentsController,
   type StudentsController,
 } from './modules/students/students.controller';
-import { createStudentsService } from './modules/students/students.service';
+import { createStudentsService, type StudentsService } from './modules/students/students.service';
 
 /** Every controller the app registers. */
 export interface Controllers {
@@ -63,6 +74,7 @@ export interface Controllers {
   readonly students: StudentsController;
   readonly academicSummary: AcademicSummaryController;
   readonly courseChecks: CourseChecksController;
+  readonly scheduleOptions: ScheduleOptionsController;
 }
 
 /** Every repository the API reads through. Tests pass in-memory fakes. */
@@ -78,6 +90,8 @@ export interface Repositories {
   readonly prerequisiteRules: PrerequisiteRuleRepository;
   readonly academicPolicies: AcademicPolicyRepository;
   readonly terms: TermRepository;
+  readonly sectionSnapshots: SectionSnapshotRepository;
+  readonly campusTransitions: CampusTransitionRepository;
 }
 
 /** What {@link createContainer} needs. */
@@ -109,6 +123,57 @@ function createSessionResolver(env: ApiEnv, identities: UserIdentityRepository):
 }
 
 /**
+ * Builds the controllers of the academic reads: summary, course checks, and schedule options.
+ *
+ * @param options - Configuration, repositories, and clock.
+ * @param studentsService - Applies the access rule every academic read starts with.
+ * @returns The academic controllers.
+ */
+function createAcademicControllers(
+  options: ContainerOptions,
+  studentsService: StudentsService,
+): Pick<Controllers, 'academicSummary' | 'courseChecks' | 'scheduleOptions'> {
+  const { env, repositories, now } = options;
+  const pinnedRecords = createPinnedRecordsService({
+    studentSnapshots: repositories.studentSnapshots,
+    auditSnapshots: repositories.auditSnapshots,
+    now,
+    maxSourceAgeMs: env.ACADEMIC_SOURCE_MAX_AGE_MS,
+  });
+  const academicSummaryService = createAcademicSummaryService({
+    students: studentsService,
+    pinnedRecords,
+    maxSkewMs: env.AUDIT_RECORD_MAX_SKEW_MS,
+    courseCatalog: repositories.courseCatalog,
+  });
+  const courseSetInputs = createCourseSetInputsService({
+    courseCatalog: repositories.courseCatalog,
+    prerequisiteRules: repositories.prerequisiteRules,
+    academicPolicies: repositories.academicPolicies,
+    terms: repositories.terms,
+    students: studentsService,
+    pinnedRecords,
+    pinnedSections: createPinnedSectionsService({
+      sectionSnapshots: repositories.sectionSnapshots,
+      campusTransitions: repositories.campusTransitions,
+      pinnedRecords,
+    }),
+    maxSkewMs: env.AUDIT_RECORD_MAX_SKEW_MS,
+    rulesetVersion: env.ACTIVE_RULESET_VERSION ?? null,
+  });
+  const scheduleOptionsService = createScheduleOptionsService({
+    courseSetInputs,
+    now,
+    workCap: env.SCHEDULE_SOLVER_WORK_CAP,
+  });
+  return {
+    academicSummary: createAcademicSummaryController(academicSummaryService),
+    courseChecks: createCourseChecksController(createCourseChecksService({ courseSetInputs })),
+    scheduleOptions: createScheduleOptionsController(scheduleOptionsService),
+  };
+}
+
+/**
  * Builds the dependency graph from the given repositories and clock.
  *
  * @param options - Configuration, repositories, and clock.
@@ -130,28 +195,6 @@ export function createContainer(options: ContainerOptions): AppDependencies {
     access: accessService,
     students: repositories.students,
   });
-  const pinnedRecords = createPinnedRecordsService({
-    studentSnapshots: repositories.studentSnapshots,
-    auditSnapshots: repositories.auditSnapshots,
-    now,
-    maxSourceAgeMs: env.ACADEMIC_SOURCE_MAX_AGE_MS,
-  });
-  const academicSummaryService = createAcademicSummaryService({
-    students: studentsService,
-    pinnedRecords,
-    maxSkewMs: env.AUDIT_RECORD_MAX_SKEW_MS,
-    courseCatalog: repositories.courseCatalog,
-  });
-  const courseChecksService = createCourseChecksService({
-    courseCatalog: repositories.courseCatalog,
-    prerequisiteRules: repositories.prerequisiteRules,
-    academicPolicies: repositories.academicPolicies,
-    terms: repositories.terms,
-    students: studentsService,
-    pinnedRecords,
-    maxSkewMs: env.AUDIT_RECORD_MAX_SKEW_MS,
-    rulesetVersion: env.ACTIVE_RULESET_VERSION ?? null,
-  });
   return {
     controllers: {
       health: createHealthController(healthService),
@@ -159,8 +202,7 @@ export function createContainer(options: ContainerOptions): AppDependencies {
         createSessionService({ studentUserLinks: repositories.studentUserLinks }),
       ),
       students: createStudentsController(studentsService),
-      academicSummary: createAcademicSummaryController(academicSummaryService),
-      courseChecks: createCourseChecksController(courseChecksService),
+      ...createAcademicControllers(options, studentsService),
     },
     sessionResolver: createSessionResolver(env, repositories.userIdentities),
   };
@@ -187,6 +229,8 @@ export function createRuntimeDependencies(env: ApiEnv): AppDependencies {
     prerequisiteRules: createPrerequisiteRuleRepository(db),
     academicPolicies: createAcademicPolicyRepository(db),
     terms: createTermRepository(db),
+    sectionSnapshots: createSectionSnapshotRepository(db),
+    campusTransitions: createCampusTransitionRepository(db),
   };
   return createContainer({ env, repositories, now: () => new Date() });
 }

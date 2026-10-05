@@ -20,7 +20,7 @@ import type { DevTokenIdentity } from '../modules/session/session.service';
 import type { LogDestination } from '../shared/logger';
 import { buildRecordAudit, buildRecordSnapshot } from './academic-fixtures';
 import type { InMemoryStore } from './in-memory-repositories';
-import { buildTestApp } from './test-app';
+import { buildTestApp, type TestAppOptions } from './test-app';
 
 /**
  * Fixed instant every HTTP test runs at. With the tests' 24-hour maximum source age, SYN-000001's
@@ -72,11 +72,13 @@ function signInAs(identity: UserIdentity): DevTokenIdentity {
  * @param logStream - Captures JSON log lines. Logging is off when omitted.
  * @param repositoryOverrides - Repositories to use instead of the in-memory ones, for example
  *   one that ignores its tenant filter to test a backstop.
+ * @param settings - Settings a test varies, such as the solver work cap.
  * @returns The app and its mutable store.
  */
 export function buildWorldApp(
   logStream?: LogDestination,
   repositoryOverrides: Partial<Repositories> = {},
+  settings: Pick<TestAppOptions, 'solverWorkCap'> = {},
 ): {
   app: FastifyInstance;
   store: InMemoryStore;
@@ -102,6 +104,7 @@ export function buildWorldApp(
     tokens,
     now: () => TEST_NOW,
     repositoryOverrides,
+    ...settings,
     ...(logStream === undefined ? {} : { logStream }),
   });
   return { app, store };

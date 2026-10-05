@@ -12,6 +12,8 @@ import {
   CandidateSetInputError,
   type CandidateSetInputIssue,
   PrerequisiteInputMismatchError,
+  ScheduleInputError,
+  type ScheduleInputIssue,
 } from '@caa/engine';
 
 /**
@@ -51,9 +53,35 @@ const CAUSE_BY_CANDIDATE_ISSUE: Readonly<Record<CandidateSetInputIssue, EngineIn
 };
 
 /**
- * Classifies an error thrown by the engine's course-set checks.
+ * The cause of each scheduling input issue. The term, courses, credit choices, and constraints
+ * are the only request inputs; sections, links, and the transition table are stored data, and
+ * the cap and the course list are validated before the solver runs.
+ */
+const CAUSE_BY_SCHEDULE_ISSUE: Readonly<Record<ScheduleInputIssue, EngineInputErrorCause>> = {
+  // The request named a course that another requested course's sections already require.
+  courseInTwoRequests: 'REQUEST',
+  // The request's hard credit range admits no load within the policy's bounds.
+  creditRange: 'REQUEST',
+  // Stored linked-section groups require each other in a cycle.
+  linkCycle: 'STORED_DATA',
+  // A stored linked section belongs to a course the tenant's catalog doesn't hold.
+  courseMissing: 'STORED_DATA',
+  // A stored course doesn't say whether its credits are included in another (#229).
+  creditInclusionUnknown: 'STORED_DATA',
+  // Sections and the table are loaded for the session's tenant, so a mismatch is a defect.
+  tenantMismatch: 'INTERNAL',
+  // A validated snapshot never repeats a section, so comparing one with itself is a defect.
+  sameSection: 'INTERNAL',
+  // The cap is validated at startup (`SCHEDULE_SOLVER_WORK_CAP`).
+  workCap: 'INTERNAL',
+  // The contract allows 1 to 8 distinct courses only.
+  requests: 'INTERNAL',
+};
+
+/**
+ * Classifies an error thrown by the engine's course-set checks or its schedule solver.
  *
- * @param error - Anything `verifyCourseSet` threw.
+ * @param error - Anything `verifyCourseSet` or `solveScheduleOptions` threw.
  * @returns The cause and log reason, or `null` when the error isn't an engine input error (the
  *   caller rethrows it unchanged).
  */
@@ -61,6 +89,12 @@ export function classifyEngineInputError(error: unknown): EngineInputErrorClassi
   if (error instanceof CandidateSetInputError) {
     return {
       cause: CAUSE_BY_CANDIDATE_ISSUE[error.issue],
+      reason: `${error.name}:${error.issue}`,
+    };
+  }
+  if (error instanceof ScheduleInputError) {
+    return {
+      cause: CAUSE_BY_SCHEDULE_ISSUE[error.issue],
       reason: `${error.name}:${error.issue}`,
     };
   }

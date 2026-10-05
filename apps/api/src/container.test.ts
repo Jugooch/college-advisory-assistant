@@ -58,6 +58,7 @@ describe('createRuntimeDependencies', () => {
       'students',
       'academicSummary',
       'courseChecks',
+      'scheduleOptions',
     ]);
   });
 });
