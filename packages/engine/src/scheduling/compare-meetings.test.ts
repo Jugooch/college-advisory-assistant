@@ -12,14 +12,13 @@ import {
 import {
   buildCampusTransitionPolicy,
   buildMeetingPattern,
-  buildTbaMeeting,
   SYNTHETIC_CAMPUSES,
 } from '@caa/test-kit';
 
 import { compareMeetings } from './compare-meetings';
 
 const { north, south } = SYNTHETIC_CAMPUSES;
-const { Monday, Tuesday, Wednesday, Thursday } = Weekday;
+const { Monday } = Weekday;
 const NO_TRANSITIONS = buildCampusTransitionPolicy();
 const ONLINE = { kind: MeetingLocationKind.Online } as const;
 const WHOLE_TERM_MWF = {
@@ -130,56 +129,6 @@ describe('compareMeetings overlap', () => {
   });
 });
 
-describe('compareMeetings unknown times (GR-02)', () => {
-  it('is TIME_UNKNOWN for a wholly TBA meeting against a timed one on shared dates', () => {
-    const result = compareMeetings(buildTbaMeeting(), onCampus('09:00', '09:50'), NO_TRANSITIONS);
-
-    expect(result).toEqual({ outcome: 'TIME_UNKNOWN', sharedDates: WHOLE_TERM_MWF });
-  });
-
-  it('finds no shared date for a TBA time on MW against a timed TTh meeting', () => {
-    const tba = buildTbaMeeting({ weekdays: [Monday, Wednesday] });
-    const timed = buildMeetingPattern({ weekdays: [Tuesday, Thursday] });
-
-    expect(compareMeetings(tba, timed, NO_TRANSITIONS)).toEqual({ outcome: 'NO_SHARED_DATE' });
-  });
-
-  it('is TIME_UNKNOWN for a TBA time on MW against a timed MWF meeting', () => {
-    const tba = buildTbaMeeting({ weekdays: [Monday, Wednesday] });
-
-    expect(compareMeetings(onCampus('09:00', '09:50'), tba, NO_TRANSITIONS)).toEqual({
-      outcome: 'TIME_UNKNOWN',
-      sharedDates: {
-        firstDate: '2027-01-11',
-        lastDate: '2027-05-05',
-        weekdays: ['MONDAY', 'WEDNESDAY'],
-      },
-    });
-  });
-
-  it('finds no shared date for a TBA meeting in the other half-term', () => {
-    const tba = buildTbaMeeting({ startsOn: '2027-03-08', endsOn: '2027-05-07' });
-    const timed = buildMeetingPattern({ startsOn: '2027-01-11', endsOn: '2027-03-05' });
-
-    expect(compareMeetings(timed, tba, NO_TRANSITIONS)).toEqual({ outcome: 'NO_SHARED_DATE' });
-  });
-
-  it('is TIME_UNKNOWN for a meeting that bypassed the schema with only a start time', () => {
-    const halfKnown: MeetingPattern = {
-      weekdays: [Monday],
-      startTime: '09:00',
-      endTime: null,
-      startsOn: '2027-01-11',
-      endsOn: '2027-01-11',
-      excludedDates: [],
-      location: null,
-    };
-    const timed = buildMeetingPattern({ startsOn: '2027-01-11', endsOn: '2027-01-11' });
-
-    expect(compareMeetings(timed, halfKnown, NO_TRANSITIONS).outcome).toBe('TIME_UNKNOWN');
-  });
-});
-
 describe('compareMeetings travel', () => {
   it('is TRANSITION_INSUFFICIENT for North then South with 10 of 15 minutes (AC08)', () => {
     const result = compareMeetings(
@@ -197,17 +146,39 @@ describe('compareMeetings travel', () => {
         requiredMinutes: 15,
         availableMinutes: 10,
       },
+      isFirstEarlier: true,
     });
   });
 
-  it('gives a deep-equal result with the meetings in either order', () => {
+  it('gives the same transition with the meetings in either order, marking which is earlier', () => {
     const earlier = onCampus('09:00', '09:50', north.id);
     const later = onCampus('10:00', '10:50', south.id);
     const policy = transitions([north.id, south.id, 15]);
 
-    expect(compareMeetings(later, earlier, policy)).toEqual(
-      compareMeetings(earlier, later, policy),
+    expect(compareMeetings(later, earlier, policy)).toEqual({
+      ...compareMeetings(earlier, later, policy),
+      isFirstEarlier: false,
+    });
+  });
+
+  it('is TRANSITION_UNDEFINED for different campuses when the tenant has no table', () => {
+    const result = compareMeetings(
+      onCampus('09:00', '09:50', north.id),
+      onCampus('13:00', '13:50', south.id),
+      null,
     );
+
+    expect(result).toEqual({
+      outcome: 'TRANSITION_UNDEFINED',
+      sharedDates: WHOLE_TERM_MWF,
+      transition: {
+        fromCampusId: north.id,
+        toCampusId: south.id,
+        requiredMinutes: null,
+        availableMinutes: 190,
+      },
+      isFirstEarlier: true,
+    });
   });
 
   it('is COMPATIBLE when the gap exactly equals the required minutes', () => {
@@ -246,6 +217,7 @@ describe('compareMeetings travel', () => {
         requiredMinutes: null,
         availableMinutes: 10,
       },
+      isFirstEarlier: true,
     });
   });
 

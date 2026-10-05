@@ -6,7 +6,7 @@
  * @see docs/planning/08-academic-verification-and-planning.md
  * @see docs/adr/0010-deterministic-bounded-schedule-solver.md
  */
-import type { MeetingPattern, Weekday } from '@caa/domain';
+import type { MeetingPattern, SharedMeetingDates, Weekday } from '@caa/domain';
 
 import { calendarDateOf, dayNumberOf, weekdayIndexOf, WEEKDAYS_IN_ORDER } from './calendar-date';
 
@@ -15,16 +15,6 @@ export type MeetingDates = Pick<
   MeetingPattern,
   'weekdays' | 'startsOn' | 'endsOn' | 'excludedDates'
 >;
-
-/** The dates two meetings can both occur on, summarized. */
-export interface SharedMeetingDates {
-  /** Earliest shared date, `YYYY-MM-DD` in the institution's calendar. */
-  readonly firstDate: string;
-  /** Latest shared date, `YYYY-MM-DD` in the institution's calendar. Inclusive. */
-  readonly lastDate: string;
-  /** Every weekday that has at least one shared date, Monday first. */
-  readonly weekdays: readonly Weekday[];
-}
 
 /** First and last shared day numbers on one weekday. */
 interface WeekdaySpan {

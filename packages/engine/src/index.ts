@@ -2,6 +2,10 @@
  * @file Public API of @caa/engine. Other packages import only from here.
  * @module @caa/engine
  */
+export * from './scheduling/build-section-bundles';
+export * from './scheduling/find-meeting-conflicts';
+export * from './scheduling/schedule-input-error';
+export * from './scheduling/section-bundle-credits';
 export * from './verification/aggregate-check-states';
 export * from './verification/candidate-set';
 export * from './verification/check-allocation';
