@@ -1,7 +1,8 @@
 /**
  * @file Tests for the course set verification: the README seeded scenarios 1 to 4 on inputs that
- * mirror the seed, "no rule" as null, the engine aggregate, and deterministic replay. Expected
- * values come from the README and the rules, never from running the engine.
+ * mirror the seed, included linked-course credits counted once, "no rule" as null, the engine
+ * aggregate, and deterministic replay. Expected values come from the README and the rules, never
+ * from running the engine.
  * @requirement FR-05
  * @requirement FR-06
  * @requirement FR-09
@@ -17,6 +18,7 @@ import {
   type Course,
   type CourseId,
   createAuditSnapshot,
+  createCourse,
   ReasonCode,
   RequirementState,
   type StudentSnapshot,
@@ -31,7 +33,11 @@ import {
   SEED_SNAPSHOTS,
   SEED_TERMS,
 } from '../../testing/seed-scenario-fixtures';
-import { type CourseSetInputs, verifyCourseSet } from './course-verification.logic';
+import {
+  type CourseSetInputs,
+  CreditInclusionUnknownError,
+  verifyCourseSet,
+} from './course-verification.logic';
 
 /** One hour, the API's default skew. */
 const MAX_SKEW_MS = 3_600_000;
@@ -172,7 +178,9 @@ describe('verifyCourseSet on the seeded scenarios (README)', () => {
     });
   });
 
-  it('scenario 3: adding DEMO-PHYS 301L and choosing 3.00 is PASS at 14.00', () => {
+  // NOTE: 13.00, not the README's 14.00: the seed includes the lab's 1.00 in DEMO-PHYS 301's
+  // 4.00 (#269), so it counts once (#222).
+  it('scenario 3: adding DEMO-PHYS 301L and choosing 3.00 is PASS at 13.00', () => {
     const selections = [{ courseId: ind390.id, selectedCreditsHundredths: 300 }];
 
     const { creditLoad } = verifyCourseSet(
@@ -180,7 +188,7 @@ describe('verifyCourseSet on the seeded scenarios (README)', () => {
     ).setResults;
 
     expect(creditLoad.state).toBe(CheckState.Pass);
-    expect(creditLoad.evidence?.creditLoad?.totalCreditsHundredths).toBe(1400);
+    expect(creditLoad.evidence?.creditLoad?.totalCreditsHundredths).toBe(1300);
   });
 
   // NOTE: the endpoint refuses SYN-000002 first, with 409 STALE_SOURCE, because its audit's
@@ -195,6 +203,82 @@ describe('verifyCourseSet on the seeded scenarios (README)', () => {
     // NOTE: 3.00 credits is below the 12.00 minimum, so credit load FAILs, and FAIL outranks
     // the UNKNOWN checks: BLOCKED, never VALIDATED.
     expect(checks.aggregate).toBe(AggregateState.Blocked);
+  });
+});
+
+/**
+ * Returns a copy of a course from a producer that doesn't state `creditsIncludedInCourseId` yet
+ * (staged rollout, #229).
+ *
+ * @param course - A seeded course.
+ * @returns The same course with the field omitted.
+ */
+function withoutInclusionLink(course: Course): Course {
+  const { id, tenantId, sourceCourseId, label, creditsHundredths, equivalencyGroupId } = course;
+  const { minCreditsHundredths, maxCreditsHundredths } = course;
+  return createCourse({
+    id,
+    tenantId,
+    sourceCourseId,
+    label,
+    creditsHundredths,
+    minCreditsHundredths,
+    maxCreditsHundredths,
+    equivalencyGroupId,
+  });
+}
+
+/**
+ * Returns the credit load of a candidate set for SYN-000001.
+ *
+ * @param courses - The candidate set.
+ * @returns The credit-load check.
+ */
+function creditLoadOf(courses: readonly Course[]) {
+  return verifyCourseSet(inputsFor(CURRENT, courses)).setResults.creditLoad;
+}
+
+describe('verifyCourseSet credits included in a linked course (#222)', () => {
+  it('counts DEMO-PHYS 301 with its included DEMO-PHYS 301L as 4.00, not 5.00', () => {
+    const creditLoad = creditLoadOf([phys301, phys301Lab]);
+
+    expect(creditLoad.evidence?.creditLoad?.totalCreditsHundredths).toBe(400);
+    expect(creditLoad.evidence?.courseIds).toEqual([phys301.id, phys301Lab.id]);
+  });
+
+  it('counts the included lab once whichever order the courses are requested in', () => {
+    expect(creditLoadOf([phys301Lab, phys301]).evidence?.creditLoad?.totalCreditsHundredths).toBe(
+      400,
+    );
+  });
+
+  it('counts DEMO-PHYS 301L alone at its own 1.00, since no requested course includes it', () => {
+    expect(creditLoadOf([phys301Lab])).toMatchObject({
+      state: CheckState.Fail,
+      reasonCode: ReasonCode.CreditBelowMinimum,
+      evidence: { creditLoad: { totalCreditsHundredths: 100 } },
+    });
+  });
+
+  it('counts the lab with other courses but not the one that includes it', () => {
+    expect(creditLoadOf([math102, phys301Lab]).evidence?.creditLoad?.totalCreditsHundredths).toBe(
+      400,
+    );
+  });
+
+  it('refuses a set with another course when a course omits whether its credits are included', () => {
+    expect(() => creditLoadOf([phys301, withoutInclusionLink(phys301Lab)])).toThrow(
+      CreditInclusionUnknownError,
+    );
+    expect(() => creditLoadOf([withoutInclusionLink(math102), engl101])).toThrow(
+      CreditInclusionUnknownError,
+    );
+  });
+
+  it('counts a course that omits the link at its own credits when it is requested alone', () => {
+    expect(
+      creditLoadOf([withoutInclusionLink(phys301Lab)]).evidence?.creditLoad?.totalCreditsHundredths,
+    ).toBe(100);
   });
 });
 
