@@ -2,10 +2,10 @@
 
 Which rule families and interactions the golden corpus covers, and which gaps remain on the way to the 200-case G1 gate (planning/13 §Golden corpus design). Interactions are listed because both S2 engine defects (#88, #89) sat where two families meet.
 
-Status as of 2026-09-29 (#103):
+Status as of 2026-10-05 (#226):
 
 - The development corpus has 113 cases across 20 rule families (`GOLDEN_DEVELOPMENT_CORPUS` in `@caa/test-kit`).
-- The holdout has 31 cases, version v0.3 (#226). Every non-scheduling rule family now has at least one.
+- The holdout has 45 cases, version v0.4 (#226): 31 check cases, so every non-scheduling rule family has at least one, and 14 scheduling cases, which are `it.todo` until the solver exists (#220).
 - Every case is `pending-academic-review`.
 - No open findings. #183 was settled by tech-lead ruling GR-01 (planning/13 §Golden corpus design, Adjudication rulings), and GC-PF-004 was re-adjudicated from it.
 - 48 scheduling cases are planned as `it.todo` in `tests/golden/scheduling.golden.test.ts` (#226). They aren't counted above until they're full cases (see §Scheduling families).
@@ -131,7 +131,7 @@ Each interaction lists its development cases, its holdout count, and the gaps st
 
 ## Scheduling families (S4, planned)
 
-The scheduling families (T05: AC06–AC08, AC12) are planned in `tests/golden/scheduling.golden.test.ts`. Each is an `it.todo` whose title states the inputs and the adjudicated expectation, from planning/08 §Schedule model and §Constraint formulation, planning/13, planning/14 §First vertical slice and ADR-0010. They become full cases in `packages/test-kit/src/golden/cases/` once the scheduling case kind can be written: it uses the #212 constraint objects (merged in #251, which also settles GC-HARD-005's half-open unavailable block) and the #213 outcome shape, and each case turns live when its engine issue merges.
+The scheduling families (T05: AC06–AC08, AC12) are planned in `tests/golden/scheduling.golden.test.ts`. Each is an `it.todo` whose title states the inputs and the adjudicated expectation, from planning/08 §Schedule model and §Constraint formulation, planning/13, planning/14 §First vertical slice and ADR-0010. The scheduling case kind exists: `GoldenScheduleCaseSchema` in `@caa/test-kit` (written with `scheduleCase`), a kind of its own because its expectation is a whole response. Its inputs are the requested courses, a section snapshot with its linked groups, the transition table, the #212 constraints (merged in #251, which also settles GC-HARD-005's half-open unavailable block), the credit policy and the work cap. Its expectation is the #213 outcome shape (outcome, `searchComplete`, options by section set, conflict set, unresolved items) with the #266 schedule reason codes. Each todo becomes a full case in `packages/test-kit/src/golden/cases/` when its engine issue merges, and the runner turns it live then.
 
 States are the planned expectations, with the same letters as §Rule families.
 
@@ -146,6 +146,8 @@ States are the planned expectations, with the same letters as §Rule families.
 | SOLVER_OUTCOME       | GC-SOLVE-001–010  | P F U  | GC-SOLVE-003             | GC-SOLVE-002, GC-SOLVE-008 | #220         |
 
 `SOLVER_OUTCOME` "states" stand for the outcomes: P is `OPTIONS_FOUND`, F is `NO_FEASIBLE_PLAN`, and U is `NEEDS_VERIFICATION` or `SEARCH_TIMEOUT` (GC-SOLVE-002, AC12).
+
+**Holdout (v0.4, counts only):** MEETING_OVERLAP 2, TERM_DATE_OVERLAP 2, TRANSITION_TIME 2, LINKED_SECTION 3, MEETING_TIME_UNKNOWN 1, HARD_VERSUS_SOFT 2, SOLVER_OUTCOME 2.
 
 **Interactions planned:**
 
@@ -162,16 +164,16 @@ States are the planned expectations, with the same letters as §Rule families.
 **Open gaps and questions:**
 
 - No `HARD_VERSUS_SOFT` unknown case beyond GC-TBA-004. Add one for an allowed-campus constraint against a meeting with a TBA location.
-- No holdout case for any scheduling family. The v0.3 holdout refresh (#226) adds them, together with the 10 families listed under Family gaps.
+- Scheduling holdout: done in v0.4 (14 cases). MEETING_TIME_UNKNOWN has only one, so the next refresh should add a second.
 - Multi-meeting sections (a lecture with an MWF meeting and a separate Friday exam slot) aren't planned yet.
 
 ## Path to the 200-case G1 gate
 
-There are 144 cases today (113 development, 31 holdout). The remaining 56 or more should come from:
+There are 158 cases today (113 development, 45 holdout, of which the 14 scheduling holdout cases run once #220 merges). The remaining 42 or more should come from:
 
 1. **The open interaction gaps above:** about 20 cases, all testable with today's engine.
 2. **The family gaps above** (boundary and unknown cases): about 12 cases.
-3. **A holdout refresh** for the 10 families that had no holdout case: done in v0.3 (16 cases, #226).
+3. **A holdout refresh** for the 10 families that had no holdout case: done in v0.3 (16 cases, #226). The scheduling families followed in v0.4 (14 cases, #226).
 4. **Families the engine doesn't support yet**, each added with its engine feature:
    - co-requisites;
    - permission requirements;

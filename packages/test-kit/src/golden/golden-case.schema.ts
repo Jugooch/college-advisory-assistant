@@ -52,21 +52,19 @@ const PinnedRecordSchema = z
   .strict()
   .readonly();
 
-/** Fields every golden case has, whatever check it invokes. */
-const commonFields = {
+/**
+ * The identity and adjudication record every golden case has, check cases and scheduling cases
+ * alike: everything except the family, inputs, expectation, allowed alternatives, and
+ * prohibited claims, whose shapes differ by kind.
+ */
+export const GOLDEN_ADJUDICATION_FIELDS = {
   /** `GC-<FAMILY>-NNN` for development cases, `GH-<FAMILY>-NNN` for the frozen holdout. */
   id: z.string().regex(/^G[CH]-[A-Z]+-\d{3}$/),
-  family: GoldenRuleFamilySchema,
   title: z.string().min(1),
   /** Requirement, test-family, and acceptance IDs the case evidences, for example `AC01`. */
   requirementIds: z.array(z.string().regex(/^(FR-\d{2}|NFR-\d{2}|T\d{2}|AC\d{2})$/)).min(1),
   /** Versions of every source the inputs stand for, for example `ruleset demo-2026.1`. */
   sourceVersions: z.array(z.string().min(1)).min(1),
-  /** The checks the engine must return, in order. */
-  expected: z.array(ExpectedCheckSchema).min(1),
-  /** Other complete results an adjudicator accepted as equally correct; usually none. */
-  allowedAlternatives: z.array(z.array(ExpectedCheckSchema).min(1)),
-  prohibitedClaims: z.array(ProhibitedClaimSchema).min(1),
   rationale: z.string().min(1),
   /** Planning sections, issues, and recorded tech-lead decisions the expectation rests on. */
   citations: z.array(z.string().min(1)).min(1),
@@ -76,6 +74,17 @@ const commonFields = {
   // or offset would fabricate data. The date is in the adjudicating reviewer's calendar.
   /** Date the expectation was written down, `YYYY-MM-DD` in the reviewer's calendar. */
   adjudicatedOn: z.iso.date(),
+};
+
+/** Fields every golden check case has, whatever check it invokes. */
+const commonFields = {
+  ...GOLDEN_ADJUDICATION_FIELDS,
+  family: GoldenRuleFamilySchema,
+  /** The checks the engine must return, in order. */
+  expected: z.array(ExpectedCheckSchema).min(1),
+  /** Other complete results an adjudicator accepted as equally correct; usually none. */
+  allowedAlternatives: z.array(z.array(ExpectedCheckSchema).min(1)),
+  prohibitedClaims: z.array(ProhibitedClaimSchema).min(1),
 };
 
 /** Schema for a case that evaluates a prerequisite rule against a student's attempts. */
@@ -182,13 +191,15 @@ export function defineGoldenCase(input: GoldenCaseInput): GoldenCase {
 }
 
 /**
- * Collects golden cases into a corpus, rejecting repeated case IDs.
+ * Collects golden cases, check or scheduling ones, into a corpus, rejecting repeated case IDs.
  *
  * @param cases - The validated cases.
  * @returns The same cases, in order.
  * @throws {Error} When two cases share an ID.
  */
-export function defineGoldenCorpus(cases: readonly GoldenCase[]): readonly GoldenCase[] {
+export function defineGoldenCorpus<T extends { readonly id: string }>(
+  cases: readonly T[],
+): readonly T[] {
   const seen = new Set<string>();
   const repeated = cases.map((golden) => golden.id).filter((id) => seen.size === seen.add(id).size);
   if (repeated.length > 0) {
