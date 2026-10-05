@@ -39,4 +39,7 @@ export * from './golden/golden-expectation.schema';
 export * from './golden/golden-expectations';
 export * from './golden/golden-inputs';
 export * from './golden/golden-rule-family';
+export * from './golden/golden-schedule-case.schema';
+export * from './golden/golden-schedule-expectation.schema';
+export * from './golden/golden-schedule-factories';
 export * from './serialization/roster-checksum';
