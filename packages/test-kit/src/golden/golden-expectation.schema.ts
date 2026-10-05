@@ -15,10 +15,13 @@ import {
   ReasonCodeSchema,
 } from '@caa/domain';
 
+import { ExpectedScheduleIssueSchema, issuesExplainCheck } from './golden-schedule-issue.schema';
+
 /**
  * Schema for the evidence a golden case asserts. Each field that is present is compared with
  * deep equality; a field that is omitted is not compared, because the case makes no claim about
- * it. Field meanings are those of the domain `CheckEvidence`.
+ * it. Field meanings are those of the domain `CheckEvidence`, except `scheduleIssues`: each
+ * expected issue is compared with the facts it states, in order (`ExpectedScheduleIssueSchema`).
  */
 export const ExpectedEvidenceSchema = z
   .object({
@@ -26,6 +29,7 @@ export const ExpectedEvidenceSchema = z
     decisiveLeaves: z.array(DecisiveLeafSchema).readonly().optional(),
     courseIds: z.array(CourseIdSchema).readonly().optional(),
     creditLoad: CreditLoadEvidenceSchema.nullable().optional(),
+    scheduleIssues: z.array(ExpectedScheduleIssueSchema).readonly().optional(),
   })
   .strict()
   .readonly();
@@ -52,6 +56,16 @@ export const ExpectedCheckSchema = z
     message: 'An expected check has a reasonCode exactly when it is not PASS',
     path: ['reasonCode'],
   })
+  // SAFETY: stated schedule issues must explain the state and reason they come with (#266).
+  .refine(
+    (check) =>
+      check.evidence?.scheduleIssues === undefined ||
+      issuesExplainCheck(check, check.evidence.scheduleIssues),
+    {
+      message: 'scheduleIssues must mean the check state and include its reason',
+      path: ['evidence', 'scheduleIssues'],
+    },
+  )
   .readonly();
 
 /** A validated expected check. */

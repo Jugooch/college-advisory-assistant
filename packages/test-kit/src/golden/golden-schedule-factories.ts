@@ -36,10 +36,8 @@ import {
   type GoldenScheduleCaseInput,
   type GoldenScheduleInputsInput,
 } from './golden-schedule-case.schema';
-import type {
-  ExpectedScheduleInput,
-  ExpectedScheduleIssue,
-} from './golden-schedule-expectation.schema';
+import type { ExpectedScheduleInput } from './golden-schedule-expectation.schema';
+import type { ExpectedScheduleIssue } from './golden-schedule-issue.schema';
 
 /** Source versions behind every scheduling case. */
 export const SCHEDULE_SOURCES: readonly string[] = [
