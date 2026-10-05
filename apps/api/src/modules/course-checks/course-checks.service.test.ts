@@ -188,8 +188,13 @@ describe('CourseChecksService.checkCourses stored-data engine errors', () => {
     ...store,
     courses: (store.courses ?? []).map((course) => (course.id === ind390.id ? noRange : course)),
   });
-  // NOTE: a producer that doesn't state the link yet (staged rollout, #229).
-  const unlinkedLab = { ...phys301Lab, creditsIncludedInCourseId: undefined };
+  // TODO(#229): remove with the staged-rollout cleanup once the field is required.
+  // NOTE: a producer that doesn't state the link yet; the key is removed after validation.
+  const unlinkedLab = (() => {
+    const omitted: Record<string, unknown> = { ...phys301Lab };
+    delete omitted.creditsIncludedInCourseId;
+    return omitted as typeof phys301Lab;
+  })();
   const withoutInclusionLink = (store: InMemoryAcademicStore) => ({
     ...store,
     courses: (store.courses ?? []).map((course) =>
