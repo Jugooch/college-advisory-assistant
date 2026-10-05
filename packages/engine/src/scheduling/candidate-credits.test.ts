@@ -3,6 +3,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import type { Course } from '@caa/domain';
 import {
   buildAcademicPolicy,
   buildCourse,
@@ -32,9 +33,25 @@ const HARD_RANGE = buildCreditRange({
   maxCreditsHundredths: 1500,
 });
 
+/**
+ * Removes a course's credit inclusion key, as a producer that hasn't set it yet would.
+ *
+ * NOTE: stages #229. It omits the key after validation, so it compiles whether the domain field
+ * is optional or required.
+ * TODO(#229): remove with the omitted-value branch once the field is required.
+ *
+ * @param course - A valid course.
+ * @returns The course without `creditsIncludedInCourseId`.
+ */
+function withoutInclusion(course: Course): Course {
+  const omitted: Record<string, unknown> = { ...course };
+  delete omitted.creditsIncludedInCourseId;
+  return omitted as Course;
+}
+
 describe('knownSelectionsOf', () => {
   it('refuses a plan whose credit inclusion is unknown', () => {
-    const lab = buildCourse({ creditsIncludedInCourseId: undefined }, 2);
+    const lab = withoutInclusion(buildCourse({}, 2));
 
     expect(() =>
       knownSelectionsOf([{ courses: [buildCourse({}, 1)] }, { courses: [lab] }], new Map()),
