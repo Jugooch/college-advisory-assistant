@@ -44,24 +44,30 @@ function worstCaseRequest(position: number): ScheduleCourseRequest {
 }
 
 describe('solveSchedule calibration (ADR-0010 §1)', () => {
-  it('finishes 8 courses × 6 bundles within the default cap: 2,015,538 attempts', () => {
-    const requests = Array.from({ length: COURSES }, (_, position) => worstCaseRequest(position));
+  // NOTE: coverage instrumentation inflates this run past Vitest's 5 s default, so it gets an
+  // explicit timeout; the 2 s target is checked separately, uninstrumented (ADR-0010 Amendment 3).
+  it(
+    'finishes 8 courses × 6 bundles within the default cap: 2,015,538 attempts',
+    { timeout: 30_000 },
+    () => {
+      const requests = Array.from({ length: COURSES }, (_, position) => worstCaseRequest(position));
 
-    const solution = solveSchedule({
-      requests,
-      selectedCredits: new Map(),
-      policy: buildAcademicPolicy({
-        termCreditBounds: { minCreditsHundredths: 0, maxCreditsHundredths: 3000 },
-      }),
-      constraints: [],
-      transitionPolicy: null,
-      workCap: DEFAULT_SOLVER_WORK_CAP,
-    });
+      const solution = solveSchedule({
+        requests,
+        selectedCredits: new Map(),
+        policy: buildAcademicPolicy({
+          termCreditBounds: { minCreditsHundredths: 0, maxCreditsHundredths: 3000 },
+        }),
+        constraints: [],
+        transitionPolicy: null,
+        workCap: DEFAULT_SOLVER_WORK_CAP,
+      });
 
-    expect(solution.outcome).toBe('OPTIONS_FOUND');
-    expect(solution.searchComplete).toBe(true);
-    expect(solution.workUsed).toBe(2_015_538);
-    expect(solution.workUsed).toBeLessThanOrEqual(DEFAULT_SOLVER_WORK_CAP);
-    expect(solution.options).toHaveLength(3);
-  });
+      expect(solution.outcome).toBe('OPTIONS_FOUND');
+      expect(solution.searchComplete).toBe(true);
+      expect(solution.workUsed).toBe(2_015_538);
+      expect(solution.workUsed).toBeLessThanOrEqual(DEFAULT_SOLVER_WORK_CAP);
+      expect(solution.options).toHaveLength(3);
+    },
+  );
 });
