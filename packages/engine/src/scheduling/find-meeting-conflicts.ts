@@ -49,6 +49,19 @@ export interface MeetingConflictInput {
  *   the sections or the transition table belong to different tenants (`tenantMismatch`).
  */
 export function findMeetingConflicts(input: MeetingConflictInput): CheckResult {
+  return toScheduleFeasibilityCheck(findMeetingIssues(input));
+}
+
+/**
+ * Lists every schedule issue between two sections' meetings, as {@link findMeetingConflicts}
+ * describes, so a caller can combine the issues of several section pairs into one check.
+ *
+ * @param input - The two sections and the transition table.
+ * @returns Every FAIL and UNKNOWN issue, in section-ID then meeting-index order; empty when
+ *   the sections are compatible.
+ * @throws {ScheduleInputError} As {@link findMeetingConflicts} documents.
+ */
+export function findMeetingIssues(input: MeetingConflictInput): ScheduleIssue[] {
   const { first, second, transitionPolicy } = input;
   if (first.id === second.id) {
     throw new ScheduleInputError('sameSection');
@@ -62,14 +75,13 @@ export function findMeetingConflicts(input: MeetingConflictInput): CheckResult {
     throw new ScheduleInputError('tenantMismatch');
   }
   const [lower, upper] = first.id < second.id ? [first, second] : [second, first];
-  const issues = meetingsOf(lower).flatMap((one) =>
+  return meetingsOf(lower).flatMap((one) =>
     meetingsOf(upper).flatMap((other): ScheduleIssue[] => {
       const comparison = compareMeetings(one.meeting, other.meeting, transitionPolicy);
       const issue = toMeetingComparisonIssue(comparison, one, other);
       return issue === null ? [] : [issue];
     }),
   );
-  return toScheduleFeasibilityCheck(issues);
 }
 
 /**
