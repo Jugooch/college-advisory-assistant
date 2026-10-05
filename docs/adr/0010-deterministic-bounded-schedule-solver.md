@@ -208,3 +208,27 @@ This follows planning/08's check-state table, where missing data is UNKNOWN, and
 A meeting with a known campus and a TBA room (`room: null`) doesn't have a TBA location. Its campus decides travel as usual.
 
 **Revisit when** pilot section data has TBA locations often enough that most options fall to UNKNOWN. The fix would then be better source data, or an institution-approved rule, never an assumed campus.
+
+## Amendment 3 (2026-10-05, issue #220): the 2-second target is measured without coverage
+
+**Related:** #220, PR #281 (calibration comment). Section 1, Calibration.
+
+**Context.** Section 1 says to measure the worst S4 input on the CI runner against a 2-second target, but not in which run. CI's only test run is `pnpm test:coverage`. In it, the calibration test took 3,364 ms, sharing the runner with other test files. Locally the same test takes about 0.5 s plain and 1.73 s with coverage, so v8 instrumentation makes it about 3.4× slower. Production never runs instrumented code, so the instrumented time says nothing about NFR-06 or NFR-07.
+
+**Decision.**
+
+- The 2-second target applies to an uninstrumented run of the calibration test, `solve-schedule.calibration.test.ts`, on the CI runner. The cap (3,000,000) and the target (2 seconds) don't change.
+- CI measures it in a dedicated step that runs only that file, without coverage, and fails when the test's reported duration is over 2,000 ms. The step's script reads Vitest's JSON report. It isn't a test, so no test reads the clock or the environment.
+- The calibration test itself doesn't change. It asserts work units only, never elapsed time, as section 1 and standard 01 §Determinism already require. It runs unchanged in the coverage run, so it needs no mode detection or skip.
+- An over-target result in the dedicated step is the "over 2 seconds" case of section 1: the engine-engineer stops and hands back to the tech lead.
+- Order: the CI step merges first. PR #281 then merges `main`, and the step's result on that PR is the section 1 calibration, recorded in the PR. #281 doesn't merge before that number is recorded and is at most 2,000 ms.
+
+This states how section 1's measurement is taken. It changes no requirement, cap or target, so it needs no change-control record.
+
+**Consequences.**
+
+- Devops (CI): a `Solver calibration` step in the `Tests` job, after `pnpm test:coverage`, and the script it runs (handoff on #220).
+- Engine (#220): no code change for this amendment. A rename or move of the calibration test or its test name updates the CI step in the same PR, through a devops handoff.
+- The measurement is the duration Vitest reports for that test, which includes building the input. That makes it slightly pessimistic, never optimistic.
+
+**Revisit when** the step's timing becomes flaky near 2,000 ms on shared runners. Then take the median of several runs, and don't raise the target.
