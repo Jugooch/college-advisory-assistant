@@ -62,3 +62,31 @@ export type GoldenRuleFamily = (typeof GoldenRuleFamily)[keyof typeof GoldenRule
 
 /** Runtime schema for {@link GoldenRuleFamily}. */
 export const GoldenRuleFamilySchema = z.enum(GoldenRuleFamily);
+
+/**
+ * Scheduling family of a golden case (#226), counted apart from the check families above: a
+ * scheduling family is covered by section-pair cases, solver cases, or both.
+ *
+ * - `MEETING_OVERLAP`: two timed meetings by weekday, time, excluded dates, and DST.
+ * - `TERM_DATE_OVERLAP`: meetings in half-terms or other partial date ranges (AC07).
+ * - `TRANSITION_TIME`: travel between campuses against the transition table (AC08).
+ * - `LINKED_SECTION`: lectures with required linked components, and their credits (AC06).
+ * - `MEETING_TIME_UNKNOWN`: TBA times, days, or locations, which are never PASS.
+ * - `HARD_VERSUS_SOFT`: hard constraints never relaxed, preferences ranked.
+ * - `SOLVER_OUTCOME`: complete, incomplete, infeasible, timeout (AC12), and the tie-break.
+ */
+export const GoldenScheduleFamily = {
+  MeetingOverlap: 'MEETING_OVERLAP',
+  TermDateOverlap: 'TERM_DATE_OVERLAP',
+  TransitionTime: 'TRANSITION_TIME',
+  LinkedSection: 'LINKED_SECTION',
+  MeetingTimeUnknown: 'MEETING_TIME_UNKNOWN',
+  HardVersusSoft: 'HARD_VERSUS_SOFT',
+  SolverOutcome: 'SOLVER_OUTCOME',
+} as const;
+
+/** Union of every {@link GoldenScheduleFamily} value. */
+export type GoldenScheduleFamily = (typeof GoldenScheduleFamily)[keyof typeof GoldenScheduleFamily];
+
+/** Runtime schema for {@link GoldenScheduleFamily}. */
+export const GoldenScheduleFamilySchema = z.enum(GoldenScheduleFamily);

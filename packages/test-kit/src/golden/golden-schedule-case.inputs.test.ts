@@ -14,7 +14,7 @@ import { buildSection } from '../builders/section.builder';
 import { SYNTHETIC_COURSES } from '../fixtures/synthetic-courses';
 import { SYNTHETIC_TENANTS } from '../fixtures/synthetic-tenants';
 import { defineGoldenCorpus } from './golden-case.schema';
-import { GoldenScheduleFamily } from './golden-schedule-case.schema';
+import { GoldenScheduleFamily } from './golden-rule-family';
 import { scheduleCase, scheduleInputs, sectionIdsOf } from './golden-schedule-factories';
 
 const { math102, phys201, ind390 } = SYNTHETIC_COURSES;
