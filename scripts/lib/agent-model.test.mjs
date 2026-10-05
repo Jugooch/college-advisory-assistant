@@ -23,4 +23,15 @@ describe('parseAgentModel', () => {
     expect(parseAgentModel('no frontmatter')).toBeUndefined();
     expect(parseAgentModel('---\nname: x\n---\n')).toBeUndefined();
   });
+
+  it('rejects an injection attempt in the value', () => {
+    expect(() => parseAgentModel('---\nmodel: opus --allowedTools Bash\n---\n')).toThrow(
+      /Unsupported agent model/,
+    );
+  });
+
+  it('rejects an unknown model', () => {
+    expect(() => parseAgentModel('---\nmodel: gpt-5\n---\n')).toThrow(/Unsupported/);
+    expect(() => parseAgentModel('---\nmodel: opusx\n---\n')).toThrow(/Unsupported/);
+  });
 });
