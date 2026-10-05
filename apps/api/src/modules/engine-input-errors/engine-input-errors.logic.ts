@@ -16,6 +16,8 @@ import {
   type ScheduleInputIssue,
 } from '@caa/engine';
 
+import { CreditInclusionUnknownError } from '../course-verification/course-verification.logic';
+
 /**
  * Who caused an engine input error:
  * - `REQUEST`: the caller sent something that can't be checked. 400 INVALID_REQUEST.
@@ -79,7 +81,8 @@ const CAUSE_BY_SCHEDULE_ISSUE: Readonly<Record<ScheduleInputIssue, EngineInputEr
 };
 
 /**
- * Classifies an error thrown by the engine's course-set checks or its schedule solver.
+ * Classifies an error thrown by the engine's course-set checks or its schedule solver, or by
+ * `verifyCourseSet` when it builds their inputs.
  *
  * @param error - Anything `verifyCourseSet` or `solveScheduleOptions` threw.
  * @returns The cause and log reason, or `null` when the error isn't an engine input error (the
@@ -102,6 +105,11 @@ export function classifyEngineInputError(error: unknown): EngineInputErrorClassi
     // NOTE: the inputs are the stored snapshot and audit timestamps and the skew. The skew is
     // validated at startup (`AUDIT_RECORD_MAX_SKEW_MS`), so the reachable cause is a stored
     // timestamp without an offset.
+    return { cause: 'STORED_DATA', reason: error.name };
+  }
+  if (error instanceof CreditInclusionUnknownError) {
+    // SAFETY: whether a course's credits are included in another comes from the stored catalog,
+    // so an omitted link is a source gap the student is referred on, never a request error.
     return { cause: 'STORED_DATA', reason: error.name };
   }
   if (error instanceof PrerequisiteInputMismatchError) {

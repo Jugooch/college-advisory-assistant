@@ -13,6 +13,7 @@ import {
   ScheduleInputError,
 } from '@caa/engine';
 
+import { CreditInclusionUnknownError } from '../course-verification/course-verification.logic';
 import { classifyEngineInputError } from './engine-input-errors.logic';
 
 describe('classifyEngineInputError', () => {
@@ -55,6 +56,13 @@ describe('classifyEngineInputError', () => {
     expect(classifyEngineInputError(new AuditRecordInputError(field))).toEqual({
       cause: 'STORED_DATA',
       reason: 'AuditRecordInputError',
+    });
+  });
+
+  it('classifies an omitted credit inclusion link as stored data', () => {
+    expect(classifyEngineInputError(new CreditInclusionUnknownError())).toEqual({
+      cause: 'STORED_DATA',
+      reason: 'CreditInclusionUnknownError',
     });
   });
 
