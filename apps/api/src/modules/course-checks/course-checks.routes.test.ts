@@ -2,7 +2,8 @@
  * @file HTTP-level tests for `POST /v1/students/:studentId/course-checks`: each role, 401,
  * NOT_FOUND that doesn't reveal existence, strict bodies, unknown courses, missing and stale
  * audits, request-caused 400s against stored-data 503s and 500s, replay, the out-of-scope
- * backstop, and request-scoped logs with opaque IDs only.
+ * backstop, included linked-course credits counted once, and request-scoped logs with opaque IDs
+ * only.
  * @requirement FR-01
  * @requirement FR-02
  * @requirement FR-05
@@ -21,6 +22,7 @@ import {
   postCourseChecks,
   readChecks,
   readLogLines,
+  recordAndAuditAt,
   rulesAtRuleset,
 } from '../../testing/course-checks-harness';
 import { readError, STUDENTS, TOKENS } from '../../testing/fixtures';
@@ -33,7 +35,7 @@ import {
 // NOTE: every app is built once at module scope so Fastify's startup cost never counts against a
 // test's timeout (#83).
 const { app, store, lines } = buildSeededWorldApp();
-const { math102, ind390 } = SEED_COURSES;
+const { math102, ind390, phys301, phys301Lab } = SEED_COURSES;
 const foreignAudit = buildRecordAudit({ tenantId: SYNTHETIC_TENANTS.b.id }, 9);
 // NOTE: this one's audit repository ignores its tenant filter.
 const { app: leakyApp, lines: leakyLines } = buildSeededWorldApp({
@@ -233,20 +235,7 @@ describe('POST /v1/students/:studentId/course-checks record states', () => {
     ['just past 24 hours old', '2026-08-31T11:59:59.999Z', 409],
     ['exactly 24 hours old', '2026-08-31T12:00:00.000Z', 200],
   ])('answers a record and audit %s with %i', async (_case, recordAt, status) => {
-    store.studentSnapshots = [
-      buildRecordSnapshot({
-        studentId: STUDENTS.own.id,
-        sourceEffectiveAt: recordAt,
-        ingestedAt: recordAt,
-      }),
-    ];
-    store.audits = [
-      buildRecordAudit({
-        studentId: STUDENTS.own.id,
-        studentRecordEffectiveAt: recordAt,
-        generatedAt: recordAt,
-      }),
-    ];
+    Object.assign(store, recordAndAuditAt(STUDENTS.own.id, recordAt));
 
     const response = await postChecks(STUDENTS.own.id, TOKENS.student, MATH_102);
 
@@ -254,17 +243,7 @@ describe('POST /v1/students/:studentId/course-checks record states', () => {
   });
 
   it('returns 409 STALE_SOURCE with a referral when the record is too old', async () => {
-    const old = '2026-08-01T00:00:00.000Z';
-    store.studentSnapshots = [
-      buildRecordSnapshot({ studentId: STUDENTS.own.id, sourceEffectiveAt: old, ingestedAt: old }),
-    ];
-    store.audits = [
-      buildRecordAudit({
-        studentId: STUDENTS.own.id,
-        studentRecordEffectiveAt: old,
-        generatedAt: old,
-      }),
-    ];
+    Object.assign(store, recordAndAuditAt(STUDENTS.own.id, '2026-08-01T00:00:00.000Z'));
 
     const response = await postChecks(STUDENTS.own.id, TOKENS.student, MATH_102);
 
@@ -291,6 +270,19 @@ describe('POST /v1/students/:studentId/course-checks record states', () => {
     expect(readChecks(response.json()).setResults.creditLoad).toMatchObject({
       state: CheckState.Unknown,
       reasonCode: ReasonCode.VariableCreditUnselected,
+    });
+  });
+
+  it('counts DEMO-PHYS 301L credits once when DEMO-PHYS 301 includes them', async () => {
+    const response = await postChecks(STUDENTS.own.id, TOKENS.student, {
+      courseIds: [phys301.id, phys301Lab.id],
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(readChecks(response.json()).setResults.creditLoad).toMatchObject({
+      state: CheckState.Fail,
+      reasonCode: ReasonCode.CreditBelowMinimum,
+      evidence: { creditLoad: { totalCreditsHundredths: 400 } },
     });
   });
 });

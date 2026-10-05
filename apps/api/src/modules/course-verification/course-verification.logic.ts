@@ -86,10 +86,55 @@ export interface CourseChecks {
 }
 
 /**
+ * Thrown when a requested course's `creditsIncludedInCourseId` is omitted and the set holds
+ * another course, so whether its credits are already included in that course is unknown.
+ */
+export class CreditInclusionUnknownError extends Error {
+  /**
+   * Creates the error.
+   */
+  constructor() {
+    super('A requested course does not state whether its credits are included in another');
+    this.name = 'CreditInclusionUnknownError';
+  }
+}
+
+/**
+ * Decides whether a course adds its own credits to the load of the set it's requested in.
+ *
+ * @param course - A requested course.
+ * @param requestedIds - Every course ID of the candidate set.
+ * @returns `false` when the course's credits are included in another course of the set;
+ *   otherwise `true`.
+ * @throws {CreditInclusionUnknownError} When the course omits `creditsIncludedInCourseId` and
+ *   the set holds another course.
+ */
+function countsCreditsOf(course: Course, requestedIds: ReadonlySet<CourseId>): boolean {
+  const includedIn = course.creditsIncludedInCourseId;
+  // SAFETY: an omitted link is unknown, never `null`: the course might be a lab whose credits
+  // another requested course already includes. With another course in the set the load can't be
+  // decided, so the run is refused rather than counting the credits twice or dropping them
+  // (planning/08 §Authority and result semantics). Alone, the course counts its own credits
+  // either way, because no course in the set can include them.
+  // TODO(#229): remove the omitted case once the course schema requires the field.
+  if (includedIn === undefined) {
+    if (requestedIds.size > 1) {
+      throw new CreditInclusionUnknownError();
+    }
+    return true;
+  }
+  // SAFETY: credits included in a requested course are already in that course's total, so they
+  // count once (planning/08 §Constraint formulation). Credits included in a course outside the
+  // set still count, because nothing else in the set carries them.
+  return includedIn === null || !requestedIds.has(includedIn);
+}
+
+/**
  * Builds the engine's candidate set from the requested courses and credit choices.
  *
  * @param inputs - The requested courses and credit choices.
  * @returns One selection per course, in request order.
+ * @throws {CreditInclusionUnknownError} As `countsCreditsOf`.
  */
 function toSelections(inputs: CourseSetInputs): readonly CourseSelection[] {
   const chosen = new Map(
@@ -98,14 +143,13 @@ function toSelections(inputs: CourseSetInputs): readonly CourseSelection[] {
       selection.selectedCreditsHundredths,
     ]),
   );
+  const requestedIds = new Set(inputs.courses.map(({ course }) => course.id));
   return inputs.courses.map(({ course }) => ({
     course,
     // SAFETY: a course with no choice stays `null`, which the credit-load check reports as
     // UNKNOWN; no value is assumed (planning/08 §Candidate formation; AC18).
     selectedCreditsHundredths: chosen.get(course.id) ?? null,
-    // NOTE: the catalog doesn't model linked sections whose credits another course already
-    // includes, so every course counts its own credits, as a lab with its own credit does.
-    countsCredits: true,
+    countsCredits: countsCreditsOf(course, requestedIds),
   }));
 }
 
@@ -117,6 +161,8 @@ function toSelections(inputs: CourseSetInputs): readonly CourseSelection[] {
  * @param inputs - Every pinned input.
  * @returns The checks, the aggregate, and the pinned input versions.
  * @throws {CandidateSetInputError} When the engine rejects the candidate set or its credits.
+ * @throws {CreditInclusionUnknownError} When a requested course omits whether its credits are
+ *   included in another, and the set holds another course.
  * @throws {AuditRecordInputError} When a timestamp or the skew can't be compared.
  * @throws {PrerequisiteInputMismatchError} When a rule and the policy don't match.
  */

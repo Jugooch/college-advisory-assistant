@@ -27,7 +27,7 @@ import {
 import type { InMemoryAcademicStore } from '../../testing/in-memory-academic-repositories';
 import { SEED_AUDITS, SEED_COURSES } from '../../testing/seed-scenario-fixtures';
 
-const { math102, ind390, engl101 } = SEED_COURSES;
+const { math102, ind390, engl101, phys301, phys301Lab } = SEED_COURSES;
 
 const MATH_102_QUERY = { courseIds: [SEED_COURSES.math102.id] };
 
@@ -188,6 +188,14 @@ describe('CourseChecksService.checkCourses stored-data engine errors', () => {
     ...store,
     courses: (store.courses ?? []).map((course) => (course.id === ind390.id ? noRange : course)),
   });
+  // NOTE: a producer that doesn't state the link yet (staged rollout, #229).
+  const unlinkedLab = { ...phys301Lab, creditsIncludedInCourseId: undefined };
+  const withoutInclusionLink = (store: InMemoryAcademicStore) => ({
+    ...store,
+    courses: (store.courses ?? []).map((course) =>
+      course.id === phys301Lab.id ? unlinkedLab : course,
+    ),
+  });
   const invertedBounds = (store: InMemoryAcademicStore) => ({
     ...store,
     policies: (store.policies ?? []).map((policy) => ({
@@ -199,20 +207,26 @@ describe('CourseChecksService.checkCourses stored-data engine errors', () => {
   it.each([
     {
       name: 'a course with no credit range',
-      courseId: ind390.id,
+      courseIds: [ind390.id],
       change: withoutRange,
-      issue: 'courseCredits',
+      reason: 'CandidateSetInputError:courseCredits',
     },
     {
       name: 'inverted term credit bounds',
-      courseId: math102.id,
+      courseIds: [math102.id],
       change: invertedBounds,
-      issue: 'bounds',
+      reason: 'CandidateSetInputError:bounds',
+    },
+    {
+      name: 'a lab that omits whether its credits are included in its lecture',
+      courseIds: [phys301.id, phys301Lab.id],
+      change: withoutInclusionLink,
+      reason: 'CreditInclusionUnknownError',
     },
   ])(
     'refers the student with SOURCE_UNAVAILABLE for $name',
-    async ({ courseId, change, issue }) => {
-      const { result, logger } = check({ courseIds: [courseId] }, { change });
+    async ({ courseIds, change, reason }) => {
+      const { result, logger } = check({ courseIds }, { change });
 
       await expect(result).rejects.toBeInstanceOf(SourceUnavailableError);
       expect(logger.entries).toEqual([
@@ -224,7 +238,7 @@ describe('CourseChecksService.checkCourses stored-data engine errors', () => {
             tenantId: actor.tenantId,
             studentId: student.id,
             cause: 'STORED_DATA',
-            reason: `CandidateSetInputError:${issue}`,
+            reason,
           },
         },
       ]);
