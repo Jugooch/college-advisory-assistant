@@ -223,6 +223,9 @@ importers:
 
   packages/test-kit:
     dependencies:
+      '@caa/api-contract':
+        specifier: workspace:*
+        version: link:../api-contract
       '@caa/domain':
         specifier: workspace:*
         version: link:../domain
