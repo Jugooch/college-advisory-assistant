@@ -1,6 +1,6 @@
 /**
  * @file Pure steps of the schedule-options read: build each requested course's section bundles
- * and run the solver, normalize the request for its pinned hash, and assemble the response from
+ * and run the solver, and assemble the response from
  * the solver's answer and the course-set checks (ADR-0008 logic role).
  * @module @caa/api/modules/schedule-options/schedule-options.logic
  * @requirement FR-07
@@ -83,67 +83,6 @@ export function solveScheduleOptions(inputs: ScheduleSolveInputs): ScheduleSolut
     constraints: request.constraints,
     transitionPolicy,
     workCap: inputs.workCap,
-  });
-}
-
-/**
- * Orders two strings by UTF-16 code unit, never by locale, so the order is the same everywhere.
- *
- * @param first - One string.
- * @param second - The other.
- * @returns Negative, zero, or positive, as for `Array.prototype.sort`.
- */
-function compareText(first: string, second: string): number {
-  if (first === second) {
-    return 0;
-  }
-  return first < second ? -1 : 1;
-}
-
-/**
- * Serializes a JSON value with every object's keys sorted by UTF-16 code unit, so equal values
- * always give equal text.
- *
- * @param value - A JSON value: no functions, `undefined`, or cycles.
- * @returns The canonical JSON text.
- */
-export function canonicalJson(value: unknown): string {
-  if (Array.isArray(value)) {
-    return `[${value.map(canonicalJson).join(',')}]`;
-  }
-  if (value !== null && typeof value === 'object') {
-    const entries = Object.entries(value).toSorted(([first], [second]) =>
-      compareText(first, second),
-    );
-    return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`).join(',')}}`;
-  }
-  return JSON.stringify(value);
-}
-
-/**
- * Normalizes the request for its pinned hash (ADR-0010 §7): the term, the courses sorted, the
- * credit choices sorted by course, the hard constraints sorted by their canonical JSON, and the
- * preferences sorted by rank. Two requests that ask the same thing in another order normalize
- * to the same text.
- *
- * @param request - The validated body.
- * @returns The canonical JSON of the normalized request.
- */
-export function normalizeScheduleRequest(request: ScheduleOptionsRequest): string {
-  const hard = request.constraints.filter((constraint) => constraint.priorityRank === null);
-  const preferences = request.constraints.filter((constraint) => constraint.priorityRank !== null);
-  return canonicalJson({
-    termId: request.termId,
-    courseIds: request.courseIds.toSorted(compareText),
-    creditSelections: request.creditSelections.toSorted((first, second) =>
-      compareText(first.courseId, second.courseId),
-    ),
-    hardConstraints: hard.toSorted((first, second) =>
-      compareText(canonicalJson(first), canonicalJson(second)),
-    ),
-    preferences: preferences.toSorted(
-      (first, second) => (first.priorityRank ?? 0) - (second.priorityRank ?? 0),
-    ),
   });
 }
 
@@ -232,7 +171,7 @@ export interface ScheduleResponseParts {
   readonly catalog: readonly Course[];
   readonly snapshot: Pick<SectionSnapshot, 'id'>;
   readonly transitionPolicy: Pick<CampusTransitionPolicy, 'version'> | null;
-  /** `sha256:` and the hex digest of {@link normalizeScheduleRequest}'s text. */
+  /** `sha256:` and the hex digest of the engine's normalized request text. */
   readonly constraintHash: string;
 }
 

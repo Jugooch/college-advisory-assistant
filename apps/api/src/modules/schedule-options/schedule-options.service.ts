@@ -18,18 +18,14 @@ import { createHash } from 'node:crypto';
 
 import type { ScheduleOptionsRequest, ScheduleOptionsResponse } from '@caa/api-contract';
 import type { Actor, StudentId } from '@caa/domain';
-import type { ScheduleSolution } from '@caa/engine';
+import { normalizeScheduleRequest, type ScheduleSolution } from '@caa/engine';
 
 import type { RequestContext } from '../../shared/request-context';
 import type {
   CourseSetInputsService,
   LoadedScheduleSet,
 } from '../course-set-inputs/course-set-inputs.service';
-import {
-  normalizeScheduleRequest,
-  solveScheduleOptions,
-  toScheduleOptionsResponse,
-} from './schedule-options.logic';
+import { solveScheduleOptions, toScheduleOptionsResponse } from './schedule-options.logic';
 
 /** Names schedule options in log lines. */
 const OPERATION = 'schedule options';
