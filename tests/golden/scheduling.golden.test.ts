@@ -2,9 +2,9 @@
  * @file The planned scheduling golden cases (T05), filed as `it.todo` with the engine issue that
  *   makes each one runnable. Each title states the inputs and the adjudicated expectation, taken
  *   from planning/08 §Schedule model and §Constraint formulation, planning/13 (AC06–AC08, AC12),
- *   planning/14 §First vertical slice and ADR-0010, never from engine output. When the scheduling
- *   golden case kind exists (#212, #213), each todo becomes a full case in
- *   `packages/test-kit/src/golden/cases/`, with the same ID and expectation.
+ *   planning/14 §First vertical slice and ADR-0010, never from engine output. When its engine
+ *   issue merges, each todo becomes a full `scheduleCase` (`GoldenScheduleCaseSchema` in
+ *   `@caa/test-kit`) in `packages/test-kit/src/golden/cases/`, with the same ID and expectation.
  * @requirement FR-07
  * @requirement FR-08
  * @requirement FR-18
