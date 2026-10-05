@@ -39,6 +39,21 @@ export function coursesOfBundle(
 }
 
 /**
+ * Reads a course's credit inclusion, admitting an omitted value.
+ *
+ * NOTE: stages #229. The declared return type keeps `undefined`, so the omitted-value check in
+ * `countsCreditsInPlan` stays valid whether the domain field is optional or required; an
+ * annotated local would be narrowed by its initializer instead.
+ * TODO(#229): remove with the omitted-value branch once the field is required.
+ *
+ * @param course - A course of the plan.
+ * @returns The including course, `null`, or `undefined` when the value is omitted.
+ */
+function creditInclusionOf(course: Course): CourseId | null | undefined {
+  return course.creditsIncludedInCourseId;
+}
+
+/**
  * Decides whether a course adds its credits to a plan's load.
  *
  * @param course - A course of the plan.
@@ -51,7 +66,7 @@ export function countsCreditsInPlan(
   course: Course,
   planCourseIds: ReadonlySet<CourseId>,
 ): boolean | null {
-  const includedIn = course.creditsIncludedInCourseId;
+  const includedIn = creditInclusionOf(course);
   // SAFETY: an omitted value means the catalog hasn't said whether another course includes
   // these credits. It decides nothing when the plan has no other course, because credits are
   // only ever included in a course that is taken; otherwise it is unknown, never assumed
