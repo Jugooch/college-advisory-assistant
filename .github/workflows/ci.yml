@@ -60,6 +60,11 @@ jobs:
       - run: pnpm test:coverage
         env:
           DATABASE_URL: postgres://caa:caa@localhost:5432/caa
+      - name: Solver calibration (ADR-0010 §1)
+        run: >-
+          pnpm exec vitest run packages/engine/src/scheduling/solve-schedule.calibration.test.ts
+          --reporter=default --reporter=json --outputFile=solver-calibration.json
+          && node scripts/check-solver-calibration.mjs solver-calibration.json
 
   build:
     name: Build
