@@ -58,7 +58,8 @@ export function buildScheduledSection(section: Section, countsCredits = true): S
 /**
  * Builds one course's bundle: its primary section first, then its required linked sections.
  *
- * @param sections - The primary section, then the linked ones; every one counts its credits.
+ * @param sections - The primary section, then the linked ones. A domain `Section`
+ *   counts its credits; a `ScheduledSection` keeps its own `countsCredits` flag.
  * @param creditsCountedHundredths - The bundle's counted credits, or `null` when undecided.
  * @returns The bundle, for the primary section's course.
  * @throws {Error} When no section is given.

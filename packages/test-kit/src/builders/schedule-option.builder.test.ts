@@ -60,10 +60,19 @@ describe('buildScheduleOption', () => {
 
   it('keeps an UNKNOWN schedule with a NEEDS_VERIFICATION aggregate', () => {
     const unknown = buildScheduleOption({
+      bundles: [buildSectionBundle([buildSection()], null)],
       scheduleFeasibility: {
         kind: CheckKind.ScheduleFeasibility,
         state: CheckState.Unknown,
         reasonCode: 'VARIABLE_CREDIT_UNSELECTED',
+      },
+      setResults: {
+        allocation: [{ kind: CheckKind.RequirementAllocation, state: CheckState.Pass }],
+        creditLoad: {
+          kind: CheckKind.CreditLoad,
+          state: CheckState.Unknown,
+          reasonCode: 'VARIABLE_CREDIT_UNSELECTED',
+        },
       },
       aggregate: 'NEEDS_VERIFICATION',
     });
@@ -77,7 +86,7 @@ describe('buildScheduleOption', () => {
         scheduleFeasibility: {
           kind: CheckKind.ScheduleFeasibility,
           state: CheckState.Unknown,
-          reasonCode: 'VARIABLE_CREDIT_UNSELECTED',
+          reasonCode: 'TRANSITION_TIME_UNDEFINED',
         },
       }),
     ).toThrow(/aggregate must follow the FAIL, UNKNOWN, CONDITIONAL, PASS precedence/);
