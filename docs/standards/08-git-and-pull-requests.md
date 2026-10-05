@@ -128,6 +128,14 @@ Verdicts: `APPROVE` or `REQUEST_CHANGES`. Any BLOCKER or MAJOR finding means REQ
 
 The reviewers run automatically in GitHub Actions (`.github/workflows/ai-review.yml`) and can also be run locally with `/review-pr <number>`.
 
+### Single-pass review
+
+Each reviewer checks the same things on every pass; the rules below cut repeat rounds, not checks.
+
+- **First pass is complete.** A reviewer reports every finding it has in its first review of a PR, at every severity. It never holds findings back for a later round.
+- **NITs don't block.** A NIT never makes a verdict REQUEST_CHANGES on its own; the reviewer APPROVEs and lists the nits. BLOCKER and MAJOR findings still mean REQUEST_CHANGES.
+- **Re-reviews are scoped.** On a new head, a reviewer reads its latest review (`gh pr view <n> --comments`), verifies that each earlier finding is fixed, and checks the new commits for regressions. It doesn't re-audit unchanged code for new style findings. A BLOCKER or MAJOR it finds anywhere, including a safety rule from `CLAUDE.md`, is still reported.
+
 ## Responding to review
 
 - The owning agent fixes findings in new commits on the same branch (no force-push once review has started).

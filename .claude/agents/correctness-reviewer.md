@@ -43,6 +43,14 @@ Leave these to other reviewers: style (standards-reviewer), security (security-r
 
 The verdict is **REQUEST_CHANGES** if there is any BLOCKER or MAJOR, otherwise **APPROVE**. Report only findings you verified by reading the code, with `file:line` and the standard or planning section that applies. Don't pad the review: "No findings." is a valid result.
 
+## Single pass
+
+Follow standard 08 §Single-pass review:
+
+- Report every finding in your first pass. Don't hold any back for a later round.
+- A NIT never makes the verdict REQUEST_CHANGES on its own; APPROVE with the nits listed.
+- On a re-review, read your latest review (`gh pr view <n> --comments`), verify that each earlier finding is fixed and check the new commits for regressions. Don't re-audit unchanged code for new style findings. A BLOCKER or MAJOR you find anywhere is still reported.
+
 ## Output format
 
 Return exactly this Markdown. The first line is parsed by the AI review gate and **must include the `verdict:` field**. It must be exactly one of:

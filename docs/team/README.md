@@ -128,3 +128,17 @@ Ask for the work by role:
 > Use the domain-engineer agent to implement issue #12 (PlanRevision model).
 
 Independent owners can run in parallel, each on its own branch (use worktree isolation for parallel builders so branches don't collide). Reviewers can always run in parallel.
+
+To keep token usage down:
+
+- Dispatch a fresh agent for each issue rather than resuming a long-lived one.
+- Run at most 3 builder streams at once.
+
+## Working efficiently
+
+Builders keep their context small:
+
+- Trim long command output to the summary lines, for example `… | tail -n 30` or a grep for failures.
+- Read only the file ranges you need.
+- Don't re-read a file you just wrote; Edit and Write fail loudly if the change didn't apply.
+- Keep handbacks concise: branch, PR, what changed, tests, requirement IDs, handoffs.
