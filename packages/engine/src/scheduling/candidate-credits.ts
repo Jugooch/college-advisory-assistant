@@ -23,7 +23,6 @@ import type { CourseSelection } from '../verification/candidate-set';
 import { selectedCreditsOf } from '../verification/candidate-set';
 import { checkCreditLoad, creditLoadOutcomeOf } from '../verification/check-credit-load';
 import { ScheduleInputError } from './schedule-input-error';
-import { toBundleCourseSelections } from './section-bundle-credits';
 
 /** Inclusive credit bounds in hundredths. */
 interface Bounds {
@@ -62,29 +61,6 @@ export interface CreditVerdict {
 }
 
 /**
- * Returns a plan's selections, refusing a plan whose credit inclusion is unknown.
- *
- * @param bundles - The plan's bundles.
- * @param selectedCredits - The chosen variable credit values.
- * @returns The selections for `checkCreditLoad`.
- * @throws {ScheduleInputError} When a course's inclusion is omitted and another course of the
- *   plan could include it (`creditInclusionUnknown`).
- */
-export function knownSelectionsOf(
-  bundles: readonly { readonly courses: readonly Course[] }[],
-  selectedCredits: ReadonlyMap<CourseId, number>,
-): readonly CourseSelection[] {
-  const result = toBundleCourseSelections(bundles, selectedCredits);
-  // SAFETY: the domain has no reason code for a load left unknown by an omitted inclusion, so
-  // the solver refuses the input instead of guessing either total (planning/08 §Authority and
-  // result semantics). It goes away once the field is required (#229).
-  if (!result.isKnown) {
-    throw new ScheduleInputError('creditInclusionUnknown');
-  }
-  return result.selections;
-}
-
-/**
  * Reads each course's credits and the course that can include them.
  *
  * @param courses - Every distinct course across the requests' bundles.
@@ -97,8 +73,7 @@ export function creditsByCourse(
   selectedCredits: ReadonlyMap<CourseId, number>,
 ): CourseCredits[] {
   const indexOf = new Map<string, number>(courses.map((course, index) => [course.id, index]));
-  // NOTE: mirrors `countsCreditsInPlan` for plans whose inclusion is known, which the solver
-  // checks first with `knownSelectionsOf`; options and conflicts are rebuilt through it.
+  // NOTE: mirrors `toBundleCourseSelections`, which options and conflicts are rebuilt through.
   return courses.map((course) => ({
     courseId: course.id,
     credits: selectedCreditsOf({

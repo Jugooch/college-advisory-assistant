@@ -13,7 +13,11 @@ import {
 
 import { checkCreditLoad } from '../verification/check-credit-load';
 import { ScheduleInputError } from './schedule-input-error';
-import { coursesOfBundle, toBundleCourseSelections } from './section-bundle-credits';
+import {
+  countsCreditsInPlan,
+  coursesOfBundle,
+  toBundleCourseSelections,
+} from './section-bundle-credits';
 
 const LECTURE_COURSE = buildCourse({}, 1);
 const POLICY = buildAcademicPolicy({
@@ -31,11 +35,10 @@ function labCourse(creditsIncludedInCourseId: string | null): Course {
 }
 
 /**
- * Removes a course's credit inclusion key, as a producer that hasn't set it yet would.
+ * Removes a course's credit inclusion key, as a producer that hasn't set it would.
  *
- * NOTE: stages #229. It omits the key after validation, so it compiles whether the domain field
- * is optional or required.
- * TODO(#229): remove with the omitted-value branch once the field is required.
+ * NOTE: covers the omitted-value branch `countsCreditsInPlan` keeps for the API's course checks.
+ * TODO(#229): remove with that branch once the API no longer relies on it.
  *
  * @param course - A valid course.
  * @returns The course without `creditsIncludedInCourseId`.
@@ -53,11 +56,10 @@ function withoutInclusion(course: Course): Course {
  * @returns The counted total in hundredths.
  */
 function totalOf(bundles: readonly (readonly Course[])[]): number | undefined {
-  const result = toBundleCourseSelections(
+  const selections = toBundleCourseSelections(
     bundles.map((courses) => ({ courses })),
     new Map(),
   );
-  const selections = result.isKnown ? result.selections : [];
   return checkCreditLoad(selections, POLICY).evidence?.creditLoad?.totalCreditsHundredths;
 }
 
@@ -84,6 +86,28 @@ describe('coursesOfBundle', () => {
   });
 });
 
+describe('countsCreditsInPlan', () => {
+  const plan = new Set([LECTURE_COURSE.id, labCourse(null).id]);
+
+  it('is false for a lab whose including course is in the plan', () => {
+    expect(countsCreditsInPlan(labCourse(LECTURE_COURSE.id), plan)).toBe(false);
+  });
+
+  it('is true for a lab whose credits are included nowhere', () => {
+    expect(countsCreditsInPlan(labCourse(null), plan)).toBe(true);
+  });
+
+  it('is unknown for an omitted inclusion when another course of the plan could include it', () => {
+    expect(countsCreditsInPlan(withoutInclusion(labCourse(null)), plan)).toBeNull();
+  });
+
+  it('is true for a lone course with an omitted inclusion, since nothing in the plan includes it', () => {
+    const lone = withoutInclusion(LECTURE_COURSE);
+
+    expect(countsCreditsInPlan(lone, new Set([lone.id]))).toBe(true);
+  });
+});
+
 describe('toBundleCourseSelections', () => {
   it('counts a 3-credit lecture with an included 1-credit lab in its bundle as 3 credits', () => {
     expect(totalOf([[LECTURE_COURSE, labCourse(LECTURE_COURSE.id)]])).toBe(300);
@@ -101,28 +125,11 @@ describe('toBundleCourseSelections', () => {
     expect(totalOf([[LECTURE_COURSE, labCourse(null)]])).toBe(400);
   });
 
-  it('is unknown for an omitted inclusion when another bundle of the plan could include it', () => {
-    const lab = withoutInclusion(labCourse(null));
-
-    expect(
-      toBundleCourseSelections([{ courses: [LECTURE_COURSE] }, { courses: [lab] }], new Map()),
-    ).toEqual({ isKnown: false, unknownCourseIds: [lab.id] });
-  });
-
-  it('counts a lone course with an omitted inclusion, since nothing in the plan includes it', () => {
-    const lone = withoutInclusion(buildCourse({}, 1));
-
-    expect(totalOf([[lone]])).toBe(300);
-  });
-
   it('passes the chosen value of a variable-credit course', () => {
     const variable = buildVariableCreditCourse({}, 3);
 
     expect(
       toBundleCourseSelections([{ courses: [variable] }], new Map([[variable.id, 200]])),
-    ).toEqual({
-      isKnown: true,
-      selections: [{ course: variable, selectedCreditsHundredths: 200, countsCredits: true }],
-    });
+    ).toEqual([{ course: variable, selectedCreditsHundredths: 200, countsCredits: true }]);
   });
 });

@@ -15,7 +15,6 @@ import {
   type SectionId,
 } from '@caa/domain';
 
-import { knownSelectionsOf } from './candidate-credits';
 import { toScheduleFeasibilityCheck } from './schedule-feasibility-check';
 import { ScheduleInputError } from './schedule-input-error';
 import {
@@ -67,9 +66,8 @@ export interface PreparedRequest {
  * @param input - The solver input.
  * @returns The courses by ID, the preference slots, and the FAILs found.
  * @throws {ScheduleInputError} When the cap isn't a whole number from 1 to the default
- *   (`workCap`), the courses aren't 1 to 8 distinct ones (`requests`), a course is in the
- *   bundles of two requested courses (`courseInTwoRequests`), or a plan's credit inclusion is
- *   unknown (`creditInclusionUnknown`).
+ *   (`workCap`), the courses aren't 1 to 8 distinct ones (`requests`), or a course is in the
+ *   bundles of two requested courses (`courseInTwoRequests`).
  */
 export function prepareSolverRequest(input: SolveScheduleInput): PreparedRequest {
   assertValidShape(input);
@@ -77,7 +75,6 @@ export function prepareSolverRequest(input: SolveScheduleInput): PreparedRequest
     compareText(first.courseId, second.courseId),
   );
   assertCoursesInOneRequest(requests);
-  assertKnownInclusion(requests, input.selectedCredits);
   const slots = preferenceSlotsOf(input.constraints);
   const findings = new Map<SectionId, readonly ConstraintFinding[]>();
   const context = {
@@ -181,28 +178,4 @@ function assertCoursesInOneRequest(requests: readonly ScheduleCourseRequest[]): 
     }
     owner.set(courseId, requestId);
   }
-}
-
-/**
- * Checks that every plan's credit inclusion is known. Whether an omitted inclusion matters
- * depends only on whether the plan has another course, so each bundle is checked with one
- * bundle of another requested course, when there is one.
- *
- * @param requests - The requests.
- * @param selectedCredits - The chosen variable credit values.
- * @throws {ScheduleInputError} When it isn't (`creditInclusionUnknown`).
- */
-function assertKnownInclusion(
-  requests: readonly ScheduleCourseRequest[],
-  selectedCredits: ReadonlyMap<CourseId, number>,
-): void {
-  requests.forEach((request, position) => {
-    const other = requests
-      .filter((_, index) => index !== position)
-      .flatMap((entry) => entry.bundles.bundles)
-      .slice(0, 1);
-    for (const bundle of request.bundles.bundles) {
-      knownSelectionsOf([bundle, ...other], selectedCredits);
-    }
-  });
 }
