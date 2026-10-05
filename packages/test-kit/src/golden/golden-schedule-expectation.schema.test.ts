@@ -13,10 +13,10 @@ import { SYNTHETIC_COURSES } from '../fixtures/synthetic-courses';
 import { syntheticId } from '../fixtures/synthetic-id';
 import {
   ExpectedScheduleCheckSchema,
-  ExpectedScheduleIssueSchema,
   ExpectedScheduleOptionSchema,
   ExpectedScheduleSchema,
 } from './golden-schedule-expectation.schema';
+import { ExpectedScheduleIssueSchema } from './golden-schedule-issue.schema';
 
 const SECTION_A = syntheticId('section', 1);
 const SECTION_B = syntheticId('section', 2);

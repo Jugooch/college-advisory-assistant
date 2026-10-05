@@ -13,8 +13,11 @@ import {
   checkCreditLoad,
   evaluateApplicability,
   evaluatePrerequisite,
+  findMeetingConflicts,
 } from '@caa/engine';
 import { type ExpectedCheck, type GoldenCase } from '@caa/test-kit';
+
+import { viewScheduleIssues } from './schedule-issue-view';
 
 /** Evidence fields a case may assert. */
 const EVIDENCE_FIELDS = ['rulesetVersion', 'decisiveLeaves', 'courseIds', 'creditLoad'] as const;
@@ -43,6 +46,9 @@ export function runGoldenCase(golden: GoldenCase): readonly CheckResult[] {
     case CheckKind.CreditLoad: {
       const { selections, academicPolicy } = golden.inputs;
       return [checkCreditLoad(selections, academicPolicy)];
+    }
+    case CheckKind.ScheduleFeasibility: {
+      return [findMeetingConflicts(golden.inputs)];
     }
   }
 }
@@ -82,6 +88,16 @@ function compareCheck(expected: ExpectedCheck, actual: CheckResult, at: string):
         ? null
         : differ(`${at}.evidence.${key}`, expected.evidence[key], actual.evidence?.[key]),
     ),
+    expected.evidence?.scheduleIssues === undefined
+      ? null
+      : differ(
+          `${at}.evidence.scheduleIssues`,
+          expected.evidence.scheduleIssues,
+          viewScheduleIssues(
+            expected.evidence.scheduleIssues,
+            actual.evidence?.scheduleIssues ?? [],
+          ),
+        ),
   ];
   return fields.filter((message) => message !== null);
 }
