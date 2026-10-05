@@ -11,8 +11,7 @@ const PHYS_301_ID = '3c4d5e6f-0000-4000-8000-000000000301';
 const PHYS_301L_ID = '3c4d5e6f-0000-4000-8000-000000003010';
 const PHYS_301R_ID = '3c4d5e6f-0000-4000-8000-000000003011';
 
-/** A course from a producer that doesn't set the field yet (staged rollout, #229). */
-const LECTURE_WITHOUT_FIELD: CourseInput = {
+const LECTURE: CourseInput = {
   id: PHYS_301_ID,
   tenantId: TENANT_ID,
   sourceCourseId: 'DEMO-PHYS-301',
@@ -21,9 +20,8 @@ const LECTURE_WITHOUT_FIELD: CourseInput = {
   minCreditsHundredths: null,
   maxCreditsHundredths: null,
   equivalencyGroupId: null,
+  creditsIncludedInCourseId: null,
 };
-
-const LECTURE: CourseInput = { ...LECTURE_WITHOUT_FIELD, creditsIncludedInCourseId: null };
 
 const LAB: CourseInput = {
   ...LECTURE,
@@ -43,8 +41,10 @@ describe('createCourse creditsIncludedInCourseId', () => {
     expect(createCourse(LECTURE).creditsIncludedInCourseId).toBeNull();
   });
 
-  it('accepts an omitted value during the staged rollout, and keeps it omitted', () => {
-    expect('creditsIncludedInCourseId' in createCourse(LECTURE_WITHOUT_FIELD)).toBe(false);
+  it('rejects an omitted value: unknown is explicit', () => {
+    const withoutField: Record<string, unknown> = { ...LECTURE };
+    delete withoutField.creditsIncludedInCourseId;
+    expect(() => createCourse(withoutField as CourseInput)).toThrow();
   });
 
   it('rejects a course whose credits are included in itself', () => {
@@ -83,10 +83,6 @@ describe('createCourseCatalog', () => {
 
     expect(createCourseCatalog([LECTURE, LAB, recitation])).toHaveLength(3);
     expect(createCourseCatalog([])).toEqual([]);
-  });
-
-  it('accepts courses that omit the field during the staged rollout', () => {
-    expect(createCourseCatalog([LECTURE_WITHOUT_FIELD])).toHaveLength(1);
   });
 
   it('rejects a two-course cycle', () => {
