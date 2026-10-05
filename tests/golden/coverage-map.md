@@ -4,11 +4,11 @@ Which rule families and interactions the golden corpus covers, and which gaps re
 
 Status as of 2026-10-05 (#226):
 
-- The development corpus has 113 cases across 20 rule families (`GOLDEN_DEVELOPMENT_CORPUS` in `@caa/test-kit`).
+- The development corpus has 137 cases (`GOLDEN_DEVELOPMENT_CORPUS` in `@caa/test-kit`): 113 across 20 rule families, and 24 section-pair scheduling cases across 4 scheduling families, live since #218 merged.
 - The holdout has 45 cases, version v0.4 (#226): 31 check cases, so every non-scheduling rule family has at least one, and 14 scheduling cases, which are `it.todo` until the solver exists (#220).
 - Every case is `pending-academic-review`.
 - No open findings. #183 was settled by tech-lead ruling GR-01 (planning/13 §Golden corpus design, Adjudication rulings), and GC-PF-004 was re-adjudicated from it.
-- 48 scheduling cases are planned as `it.todo` in `tests/golden/scheduling.golden.test.ts` (#226). They aren't counted above until they're full cases (see §Scheduling families).
+- 24 more scheduling cases are planned as `it.todo` in `tests/golden/scheduling.golden.test.ts` (#226), waiting for #219 and #220. They aren't counted above until they're full cases (see §Scheduling families).
 
 Keep this file current in the same PR that adds, burns or re-adjudicates a case.
 
@@ -129,7 +129,9 @@ Each interaction lists its development cases, its holdout count, and the gaps st
 - **Holdout:** 0.
 - **Open gaps:** a HIGHEST_GRADE tie across an equivalent course, or across a transfer award (issue #78: these stay UNDETERMINED).
 
-## Scheduling families (S4, planned)
+## Scheduling families (S4)
+
+**Live since #218 merged:** 24 section-pair cases, run through `findMeetingConflicts` as golden check cases (`check: SCHEDULE_FEASIBILITY`, written with `meetingConflictCase`). Their expected schedule issues are compared on the facts each case states (reason, sections, shared dates, campuses, minutes): GC-MEET-001–008, GC-HALF-001–004, GC-TRAVEL-001–006 and -008, and GC-TBA-001–003, -005 and -006. GC-MEET-001's shared dates start on the first Wednesday, 2027-01-13, the first date both meetings meet, which the planned title had loosely as 2027-01-11. GC-TRAVEL-007 (three sections) and GC-TBA-004 (a hard constraint) wait for the solver (#220).
 
 The scheduling families (T05: AC06–AC08, AC12) are planned in `tests/golden/scheduling.golden.test.ts`. Each is an `it.todo` whose title states the inputs and the adjudicated expectation, from planning/08 §Schedule model and §Constraint formulation, planning/13, planning/14 §First vertical slice and ADR-0010. The scheduling case kind exists: `GoldenScheduleCaseSchema` in `@caa/test-kit` (written with `scheduleCase`), a kind of its own because its expectation is a whole response. Its inputs are the requested courses, a section snapshot with its linked groups, the transition table, the #212 constraints (merged in #251, which also settles GC-HARD-005's half-open unavailable block), the credit policy and the work cap. Its expectation is the #213 outcome shape (outcome, `searchComplete`, options by section set, conflict set, unresolved items) with the #266 schedule reason codes. Each todo becomes a full case in `packages/test-kit/src/golden/cases/` when its engine issue merges, and the runner turns it live then.
 
@@ -169,7 +171,7 @@ States are the planned expectations, with the same letters as §Rule families.
 
 ## Path to the 200-case G1 gate
 
-There are 158 cases today (113 development, 45 holdout, of which the 14 scheduling holdout cases run once #220 merges). The remaining 42 or more should come from:
+There are 182 cases today (137 development, 45 holdout, of which the 14 scheduling holdout cases run once #220 merges). The remaining 18 or more should come from:
 
 1. **The open interaction gaps above:** about 20 cases, all testable with today's engine.
 2. **The family gaps above** (boundary and unknown cases): about 12 cases.
@@ -181,7 +183,7 @@ There are 158 cases today (113 development, 45 holdout, of which the 14 scheduli
    - credit and residency limits;
    - approved exceptions (AC17);
    - catalog-year rules (AC09);
-   - scheduling (T05: AC06–AC08, AC12): 48 cases planned (§Scheduling families).
+   - scheduling (T05: AC06–AC08, AC12): 48 cases planned, 24 of them live (§Scheduling families).
 
    The non-scheduling families add about 30 or more cases. Every case is filed as `it.todo` with the issue number until the feature exists.
 

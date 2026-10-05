@@ -17,6 +17,8 @@ import { CREDIT_BOUNDS_UNDEFINED_CASES } from './cases/credit-bounds-undefined.c
 import { CREDIT_LOAD_CASES } from './cases/credit-load.cases';
 import { CUTOFF_PASS_FAIL_CASES } from './cases/cutoff-pass-fail.cases';
 import { EXPRESSION_CASES } from './cases/expressions.cases';
+import { MEETING_OVERLAP_CASES } from './cases/meeting-overlap.cases';
+import { MEETING_TIME_UNKNOWN_CASES } from './cases/meeting-time-unknown.cases';
 import { MINIMUM_GRADE_CASES } from './cases/minimum-grade.cases';
 import { PASSING_CUTOFF_CASES } from './cases/passing-cutoff.cases';
 import { PENDING_TRANSFER_REPEAT_CASES } from './cases/pending-transfer-repeats.cases';
@@ -25,7 +27,9 @@ import { PROGRAM_CATALOG_CASES } from './cases/program-catalog.cases';
 import { REPEAT_CASES } from './cases/repeats.cases';
 import { REQUIREMENT_ANCESTOR_CASES } from './cases/requirement-ancestors.cases';
 import { RETAKE_AND_EQUIVALENCY_CASES } from './cases/retakes-and-equivalency.cases';
+import { TERM_DATE_OVERLAP_CASES } from './cases/term-date-overlap.cases';
 import { TERM_ORDER_CASES } from './cases/term-order.cases';
+import { TRANSITION_TIME_CASES } from './cases/transition-time.cases';
 import { VARIABLE_CREDIT_ALLOCATION_CASES } from './cases/variable-credit-allocation.cases';
 import { defineGoldenCorpus, type GoldenCase } from './golden-case.schema';
 
@@ -52,4 +56,8 @@ export const GOLDEN_DEVELOPMENT_CORPUS: readonly GoldenCase[] = defineGoldenCorp
   ...PROGRAM_CATALOG_CASES,
   ...CREDIT_LOAD_CASES,
   ...CREDIT_BOUNDS_UNDEFINED_CASES,
+  ...MEETING_OVERLAP_CASES,
+  ...TERM_DATE_OVERLAP_CASES,
+  ...TRANSITION_TIME_CASES,
+  ...MEETING_TIME_UNKNOWN_CASES,
 ]);

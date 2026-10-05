@@ -13,7 +13,7 @@ import { buildMeetingPattern } from '../builders/meeting-pattern.builder';
 import { buildSection } from '../builders/section.builder';
 import { SYNTHETIC_COURSES } from '../fixtures/synthetic-courses';
 import { PENDING_ACADEMIC_REVIEW } from './golden-case.schema';
-import { GoldenScheduleFamily } from './golden-schedule-case.schema';
+import { GoldenScheduleFamily } from './golden-rule-family';
 import {
   SCHEDULE_PASS,
   scheduleCase,
