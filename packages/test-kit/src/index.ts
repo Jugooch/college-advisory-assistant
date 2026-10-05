@@ -20,6 +20,8 @@ export * from './builders/requirement-result.builder';
 export * from './builders/roster-batch.builder';
 export * from './builders/roster-row.builder';
 export * from './builders/schedule-constraint.builder';
+export * from './builders/schedule-option.builder';
+export * from './builders/schedule-options-response.builder';
 export * from './builders/section.builder';
 export * from './builders/section-snapshot.builder';
 export * from './builders/student.builder';
