@@ -19,6 +19,7 @@ import {
 } from '../modules/course-checks/course-checks.service';
 import { createPinnedRecordsService } from '../modules/pinned-records/pinned-records.service';
 import { NotFoundError } from '../shared/domain-errors';
+import { buildRecordAudit, buildRecordSnapshot } from './academic-fixtures';
 import { bearer, buildWorldApp } from './fixtures';
 import {
   createInMemoryAcademicRepositories,
@@ -179,6 +180,24 @@ export function buildSeededWorldApp(repositoryOverrides: Partial<Repositories> =
   const { app, store } = buildWorldApp({ write: (line) => lines.push(line) }, repositoryOverrides);
   Object.assign(store, buildSeedAcademicStore());
   return { app, store, lines };
+}
+
+/**
+ * Builds a student's only record snapshot and audit, both effective and stored at one instant,
+ * to merge into the store.
+ *
+ * @param studentId - The student both belong to.
+ * @param at - ISO timestamp for every effective and stored time.
+ * @returns The store fields to assign.
+ */
+export function recordAndAuditAt(
+  studentId: string,
+  at: string,
+): Pick<InMemoryAcademicStore, 'studentSnapshots' | 'audits'> {
+  return {
+    studentSnapshots: [buildRecordSnapshot({ studentId, sourceEffectiveAt: at, ingestedAt: at })],
+    audits: [buildRecordAudit({ studentId, studentRecordEffectiveAt: at, generatedAt: at })],
+  };
 }
 
 /**
