@@ -27,6 +27,7 @@ import {
 } from '@caa/domain';
 
 import { GOLDEN_ADJUDICATION_FIELDS } from './golden-case.schema';
+import { isAscendingIds } from './golden-schedule-expectation.schema';
 import {
   type ExpectedSchedule,
   ExpectedScheduleSchema,
@@ -150,6 +151,11 @@ export const ScheduleProhibitedClaimSchema = z
     message: 'Only a prohibited state names an option',
     path: ['sectionIds'],
   })
+  // NOTE: `makesClaim` compares section sets as written, so they must be written one way.
+  .refine((claim) => isAscendingIds(claim.sectionIds ?? []), {
+    message: 'A prohibited claim names its sections distinct and ascending',
+    path: ['sectionIds'],
+  })
   .readonly();
 
 /** One prohibited scheduling claim. */
@@ -205,6 +211,30 @@ export const GoldenScheduleCaseSchema = z
       );
     },
     { message: 'Expected options must use published sections', path: ['expected'] },
+  )
+  // SAFETY: every requested course is required, so each option schedules exactly one primary
+  // section of each, and no other primary section (ADR-0010 §2 and §3). An option that dropped
+  // a course would drop that course's checks too.
+  .refine(
+    (golden) => {
+      const courseOf = new Map<string, string>(
+        golden.inputs.sectionSnapshot.sections.map((s) => [s.id, s.courseId]),
+      );
+      const requested = new Set<string>(golden.inputs.requestedCourseIds);
+      return [golden.expected, ...golden.allowedAlternatives].every((expected) =>
+        expected.options.every((option) => {
+          // NOTE: an unpublished section is the published-sections rule's finding, not this one.
+          if (option.sectionIds.some((id) => !courseOf.has(id))) {
+            return true;
+          }
+          const primaries = option.sectionIds
+            .map((id) => courseOf.get(id) ?? '')
+            .filter((courseId) => requested.has(courseId));
+          return primaries.length === requested.size && new Set(primaries).size === requested.size;
+        }),
+      );
+    },
+    { message: 'Every option must schedule each requested course once', path: ['expected'] },
   )
   .readonly();
 

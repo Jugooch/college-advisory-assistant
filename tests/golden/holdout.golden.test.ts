@@ -25,7 +25,7 @@ describe(`golden corpus holdout ${GOLDEN_HOLDOUT_VERSION}`, () => {
 });
 
 // NOTE: the scheduling cases are validated by their schema when this file loads, and run once
-// the solver API exists (#218, #219, #220); until then each is a todo naming the solver issue.
+// the solver exists (#220, which builds on #218 and #219); until then each todo names #220.
 describe(`golden corpus holdout ${GOLDEN_HOLDOUT_VERSION}: scheduling`, () => {
   for (const golden of GOLDEN_HOLDOUT_SCHEDULE_CORPUS) {
     it.todo(`${golden.id} (#220)`);

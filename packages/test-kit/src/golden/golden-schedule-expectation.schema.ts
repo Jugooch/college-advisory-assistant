@@ -65,7 +65,7 @@ const CREDIT_LOAD_UNKNOWN_REASONS: ReadonlySet<string> = new Set([
  * @param ids - The IDs.
  * @returns `true` when each ID sorts strictly after the one before it.
  */
-function isAscending(ids: readonly string[]): boolean {
+export function isAscendingIds(ids: readonly string[]): boolean {
   return ids.every((id, index) => index === 0 || (ids[index - 1] ?? '') < id);
 }
 
@@ -97,7 +97,7 @@ export const ExpectedScheduleIssueSchema = z
     /** Index of the hard constraint the issue breaks, in the request's constraint list. */
     constraintIndex: z.number().int().nonnegative().optional(),
   })
-  .refine((issue) => isAscending(issue.sectionIds), {
+  .refine((issue) => isAscendingIds(issue.sectionIds), {
     message: 'sectionIds must be distinct and ascending',
     path: ['sectionIds'],
   })
@@ -115,7 +115,7 @@ export const ExpectedScheduleIssueSchema = z
       issue.courseId !== undefined,
     { message: 'A missing section or link names its course', path: ['courseId'] },
   )
-  .refine((issue) => isAscending(issue.sharedDates?.weekdays ?? []), {
+  .refine((issue) => isAscendingIds(issue.sharedDates?.weekdays ?? []), {
     message: 'sharedDates.weekdays must be distinct and ascending',
     path: ['sharedDates', 'weekdays'],
   })
@@ -163,9 +163,6 @@ export const ExpectedScheduleCheckSchema = z
   })
   .readonly();
 
-/** One expected check with its issues. */
-export type ExpectedScheduleCheck = z.infer<typeof ExpectedScheduleCheckSchema>;
-
 /** One expected option: its sections as a set, its schedule check, and what it leaves unmet. */
 export const ExpectedScheduleOptionSchema = z
   .strictObject({
@@ -177,7 +174,7 @@ export const ExpectedScheduleOptionSchema = z
     /** Constraint indexes of the preferences the option misses, ascending, when compared. */
     unmetPreferenceIndexes: z.array(z.number().int().nonnegative()).readonly().optional(),
   })
-  .refine((option) => isAscending(option.sectionIds), {
+  .refine((option) => isAscendingIds(option.sectionIds), {
     message: 'sectionIds must be distinct and ascending',
     path: ['sectionIds'],
   })
@@ -192,6 +189,22 @@ export const ExpectedScheduleOptionSchema = z
     message: 'creditLoad must be a CREDIT_LOAD check',
     path: ['creditLoad'],
   })
+  // SAFETY: the credit load is a hard rule, so a FAIL load removes the candidate, and no chosen
+  // set's load is CONDITIONAL (ADR-0010 §3; the contract's ScheduleOptionSchema).
+  .refine(
+    ({ creditLoad }) =>
+      creditLoad?.state !== CheckState.Fail && creditLoad?.state !== CheckState.Conditional,
+    { message: 'An option never has a FAIL or CONDITIONAL creditLoad', path: ['creditLoad'] },
+  )
+  // SAFETY: an undecided hard rule leaves the schedule UNKNOWN, never PASS (ADR-0010 §3).
+  .refine(
+    ({ creditLoad, scheduleFeasibility: { check } }) =>
+      creditLoad?.state !== CheckState.Unknown || check.state === CheckState.Unknown,
+    {
+      message: 'An UNKNOWN creditLoad requires an UNKNOWN scheduleFeasibility',
+      path: ['scheduleFeasibility'],
+    },
+  )
   .readonly();
 
 /** One expected option. */
@@ -265,6 +278,13 @@ export const ExpectedScheduleSchema = z
         items: z.array(ConflictItemSchema).min(1).max(MAX_CONFLICT_ITEMS).readonly(),
         omittedCount: z.number().int().nonnegative(),
       })
+      // SAFETY: a repeated conflict would be shown twice and use up the cap, hiding a distinct
+      // one (ADR-0010 §5: deduplicated by reason code and sections; ConflictSetSchema).
+      // NOTE: parsed items keep the schema's key order, so equal items give equal JSON.
+      .refine(
+        ({ items }) => new Set(items.map((item) => JSON.stringify(item))).size === items.length,
+        { message: 'conflictSet items must be distinct', path: ['items'] },
+      )
       .readonly()
       .nullable(),
     unresolved: z.array(UnresolvedItemSchema).readonly(),

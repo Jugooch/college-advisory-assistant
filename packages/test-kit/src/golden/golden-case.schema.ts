@@ -54,7 +54,8 @@ const PinnedRecordSchema = z
 
 /**
  * The identity and adjudication record every golden case has, check cases and scheduling cases
- * alike: everything except the family, inputs, and expectation.
+ * alike: everything except the family, inputs, expectation, allowed alternatives, and
+ * prohibited claims, whose shapes differ by kind.
  */
 export const GOLDEN_ADJUDICATION_FIELDS = {
   /** `GC-<FAMILY>-NNN` for development cases, `GH-<FAMILY>-NNN` for the frozen holdout. */
