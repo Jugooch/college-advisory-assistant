@@ -33,6 +33,7 @@ import {
 
 import {
   type AcceptanceApp,
+  type AcceptanceOptions,
   type AcceptanceResponse,
   type AcceptanceWorld,
   buildAcceptanceApp,
@@ -163,15 +164,20 @@ export function resetAcademicWorld(world: AcceptanceWorld, scenario: AcademicSce
  * Builds the API over the world, accepting a token for every actor.
  *
  * @param world - Backing data.
+ * @param options - Settings a case varies, such as the solver work cap.
  * @returns The app.
  */
-export function buildAcademicApp(world: AcceptanceWorld): AcceptanceApp {
+export function buildAcademicApp(
+  world: AcceptanceWorld,
+  options: AcceptanceOptions = {},
+): AcceptanceApp {
   return buildAcceptanceApp(
     world,
     Object.entries(ACADEMIC_ACTORS).map(([key, identity]) => ({
       token: `academic-${key}`,
       identity,
     })),
+    options,
   );
 }
 

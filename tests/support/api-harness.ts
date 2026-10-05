@@ -22,6 +22,11 @@ import type { StudentUserLinkRepository } from '@caa/db';
 import type { AdvisorAssignment, Student, UserIdentity } from '@caa/domain';
 
 import { type AcademicWorld, createAcademicRepositories } from './academic-repositories';
+import {
+  createScheduleRepositories,
+  type ScheduleRepositories,
+  type ScheduleWorld,
+} from './schedule-repositories';
 
 /** Fixed instant every API acceptance case runs at. */
 export const ACCEPTANCE_NOW = new Date('2026-09-01T12:00:00.000Z');
@@ -42,15 +47,25 @@ export const ACCEPTANCE_SOURCE_MAX_AGE_MS = 86_400_000;
  */
 export const ACCEPTANCE_AUDIT_SKEW_MS = 3_600_000;
 
+/** The schedule solver's documented default work cap (ADR-0010 §1), unless a case sets another. */
+export const ACCEPTANCE_SOLVER_WORK_CAP = 3_000_000;
+
+/** API settings a case may vary. */
+export interface AcceptanceOptions {
+  /** `SCHEDULE_SOLVER_WORK_CAP`; defaults to {@link ACCEPTANCE_SOLVER_WORK_CAP}. */
+  readonly solverWorkCap?: number;
+}
+
 /** The API app, not yet listening. */
 export type AcceptanceApp = ReturnType<typeof buildApp>;
 
 /**
  * Mutable backing data. Every repository call reads it again, so a case can change it mid-session.
- * The academic fields (snapshots, audits, catalog, rules, policies, terms) are optional: a case
- * seeds only what it reads, and an omitted field means nothing of that kind is stored.
+ * The academic fields (snapshots, audits, catalog, rules, policies, terms) and the schedule fields
+ * (section snapshots, transition tables) are optional: a case seeds only what it reads, and an
+ * omitted field means nothing of that kind is stored.
  */
-export interface AcceptanceWorld extends AcademicWorld {
+export interface AcceptanceWorld extends AcademicWorld, ScheduleWorld {
   identities: readonly UserIdentity[];
   students: readonly Student[];
   assignments: readonly AdvisorAssignment[];
@@ -164,11 +179,13 @@ function createAssignments(world: AcceptanceWorld): AdvisorAssignmentRepository 
  *
  * @param world - Backing data; mutate it between requests to change what the API sees.
  * @param tokens - Dev tokens the API accepts.
+ * @param options - Settings a case varies, such as the solver work cap.
  * @returns The app.
  */
 export function buildAcceptanceApp(
   world: AcceptanceWorld,
   tokens: readonly AcceptanceToken[],
+  options: AcceptanceOptions = {},
 ): AcceptanceApp {
   const tokenMap: Record<string, DevTokenIdentity> = Object.fromEntries(
     tokens.map(({ token, identity }) => [
@@ -185,15 +202,20 @@ export function buildAcceptanceApp(
     ACTIVE_RULESET_VERSION: ACCEPTANCE_RULESET_VERSION,
     ACADEMIC_SOURCE_MAX_AGE_MS: String(ACCEPTANCE_SOURCE_MAX_AGE_MS),
     AUDIT_RECORD_MAX_SKEW_MS: String(ACCEPTANCE_AUDIT_SKEW_MS),
+    SCHEDULE_SOLVER_WORK_CAP: String(options.solverWorkCap ?? ACCEPTANCE_SOLVER_WORK_CAP),
   });
-  // NOTE: the intersection lets the harness provide `studentUserLinks` before the API adds it
-  // to `Repositories` (#151); once it's there, the intersection is redundant and can go.
-  const repositories: Repositories & { studentUserLinks: StudentUserLinkRepository } = {
+  // NOTE: the intersection lets the harness provide repositories before the API adds them to
+  // `Repositories`: `studentUserLinks` (#151) and the schedule ones (#221). Once they're there,
+  // the intersection is redundant and can go.
+  const repositories: Repositories & {
+    studentUserLinks: StudentUserLinkRepository;
+  } & ScheduleRepositories = {
     userIdentities: createIdentities(world),
     students: createStudents(world),
     studentUserLinks: createStudentUserLinks(world),
     advisorAssignments: createAssignments(world),
     ...createAcademicRepositories(world),
+    ...createScheduleRepositories(world),
   };
   return buildApp({
     dependencies: createContainer({ env, repositories, now: () => ACCEPTANCE_NOW }),
