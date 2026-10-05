@@ -5,8 +5,12 @@
  * @see docs/adr/0010-deterministic-bounded-schedule-solver.md
  */
 
-/** What is wrong with scheduling input. */
-export type ScheduleInputIssue = 'sameSection';
+/**
+ * What is wrong with scheduling input.
+ * - `sameSection`: a section was compared with itself.
+ * - `tenantMismatch`: sections or the transition table belong to different tenants.
+ */
+export type ScheduleInputIssue = 'sameSection' | 'tenantMismatch';
 
 /** Thrown when scheduling input is malformed, instead of guessing. */
 export class ScheduleInputError extends Error {

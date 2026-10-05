@@ -5,12 +5,14 @@ import { describe, expect, it } from 'vitest';
 
 import { MeetingLocationKind, type MeetingPattern, Weekday } from '@caa/domain';
 import {
+  buildCampusTransitionPolicy,
   buildHalfTermSection,
   buildMeetingPattern,
   buildOnlineAsynchronousSection,
   buildSection,
   buildTbaMeeting,
   SYNTHETIC_CAMPUSES,
+  SYNTHETIC_TENANTS,
 } from '@caa/test-kit';
 
 import { findMeetingConflicts } from './find-meeting-conflicts';
@@ -173,5 +175,35 @@ describe('findMeetingConflicts time conflicts', () => {
     expect(() =>
       findMeetingConflicts({ first: section, second: section, transitionPolicy: null }),
     ).toThrow(new ScheduleInputError('sameSection'));
+  });
+
+  it('throws tenantMismatch for sections of two tenants', () => {
+    const other = buildSection({ tenantId: SYNTHETIC_TENANTS.b.id }, 2);
+
+    expect(() =>
+      findMeetingConflicts({ first: buildSection({}, 1), second: other, transitionPolicy: null }),
+    ).toThrow(new ScheduleInputError('tenantMismatch'));
+  });
+
+  it("throws tenantMismatch for another tenant's transition table", () => {
+    const transitionPolicy = buildCampusTransitionPolicy({ tenantId: SYNTHETIC_TENANTS.b.id });
+
+    expect(() =>
+      findMeetingConflicts({
+        first: buildSection({}, 1),
+        second: buildSection({}, 2),
+        transitionPolicy,
+      }),
+    ).toThrow(new ScheduleInputError('tenantMismatch'));
+  });
+
+  it("accepts the sections' own tenant's transition table", () => {
+    const result = findMeetingConflicts({
+      first: buildSection({}, 1),
+      second: buildSection({ meetings: [mwf('10:00', '10:50')] }, 2),
+      transitionPolicy: buildCampusTransitionPolicy(),
+    });
+
+    expect(result).toEqual(PASS);
   });
 });

@@ -1,5 +1,6 @@
 /**
- * @file Tests for checking two sections' meetings for campus travel time (AC08; ADR-0010 §8 and Amendment 2).
+ * @file Tests for checking two sections' meetings for campus travel time (AC08).
+ * @see docs/adr/0010-deterministic-bounded-schedule-solver.md
  */
 import { describe, expect, it } from 'vitest';
 

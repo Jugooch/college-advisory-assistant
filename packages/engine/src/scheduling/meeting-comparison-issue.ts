@@ -15,7 +15,7 @@ import {
   type SectionId,
 } from '@caa/domain';
 
-import type { MeetingComparison } from './compare-meetings';
+import type { MeetingComparison } from './meeting-comparison';
 
 /** One meeting of a section, with where it sits in the section's `meetings`. */
 export interface SectionMeeting {
@@ -28,16 +28,21 @@ export interface SectionMeeting {
  * Builds the reference an issue shows for a meeting, copying its weekdays and times.
  *
  * @param entry - The meeting and where it sits.
- * @returns The meeting reference; `null` fields stay `null` (to be announced).
+ * @returns The meeting reference; `null` days stay `null`, and both times are `null` when
+ *   either is to be announced.
  */
 export function toMeetingTimeRef(entry: SectionMeeting): MeetingTimeRef {
   const { meeting } = entry;
+  const { startTime, endTime } = meeting;
+  // SAFETY: a meeting missing either time has no known time range, so the evidence shows it as
+  // to be announced, as the comparison treated it (GR-02; ADR-0010 Amendment 1).
+  const isTimed = startTime !== null && endTime !== null;
   return {
     sectionId: entry.sectionId,
     meetingIndex: entry.meetingIndex,
     weekdays: meeting.weekdays,
-    startTime: meeting.startTime,
-    endTime: meeting.endTime,
+    startTime: isTimed ? startTime : null,
+    endTime: isTimed ? endTime : null,
   };
 }
 
@@ -148,5 +153,5 @@ function transitionIssue(
  * @returns `true` when its weekdays or times are `null`.
  */
 function hasUnknownTimeOrDays(meeting: MeetingPattern): boolean {
-  return meeting.weekdays === null || meeting.startTime === null;
+  return meeting.weekdays === null || meeting.startTime === null || meeting.endTime === null;
 }

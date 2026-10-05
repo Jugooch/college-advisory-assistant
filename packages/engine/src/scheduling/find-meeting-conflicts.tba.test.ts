@@ -81,6 +81,25 @@ describe('findMeetingConflicts unknown times (GR-02)', () => {
     });
   });
 
+  it('names a meeting with only a start time as the TBA one, with both times null', () => {
+    // A meeting that bypassed the schema with a start time but no end time.
+    const halfTimed: MeetingPattern = { ...mwf('09:00', '09:50'), endTime: null };
+    const first = { ...buildSection({}, 1), meetings: [halfTimed] };
+    const second = buildSection({ meetings: [mwf('09:00', '09:50')] }, 2);
+
+    const check = findMeetingConflicts({ first, second, transitionPolicy: null });
+
+    expect(check.evidence?.scheduleIssues).toEqual([
+      {
+        reasonCode: 'MEETING_TIME_UNKNOWN',
+        meeting: ref(S1, null, MWF),
+        otherMeeting: ref(S2, ['09:00', '09:50'], MWF),
+        sharedDates: { firstDate: '2027-01-11', lastDate: '2027-05-07', weekdays: MWF },
+        constraintIndex: null,
+      },
+    ]);
+  });
+
   it('names the TBA meeting when it belongs to the first section', () => {
     const first = buildSection({ meetings: [buildTbaMeeting({ weekdays: [Monday] })] }, 1);
     const second = buildSection({ meetings: [mwf('09:00', '09:50')] }, 2);

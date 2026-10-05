@@ -45,12 +45,21 @@ export interface MeetingConflictInput {
  * @param input - The two sections and the transition table.
  * @returns A `SCHEDULE_FEASIBILITY` check: PASS, FAIL listing every FAIL issue, or UNKNOWN
  *   listing every UNKNOWN issue, in section-ID then meeting-index order.
- * @throws {ScheduleInputError} When both arguments are the same section (`sameSection`).
+ * @throws {ScheduleInputError} When both arguments are the same section (`sameSection`), or
+ *   the sections or the transition table belong to different tenants (`tenantMismatch`).
  */
 export function findMeetingConflicts(input: MeetingConflictInput): CheckResult {
   const { first, second, transitionPolicy } = input;
   if (first.id === second.id) {
     throw new ScheduleInputError('sameSection');
+  }
+  // SAFETY: another tenant's sections or transition table would decide this tenant's schedule
+  // with another institution's data (ADR-0010 §7: one pinned snapshot and table per request).
+  if (
+    first.tenantId !== second.tenantId ||
+    (transitionPolicy !== null && transitionPolicy.tenantId !== first.tenantId)
+  ) {
+    throw new ScheduleInputError('tenantMismatch');
   }
   const [lower, upper] = first.id < second.id ? [first, second] : [second, first];
   const issues = meetingsOf(lower).flatMap((one) =>
