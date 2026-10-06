@@ -41,7 +41,6 @@ function catalogCourse(seed: number, entry: CatalogEntry): Course {
     sourceCourseId: entry.label.replace(' ', '-'),
     title: null,
     creditsIncludedInCourseId: null,
-    repeatableForCredit: null,
     ...entry,
   });
 }
