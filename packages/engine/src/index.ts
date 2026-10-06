@@ -4,6 +4,7 @@
  */
 export * from './scheduling/build-section-bundles';
 export * from './scheduling/find-meeting-conflicts';
+export * from './scheduling/linked-course-results';
 export * from './scheduling/normalize-schedule-request';
 export * from './scheduling/schedule-input-error';
 export * from './scheduling/schedule-solution';

@@ -83,6 +83,7 @@ function solve(
     }),
     constraints: [],
     transitionPolicy: null,
+    prerequisiteRules: [],
     workCap: 10,
     ...overrides,
   });

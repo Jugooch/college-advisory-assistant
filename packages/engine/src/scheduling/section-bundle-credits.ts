@@ -40,7 +40,7 @@ export function coursesOfBundle(
  * @param planCourseIds - Every distinct course of the plan, across all its bundles.
  * @returns `false` when another course of the plan includes its credits; otherwise `true`.
  */
-function countsOwnCredits(course: Course, planCourseIds: ReadonlySet<CourseId>): boolean {
+export function countsOwnCredits(course: Course, planCourseIds: ReadonlySet<CourseId>): boolean {
   const includedIn = course.creditsIncludedInCourseId;
   // SAFETY: credits the institution includes in a course anywhere in the plan are counted once,
   // in that course's total, and a course whose including course isn't planned counts its own

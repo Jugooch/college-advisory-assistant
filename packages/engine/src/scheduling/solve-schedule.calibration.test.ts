@@ -60,6 +60,7 @@ describe('solveSchedule calibration (ADR-0010 §1)', () => {
         }),
         constraints: [],
         transitionPolicy: null,
+        prerequisiteRules: [],
         workCap: DEFAULT_SOLVER_WORK_CAP,
       });
 
