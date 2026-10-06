@@ -9,7 +9,7 @@ import { sectionTable } from '../tables/section.table';
 import { sectionLinkMemberTable } from '../tables/section-link-group.table';
 import { sectionMeetingTable } from '../tables/section-meeting.table';
 import { sectionSnapshotTable } from '../tables/section-snapshot.table';
-import { immutableRowRejectionOf, violationOf } from '../testing/catalog-fixtures';
+import { immutableRowRejectionOf, insertTerm, violationOf } from '../testing/catalog-fixtures';
 import { insertTenant, openTestDatabase, type TestDatabase } from '../testing/integration-fixtures';
 import {
   insertSectionWorld,
@@ -101,6 +101,7 @@ describe('SectionSnapshotRepository.findLatestPublished', () => {
   it('exposes no method that changes a snapshot', () => {
     expect(Object.keys(createSectionSnapshotRepository(testDatabase.db))).toEqual([
       'findLatestPublished',
+      'listLatestPublishedByTerm',
     ]);
   });
 
@@ -206,5 +207,97 @@ describe('SectionSnapshotRepository.findLatestPublished', () => {
     });
 
     await expect(truncate).rejects.toMatchObject(immutableRowRejectionOf('section_link_member'));
+  });
+});
+
+describe('SectionSnapshotRepository.listLatestPublishedByTerm', () => {
+  let testDatabase: TestDatabase;
+
+  beforeAll(() => {
+    testDatabase = openTestDatabase();
+  });
+
+  afterAll(async () => {
+    await testDatabase.close();
+  });
+
+  const setUp = async (): Promise<SectionWorld> =>
+    insertSectionWorld(testDatabase.db, await insertTenant(testDatabase.db));
+  const list = (world: SectionWorld) =>
+    createSectionSnapshotRepository(testDatabase.db).listLatestPublishedByTerm(world.tenantId);
+
+  it('lists found and tied terms in sequence order and omits a term with no snapshot', async () => {
+    const world = await setUp();
+    const { db } = testDatabase;
+    const spring = await insertTerm(db, world.tenantId, { termCode: '2027SP', sequence: 2 });
+    const summer = await insertTerm(db, world.tenantId, { termCode: '2027SU', sequence: 3 });
+    const tiedWorld = { ...world, termId: summer };
+    await publishSectionSnapshot(db, world, { sourceEffectiveAt: '2026-09-20T06:00:00.000Z' });
+    const newer = await publishSectionSnapshot(db, world, {
+      sourceEffectiveAt: '2026-09-26T06:00:00.000Z',
+    });
+    await publishSectionSnapshot(db, tiedWorld);
+    await publishSectionSnapshot(db, tiedWorld);
+
+    const entries = await list(world);
+
+    expect(entries.map((entry) => entry.term.id)).toEqual([world.termId, summer]);
+    expect(entries.map((entry) => entry.term.id)).not.toContain(spring);
+    expect(entries[0]?.latest).toEqual({
+      status: 'FOUND',
+      sectionSnapshotId: newer.id,
+      sourceEffectiveAt: '2026-09-26T06:00:00.000Z',
+    });
+    expect(entries[1]?.latest).toEqual({ status: 'AMBIGUOUS' });
+  });
+
+  it('lets a later-ingested older snapshot lose', async () => {
+    const world = await setUp();
+    const newer = await publishSectionSnapshot(testDatabase.db, world, {
+      sourceEffectiveAt: '2026-09-26T06:00:00.000Z',
+    });
+    await publishSectionSnapshot(testDatabase.db, world, {
+      sourceEffectiveAt: '2026-09-20T06:00:00.000Z',
+    });
+
+    const [entry] = await list(world);
+
+    expect(entry?.latest).toMatchObject({ status: 'FOUND', sectionSnapshotId: newer.id });
+  });
+
+  it("excludes another tenant's terms, including the same term code", async () => {
+    const world = await setUp();
+    const other = await setUp();
+    await publishSectionSnapshot(testDatabase.db, other);
+
+    expect(await list(world)).toEqual([]);
+    expect((await list(other)).map((entry) => entry.term.tenantId)).toEqual([other.tenantId]);
+  });
+
+  it('returns an empty list for a tenant with no snapshots', async () => {
+    expect(await list(await setUp())).toEqual([]);
+  });
+
+  it('agrees with findLatestPublished for every term', async () => {
+    const world = await setUp();
+    const { db } = testDatabase;
+    const tiedTerm = await insertTerm(db, world.tenantId, { termCode: '2027SP', sequence: 2 });
+    await publishSectionSnapshot(db, world);
+    await publishSectionSnapshot(db, { ...world, termId: tiedTerm });
+    await publishSectionSnapshot(db, { ...world, termId: tiedTerm });
+    const repository = createSectionSnapshotRepository(db);
+
+    for (const { term, latest } of await list(world)) {
+      const found = await repository.findLatestPublished(world.tenantId, term.id);
+      expect(
+        found?.status === 'FOUND'
+          ? { status: 'FOUND', sectionSnapshotId: found.snapshot.id }
+          : found,
+      ).toEqual(
+        latest.status === 'FOUND'
+          ? { status: 'FOUND', sectionSnapshotId: latest.sectionSnapshotId }
+          : latest,
+      );
+    }
   });
 });
