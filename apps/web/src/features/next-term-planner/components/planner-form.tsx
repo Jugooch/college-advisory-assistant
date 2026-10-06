@@ -9,7 +9,7 @@
  */
 import type { ReactElement } from 'react';
 
-import { MAX_SCHEDULE_OPTION_COURSES } from '@caa/api-contract';
+import { MAX_SCHEDULE_OPTION_COURSES, type PlannableTerm } from '@caa/api-contract';
 
 import { CourseChoice } from '@/shared/components/course-choice';
 import type { CandidateCourse } from '@/shared/utils/candidate-courses';
@@ -38,41 +38,77 @@ export interface PlannerFormProps {
   /** Catalog display entries by course ID. */
   readonly courses: CourseLookup;
   readonly credits: CreditChoices;
+  /** The plannable terms, or null when the list couldn't be loaded. */
+  readonly terms: readonly PlannableTerm[] | null;
 }
 
 /**
- * Renders the term field.
+ * Renders the term picker: a native select, so it works by keyboard and without JavaScript.
  *
- * @param props - The typed term and its error.
+ * @param props - The plannable terms, the chosen term, and its error.
  * @returns The field group.
  */
 function TermField({
+  terms,
   value,
   error,
 }: {
+  readonly terms: readonly PlannableTerm[];
   readonly value: string;
   readonly error: string | undefined;
 }): ReactElement {
   const id = plannerFieldId('term');
   return (
     <>
-      <label htmlFor={id}>Term ID</label>
-      <input
+      <label htmlFor={id}>Term</label>
+      <select
         id={id}
         name="term"
-        type="text"
-        autoComplete="off"
-        defaultValue={value}
+        defaultValue={terms.some((term) => term.id === value) ? value : ''}
         aria-invalid={error !== undefined}
         aria-describedby={error === undefined ? `${id}-hint` : `${id}-hint ${id}-error`}
-      />
-      <p id={`${id}-hint`}>The term you are planning for, as your advisor gave it to you.</p>
+      >
+        <option value="">Choose a term</option>
+        {terms.map((term) => (
+          <option key={term.id} value={term.id}>
+            {term.termCode} ({term.startsOn} to {term.endsOn})
+          </option>
+        ))}
+      </select>
+      <p id={`${id}-hint`}>
+        These are the terms you can set up a search for. Choosing one does not register you.
+      </p>
       {error === undefined ? null : (
         <p id={`${id}-error`} className="field-error">
           {error}
         </p>
       )}
     </>
+  );
+}
+
+/**
+ * Says no term can be offered, in place of the picker and the rest of the form.
+ *
+ * @param props - Whether the list failed to load rather than being empty.
+ * @returns The notice.
+ */
+function NoTerms({ isUnavailable }: { readonly isUnavailable: boolean }): ReactElement {
+  return (
+    <section className="notice" aria-labelledby="planner-no-terms-heading">
+      <h2 id="planner-no-terms-heading">No term to plan for yet</h2>
+      <p>
+        {isUnavailable
+          ? 'The terms you can plan for couldn’t be listed right now.'
+          : 'There is no term you can plan for right now.'}
+      </p>
+      <p>
+        <strong>Next step:</strong>{' '}
+        {isUnavailable
+          ? 'Try again later, or ask your advisor which term to plan for.'
+          : 'Ask your advisor which term to plan for.'}
+      </p>
+    </section>
   );
 }
 
@@ -134,12 +170,15 @@ function CourseChoices({
  * @returns The form.
  */
 export function PlannerForm(props: PlannerFormProps): ReactElement {
-  const { studentId, values, errors } = props;
+  const { studentId, values, errors, terms } = props;
+  if (terms === null || terms.length === 0) {
+    return <NoTerms isUnavailable={terms === null} />;
+  }
   const [block1, block2, block3] = TIME_BLOCK_SLOTS;
   return (
     <form action="/next-term-planner" method="get">
       <input type="hidden" name="studentId" value={studentId} />
-      <TermField value={values.termId} error={errors.get('term')} />
+      <TermField terms={terms} value={values.termId} error={errors.get('term')} />
       <CourseChoices {...props} />
       <h2>Constraints</h2>
       <p>
