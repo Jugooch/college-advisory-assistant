@@ -112,6 +112,9 @@ export function createScheduleOptionsService(
         snapshot: sections.snapshot,
         transitionPolicy: sections.transitionPolicy,
         academicPolicy: inputs.academicPolicy,
+        // SAFETY: every course of a bundle, linked ones included; a missing linked rule would
+        // silently drop that course's linkedCourseResults entry (ADR-0010 Amendment 4).
+        prerequisiteRules: loaded.bundleRules,
         request,
         workCap,
       });

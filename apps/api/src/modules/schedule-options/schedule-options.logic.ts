@@ -23,6 +23,7 @@ import {
   type CheckResult,
   type Course,
   type CourseId,
+  type PrerequisiteRule,
   ScheduleLimitation,
   type SectionSnapshot,
 } from '@caa/domain';
@@ -48,6 +49,8 @@ export interface ScheduleSolveInputs {
   readonly snapshot: SectionSnapshot;
   readonly transitionPolicy: CampusTransitionPolicy | null;
   readonly academicPolicy: AcademicPolicy;
+  /** The pinned ruleset's rules for every course of the term's sections, linked ones included. */
+  readonly prerequisiteRules: readonly PrerequisiteRule[];
   readonly request: ScheduleOptionsRequest;
   /** Validated `SCHEDULE_SOLVER_WORK_CAP`. */
   readonly workCap: number;
@@ -80,6 +83,7 @@ export function solveScheduleOptions(inputs: ScheduleSolveInputs): ScheduleSolut
       ]),
     ),
     policy: inputs.academicPolicy,
+    prerequisiteRules: inputs.prerequisiteRules,
     constraints: request.constraints,
     transitionPolicy,
     workCap: inputs.workCap,
@@ -121,18 +125,14 @@ function sectionsOf(
  * @param solved - The solver option.
  * @param checks - The course-set checks, the same for every option (ADR-0010 §2).
  * @returns The option.
- * @throws {Error} When the option's credit inclusion is undecided, which the solver never offers.
  */
 function toOption(solved: SolvedScheduleOption, checks: CourseChecks): ScheduleOption {
-  const inclusion = toBundleCourseSelections(
+  const selections = toBundleCourseSelections(
     solved.bundles.map((entry) => entry.bundle),
     new Map(),
   );
-  if (!inclusion.isKnown) {
-    throw new Error('The solver offered an option whose credit inclusion is unknown');
-  }
   const countsById = new Map(
-    inclusion.selections.map((selection) => [selection.course.id, selection.countsCredits]),
+    selections.map((selection) => [selection.course.id, selection.countsCredits]),
   );
   const setResults = {
     allocation: checks.setResults.allocation,
@@ -143,6 +143,10 @@ function toOption(solved: SolvedScheduleOption, checks: CourseChecks): ScheduleO
     ...checks.courseResults.flatMap(({ prerequisite, applicability }) =>
       prerequisite === null ? [applicability] : [prerequisite, applicability],
     ),
+    ...solved.linkedCourseResults.flatMap(({ prerequisite, applicability }) => [
+      prerequisite,
+      applicability,
+    ]),
     ...setResults.allocation,
     setResults.creditLoad,
   ];
@@ -155,6 +159,8 @@ function toOption(solved: SolvedScheduleOption, checks: CourseChecks): ScheduleO
     })),
     scheduleFeasibility: solved.scheduleFeasibility,
     courseResults: checks.courseResults,
+    // NOTE: the engine selects these; none is restated here (ADR-0010 Amendment 4).
+    linkedCourseResults: solved.linkedCourseResults,
     setResults,
     unmetPreferences: solved.unmetPreferences,
     // SAFETY: the option's aggregate follows every check it shows, schedule feasibility among
@@ -180,7 +186,6 @@ export interface ScheduleResponseParts {
  *
  * @param parts - The request, the answer, the checks, the catalog, and the pinned sources.
  * @returns The response body, before contract validation.
- * @throws {Error} When an option's credit inclusion is undecided.
  */
 export function toScheduleOptionsResponse(parts: ScheduleResponseParts): ScheduleOptionsResponse {
   const { request, solution, checks } = parts;

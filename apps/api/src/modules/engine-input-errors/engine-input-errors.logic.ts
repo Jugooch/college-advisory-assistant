@@ -68,8 +68,6 @@ const CAUSE_BY_SCHEDULE_ISSUE: Readonly<Record<ScheduleInputIssue, EngineInputEr
   linkCycle: 'STORED_DATA',
   // A stored linked section belongs to a course the tenant's catalog doesn't hold.
   courseMissing: 'STORED_DATA',
-  // A stored course doesn't say whether its credits are included in another (#229).
-  creditInclusionUnknown: 'STORED_DATA',
   // Sections and the table are loaded for the session's tenant, so a mismatch is a defect.
   tenantMismatch: 'INTERNAL',
   // A validated snapshot never repeats a section, so comparing one with itself is a defect.

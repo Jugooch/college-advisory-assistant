@@ -16,8 +16,14 @@ import { CheckState, ReasonCode, ScheduleOutcome } from '@caa/domain';
 import {
   buildCourse,
   buildCreditRange,
+  buildLinkedSectionComponent,
+  buildLinkedSectionGroup,
+  buildMeetingPattern,
+  buildPrerequisiteRule,
   buildSection,
+  buildSectionSnapshot,
   buildTbaMeeting,
+  course,
   HARD_STRENGTH,
 } from '@caa/test-kit';
 
@@ -36,7 +42,7 @@ import {
 } from '../../testing/schedule-options-harness';
 import { SEED_COURSES } from '../../testing/seed-scenario-fixtures';
 
-const { math102, phys301 } = SEED_COURSES;
+const { math101, math102, phys301, phys301Lab } = SEED_COURSES;
 
 describe('ScheduleOptionsService.findOptions', () => {
   it('gives two contract-valid options for the four seeded courses, pinned to every input', async () => {
@@ -82,6 +88,59 @@ describe('ScheduleOptionsService.findOptions', () => {
     expect(response.options.map((option) => option.scheduleFeasibility.state)).toEqual([
       CheckState.Unknown,
     ]);
+  });
+
+  it('shows an included lab with its own prerequisite rule as UNKNOWN, never validated', async () => {
+    const lab = buildSection(
+      {
+        courseId: phys301Lab.id,
+        meetings: [buildMeetingPattern({ startTime: '15:00', endTime: '15:50' })],
+      },
+      3013,
+    );
+    const group = buildLinkedSectionGroup({
+      primarySectionId: SECTIONS.phys301At14.id,
+      components: [
+        buildLinkedSectionComponent({ courseId: phys301Lab.id, permittedSectionIds: [lab.id] }),
+      ],
+    });
+    const snapshot = buildSectionSnapshot(
+      {
+        sections: [...Object.values(SECTIONS), lab],
+        linkedSectionGroups: [group],
+        sourceEffectiveAt: buildScheduleSnapshot().sourceEffectiveAt,
+      },
+      1,
+    );
+    const labRule = buildPrerequisiteRule({
+      courseId: phys301Lab.id,
+      expression: course(math101.id),
+      rulesetVersion: 'demo-2026.1',
+    });
+
+    const response = await find(scheduleRequest(), {
+      schedule: { sectionSnapshots: [snapshot], transitionPolicies: [] },
+      change: (store) => ({ ...store, rules: [...(store.rules ?? []), labRule] }),
+    }).result;
+
+    expect(ScheduleOptionsResponseSchema.safeParse(response).success).toBe(true);
+    expect(response.options.length).toBeGreaterThan(0);
+    for (const option of response.options) {
+      expect(option.linkedCourseResults).toMatchObject([
+        {
+          courseId: phys301Lab.id,
+          prerequisite: {
+            state: CheckState.Unknown,
+            reasonCode: ReasonCode.LinkedCourseNotChecked,
+          },
+          applicability: {
+            state: CheckState.Unknown,
+            reasonCode: ReasonCode.LinkedCourseNotChecked,
+          },
+        },
+      ]);
+      expect(option.aggregate).not.toBe(CheckState.Pass);
+    }
   });
 
   it('needs verification, with no search, when a requested course has no section', async () => {

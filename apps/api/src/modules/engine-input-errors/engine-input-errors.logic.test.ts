@@ -36,7 +36,6 @@ describe('classifyEngineInputError', () => {
     ['creditRange', 'REQUEST'],
     ['linkCycle', 'STORED_DATA'],
     ['courseMissing', 'STORED_DATA'],
-    ['creditInclusionUnknown', 'STORED_DATA'],
     ['tenantMismatch', 'INTERNAL'],
     ['sameSection', 'INTERNAL'],
     ['workCap', 'INTERNAL'],

@@ -25,6 +25,7 @@ import type {
   AuditSnapshot,
   Course,
   CourseId,
+  PrerequisiteRule,
   StudentId,
   TermId,
 } from '@caa/domain';
@@ -100,6 +101,11 @@ export interface LoadedCourseSet {
 /** The pinned inputs of a schedule request: the course set plus the term's section data. */
 export interface LoadedScheduleSet extends LoadedCourseSet {
   readonly sections: PinnedSections;
+  /**
+   * The pinned ruleset's prerequisite rules for every course of the term's sections, requested
+   * or linked. Empty only when none of those courses has a rule.
+   */
+  readonly bundleRules: readonly PrerequisiteRule[];
 }
 
 /** Loads and checks requested course sets, each gated by the students service's access rule. */
@@ -303,7 +309,9 @@ async function loadCourseSet<TSections extends PinnedSections | null>(
   dependencies: CourseSetInputsServiceDependencies,
   call: LoadCall,
   pinSections: (scope: RecordScope) => Promise<TSections>,
-): Promise<LoadedCourseSet & { readonly sections: TSections }> {
+): Promise<
+  LoadedCourseSet & { readonly sections: TSections; readonly bundleRules: PrerequisiteRule[] }
+> {
   const { actor, request, context } = call;
   const { pinnedRecords, rulesetVersion } = dependencies;
   // SECURITY: the same rule as the academic summary (self, assigned advisor, or admin of the
@@ -338,6 +346,19 @@ async function loadCourseSet<TSections extends PinnedSections | null>(
       dependencies.prerequisiteRules.findRule(tenantId, course.id, academicPolicy.rulesetVersion),
     ),
   );
+  // SAFETY: a linked course's rule is read too, because a rule left out here silently drops that
+  // course's result from an option (ADR-0010 Amendment 4).
+  const ruleCourseIds =
+    sections === null
+      ? []
+      : [...new Set(sections.snapshot.sections.map((section) => section.courseId))].sort();
+  const bundleRules = (
+    await Promise.all(
+      ruleCourseIds.map((courseId) =>
+        dependencies.prerequisiteRules.findRule(tenantId, courseId, academicPolicy.rulesetVersion),
+      ),
+    )
+  ).filter((rule) => rule !== null);
   const inputs: CourseSetInputs = {
     courses: courses.map((course, index) => ({ course, rule: rules[index] ?? null })),
     creditSelections: request.creditSelections ?? [],
@@ -348,7 +369,7 @@ async function loadCourseSet<TSections extends PinnedSections | null>(
     termCalendar,
     maxSkewMs: dependencies.maxSkewMs,
   };
-  return { scope, inputs, sections };
+  return { scope, inputs, sections, bundleRules };
 }
 
 /**
