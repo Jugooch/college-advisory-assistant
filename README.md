@@ -46,6 +46,7 @@ The seed gives tenant _Demo State University_ a small catalog, ruleset `demo-202
 - `ACTIVE_RULESET_VERSION=demo-2026.1`, the seeded ruleset. Without it, course checks fail with `INTERNAL_ERROR`.
 - `ACADEMIC_SOURCE_MAX_AGE_MS`, the source-age limit. It defaults to 24 hours outside production. It isn't in `infra/env.example` yet (#146).
 - `AUDIT_RECORD_MAX_SKEW_MS`, the largest record/audit gap still treated as current. It is 1 hour in the example, and the API accepts at most 7 days.
+- `SCHEDULE_SOLVER_WORK_CAP`, how many attempts to add a section bundle the schedule solver may make per request (ADR-0010 §1). It's read at startup, defaults to 3,000,000 in every environment, and accepts whole numbers from 1 to 3,000,000; startup refuses anything else. A search that reaches the cap still returns 200: `OPTIONS_FOUND` with `searchComplete: false` if it found options, otherwise `SEARCH_TIMEOUT`.
 
 **In the browser.** Open `http://localhost:3000/dev/sign-in` and enter a dev token (`dev-token-student` or `dev-token-advisor`). Then open `/overview?studentId=<seeded student ID>` for the academic summary, and `/course-checks?studentId=<seeded student ID>` to pick courses and see each check separately. The course check page doesn't choose variable credits yet, so the credit choices in scenario 3 run through the API only.
 
