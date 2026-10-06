@@ -1,5 +1,5 @@
 /**
- * @file Tests for counting included credits once across a plan, and unknown inclusion as UNKNOWN.
+ * @file Tests for counting included credits once across a plan.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -32,21 +32,6 @@ const POLICY = buildAcademicPolicy({
  */
 function labCourse(creditsIncludedInCourseId: string | null): Course {
   return buildCourse({ creditsHundredths: 100, creditsIncludedInCourseId }, 2);
-}
-
-/**
- * Removes a course's credit inclusion key, as a producer that hasn't set it would.
- *
- * NOTE: covers the omitted-value branch `countsCreditsInPlan` keeps for the API's course checks.
- * TODO(#229): remove with that branch once the API no longer relies on it.
- *
- * @param course - A valid course.
- * @returns The course without `creditsIncludedInCourseId`.
- */
-function withoutInclusion(course: Course): Course {
-  const omitted: Record<string, unknown> = { ...course };
-  delete omitted.creditsIncludedInCourseId;
-  return omitted as Course;
 }
 
 /**
@@ -97,14 +82,10 @@ describe('countsCreditsInPlan', () => {
     expect(countsCreditsInPlan(labCourse(null), plan)).toBe(true);
   });
 
-  it('is unknown for an omitted inclusion when another course of the plan could include it', () => {
-    expect(countsCreditsInPlan(withoutInclusion(labCourse(null)), plan)).toBeNull();
-  });
+  it('is true for a lab whose including course is not in the plan', () => {
+    const lab = labCourse(LECTURE_COURSE.id);
 
-  it('is true for a lone course with an omitted inclusion, since nothing in the plan includes it', () => {
-    const lone = withoutInclusion(LECTURE_COURSE);
-
-    expect(countsCreditsInPlan(lone, new Set([lone.id]))).toBe(true);
+    expect(countsCreditsInPlan(lab, new Set([lab.id]))).toBe(true);
   });
 });
 
