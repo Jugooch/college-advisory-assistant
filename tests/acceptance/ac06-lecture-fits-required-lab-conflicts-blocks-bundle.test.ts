@@ -163,6 +163,8 @@ describe('AC06 a lecture that fits with a required lab that conflicts blocks the
       linkedSectionGroups: [lectureRequiresLab([LAB_L01.id, LAB_L02.id])],
     });
 
+    // SAFETY: the included lab adds no credits, so the bundle counts only the lecture's 4.00
+    // (planning/08 §Constraint formulation; ADR-0010 Amendment 4).
     const response = await findScheduleOptions(app, scheduleRequest([phys201.id]));
 
     expect(response).toMatchObject({
@@ -177,7 +179,7 @@ describe('AC06 a lecture that fits with a required lab that conflicts blocks the
               aggregate: 'VALIDATED',
               linkedCourseResults: [],
               scheduleFeasibility: { kind: 'SCHEDULE_FEASIBILITY', state: 'PASS' },
-              bundles: [{ courseId: phys201.id, creditsCountedHundredths: 500 }],
+              bundles: [{ courseId: phys201.id, creditsCountedHundredths: 400 }],
             },
           ],
         },
@@ -265,7 +267,7 @@ describe('AC06 a lecture that fits with a required lab that conflicts blocks the
               {
                 rank: 1,
                 aggregate: 'NEEDS_VERIFICATION',
-                bundles: [{ courseId: phys201.id, creditsCountedHundredths: 500 }],
+                bundles: [{ courseId: phys201.id, creditsCountedHundredths: 400 }],
                 linkedCourseResults: [
                   {
                     courseId: includedLab.id,
