@@ -23,7 +23,6 @@ import {
 } from '@caa/domain';
 
 import { CourseCheckResultSchema, SetCheckResultsSchema } from './course-checks.contract';
-import { isStrictlyAscending, linkedEntriesAreStructural } from './schedule-option-linked.contract';
 import { MAX_SCHEDULE_OPTION_COURSES } from './schedule-options-request.contract';
 
 /** Most options one response may carry (FR-18). */
@@ -162,6 +161,42 @@ function creditsAgreeWithLoad(option: {
 }
 
 /**
+ * Returns whether the entries are in strictly ascending course ID order, which also means no
+ * course repeats. IDs compare by UTF-16 code units, the `<` operator.
+ *
+ * @param courseIds - Entry course IDs, in the order shown.
+ * @returns `true` when each ID is greater than the one before.
+ */
+function isStrictlyAscending(courseIds: readonly string[]): boolean {
+  return courseIds.every(
+    (courseId, index) => index === 0 || (courseIds[index - 1] ?? '') < courseId,
+  );
+}
+
+/**
+ * Returns whether every linked-course entry names a course with a shown section that no bundle
+ * requested. Which linked courses need an entry is the engine's rule, not restated here.
+ *
+ * @param option - The bundles and the linked-course entries.
+ * @returns `true` when each entry is about a shown, non-requested course.
+ */
+function linkedEntriesAreStructural(option: {
+  readonly bundles: readonly {
+    readonly courseId: string;
+    readonly sections: readonly { readonly courseId: string }[];
+  }[];
+  readonly linkedCourseResults: readonly { readonly courseId: string }[];
+}): boolean {
+  const requested = new Set(option.bundles.map((bundle) => bundle.courseId));
+  const shown = new Set(
+    option.bundles.flatMap((bundle) => bundle.sections.map((section) => section.courseId)),
+  );
+  return option.linkedCourseResults.every(
+    ({ courseId }) => shown.has(courseId) && !requested.has(courseId),
+  );
+}
+
+/**
  * One validated schedule option. The academic checks (prerequisite, applicability,
  * allocation) are the same for every option, and the credit load is this option's own
  * (ADR-0010 §2). Each dimension is shown separately; passing one implies nothing else.
@@ -189,9 +224,9 @@ export const ScheduleOptionSchema = z
       .readonly(),
     /**
      * One result per linked course the option adds beyond the requested ones, chosen by the
-     * engine (ADR-0010 Amendment 4). In
-     * ascending course ID, never repeated, and `[]` when there are none. Its checks count in the
-     * aggregate, so an option with an entry is never VALIDATED.
+     * engine (ADR-0010 Amendment 4), in ascending course ID, never repeated, and `[]` when there
+     * are none. Its checks count in the aggregate. With the engine's S4 output (UNKNOWN
+     * `LINKED_COURSE_NOT_CHECKED`), an option with an entry is NEEDS_VERIFICATION.
      */
     linkedCourseResults: z.array(CourseCheckResultSchema).readonly(),
     setResults: SetCheckResultsSchema,
