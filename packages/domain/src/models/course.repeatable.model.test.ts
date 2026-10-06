@@ -46,8 +46,9 @@ describe('createCourse repeatableForCredit', () => {
   });
 
   it('rejects an omitted value', () => {
-    const withoutField: Partial<CourseInput> = { ...ENSEMBLE };
-    delete withoutField.repeatableForCredit;
+    const withoutField = Object.fromEntries(
+      Object.entries(ENSEMBLE).filter(([key]) => key !== 'repeatableForCredit'),
+    );
     expect(CourseSchema.safeParse(withoutField).success).toBe(false);
   });
 
