@@ -21,6 +21,7 @@ export function toCourse(row: CourseRow): Course {
     tenantId: row.tenantId,
     sourceCourseId: row.sourceCourseId,
     label: row.label,
+    title: row.title,
     creditsHundredths: row.creditsHundredths,
     minCreditsHundredths: row.minCreditsHundredths,
     maxCreditsHundredths: row.maxCreditsHundredths,

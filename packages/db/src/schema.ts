@@ -17,6 +17,7 @@ export { importBatchTable } from './tables/import-batch.table';
 export { importQuarantineTable } from './tables/import-quarantine.table';
 export { institutionTable } from './tables/institution.table';
 export { prerequisiteRuleTable } from './tables/prerequisite-rule.table';
+export { programTable } from './tables/program.table';
 export { requirementResultTable } from './tables/requirement-result.table';
 export { requirementResultAllocatedAttemptTable } from './tables/requirement-result-allocated-attempt.table';
 export { requirementResultCandidateCourseTable } from './tables/requirement-result-candidate-course.table';

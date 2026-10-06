@@ -57,6 +57,13 @@
       "when": 1790712897373,
       "tag": "0007_requirement_reference_keys",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791305145387,
+      "tag": "0008_course_title_program",
+      "breakpoints": true
     }
   ]
 }

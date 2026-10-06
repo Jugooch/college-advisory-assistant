@@ -13,6 +13,7 @@ import { auditSnapshotTable } from '../tables/audit-snapshot.table';
 import { courseTable } from '../tables/course.table';
 import { courseAttemptTable } from '../tables/course-attempt.table';
 import { prerequisiteRuleTable } from '../tables/prerequisite-rule.table';
+import { programTable } from '../tables/program.table';
 import { studentSnapshotTable } from '../tables/student-snapshot.table';
 import { studentSnapshotAttemptTable } from '../tables/student-snapshot-attempt.table';
 import { termTable } from '../tables/term.table';
@@ -22,6 +23,7 @@ import { insertRequirementResults } from './requirement-result-writer';
 
 /** How many academic records the plan holds. Counts only, safe to log. */
 export interface AcademicSeedCounts {
+  readonly programs: number;
   readonly courses: number;
   readonly prerequisiteRules: number;
   readonly academicPolicies: number;
@@ -52,6 +54,10 @@ type ResolveStudentId = (planStudentId: string) => string;
  * @param plan - The academic plan.
  */
 async function insertCatalogAndPolicy(tx: SeedWriter, plan: DevSeedAcademicPlan): Promise<void> {
+  await tx
+    .insert(programTable)
+    .values(plan.programs.map((program) => ({ ...program })))
+    .onConflictDoNothing({ target: programTable.id });
   await tx
     .insert(courseTable)
     .values(plan.courses.map((course) => ({ ...course })))
@@ -201,6 +207,7 @@ export async function seedAcademicData(
     await insertAudit(tx, audit, resolveStudentId(audit.studentId));
   }
   return {
+    programs: plan.programs.length,
     courses: plan.courses.length,
     prerequisiteRules: plan.rules.length,
     academicPolicies: 1,

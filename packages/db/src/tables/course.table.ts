@@ -33,6 +33,8 @@ export const courseTable = pgTable(
     sourceCourseId: text('source_course_id').notNull(),
     /** Display text such as `MATH 101`. Never used as identity. */
     label: text('label').notNull(),
+    /** Catalog title such as `Calculus I`, or null when the catalog supplies none. */
+    title: text('title'),
     /** Fixed credits in hundredths, or null for a variable-credit course. */
     creditsHundredths: integer('credits_hundredths'),
     /** Variable-credit lower bound in hundredths, or null for a fixed-credit course. */
@@ -70,6 +72,8 @@ export const courseTable = pgTable(
       sql`${table.creditsIncludedInCourseId} IS NULL OR ${table.creditsIncludedInCourseId} <> ${table.id}`,
     ),
     check('course_source_course_id_not_empty', sql`length(${table.sourceCourseId}) > 0`),
+    // SAFETY: unknown is an explicit null, never an empty title.
+    check('course_title_not_empty', sql`${table.title} IS NULL OR length(${table.title}) > 0`),
     check('course_label_not_empty', sql`length(${table.label}) > 0`),
     // SAFETY: credit totals drive load and progress checks, so a stored course states its
     // credits in exactly one form, mirroring `CourseSchema`.

@@ -36,7 +36,7 @@ export const auditSnapshotTable = pgTable(
     studentId: uuid('student_id').notNull(),
     /** Student snapshot the audit ran against. Pinned: a newer snapshot never changes it. */
     studentSnapshotId: uuid('student_snapshot_id').notNull(),
-    // NOTE: no foreign key yet; programs aren't persisted, so the ID is validated by the mapper.
+    // NOTE: no foreign key to `program` yet (a follow-up); the ID is validated by the mapper.
     programId: uuid('program_id').notNull(),
     auditSource: text('audit_source').notNull(),
     /** The audit system's run or revision ID, for example `audit_demo_r7`. */
