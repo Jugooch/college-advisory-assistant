@@ -21,5 +21,8 @@ describe('StudentNav', () => {
     expect(html).toContain(
       `<a aria-current="page" href="/course-checks?studentId=${STUDENT_ID}">Course checks</a>`,
     );
+    expect(html).toContain(
+      `<a href="/next-term-planner?studentId=${STUDENT_ID}">Plan next term</a>`,
+    );
   });
 });

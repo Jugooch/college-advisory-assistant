@@ -9,9 +9,9 @@ import { AggregateState, CheckKind, CheckState, ErrorCode, ReasonCode } from '@c
 import { buildCheckResult, SYNTHETIC_COURSES, syntheticId } from '@caa/test-kit';
 
 import { indexCourses } from '@/shared/utils/course-display';
+import type { CreditChoices } from '@/shared/utils/credit-choice';
 
 import type { CourseCheckView } from '../utils/course-check-view';
-import type { CreditChoices } from '../utils/credit-choice';
 import { CourseCheckScreen } from './course-check-screen';
 
 const STUDENT_ID = syntheticId('student', 1);

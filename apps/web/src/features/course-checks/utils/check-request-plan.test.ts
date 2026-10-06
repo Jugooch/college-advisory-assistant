@@ -12,7 +12,7 @@ import {
 import { CheckState, ErrorCode } from '@caa/domain';
 import { buildRequirementResult, SYNTHETIC_COURSES, syntheticId } from '@caa/test-kit';
 
-import { planCheckRequest, summaryCourses } from './check-request-plan';
+import { planCheckRequest } from './check-request-plan';
 import { readCourseCheckQuery, type SearchParams } from './course-check-query';
 
 const STUDENT_ID = syntheticId('student', 1);
@@ -135,12 +135,5 @@ describe('planCheckRequest', () => {
     const query = readCourseCheckQuery({ studentId: STUDENT_ID, submitted: '1' });
 
     expect(planCheckRequest(query, SUMMARY)).toEqual({ request: null, creditErrors: new Map() });
-  });
-});
-
-describe('summaryCourses', () => {
-  it('indexes the summary entries, and nothing for an error', () => {
-    expect(summaryCourses(SUMMARY).get(ind390.id)?.code).toBe('DEMO-IND 390');
-    expect(summaryCourses(UNAVAILABLE).size).toBe(0);
   });
 });

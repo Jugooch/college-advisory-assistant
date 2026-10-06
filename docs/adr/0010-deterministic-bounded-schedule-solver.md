@@ -278,3 +278,48 @@ This interprets planning/08 §Candidate formation; it doesn't deviate from it, s
 - Web: the UI shows each linked course's results like a requested course's, from structured fields only.
 
 **Revisit when** planning needs options with credit-bearing linked courses to be VALIDATED. Then do (iii): run the course-set checks per option on the requested and linked courses together, and amend section 2, because the academic checks would then differ between options.
+
+## Amendment 5 (2026-10-06, issue #287): sections dropped for missing data are shown when the search runs
+
+**Related:** #281 (correctness review at `88fd893`, fix at `21aaf24`), #287, #302, #303, #304, #305, Amendment 4. Sections 1 and 5. planning/08 §Candidate formation.
+
+**Context.** A course keeps its other bundles when some of its sections are dropped because a required linked component has no permitted section (`LINKED_SECTION_UNAVAILABLE`). The search then runs without those sections. If it finds nothing, #281 already returns `NEEDS_VERIFICATION` with the dropped results in `unresolved`. If it finds options, or the cap stops it, the result keeps no trace of them, and section 5's table has no field for them. A complete `OPTIONS_FOUND` then says its options are the best 3, although a dropped section might have formed a better one. The student isn't told that the section exists and couldn't be planned. That hides an UNKNOWN, which the safety rules forbid, and claims an optimality the search didn't prove (Consequences).
+
+Options:
+
+- (a) put them in the response's `unresolved` on `OPTIONS_FOUND` and `SEARCH_TIMEOUT`;
+- (b) attach them to each option;
+- (c) document that they're omitted.
+
+(c) hides missing data. (b) puts a fact about sections no option contains into every option, repeated, and would make each option's aggregate NEEDS_VERIFICATION for a check about something else. **Option (a).** It follows Amendment 4: a fact the engine couldn't check is shown as UNKNOWN, not dropped.
+
+**Decision.**
+
+- **`unresolved` whenever the search ran.** `OPTIONS_FOUND` and `SEARCH_TIMEOUT` carry the dropped sections' UNKNOWN `LINKED_SECTION_UNAVAILABLE` results in `unresolved`, the same results and order that #281 gives `NEEDS_VERIFICATION`. It is `[]` when no section was dropped. `SECTION_DATA_MISSING` never appears there, because a course with no sections stops before the search.
+- **Nothing else changes.** The outcome, `searchComplete`, the options, their ranking and each option's aggregate are the same as before. An option's checks are about its own sections, and it contains no dropped section. `searchComplete` still reports only the cap.
+- **What "best" means.** A complete `OPTIONS_FOUND` with a non-empty `unresolved` has the best 3 options among the sections with complete data. The UI says that some sections couldn't be considered and names them from the structured results. It doesn't call the options the best overall.
+- **Contract rules.** `OPTIONS_FOUND` and `SEARCH_TIMEOUT` may have a non-empty `unresolved`, and every entry is `LINKED_SECTION_UNAVAILABLE`. `NEEDS_VERIFICATION` still needs at least one entry, and `NO_FEASIBLE_PLAN` still has none.
+
+| `outcome`            | `unresolved`                                 |
+| -------------------- | -------------------------------------------- |
+| `OPTIONS_FOUND`      | `[]` or `LINKED_SECTION_UNAVAILABLE` results |
+| `NO_FEASIBLE_PLAN`   | `[]`                                         |
+| `SEARCH_TIMEOUT`     | `[]` or `LINKED_SECTION_UNAVAILABLE` results |
+| `NEEDS_VERIFICATION` | at least one result (section 5, unchanged)   |
+
+This interprets planning/08 §Candidate formation; it doesn't deviate from it, so it needs no change-control record.
+
+**Order.** Each step keeps `main` green. The API already passes the engine's `unresolved` through, so the contract must accept the field before the engine fills it.
+
+1. Domain (#302): relax the outcome-shape rule as above. Today's responses still parse.
+2. Engine (#303), after step 1: return the dropped results on `OPTIONS_FOUND` and `SEARCH_TIMEOUT`.
+3. API (#304) and QA (#305) in parallel, after step 2. API: tests that the results reach the response unchanged and that option aggregates don't change. QA: acceptance cases for both outcomes.
+
+**Consequences.**
+
+- Domain: the outcome-shape rule and contract tests for each row of the table.
+- Engine: literal tests for a course with one dropped section and options found, a capped search with a dropped section, and shuffle determinism of `unresolved`.
+- API: no academic rule and no mapping change.
+- Web: the schedule-options screen shows `unresolved` on every outcome, from structured fields only.
+
+**Revisit when** the engine can check a dropped section some other way, for example when published section data gains linked sections the registrar adds later.
