@@ -1,9 +1,9 @@
 # ADR-0010: Deterministic bounded schedule solver
 
-- **Status:** Accepted; amended 2026-09-29 to 2026-10-06 (Amendments 1–6)
+- **Status:** Accepted; amended 2026-09-29 to 2026-10-06 (Amendments 1–7)
 - **Date:** 2026-09-29
 - **Deciders:** Repo owner (budget, course choice, travel time, sprint size), orchestrator (endpoint, outcome field, deferrals), tech lead
-- **Related:** FR-07, FR-08, FR-18, NFR-01, NFR-07, AC06, AC07, AC08, AC12, planning/07 §Request lifecycle, planning/08 §Schedule model and §Constraint formulation, planning/09 §Logical app interfaces, ADR-0005, ADR-0008, issues #209, #210, #212, #213, #218, #219, #220, #221, #294, #310
+- **Related:** FR-07, FR-08, FR-18, NFR-01, NFR-07, AC06, AC07, AC08, AC12, planning/07 §Request lifecycle, planning/08 §Schedule model and §Constraint formulation, planning/09 §Logical app interfaces, ADR-0005, ADR-0008, issues #209, #210, #212, #213, #218, #219, #220, #221, #294, #310, #322
 
 ## Context
 
@@ -357,3 +357,41 @@ This adds an endpoint that planning/09 doesn't list, so planning/09 gets a decis
 - No new setting. Changing `ACADEMIC_SOURCE_MAX_AGE_MS` changes the list and the gate together.
 
 **Revisit when** a historical-view UX is designed (ADR-0008 Amendment 1) and the UI should show unavailable terms with a reason, or when a term's plannability depends on the student, for example their program or registration window.
+
+## Amendment 7 (2026-10-06, issue #322): the response names its term and campuses
+
+**Related:** #321, #322, #327, #328, #329, #330, #331, #332, Amendment 6. Section 5. Standard 04 rule 10, standard 08 §Required-field ripple (staged rollout).
+
+**Context.** The schedule-options response carries term and campus IDs only, so the results show campuses by ID and the cards have no term label (#321). Options:
+
+- (a) add display data to the response: the requested term and the campuses it names, as `courses` already does for catalog display fields;
+- (b) have the web reuse the plannable-terms list (Amendment 6) and add a campus lookup endpoint.
+
+(b) joins two reads taken at different times. The plannable-terms list is a "now" view: a term can leave it when it goes stale, while a result for that term is still on screen. No campus endpoint exists, so (b) also adds an endpoint, a contract and a client call for a page that already has the IDs. **Option (a).**
+
+**Decision.**
+
+- **`term`.** The requested term as `{ id, termCode, startsOn, endsOn }`, the same fields as a plannable term. The API takes it from the term calendar the request already reads.
+- **`campuses`.** `{ id, name }` for exactly the campus IDs the response contains, wherever they appear: the options, their checks, the conflict set and `unresolved`. The contract carries campus IDs in these places, and only these:
+  - each section's `campusId`, when not null;
+  - each meeting's `location.campusId`, when the location is `ON_CAMPUS`. It can differ from its section's `campusId`;
+  - `fromCampusId` and `toCampusId` of each `TRANSITION_TIME_INSUFFICIENT` and `TRANSITION_TIME_UNDEFINED` issue;
+  - `campusId` of each `CAMPUS_NOT_ALLOWED` issue.
+
+  Sorted ascending by `id` in UTF-16 code units, as `<` compares (not `localeCompare`). No repeats, no extras (data minimization). `[]` when the response contains no campus ID. A new contract field or issue kind that carries a campus ID joins this list.
+
+- **Display only.** Names never feed the engine, ranking, pinned inputs or identity. Campus names aren't versioned with the section snapshot, so the response shows the current name for a pinned campus ID. A named campus with no row is a source failure (503 `SOURCE_UNAVAILABLE`), never a guessed or dropped name.
+
+**Order.** Each step keeps `main` green. Web tests build responses with the test-kit builder, so it gains the fields before they become required.
+
+1. Domain (#327): both fields `.optional()`, with the contract rules above. Data (#328) in parallel: `CampusRepository.findByIds`.
+2. API (#329), after both, and QA (#330), after #327: the API sets both fields on every 200; the builder defaults them.
+3. Domain (#331), after #329 and #330: both fields required.
+4. Web (#332), after #331: show names and the term label.
+
+**Consequences.**
+
+- One more tenant-scoped read per schedule-options request, by primary key.
+- The web keeps one source of truth per result and needs no extra request.
+
+**Revisit when** campus names must be shown as they were at the snapshot's time, which would need campus data in the section snapshot.
