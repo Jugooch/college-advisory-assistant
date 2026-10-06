@@ -70,8 +70,15 @@ const NO_MONDAY_MORNING = scheduleRequest(
 const DENIED: readonly AcademicActor[] = ['unassignedAdvisor', 'otherStudent', 'tenantBAdmin'];
 /** A string with no whitespace: an ID, enum, version, code, or timestamp, never prose. */
 const TOKEN = /^\S+$/;
-/** The only places a response may carry catalog display text: each course's code and title. */
-const CATALOG_DISPLAY_PATHS: readonly string[] = ['data.courses[].code', 'data.courses[].title'];
+/**
+ * The only places a response may carry catalog display text: each course's code and title, and
+ * each campus name (ADR-0010 Amendment 7).
+ */
+const CATALOG_DISPLAY_PATHS: readonly string[] = [
+  'data.courses[].code',
+  'data.courses[].title',
+  'data.campuses[].name',
+];
 
 /**
  * Lists every string in a JSON value with its path, for example `data.courses[].code`. Array
