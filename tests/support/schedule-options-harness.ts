@@ -19,6 +19,7 @@ import {
   buildCampusTransitionPolicy,
   buildSectionSnapshot,
   completedAttempt,
+  SYNTHETIC_CAMPUSES,
   SYNTHETIC_COURSES,
   SYNTHETIC_SCHEDULE_TERM,
 } from '@caa/test-kit';
@@ -55,7 +56,7 @@ export interface ScheduleScenario {
 /**
  * Resets the world: the academic defaults with DEMO-MATH 101 passed with a B, one outstanding
  * requirement listing DEMO-MATH 102 and DEMO-PHYS 201 with room for both (7.00 credits, two
- * courses), no section snapshot, and no campus transition table.
+ * courses), no section snapshot, and no campus transition table. The two synthetic campuses exist.
  *
  * @param world - The world to reset.
  * @param scenario - What the case varies.
@@ -73,6 +74,7 @@ export function resetScheduleWorld(world: AcceptanceWorld, scenario: ScheduleSce
   });
   world.sectionSnapshots = [];
   world.campusTransitionPolicies = [];
+  world.campuses = [SYNTHETIC_CAMPUSES.north, SYNTHETIC_CAMPUSES.south];
 }
 
 /**
