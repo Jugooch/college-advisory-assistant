@@ -14,6 +14,7 @@ describe('buildCourse', () => {
       tenantId: '10000000-0000-4000-8000-000000000001',
       sourceCourseId: 'DEMO-GEN-001',
       label: 'DEMO-GEN 001',
+      title: null,
       creditsHundredths: 300,
       minCreditsHundredths: null,
       maxCreditsHundredths: null,

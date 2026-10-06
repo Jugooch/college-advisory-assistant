@@ -7,7 +7,8 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { buildSectionSnapshot, buildTerm, SYNTHETIC_TENANTS } from '@caa/test-kit';
+import { CampusIdSchema } from '@caa/domain';
+import { buildCampus, buildSectionSnapshot, buildTerm, SYNTHETIC_TENANTS } from '@caa/test-kit';
 
 import { createScheduleRepositories } from './schedule-repositories';
 
@@ -100,5 +101,34 @@ describe('schedule repository fake: listLatestPublishedByTerm', () => {
     const [entry] = await repos.sectionSnapshots.listLatestPublishedByTerm(TENANT_A);
 
     expect(entry?.latest).toMatchObject({ sourceEffectiveAt: '2026-02-01T03:00:00.000Z' });
+  });
+});
+
+describe('schedule repository fake: campuses.findByIds', () => {
+  const low = buildCampus({ id: 'd0000000-0000-4000-8000-0000000000a1' }, 3);
+  const high = buildCampus({ id: 'd0000000-0000-4000-8000-0000000000b2' }, 4);
+  const foreign = buildCampus(
+    { id: 'd0000000-0000-4000-8000-0000000000c3', tenantId: TENANT_B },
+    5,
+  );
+  const repos = createScheduleRepositories({ campuses: [high, foreign, low] });
+
+  it('orders by id regardless of the order asked or stored', async () => {
+    expect(await repos.campuses.findByIds(TENANT_A, [high.id, low.id])).toEqual([low, high]);
+  });
+
+  it("leaves out another tenant's campus", async () => {
+    expect(await repos.campuses.findByIds(TENANT_A, [foreign.id, low.id])).toEqual([low]);
+    expect(await repos.campuses.findByIds(TENANT_B, [foreign.id])).toEqual([foreign]);
+  });
+
+  it('leaves out an unknown id without error', async () => {
+    const unknown = CampusIdSchema.parse('d0000000-0000-4000-8000-0000000000ff');
+    expect(await repos.campuses.findByIds(TENANT_A, [unknown, high.id])).toEqual([high]);
+  });
+
+  it('returns a repeated id once, and nothing for no ids', async () => {
+    expect(await repos.campuses.findByIds(TENANT_A, [low.id, low.id, low.id])).toEqual([low]);
+    expect(await repos.campuses.findByIds(TENANT_A, [])).toEqual([]);
   });
 });
