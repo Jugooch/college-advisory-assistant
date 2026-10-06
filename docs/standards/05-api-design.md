@@ -108,6 +108,7 @@ A validated result is built only from sources that are fresh (planning/09 §Prop
 - The future tolerance absorbs clock drift between the source system and the API. A time more than 5 minutes ahead is a source error, not fresh data.
 - The service reads the injected clock. The comparison is a `.logic.ts` function, so every endpoint that returns validated results applies the same check.
 - **Gated endpoints:** `POST /v1/students/:studentId/course-checks` and `GET /v1/students/:studentId/academic-summary` (ADR-0008 Amendment 1). The summary has no 200 historical variant, and every 200 from either endpoint is fresh. `POST /v1/students/:studentId/schedule-options` also gates the term's section snapshot by its `sourceEffectiveAt` (ADR-0010). A new endpoint that returns record-, audit-, or section-derived verdicts uses the same gate.
+- **Filtering endpoint:** `GET /v1/students/:studentId/plannable-terms` lists only terms whose latest section snapshot is unique and passes the same check. It leaves the others out of a 200 response instead of returning 409 (ADR-0010 Amendment 6). Schedule options still gates the chosen term.
 
 ## Schedule solver budget
 
