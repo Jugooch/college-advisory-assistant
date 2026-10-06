@@ -21,7 +21,6 @@ const PRODUCTION_FILES = [
   'apps/api/src/modules/health/health.controller.ts',
   'apps/api/src/modules/health/health.service.ts',
   'apps/api/src/modules/health/health.routes.ts',
-  'apps/api/src/testing/fixtures.ts',
   'apps/worker/src/main.ts',
   'apps/web/src/app/page.tsx',
   'apps/web/src/components/ui/button.tsx',
@@ -53,6 +52,12 @@ describe('test-only ./testing entry points', () => {
     const messages = await lintImport(path, '@caa/api/testing');
 
     expect(messages).toEqual([]);
+  });
+
+  it('forbids @caa/db/testing in packages/engine', async () => {
+    const messages = await lintImport('packages/engine/src/x.ts', '@caa/db/testing');
+
+    expect(messages.join('\n')).toContain('for tests only');
   });
 
   it('does not restrict the non-testing subpaths of a library package', async () => {

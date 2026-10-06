@@ -6,6 +6,7 @@
  */
 import { builtinModules } from 'node:module';
 
+import { APP_TEST_SUPPORT_RESTRICTION, testSupport } from './app-test-support.mjs';
 import { determinismBans } from './determinism.mjs';
 
 /** Packages that only the API and worker may import. */
@@ -23,6 +24,8 @@ export const FRAMEWORKS = ['fastify', 'next', 'next/*', 'react', 'react-dom'];
  * Test-only `./testing` entry points of the allowlisted workspaces: apps/api, apps/worker and
  * packages/db (standards/01 §Test entry points, ADR-0009). The convention check keeps other
  * workspaces from exporting one; this glob bans them all from production code either way.
+ * Exception (ADR-0009 Amendment 1): app test support, `src/testing.ts` and `src/testing/**` in
+ * apps/api and apps/worker, may import `@caa/db/testing`, and only that entry.
  */
 export const TEST_ONLY = ['@caa/*/testing'];
 /** Every production source file; test files re-enable these imports in eslint.config.mjs. */
@@ -134,6 +137,17 @@ export function forbid(names, message, exact) {
   ];
 }
 
+/**
+ * Like `forbid`, for production files in apps/api and apps/worker: also bans importing the app's
+ * own test support.
+ *
+ * @param {Parameters<typeof forbid>} args - The same arguments as `forbid`.
+ * @returns {import('eslint').Linter.RuleEntry} The rule entry.
+ */
+function appForbid(...args) {
+  return withPatterns(forbid(...args), [APP_TEST_SUPPORT_RESTRICTION]);
+}
+
 /** Import restrictions for every backend package and layer. */
 export const layerBoundaries = [
   {
@@ -143,7 +157,7 @@ export const layerBoundaries = [
   {
     files: ['apps/api/src/**'],
     rules: {
-      'no-restricted-imports': forbid(otherApps('api'), 'The API does not import other apps.'),
+      'no-restricted-imports': appForbid(otherApps('api'), 'The API does not import other apps.'),
     },
   },
   {
@@ -198,7 +212,7 @@ export const layerBoundaries = [
   {
     files: ['apps/api/src/**/*.controller.ts'],
     rules: {
-      'no-restricted-imports': forbid(
+      'no-restricted-imports': appForbid(
         [
           '@caa/db',
           '@caa/engine',
@@ -215,7 +229,7 @@ export const layerBoundaries = [
   {
     files: ['apps/api/src/**/*.service.ts'],
     rules: {
-      'no-restricted-imports': forbid(
+      'no-restricted-imports': appForbid(
         ['fastify', '**/*.controller', '**/*.routes', 'drizzle-orm', 'pg', ...otherApps('api')],
         'Services have no HTTP or SQL; use repositories.',
       ),
@@ -228,7 +242,7 @@ export const layerBoundaries = [
   {
     files: ['apps/api/src/**/*.routes.ts'],
     rules: {
-      'no-restricted-imports': forbid(
+      'no-restricted-imports': appForbid(
         ['@caa/db', '@caa/engine', '**/*.service', '**/*.logic', ...otherApps('api')],
         'Routes only wire paths to controllers.',
       ),
@@ -239,7 +253,7 @@ export const layerBoundaries = [
     files: ['apps/api/src/**/*.logic.ts'],
     rules: {
       'no-restricted-imports': withPatterns(
-        forbid(
+        appForbid(
           [
             'fastify',
             'drizzle-orm',
@@ -289,10 +303,16 @@ export const layerBoundaries = [
   {
     files: ['apps/worker/src/**'],
     rules: {
-      'no-restricted-imports': forbid(
+      'no-restricted-imports': appForbid(
         ['@caa/api-contract', ...otherApps('worker'), ...FRAMEWORKS],
         'The worker has no HTTP or UI code and does not import other apps.',
       ),
     },
   },
+  testSupport('api', otherApps('api'), 'The API does not import other apps.'),
+  testSupport(
+    'worker',
+    ['@caa/api-contract', ...otherApps('worker'), ...FRAMEWORKS],
+    'The worker has no HTTP or UI code and does not import other apps.',
+  ),
 ];
