@@ -7,6 +7,8 @@
  */
 import type { ReactElement } from 'react';
 
+import type { PlannableTerm } from '@caa/api-contract';
+
 import { ApiErrorNotice } from '@/shared/components/api-error-notice';
 import type { CandidateCourse } from '@/shared/utils/candidate-courses';
 import type { CourseLookup } from '@/shared/utils/course-display';
@@ -27,6 +29,7 @@ export interface PlannerScreenProps {
   readonly isCandidateListUnavailable: boolean;
   readonly courses: CourseLookup;
   readonly credits: CreditChoices;
+  readonly terms: readonly PlannableTerm[] | null;
 }
 
 /**

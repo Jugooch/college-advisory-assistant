@@ -12,6 +12,7 @@ import type { ReactElement } from 'react';
 import { ApiError } from '@caa/api-contract';
 
 import { getAcademicSummary } from '@/api/academic-summary.api';
+import { getPlannableTerms } from '@/api/plannable-terms.api';
 import { findScheduleOptions } from '@/api/schedule-options.api';
 import { PlannerScreen } from '@/features/next-term-planner/components/planner-screen';
 import { planScheduleRequest } from '@/features/next-term-planner/utils/planner-plan';
@@ -59,6 +60,7 @@ export default async function NextTermPlannerPage({
   }
   // The summary comes first: its catalog entries give each variable-credit course's range.
   const summary = await keepApiError(getAcademicSummary(student.studentId));
+  const terms = await keepApiError(getPlannableTerms(student.studentId));
   const isSummaryFailed = summary instanceof ApiError;
   const courses = summaryCourses(summary);
   const plan = planScheduleRequest(values, courses);
@@ -75,6 +77,9 @@ export default async function NextTermPlannerPage({
       {isSummaryFailed ? (
         <ApiErrorNotice error={summary} headingId="summary-error-heading" />
       ) : null}
+      {terms instanceof ApiError ? (
+        <ApiErrorNotice error={terms} headingId="terms-error-heading" />
+      ) : null}
       {view.kind === 'searched' ? <ScheduleResults result={view.result} courses={courses} /> : null}
       <PlannerScreen
         studentId={student.studentId}
@@ -83,6 +88,7 @@ export default async function NextTermPlannerPage({
         candidates={planCandidateCourses(summary, values.courseIds)}
         isCandidateListUnavailable={isSummaryFailed}
         courses={courses}
+        terms={terms instanceof ApiError ? null : terms.terms}
         credits={{ inputs: values.creditInputs, errors: plan.creditErrors }}
       />
     </>
