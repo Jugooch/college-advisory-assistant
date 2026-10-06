@@ -17,6 +17,11 @@ import { CREDIT_BOUNDS_UNDEFINED_CASES } from './cases/credit-bounds-undefined.c
 import { CREDIT_LOAD_CASES } from './cases/credit-load.cases';
 import { CUTOFF_PASS_FAIL_CASES } from './cases/cutoff-pass-fail.cases';
 import { EXPRESSION_CASES } from './cases/expressions.cases';
+import { HARD_CONSTRAINT_LIMIT_CASES } from './cases/hard-constraint-limits.cases';
+import { HARD_VERSUS_SOFT_CASES } from './cases/hard-versus-soft.cases';
+import { LINKED_SECTION_CASES } from './cases/linked-section.cases';
+import { LINKED_SECTION_COMPONENT_CASES } from './cases/linked-section-components.cases';
+import { LINKED_SECTION_CREDIT_CASES } from './cases/linked-section-credits.cases';
 import { MEETING_OVERLAP_CASES } from './cases/meeting-overlap.cases';
 import { MEETING_TIME_UNKNOWN_CASES } from './cases/meeting-time-unknown.cases';
 import { MINIMUM_GRADE_CASES } from './cases/minimum-grade.cases';
@@ -27,11 +32,15 @@ import { PROGRAM_CATALOG_CASES } from './cases/program-catalog.cases';
 import { REPEAT_CASES } from './cases/repeats.cases';
 import { REQUIREMENT_ANCESTOR_CASES } from './cases/requirement-ancestors.cases';
 import { RETAKE_AND_EQUIVALENCY_CASES } from './cases/retakes-and-equivalency.cases';
+import { SOLVER_CAP_AND_MISSING_DATA_CASES } from './cases/solver-cap-and-missing-data.cases';
+import { SOLVER_OUTCOME_CASES } from './cases/solver-outcome.cases';
+import { SOLVER_TRAVEL_AND_TBA_CASES } from './cases/solver-travel-and-tba.cases';
 import { TERM_DATE_OVERLAP_CASES } from './cases/term-date-overlap.cases';
 import { TERM_ORDER_CASES } from './cases/term-order.cases';
 import { TRANSITION_TIME_CASES } from './cases/transition-time.cases';
 import { VARIABLE_CREDIT_ALLOCATION_CASES } from './cases/variable-credit-allocation.cases';
 import { defineGoldenCorpus, type GoldenCase } from './golden-case.schema';
+import type { GoldenScheduleCase } from './golden-schedule-case.schema';
 
 /**
  * Development cases, open to every engineer as fixtures and for debugging. Expected values are
@@ -61,3 +70,20 @@ export const GOLDEN_DEVELOPMENT_CORPUS: readonly GoldenCase[] = defineGoldenCorp
   ...TRANSITION_TIME_CASES,
   ...MEETING_TIME_UNKNOWN_CASES,
 ]);
+
+/**
+ * Development scheduling cases, solved by `solveSchedule` (#219, #220). Their expectation is a
+ * whole response, so they are a corpus of their own beside the check cases.
+ */
+export const GOLDEN_DEVELOPMENT_SCHEDULE_CORPUS: readonly GoldenScheduleCase[] = defineGoldenCorpus(
+  [
+    ...LINKED_SECTION_CASES,
+    ...LINKED_SECTION_CREDIT_CASES,
+    ...LINKED_SECTION_COMPONENT_CASES,
+    ...HARD_VERSUS_SOFT_CASES,
+    ...HARD_CONSTRAINT_LIMIT_CASES,
+    ...SOLVER_OUTCOME_CASES,
+    ...SOLVER_CAP_AND_MISSING_DATA_CASES,
+    ...SOLVER_TRAVEL_AND_TBA_CASES,
+  ],
+);

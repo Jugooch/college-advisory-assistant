@@ -198,6 +198,52 @@ describe('ExpectedScheduleSchema', () => {
     );
   });
 
+  it('allows unresolved links beside options or a timeout, and nothing beside an infeasible plan', () => {
+    const missing = {
+      check: {
+        kind: SCHEDULE,
+        state: CheckState.Unknown,
+        reasonCode: ReasonCode.LinkedSectionUnavailable,
+      },
+      issues: [
+        {
+          reasonCode: ReasonCode.LinkedSectionUnavailable,
+          sectionIds: [SECTION_A],
+          courseId: SYNTHETIC_COURSES.phys201Lab.id,
+        },
+      ],
+    };
+    const timeout = {
+      outcome: ScheduleOutcome.SearchTimeout,
+      searchComplete: false,
+      options: [],
+      conflictSet: null,
+      unresolved: [missing],
+    };
+
+    expect(ExpectedScheduleSchema.parse(timeout)).toBeDefined();
+    expect(() =>
+      ExpectedScheduleSchema.parse({ ...(noPlan(null) as object), unresolved: [missing] }),
+    ).toThrow(/searchComplete, options, conflictSet and unresolved must match the outcome/);
+    expect(() =>
+      ExpectedScheduleSchema.parse({
+        ...timeout,
+        unresolved: [
+          {
+            check: { ...missing.check, reasonCode: ReasonCode.SectionDataMissing },
+            issues: [
+              {
+                reasonCode: ReasonCode.SectionDataMissing,
+                sectionIds: [],
+                courseId: SYNTHETIC_COURSES.math102.id,
+              },
+            ],
+          },
+        ],
+      }),
+    ).toThrow(/A search that ran lists only LINKED_SECTION_UNAVAILABLE as unresolved/);
+  });
+
   it('omits conflicts only once 20 are listed', () => {
     const full = Array.from({ length: 20 }, (_, index) =>
       conflictOn(syntheticId('section', index + 1)),
