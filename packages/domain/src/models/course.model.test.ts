@@ -16,6 +16,7 @@ const FIXED: CourseInput = {
   maxCreditsHundredths: null,
   equivalencyGroupId: '4d5e6f70-0000-4000-8000-000000000001',
   creditsIncludedInCourseId: null,
+  repeatableForCredit: null,
 };
 
 const VARIABLE: CourseInput = {

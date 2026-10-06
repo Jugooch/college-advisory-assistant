@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import { type CourseInput, CourseSchema, createCourse } from './course.model';
 
-/** A course from a producer that doesn't set the field yet (staged rollout, #267). */
+/** A course whose catalog states nothing about repeating for credit. */
 const ENSEMBLE: CourseInput = {
   id: '3c4d5e6f-0000-4000-8000-000000000150',
   tenantId: '0b8f6a36-3f7e-4a53-9c1e-8f1b2c3d4e5f',
@@ -17,6 +17,7 @@ const ENSEMBLE: CourseInput = {
   maxCreditsHundredths: null,
   equivalencyGroupId: null,
   creditsIncludedInCourseId: null,
+  repeatableForCredit: null,
 };
 
 const CAP_MESSAGE = "repeatableForCredit.maxCreditsHundredths must cover one attempt's credits";
@@ -44,8 +45,10 @@ describe('createCourse repeatableForCredit', () => {
     expect(createCourse({ ...ENSEMBLE, repeatableForCredit: null }).repeatableForCredit).toBeNull();
   });
 
-  it('accepts an omitted value during the staged rollout, and keeps it omitted', () => {
-    expect('repeatableForCredit' in createCourse(ENSEMBLE)).toBe(false);
+  it('rejects an omitted value', () => {
+    const withoutField: Partial<CourseInput> = { ...ENSEMBLE };
+    delete withoutField.repeatableForCredit;
+    expect(CourseSchema.safeParse(withoutField).success).toBe(false);
   });
 
   it.each([
