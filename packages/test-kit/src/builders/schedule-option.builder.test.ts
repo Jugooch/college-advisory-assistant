@@ -39,7 +39,6 @@ describe('buildScheduleOption', () => {
       setResults: {
         creditLoad: { state: 'PASS', evidence: { creditLoad: { totalCreditsHundredths: 300 } } },
       },
-      linkedCourseResults: [],
       unmetPreferences: [],
       aggregate: 'VALIDATED',
     });
