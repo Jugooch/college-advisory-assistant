@@ -20,7 +20,19 @@ describe('buildCourse', () => {
       maxCreditsHundredths: null,
       equivalencyGroupId: null,
       creditsIncludedInCourseId: null,
+      repeatableForCredit: null,
     });
+  });
+
+  it('defaults repeatableForCredit to null', () => {
+    expect(buildCourse().repeatableForCredit).toBeNull();
+  });
+
+  it('accepts repeat caps as an override', () => {
+    expect(
+      buildCourse({ repeatableForCredit: { maxAttempts: 2, maxCreditsHundredths: 600 } })
+        .repeatableForCredit,
+    ).toEqual({ maxAttempts: 2, maxCreditsHundredths: 600 });
   });
 
   it('returns deep-equal courses for the same arguments', () => {

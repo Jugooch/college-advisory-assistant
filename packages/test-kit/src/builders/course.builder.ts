@@ -11,6 +11,7 @@ import { SYNTHETIC_TENANTS } from '../fixtures/synthetic-tenants';
 /**
  * Builds a valid fixed-credit course (3.00 credits) in tenant A with no equivalents.
  *
+ * The default `repeatableForCredit` is `null` (not repeatable for extra credit).
  * The default label is `DEMO-GEN` plus the seed padded to three digits, for example
  * `DEMO-GEN 001`. To refer to a named course, use `SYNTHETIC_COURSES` instead.
  *
@@ -31,6 +32,7 @@ export function buildCourse(overrides: Partial<CourseInput> = {}, seed = 1): Cou
     maxCreditsHundredths: null,
     equivalencyGroupId: null,
     creditsIncludedInCourseId: null,
+    repeatableForCredit: null,
     ...overrides,
   });
 }
