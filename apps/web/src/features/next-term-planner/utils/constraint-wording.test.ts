@@ -49,13 +49,13 @@ describe('describeConstraints', () => {
     ]);
 
     expect(describeConstraints(constraints)).toEqual([
-      { statement: 'Not available on friday, all day.', strength: 'Preferred, priority 1' },
+      { statement: 'Not available on Friday, all day.', strength: 'Preferred, priority 1' },
       {
-        statement: 'Not available on monday, wednesday, from 09:00 to 11:00.',
+        statement: 'Not available on Monday, Wednesday, from 09:00 to 11:00.',
         strength: 'Required',
       },
       { statement: 'Take between 12 and 15 credits.', strength: 'Required' },
-      { statement: 'Only these formats: online synchronous.', strength: 'Preferred, priority 2' },
+      { statement: 'Only these formats: Online, at set times.', strength: 'Preferred, priority 2' },
       {
         statement: `Only these campuses: ${syntheticId('campus', 1)}.`,
         strength: 'Preferred, priority 3',

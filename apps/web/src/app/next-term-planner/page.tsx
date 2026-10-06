@@ -23,6 +23,7 @@ import {
   isSearchRequested,
   planPlannerView,
 } from '@/features/next-term-planner/utils/planner-view';
+import { ScheduleResults } from '@/features/schedule-options/components/schedule-results';
 import { StudentLookupForm } from '@/features/session/components/student-lookup-form';
 import { StudentNav } from '@/features/student-navigation/components/student-nav';
 import { ApiErrorNotice } from '@/shared/components/api-error-notice';
@@ -65,6 +66,7 @@ export default async function NextTermPlannerPage({
     isSearchRequested(step, plan) && plan.request !== null
       ? await keepApiError(findScheduleOptions(student.studentId, plan.request))
       : null;
+  const view = planPlannerView(step, plan, outcome);
   return (
     <>
       <StudentNav studentId={student.studentId} current="next-term-planner" />
@@ -73,9 +75,10 @@ export default async function NextTermPlannerPage({
       {isSummaryFailed ? (
         <ApiErrorNotice error={summary} headingId="summary-error-heading" />
       ) : null}
+      {view.kind === 'searched' ? <ScheduleResults result={view.result} courses={courses} /> : null}
       <PlannerScreen
         studentId={student.studentId}
-        view={planPlannerView(step, plan, outcome)}
+        view={view}
         values={values}
         candidates={planCandidateCourses(summary, values.courseIds)}
         isCandidateListUnavailable={isSummaryFailed}
