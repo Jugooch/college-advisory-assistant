@@ -16,6 +16,7 @@ const LECTURE: CourseInput = {
   tenantId: TENANT_ID,
   sourceCourseId: 'DEMO-PHYS-301',
   label: 'DEMO-PHYS 301',
+  title: null,
   creditsHundredths: 400,
   minCreditsHundredths: null,
   maxCreditsHundredths: null,
