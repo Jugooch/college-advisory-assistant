@@ -1,9 +1,9 @@
 # ADR-0010: Deterministic bounded schedule solver
 
-- **Status:** Accepted
+- **Status:** Accepted; amended 2026-09-29 to 2026-10-06 (Amendments 1–6)
 - **Date:** 2026-09-29
 - **Deciders:** Repo owner (budget, course choice, travel time, sprint size), orchestrator (endpoint, outcome field, deferrals), tech lead
-- **Related:** FR-07, FR-08, FR-18, NFR-01, NFR-07, AC06, AC07, AC08, AC12, planning/07 §Request lifecycle, planning/08 §Schedule model and §Constraint formulation, planning/09 §Logical app interfaces, ADR-0005, ADR-0008, issues #209, #210, #212, #213, #218, #219, #220, #221, #294
+- **Related:** FR-07, FR-08, FR-18, NFR-01, NFR-07, AC06, AC07, AC08, AC12, planning/07 §Request lifecycle, planning/08 §Schedule model and §Constraint formulation, planning/09 §Logical app interfaces, ADR-0005, ADR-0008, issues #209, #210, #212, #213, #218, #219, #220, #221, #294, #310
 
 ## Context
 
@@ -323,3 +323,37 @@ This interprets planning/08 §Candidate formation; it doesn't deviate from it, s
 - Web: the schedule-options screen shows `unresolved` on every outcome, from structured fields only.
 
 **Revisit when** the engine can check a dropped section some other way, for example when published section data gains linked sections the registrar adds later.
+
+## Amendment 6 (2026-10-06, issue #310): the planner lists only terms it could plan
+
+**Related:** #223, PR #309, #310, #313, #314, #315, #316. Section on freshness. ADR-0008 and its Amendment 1. planning/09 §Logical app interfaces.
+
+**Context.** The planner form (#309) asks for a raw term ID, because no endpoint lists the terms a student can plan for. A picker needs a rule for which terms it offers. Schedule options already refuses a term with no published snapshot (503), a tie for latest (409), or a snapshot past `ACADEMIC_SOURCE_MAX_AGE_MS` (409, ADR-0008). Options:
+
+- (a) list every term with a published snapshot;
+- (b) list those terms with a server-derived status, so the UI can show stale ones as unavailable;
+- (c) list only the terms whose latest snapshot would pass the schedule-options gate now.
+
+(a) offers terms the gate refuses, so the student finds out only after building a request. (b) adds a freshness marker to a contract, which ADR-0008 Amendment 1 avoided until a historical-view UX is designed. **Option (c).**
+
+**Decision.**
+
+- **Plannable term.** A tenant term is plannable when its latest published section snapshot is unique (no tie for the newest `sourceEffectiveAt`) and that time passes `isSourceFresh` with the schedule-options policy: the same maximum age, injected clock, missing-time rule and 5-minute future tolerance. Nothing else decides. The student record and the audit aren't checked here; schedule options checks them on each request.
+- **Endpoint.** `GET /v1/students/:studentId/plannable-terms`, read-only, with access as for schedule options. The tenant comes from the session. The response is `{ terms }`, each with `id`, `termCode`, `startsOn` and `endsOn`, in the tenant's term order. It has no freshness marker and no snapshot ID: every listed term is plannable by definition, the same reasoning as ADR-0008 Amendment 1. Stale and tied terms are left out and logged with their reason. If nothing is plannable, the response is 200 with `terms: []`, and the UI shows an advisor referral instead of a picker.
+- **The gate still runs.** A listed term can go stale before the student submits, so schedule options keeps its own gate and its 409 unchanged. The list is a convenience, not a pinned input.
+- **Ended terms.** No calendar-date filter is added. A registrar feed stops publishing an ended term, so its snapshot ages out within the maximum age.
+
+This adds an endpoint that planning/09 doesn't list, so planning/09 gets a decision note pointing here. It doesn't change any planning requirement.
+
+**Order.** Each step keeps `main` green.
+
+1. Domain (#313), the contract, and data (#314), a repository query that lists each term's latest snapshot without loading its sections. These two run in parallel.
+2. API (#315), after both.
+3. Web (#316), after #315: the picker replaces the term ID field.
+
+**Consequences.**
+
+- Standard 05 §Source freshness names this endpoint as a filter on the same check, not a 409.
+- No new setting. Changing `ACADEMIC_SOURCE_MAX_AGE_MS` changes the list and the gate together.
+
+**Revisit when** a historical-view UX is designed (ADR-0008 Amendment 1) and the UI should show unavailable terms with a reason, or when a term's plannability depends on the student, for example their program or registration window.

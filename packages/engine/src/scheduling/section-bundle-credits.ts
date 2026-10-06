@@ -49,40 +49,20 @@ export function countsOwnCredits(course: Course, planCourseIds: ReadonlySet<Cour
 }
 
 /**
- * Reads a course's credit inclusion, admitting an omitted value.
- *
- * NOTE: kept for the API's course checks, which still test a course that omits the value.
- * The declared return type keeps `undefined`, so the check in `countsCreditsInPlan` stays valid
- * now that the domain field is required.
- * TODO(#229): remove with the omitted-value branch once the API no longer relies on it.
- *
- * @param course - A course of the plan.
- * @returns The including course, `null`, or `undefined` when the value is omitted.
- */
-function creditInclusionOf(course: Course): CourseId | null | undefined {
-  return course.creditsIncludedInCourseId;
-}
-
-/**
  * Decides whether a course adds its credits to a plan's load.
+ *
+ * NOTE: the API's course checks call this; the schedule solver uses `countsOwnCredits` directly.
+ * The declared return type still admits `null`, which is never returned, because the API's
+ * course checks keep a `null` guard that would fail lint against a narrower type.
  *
  * @param course - A course of the plan.
  * @param planCourseIds - Every distinct course of the plan, across all its bundles.
- * @returns `false` when another course of the plan includes its credits, `true` when it counts
- *   its own, or `null` when the catalog hasn't said and another course of the plan could
- *   include them.
+ * @returns `false` when another course of the plan includes its credits; otherwise `true`.
  */
 export function countsCreditsInPlan(
   course: Course,
   planCourseIds: ReadonlySet<CourseId>,
 ): boolean | null {
-  // SAFETY: an omitted value means the catalog hasn't said whether another course includes
-  // these credits. It decides nothing when the plan has no other course, because credits are
-  // only ever included in a course that is taken; otherwise it is unknown, never assumed
-  // either way (planning/08 §Constraint formulation; §Authority and result semantics).
-  if (creditInclusionOf(course) === undefined) {
-    return planCourseIds.size > 1 ? null : true;
-  }
   return countsOwnCredits(course, planCourseIds);
 }
 
