@@ -109,6 +109,21 @@ A validated result is built only from sources that are fresh (planning/09 §Prop
 - The service reads the injected clock. The comparison is a `.logic.ts` function, so every endpoint that returns validated results applies the same check.
 - **Gated endpoints:** `POST /v1/students/:studentId/course-checks` and `GET /v1/students/:studentId/academic-summary` (ADR-0008 Amendment 1). The summary has no 200 historical variant, and every 200 from either endpoint is fresh. `POST /v1/students/:studentId/schedule-options` also gates the term's section snapshot by its `sourceEffectiveAt` (ADR-0010). A new endpoint that returns record-, audit-, or section-derived verdicts uses the same gate.
 
+## Schedule solver budget
+
+`POST /v1/students/:studentId/schedule-options` bounds its search by a counted work cap, never a clock (ADR-0010 §1):
+
+| Setting                    | Value                                                                                        |
+| -------------------------- | -------------------------------------------------------------------------------------------- |
+| `SCHEDULE_SOLVER_WORK_CAP` | Read once at startup. Defaults to `3000000` in every environment, an engineering calibration |
+| Accepted range             | `1` to `3000000`, whole numbers. Startup refuses anything else                               |
+| Unit                       | One attempt to add one bundle to a partial schedule, counted before the hard-rule checks     |
+| Cap reached with options   | 200 `OPTIONS_FOUND` with `searchComplete: false`. Never called the best options              |
+| Cap reached with none      | 200 `SEARCH_TIMEOUT`. Never reported as infeasible, and never an error envelope              |
+| Recorded                   | `pinnedInputs.solverWorkCap` in the response; `workUsed` and `workCap` in the service log    |
+
+Raising the ceiling needs an ADR-0010 amendment with a new measurement.
+
 ## Controllers
 
 - Factory function `createXxxController(service)` returning an object whose handlers are **arrow-function properties** (so they can be passed to routes unbound).
