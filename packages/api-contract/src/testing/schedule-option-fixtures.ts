@@ -347,9 +347,11 @@ export function buildResponse(fields: Payload = {}): Payload {
     ...fields,
   };
   // Lists exactly the campuses the payload names, unless the caller sets `campuses`.
-  const campuses = namedCampusIds(response as Parameters<typeof namedCampusIds>[0]).map((id) => ({
-    id,
-    name: `Campus ${id.slice(-4)}`,
-  }));
+  const campuses = namedCampusIds(response as unknown as Parameters<typeof namedCampusIds>[0]).map(
+    (id) => ({
+      id,
+      name: `Campus ${id.slice(-4)}`,
+    }),
+  );
   return { campuses, ...response };
 }
