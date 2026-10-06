@@ -250,7 +250,7 @@ export const ScheduleOptionsResponseSchema = z
   .refine(
     (response) =>
       response.options.every((option) =>
-        option.courseResults.every(
+        [...option.courseResults, ...option.linkedCourseResults].every(
           ({ prerequisite }) =>
             prerequisite?.evidence === undefined ||
             prerequisite.evidence.rulesetVersion === response.pinnedInputs.rulesetVersion,

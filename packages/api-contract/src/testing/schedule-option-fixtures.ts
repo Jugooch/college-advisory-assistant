@@ -218,6 +218,8 @@ export interface OptionFields {
   /** Defaults to a PASS load whose total is the sum of the bundle credits. */
   readonly creditLoad?: Payload;
   readonly unmetPreferences?: readonly Payload[];
+  /** Linked-course entries; defaults to none. */
+  readonly linkedCourseResults?: readonly Payload[];
   readonly aggregate?: string;
 }
 
@@ -243,6 +245,7 @@ export function buildOption(fields: OptionFields = {}): Payload {
       prerequisite: fields.prerequisite ?? null,
       applicability: fields.applicability ?? PASS_APPLICABILITY,
     })),
+    linkedCourseResults: fields.linkedCourseResults ?? [],
     setResults: {
       allocation: [PASS_ALLOCATION],
       creditLoad: fields.creditLoad ?? creditLoadCheck(total),

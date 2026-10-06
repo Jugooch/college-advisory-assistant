@@ -20,6 +20,7 @@ import {
 import { type CourseSelection, selectedCreditsOf } from '../verification/candidate-set';
 import type { PairTable } from './bundle-pair-table';
 import { creditLoadCheckOf, type CreditModel, missesPreferredRange } from './candidate-credits';
+import { type LinkedCourseResult, linkedCourseResultsOf } from './linked-course-results';
 import { toScheduleFeasibilityCheck } from './schedule-feasibility-check';
 import {
   MAX_CONFLICT_ITEMS,
@@ -75,6 +76,7 @@ export function buildOptions(
       scheduleFeasibility: feasibilityOf(chosen, creditLoad, context.table),
       creditLoad,
       unmetPreferences: unmetOf(chosen, total, context),
+      linkedCourseResults: linkedOf(chosen, context),
     };
   });
 }
@@ -153,6 +155,26 @@ function selectionsOf(
     chosen.map((entry) => entry.screened.bundle),
     context.input.selectedCredits,
   );
+}
+
+/**
+ * Lists an option's linked courses that its requested courses' checks don't cover.
+ *
+ * @param chosen - The option's bundles.
+ * @param context - The request.
+ * @returns One UNKNOWN result per such course, by course ID.
+ */
+function linkedOf(
+  chosen: readonly SolverBundle[],
+  context: OptionContext,
+): readonly LinkedCourseResult[] {
+  const bundles = chosen.map((entry) => entry.screened.bundle);
+  return linkedCourseResultsOf({
+    bundles,
+    requestedCourseIds: bundles.map((bundle) => bundle.courseId),
+    courses: bundles.flatMap((bundle) => bundle.courses),
+    prerequisiteRules: context.input.prerequisiteRules,
+  });
 }
 
 /**

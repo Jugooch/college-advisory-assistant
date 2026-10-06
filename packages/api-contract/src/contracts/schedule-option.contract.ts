@@ -108,6 +108,10 @@ interface ScheduleOptionShape {
     readonly prerequisite: CheckResult | null;
     readonly applicability: CheckResult;
   }[];
+  readonly linkedCourseResults: readonly {
+    readonly prerequisite: CheckResult | null;
+    readonly applicability: CheckResult;
+  }[];
   readonly setResults: {
     readonly allocation: readonly CheckResult[];
     readonly creditLoad: CheckResult;
@@ -118,13 +122,15 @@ interface ScheduleOptionShape {
  * Lists every check of an option. A `null` prerequisite is not a check and isn't listed.
  *
  * @param option - The option's checks.
- * @returns Every check result: schedule feasibility, then per-course, then set checks.
+ * @returns Every check result: schedule feasibility, then per-course, then linked-course, then
+ *   set checks.
  */
 function listOptionChecks(option: ScheduleOptionShape): readonly CheckResult[] {
   return [
     option.scheduleFeasibility,
-    ...option.courseResults.flatMap(({ prerequisite, applicability }) =>
-      prerequisite === null ? [applicability] : [prerequisite, applicability],
+    ...[...option.courseResults, ...option.linkedCourseResults].flatMap(
+      ({ prerequisite, applicability }) =>
+        prerequisite === null ? [applicability] : [prerequisite, applicability],
     ),
     ...option.setResults.allocation,
     option.setResults.creditLoad,
@@ -155,6 +161,42 @@ function creditsAgreeWithLoad(option: {
 }
 
 /**
+ * Returns whether the entries are in strictly ascending course ID order, which also means no
+ * course repeats. IDs compare by UTF-16 code units, the `<` operator.
+ *
+ * @param courseIds - Entry course IDs, in the order shown.
+ * @returns `true` when each ID is greater than the one before.
+ */
+function isStrictlyAscending(courseIds: readonly string[]): boolean {
+  return courseIds.every(
+    (courseId, index) => index === 0 || (courseIds[index - 1] ?? '') < courseId,
+  );
+}
+
+/**
+ * Returns whether every linked-course entry names a course with a shown section that no bundle
+ * requested. Which linked courses need an entry is the engine's rule, not restated here.
+ *
+ * @param option - The bundles and the linked-course entries.
+ * @returns `true` when each entry is about a shown, non-requested course.
+ */
+function linkedEntriesAreStructural(option: {
+  readonly bundles: readonly {
+    readonly courseId: string;
+    readonly sections: readonly { readonly courseId: string }[];
+  }[];
+  readonly linkedCourseResults: readonly { readonly courseId: string }[];
+}): boolean {
+  const requested = new Set(option.bundles.map((bundle) => bundle.courseId));
+  const shown = new Set(
+    option.bundles.flatMap((bundle) => bundle.sections.map((section) => section.courseId)),
+  );
+  return option.linkedCourseResults.every(
+    ({ courseId }) => shown.has(courseId) && !requested.has(courseId),
+  );
+}
+
+/**
  * One validated schedule option. The academic checks (prerequisite, applicability,
  * allocation) are the same for every option, and the credit load is this option's own
  * (ADR-0010 §2). Each dimension is shown separately; passing one implies nothing else.
@@ -180,6 +222,13 @@ export const ScheduleOptionSchema = z
       .min(1)
       .max(MAX_SCHEDULE_OPTION_COURSES)
       .readonly(),
+    /**
+     * One result per linked course the option adds beyond the requested ones, chosen by the
+     * engine (ADR-0010 Amendment 4), in ascending course ID, never repeated, and `[]` when there
+     * are none. Its checks count in the aggregate. With the engine's S4 output (UNKNOWN
+     * `LINKED_COURSE_NOT_CHECKED`), an option with an entry is NEEDS_VERIFICATION.
+     */
+    linkedCourseResults: z.array(CourseCheckResultSchema).readonly(),
     setResults: SetCheckResultsSchema,
     /** Preferences this option misses, rendered from structured fields only. */
     unmetPreferences: z.array(UnmetPreferenceSchema).readonly(),
@@ -246,6 +295,16 @@ export const ScheduleOptionSchema = z
       path: ['bundles'],
     },
   )
+  // SAFETY: an entry must be about a linked course the option shows, never a requested one, or
+  // its UNKNOWN checks would describe a course the student didn't see (ADR-0010 Amendment 4).
+  .refine((option) => linkedEntriesAreStructural(option), {
+    message: 'linkedCourseResults must name only shown courses that no bundle requests',
+    path: ['linkedCourseResults'],
+  })
+  .refine((option) => isStrictlyAscending(option.linkedCourseResults.map((r) => r.courseId)), {
+    message: 'linkedCourseResults must be in ascending course ID order, without repeats',
+    path: ['linkedCourseResults'],
+  })
   .refine(
     (option) =>
       isDistinct(
