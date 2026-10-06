@@ -199,6 +199,12 @@ export const REASON_CODE_WORDING: Readonly<Record<ReasonCode, ReasonWording>> = 
     nextStep:
       'Treat this as needing verification. Ask your advisor or the registrar whether the course is offered this term.',
   },
+  PREREQUISITE_RULE_MISSING: {
+    explanation:
+      'The institution’s published prerequisite data has no entry for this course, so it isn’t known whether the course has prerequisites.',
+    nextStep:
+      'Treat this course as needing verification. Ask your advisor or the registrar what prerequisites apply to it.',
+  },
 };
 
 /**
