@@ -32,11 +32,7 @@ import {
   SEED_SNAPSHOTS,
   SEED_TERMS,
 } from '../../testing/seed-scenario-fixtures';
-import {
-  type CourseSetInputs,
-  CreditInclusionUnknownError,
-  verifyCourseSet,
-} from './course-verification.logic';
+import { type CourseSetInputs, verifyCourseSet } from './course-verification.logic';
 
 /** One hour, the API's default skew. */
 const MAX_SKEW_MS = 3_600_000;
@@ -206,22 +202,6 @@ describe('verifyCourseSet on the seeded scenarios (README)', () => {
 });
 
 /**
- * Returns a copy of a course from a producer that doesn't state `creditsIncludedInCourseId` yet
- * (staged rollout, #229). The key is removed after validation so this compiles whether the
- * field is optional or required.
- *
- * TODO(#229): remove with the staged-rollout cleanup once the field is required.
- *
- * @param course - A valid seeded course.
- * @returns The same course with the field omitted.
- */
-function withoutInclusionLink(course: Course): Course {
-  const omitted: Record<string, unknown> = { ...course };
-  delete omitted.creditsIncludedInCourseId;
-  return omitted as Course;
-}
-
-/**
  * Returns the credit load of a candidate set for SYN-000001.
  *
  * @param courses - The candidate set.
@@ -257,21 +237,6 @@ describe('verifyCourseSet credits included in a linked course (#222)', () => {
     expect(creditLoadOf([math102, phys301Lab]).evidence?.creditLoad?.totalCreditsHundredths).toBe(
       400,
     );
-  });
-
-  it('refuses a set with another course when a course omits whether its credits are included', () => {
-    expect(() => creditLoadOf([phys301, withoutInclusionLink(phys301Lab)])).toThrow(
-      CreditInclusionUnknownError,
-    );
-    expect(() => creditLoadOf([withoutInclusionLink(math102), engl101])).toThrow(
-      CreditInclusionUnknownError,
-    );
-  });
-
-  it('counts a course that omits the link at its own credits when it is requested alone', () => {
-    expect(
-      creditLoadOf([withoutInclusionLink(phys301Lab)]).evidence?.creditLoad?.totalCreditsHundredths,
-    ).toBe(100);
   });
 });
 
