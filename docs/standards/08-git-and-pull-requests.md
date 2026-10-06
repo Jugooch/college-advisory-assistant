@@ -33,7 +33,6 @@ A PR may change files outside its owner's area only with the `ownership-override
 | Repo-wide mechanical  | A mechanical change that touches many areas, for example a rename across every package                                                      | Its own ADR or tech-lead issue            |
 | Known finding fixed   | Removing a fixed entry from `tests/support/known-findings.ts` in the fixing PR (standard 07, known findings)                                | Standard 07 and the finding's `bug` issue |
 | Required-field ripple | Updating a test-kit builder when a domain PR adds a required field, under the rules below                                                   | #108 (ADR-0004)                           |
-| Seed-mirror ripple    | Updating the api's copy of the dev seed when a data PR changes seeded academic records, under the rules below                               | #252 (ADR-0004 Amendment 1)               |
 | Wording-map ripple    | Adding frontend-authored wording to the web reason-code map when a domain PR adds, renames or removes a `ReasonCode`, under the rules below | #261 (ADR-0004 Amendment 2)               |
 
 ### Required-field ripple
@@ -58,20 +57,9 @@ If anything else breaks (a golden case, an acceptance test, engine or db code), 
 2. Each affected owner sets the field in its own code.
 3. A final domain PR removes `.optional()`.
 
-### Seed-mirror ripple
+### Seed-mirror ripple (retired)
 
-`apps/api/src/testing/seed-scenario-fixtures.ts` is a hand copy of the dev seed's academic records, because api test support can't import `@caa/db/testing` yet. `seed-scenario-fixtures.test.ts` deep-compares the copy with the seed plan, so a data PR that changes a seeded academic record breaks the api test. That covers a catalog course, rule, policy, term, attempt, snapshot or audit. Neither order of two separate PRs keeps `main` green. So the mirror fix lands in the data PR, under these rules:
-
-1. **Only the orchestrator** (the main session) makes the edit. Builder agents never do; their edit hook blocks it.
-2. **Only when the seed changed.** The data PR changes the seed plan under `packages/db/src/seed/`, and the mirror test fails without the edit.
-3. **Only these files:**
-   - `apps/api/src/testing/seed-scenario-fixtures.ts`: the mirrored records' values, copied literally from the seed. A private helper in the file may gain a parameter when a value can't be passed through it otherwise. No new exports, no other behavior changes.
-   - When the mirror sets a field the test-kit builder doesn't default yet: that builder and its test, under the required-field ripple rules 2 and 3 above (a nullable field defaults to `null`).
-4. **Its own commit** on the data branch, for example `test(api): mirror the seeded lab credit inclusion`.
-5. **The PR body says so.** Under Handoffs, add:
-   > **Ownership override (seed-mirror ripple, standard 08, authorized by #252):** the orchestrator changed only `<files>`. Mirrored change: `<record>.<field>: <value>`. api-engineer owns the mirror from here.
-
-If anything else breaks, this case doesn't apply. Examples are an api test that asserts on the changed value, or seeded data the mirror doesn't hold yet, such as sections. The affected owner changes its code first in its own PR where it can; otherwise the tech lead rules on the issue. This case is retired when the api fixtures are built from the seed plan instead of copied (#253, #254, #255; retired by #333).
+Retired on 2026-10-06 (#333). The api seed fixtures now build from the db seed plan (#255), so a seed change needs no api edit and this case no longer authorizes any override. ADR-0004 Amendment 1 records the decision and its limits, and ADR-0009 Amendment 1 records how it was retired. An api test that asserts on a seeded value still breaks when that value changes: the api-engineer changes the test first in its own PR where it can, otherwise the tech lead rules on the issue.
 
 ### Wording-map ripple
 

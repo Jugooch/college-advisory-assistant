@@ -1,6 +1,6 @@
 # ADR-0004: Required-field ripples into test-kit builders
 
-- **Status:** Accepted
+- **Status:** Accepted; Amendment 1 superseded 2026-10-06 by ADR-0009 Amendment 1 (#255, #333)
 - **Date:** 2026-09-28
 - **Deciders:** Tech lead
 - **Related:** ADR-0002 (amends its override consequence), issue #108, PRs #70, #104, #105
@@ -50,7 +50,9 @@ This retroactively covers #70 (`lowestPassingLetterGrade: null`) and #104 (`stud
 
 ## Amendment 1 (2026-09-29, issue #252): seed-mirror ripples
 
-**Related:** ADR-0009, standard 08 §Seed-mirror ripple, issues #147, #216, #217, #229, #241, #253, #254, #255.
+**Status: superseded 2026-10-06** by ADR-0009 Amendment 1. #255 builds the api seed fixtures from the seed plan, so no seed change needs an api edit, and #333 retired the case in standard 08. The text below is kept as the record of the decision.
+
+**Related:** ADR-0009, standard 08 §Seed-mirror ripple (retired), issues #147, #216, #217, #229, #241, #253, #254, #255.
 
 **Context.** `apps/api/src/testing/seed-scenario-fixtures.ts` (#147) is a hand copy of the dev seed's academic records. `seed-scenario-fixtures.test.ts` deep-compares it with the seed plan from `@caa/db/testing`. The copy can't import that entry itself, because lint bans `./testing` imports in every non-test file under `apps/*/src/**` (ADR-0009). So each change to seeded academic data needs three edits in one PR: the db seed (data-engineer), the api mirror (api-engineer) and sometimes the test-kit builder default (qa-engineer). Either order of separate PRs breaks `main`. Examples are #216 (DEMO-PHYS 301L's credits included in DEMO-PHYS 301) and the seed steps of the #229 and #241 staged rollouts. The decision above covers builder ripples only.
 
