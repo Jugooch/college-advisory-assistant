@@ -1,7 +1,6 @@
 /**
  * @file Golden cases: two timed meetings on one campus by weekday, time, excluded dates, and a
- *   daylight-saving change (#218). Planned as GC-MEET-001–008 in
- *   `tests/golden/scheduling.golden.test.ts`.
+ *   daylight-saving change (#218). GC-MEET-001–008.
  * @module @caa/test-kit/golden/cases/meeting-overlap
  * @requirement FR-07
  * @see docs/planning/08-academic-verification-and-planning.md

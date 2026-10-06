@@ -1,7 +1,7 @@
 /**
  * @file Golden cases: travel between campuses against the tenant's transition table (#218,
- *   AC08). Planned as GC-TRAVEL-001–008 in `tests/golden/scheduling.golden.test.ts`;
- *   GC-TRAVEL-007, about three sections, waits for the solver (#220).
+ *   AC08). GC-TRAVEL-001–006 and -008;
+ *   GC-TRAVEL-007, about three sections, is a solver case in `solver-travel-and-tba.cases.ts`.
  * @module @caa/test-kit/golden/cases/transition-time
  * @requirement FR-07
  * @see docs/adr/0010-deterministic-bounded-schedule-solver.md

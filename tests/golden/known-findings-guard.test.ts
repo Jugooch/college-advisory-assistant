@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { GOLDEN_DEVELOPMENT_CORPUS } from '@caa/test-kit';
+import { GOLDEN_DEVELOPMENT_CORPUS, GOLDEN_DEVELOPMENT_SCHEDULE_CORPUS } from '@caa/test-kit';
 
 import {
   declaredAcceptanceKeys,
@@ -22,7 +22,7 @@ import {
   KNOWN_FINDINGS,
 } from '../support/known-findings';
 import { sourceFiles } from '../support/source-files';
-import { GOLDEN_HOLDOUT_CORPUS } from './holdout/holdout-corpus';
+import { GOLDEN_HOLDOUT_CORPUS, GOLDEN_HOLDOUT_SCHEDULE_CORPUS } from './holdout/holdout-corpus';
 
 const TESTS_ROOT = fileURLToPath(new URL('../', import.meta.url));
 const ACCEPTANCE_FOLDER = join(TESTS_ROOT, 'acceptance');
@@ -53,7 +53,9 @@ function testFiles(folder: string): string[] {
 function knownKeys(): ReadonlySet<string> {
   return new Set([
     ...GOLDEN_DEVELOPMENT_CORPUS.map((golden) => golden.id),
+    ...GOLDEN_DEVELOPMENT_SCHEDULE_CORPUS.map((golden) => golden.id),
     ...GOLDEN_HOLDOUT_CORPUS.map((golden) => golden.id),
+    ...GOLDEN_HOLDOUT_SCHEDULE_CORPUS.map((golden) => golden.id),
     ...testFiles(ACCEPTANCE_FOLDER).flatMap((path) =>
       declaredAcceptanceKeys(readFileSync(path, 'utf8')),
     ),

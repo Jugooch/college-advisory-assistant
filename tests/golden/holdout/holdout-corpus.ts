@@ -14,6 +14,7 @@ import { HOLDOUT_GRADE_FAMILY_CASES } from './holdout-grade-families.cases';
 import { HOLDOUT_INTERACTION_CASES } from './holdout-interactions.cases';
 import { HOLDOUT_PREREQUISITE_CASES } from './holdout-prerequisite.cases';
 import { HOLDOUT_RULE_FAMILY_CASES } from './holdout-rule-families.cases';
+import { HOLDOUT_SCHEDULE_ADDITION_CASES } from './holdout-schedule-additions.cases';
 import { HOLDOUT_SCHEDULE_LINK_CASES } from './holdout-schedule-links.cases';
 import { HOLDOUT_SCHEDULE_OVERLAP_CASES } from './holdout-schedule-overlap.cases';
 import { HOLDOUT_SCHEDULE_SOLVER_CASES } from './holdout-schedule-solver.cases';
@@ -28,8 +29,11 @@ import { HOLDOUT_SCHEDULE_TRAVEL_CASES } from './holdout-schedule-travel.cases';
  *   burned or replaced.
  * - v0.4: adds 14 scheduling cases across the seven scheduling families (#226), frozen 2026-10-05.
  *   No case was burned or replaced.
+ * - v0.5: adds 4 scheduling cases (a second unknown-time case and three more), frozen 2026-10-06,
+ *   and re-adjudicates GH-LINK-002 from ADR-0010 Amendment 5 (a dropped linked section is shown
+ *   as unresolved beside the options). The scheduling cases now run through the solver.
  */
-export const GOLDEN_HOLDOUT_VERSION = 'v0.4 (frozen 2026-10-05; 45 cases)';
+export const GOLDEN_HOLDOUT_VERSION = 'v0.5 (frozen 2026-10-06; 49 cases)';
 
 /** Frozen holdout check cases, kept out of engine development (planning/13 §Golden corpus design). */
 export const GOLDEN_HOLDOUT_CORPUS: readonly GoldenCase[] = defineGoldenCorpus([
@@ -47,4 +51,5 @@ export const GOLDEN_HOLDOUT_SCHEDULE_CORPUS: readonly GoldenScheduleCase[] = def
   ...HOLDOUT_SCHEDULE_TRAVEL_CASES,
   ...HOLDOUT_SCHEDULE_LINK_CASES,
   ...HOLDOUT_SCHEDULE_SOLVER_CASES,
+  ...HOLDOUT_SCHEDULE_ADDITION_CASES,
 ]);

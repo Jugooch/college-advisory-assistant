@@ -2,13 +2,13 @@
 
 Which rule families and interactions the golden corpus covers, and which gaps remain on the way to the 200-case G1 gate (planning/13 §Golden corpus design). Interactions are listed because both S2 engine defects (#88, #89) sat where two families meet.
 
-Status as of 2026-10-05 (#226):
+Status as of 2026-10-06 (#226):
 
-- The development corpus has 137 cases (`GOLDEN_DEVELOPMENT_CORPUS` in `@caa/test-kit`): 113 across 20 rule families, and 24 section-pair scheduling cases across 4 scheduling families, live since #218 merged.
-- The holdout has 45 cases, version v0.4 (#226): 31 check cases, so every non-scheduling rule family has at least one, and 14 scheduling cases, which are `it.todo` until the solver exists (#220).
+- The development corpus has 164 cases: 113 check cases across 20 rule families (`GOLDEN_DEVELOPMENT_CORPUS` in `@caa/test-kit`), and 51 scheduling cases across 7 scheduling families. 24 of the scheduling cases are section pairs run through `findMeetingConflicts` (inside `GOLDEN_DEVELOPMENT_CORPUS`), and 27 are solver cases run through `buildSectionBundles` and `solveSchedule` (`GOLDEN_DEVELOPMENT_SCHEDULE_CORPUS`).
+- The holdout has 49 cases, version v0.5 (#226): 31 check cases, so every non-scheduling rule family has at least one, and 18 scheduling cases, which now run through the solver.
 - Every case is `pending-academic-review`.
 - No open findings. #183 was settled by tech-lead ruling GR-01 (planning/13 §Golden corpus design, Adjudication rulings), and GC-PF-004 was re-adjudicated from it.
-- 24 more scheduling cases are planned as `it.todo` in `tests/golden/scheduling.golden.test.ts` (#226), waiting for #219 and #220. They aren't counted above until they're full cases (see §Scheduling families).
+- GH-LINK-002 was re-adjudicated in v0.5 from ADR-0010 Amendment 5 (#287): a section dropped for a missing linked lab is shown in `unresolved` beside the options. The expectation schema allows `unresolved` on `OPTIONS_FOUND` and `SEARCH_TIMEOUT` for `LINKED_SECTION_UNAVAILABLE` only.
 
 Keep this file current in the same PR that adds, burns or re-adjudicates a case.
 
@@ -131,60 +131,65 @@ Each interaction lists its development cases, its holdout count, and the gaps st
 
 ## Scheduling families (S4)
 
-**Live since #218 merged:** 24 section-pair cases, run through `findMeetingConflicts` as golden check cases (`check: SCHEDULE_FEASIBILITY`, written with `meetingConflictCase`). Their expected schedule issues are compared on the facts each case states (reason, sections, shared dates, campuses, minutes): GC-MEET-001–008, GC-HALF-001–004, GC-TRAVEL-001–006 and -008, and GC-TBA-001–003, -005 and -006. GC-MEET-001's shared dates start on the first Wednesday, 2027-01-13, the first date both meetings meet, which the planned title had loosely as 2027-01-11. GC-TRAVEL-007 (three sections) and GC-TBA-004 (a hard constraint) wait for the solver (#220).
+**Live.** Every planned scheduling case is now a full case. The section-pair cases run through `findMeetingConflicts` as check cases (`check: SCHEDULE_FEASIBILITY`, written with `meetingConflictCase`, #218): GC-MEET-001–008, GC-HALF-001–004, GC-TRAVEL-001–006 and -008, and GC-TBA-001–003, -005 and -006. The solver cases are scheduling cases (`GoldenScheduleCaseSchema`, written with `scheduleCase`), run by `tests/support/golden-schedule-runner.ts` through `buildSectionBundles` and `solveSchedule` (#219, #220): GC-TRAVEL-007, GC-TBA-004, GC-LINK-001–008, GC-HARD-001–007 and GC-SOLVE-001–010. A scheduling case's inputs are the requested courses, a section snapshot with its linked groups, the transition table, the #212 constraints, the credit policy and the work cap. Its expectation is the #213 outcome shape with the #266 reason codes, compared on the facts the case states. Expected values come from planning/08, planning/13, ADR-0010 and its amendments, never from engine output. GC-MEET-001's shared dates start on the first Wednesday, 2027-01-13, the first date both meetings meet.
 
-The scheduling families (T05: AC06–AC08, AC12) are planned in `tests/golden/scheduling.golden.test.ts`. Each is an `it.todo` whose title states the inputs and the adjudicated expectation, from planning/08 §Schedule model and §Constraint formulation, planning/13, planning/14 §First vertical slice and ADR-0010. The scheduling case kind exists: `GoldenScheduleCaseSchema` in `@caa/test-kit` (written with `scheduleCase`), a kind of its own because its expectation is a whole response. Its inputs are the requested courses, a section snapshot with its linked groups, the transition table, the #212 constraints (merged in #251, which also settles GC-HARD-005's half-open unavailable block), the credit policy and the work cap. Its expectation is the #213 outcome shape (outcome, `searchComplete`, options by section set, conflict set, unresolved items) with the #266 schedule reason codes. Each todo becomes a full case in `packages/test-kit/src/golden/cases/` when its engine issue merges, and the runner turns it live then.
+States use the same letters as §Rule families.
 
-States are the planned expectations, with the same letters as §Rule families.
-
-| Family               | Planned cases     | States | Boundary cases           | Unknown cases              | Engine issue |
-| -------------------- | ----------------- | ------ | ------------------------ | -------------------------- | ------------ |
-| MEETING_OVERLAP      | GC-MEET-001–008   | P F    | GC-MEET-003, GC-MEET-004 | none (see TBA)             | #218         |
-| TERM_DATE_OVERLAP    | GC-HALF-001–004   | P F    | GC-HALF-002, GC-HALF-004 | none (see TBA)             | #218         |
-| TRANSITION_TIME      | GC-TRAVEL-001–008 | P F U  | GC-TRAVEL-002            | GC-TRAVEL-003–004          | #218         |
-| LINKED_SECTION       | GC-LINK-001–007   | P F U  | GC-LINK-005              | GC-LINK-004                | #219         |
-| MEETING_TIME_UNKNOWN | GC-TBA-001–006    | P U    | GC-TBA-005, GC-TBA-006   | GC-TBA-001, GC-TBA-004     | #218, #220   |
-| HARD_VERSUS_SOFT     | GC-HARD-001–005   | P F    | GC-HARD-005              | none                       | #220         |
-| SOLVER_OUTCOME       | GC-SOLVE-001–010  | P F U  | GC-SOLVE-003             | GC-SOLVE-002, GC-SOLVE-008 | #220         |
+| Family               | Development cases | States | Boundary cases             | Unknown cases                      | Holdout |
+| -------------------- | ----------------- | ------ | -------------------------- | ---------------------------------- | ------- |
+| MEETING_OVERLAP      | GC-MEET-001–008   | P F    | GC-MEET-003, GC-MEET-004   | none (see TBA)                     | 2       |
+| TERM_DATE_OVERLAP    | GC-HALF-001–004   | P F    | GC-HALF-002, GC-HALF-004   | none (see TBA)                     | 2       |
+| TRANSITION_TIME      | GC-TRAVEL-001–008 | P F U  | GC-TRAVEL-002              | GC-TRAVEL-003–004                  | 2       |
+| LINKED_SECTION       | GC-LINK-001–008   | P F U  | GC-LINK-005                | GC-LINK-004                        | 4       |
+| MEETING_TIME_UNKNOWN | GC-TBA-001–006    | P U    | GC-TBA-005, GC-TBA-006     | GC-TBA-001, GC-TBA-004, GC-TBA-006 | 2       |
+| HARD_VERSUS_SOFT     | GC-HARD-001–007   | P F U  | GC-HARD-005                | GC-HARD-006                        | 3       |
+| SOLVER_OUTCOME       | GC-SOLVE-001–010  | P F U  | GC-SOLVE-003, GC-SOLVE-004 | GC-SOLVE-002, GC-SOLVE-008         | 3       |
 
 `SOLVER_OUTCOME` "states" stand for the outcomes: P is `OPTIONS_FOUND`, F is `NO_FEASIBLE_PLAN`, and U is `NEEDS_VERIFICATION` or `SEARCH_TIMEOUT` (GC-SOLVE-002, AC12).
 
-**Holdout (v0.4, counts only):** MEETING_OVERLAP 2, TERM_DATE_OVERLAP 2, TRANSITION_TIME 2, LINKED_SECTION 3, MEETING_TIME_UNKNOWN 1, HARD_VERSUS_SOFT 2, SOLVER_OUTCOME 2.
+**Holdout (v0.5, counts only):** MEETING_OVERLAP 2, TERM_DATE_OVERLAP 2, TRANSITION_TIME 2, LINKED_SECTION 4, MEETING_TIME_UNKNOWN 2, HARD_VERSUS_SOFT 3, SOLVER_OUTCOME 3.
 
-**Interactions planned:**
+**Interactions covered:**
 
 - Linked section × meeting overlap: GC-LINK-002, GC-LINK-003 (AC06).
 - Linked section × transition time: GC-LINK-007.
-- Linked section × credit load (an included lab): GC-LINK-005, GC-LINK-006. This also closes the "included lab" gap under Allocation × reusable × variable credit, for credit load.
+- Linked section × credit load (an included lab, a separately credited lab): GC-LINK-005, GC-LINK-006. This also closes the "included lab" gap under Allocation × reusable × variable credit, for credit load.
+- Linked section with two components (lab and recitation): GC-LINK-008.
 - Half-term × TBA: GC-TBA-002.
-- Known weekdays × TBA times (ruling GR-02): GC-TBA-005 gives PASS when no possible date is shared, and GC-TBA-006 gives UNKNOWN `MEETING_TIME_UNKNOWN` when one is (GC-TBA-006 is also an unknown case).
+- Known weekdays × TBA times (ruling GR-02): GC-TBA-005 gives PASS when no possible date is shared, and GC-TBA-006 gives UNKNOWN `MEETING_TIME_UNKNOWN` when one is.
 - Date overlap × DST: GC-MEET-007, GC-MEET-008.
 - TBA × hard availability: GC-TBA-004.
+- TBA location × hard campus rule: GC-HARD-006.
+- Three-section travel (every pair counts): GC-TRAVEL-007.
 - Transition time × ranking (UNKNOWN after PASS): GC-SOLVE-010.
 - Solver precedence (FAIL before UNKNOWN): GC-SOLVE-009.
+- Work cap × candidates: GC-SOLVE-002 to -004 (timeout, exact cap, incomplete options).
+- Dropped linked section × options or timeout (Amendment 5): holdout only, by design.
 
 **Open gaps and questions:**
 
-- No `HARD_VERSUS_SOFT` unknown case beyond GC-TBA-004. Add one for an allowed-campus constraint against a meeting with a TBA location.
-- Scheduling holdout: done in v0.4 (14 cases). MEETING_TIME_UNKNOWN has only one, so the next refresh should add a second.
-- Multi-meeting sections (a lecture with an MWF meeting and a separate Friday exam slot) aren't planned yet.
+- Multi-meeting sections (a lecture with an MWF meeting and a separate Friday exam slot) aren't covered.
+- No development case yet for a hard credit range that intersects the policy bounds from one side only, or for a chosen variable credit inside a bundle (`creditSelections`).
+- A conflict set longer than 20 items (`omittedCount` above 0) has no case.
+- Requests of more than 4 courses, or a deep search near the default cap, have no case; the engine's own tests cover the worst input.
+- Linked courses outside the plan (`linkedCourseResults`, Amendment 4) aren't compared by the case format. AC06 covers them at the API.
 
 ## Path to the 200-case G1 gate
 
-There are 182 cases today (137 development, 45 holdout, of which the 14 scheduling holdout cases run once #220 merges). The remaining 18 or more should come from:
+There are 213 cases today (164 development, 49 holdout), so the count is met. The gate also needs every supported family to have positive, negative, boundary and unknown cases, and academic sign-off. What is left:
 
-1. **The open interaction gaps above:** about 20 cases, all testable with today's engine.
+1. **The open interaction gaps above:** about 20 cases, all testable with today's engine, plus the scheduling gaps listed under §Scheduling families.
 2. **The family gaps above** (boundary and unknown cases): about 12 cases.
-3. **A holdout refresh** for the 10 families that had no holdout case: done in v0.3 (16 cases, #226). The scheduling families followed in v0.4 (14 cases, #226).
-4. **Families the engine doesn't support yet**, each added with its engine feature:
+3. **Families the engine doesn't support yet**, each added with its engine feature as an `it.todo` with the issue number until the feature exists:
    - co-requisites;
    - permission requirements;
    - placement and cohort restrictions;
    - credit and residency limits;
    - approved exceptions (AC17);
-   - catalog-year rules (AC09);
-   - scheduling (T05: AC06–AC08, AC12): 48 cases planned, 24 of them live (§Scheduling families).
+   - catalog-year rules (AC09).
 
-   The non-scheduling families add about 30 or more cases. Every case is filed as `it.todo` with the issue number until the feature exists.
+   These add about 30 or more cases.
+
+4. **Holdout refresh:** the holdout reached every scheduling family in v0.4 and v0.5. The next cut should add families as their engine features land, and burned cases are replaced as the README describes.
 
 Academic sign-off by a domain owner remains open for every case (G1).
