@@ -77,7 +77,7 @@ export function buildScheduleOptionsResponse(
   const options = overrides.options ?? [buildScheduleOption()];
   const [first] = options;
   const courseIds = first === undefined ? [] : first.bundles.map((bundle) => bundle.courseId);
-  const response = ScheduleOptionsResponseSchema.parse({
+  const draft = {
     outcome: ScheduleOutcome.OptionsFound,
     searchComplete: true,
     courseIds,
@@ -94,10 +94,12 @@ export function buildScheduleOptionsResponse(
     },
     ...overrides,
     options,
-  });
-  if (overrides.campuses !== undefined) return response;
+  };
+  // The draft is the schema's input shape; `namedCampusIds` reads only the fields it names, which
+  // are the same in the input and the parsed output, so the unparsed draft is safe to pass.
+  const naming = draft as unknown as Parameters<typeof namedCampusIds>[0];
   return ScheduleOptionsResponseSchema.parse({
-    ...response,
-    campuses: namedCampusIds(response).map(displayCampus),
+    campuses: namedCampusIds(naming).map(displayCampus),
+    ...draft,
   });
 }
