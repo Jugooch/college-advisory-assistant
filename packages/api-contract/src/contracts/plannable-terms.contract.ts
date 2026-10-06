@@ -3,7 +3,7 @@
  * @module @caa/api-contract/contracts/plannable-terms
  * @requirement FR-08
  * @requirement NFR-04
- * @see docs/adr/0010-schedule-options-endpoint.md
+ * @see docs/adr/0010-deterministic-bounded-schedule-solver.md (Amendment 6)
  */
 import { z } from 'zod';
 
@@ -51,8 +51,8 @@ export type PlannableTerm = z.infer<typeof PlannableTermSchema>;
 /**
  * Response body for `GET /v1/students/:studentId/plannable-terms`.
  *
- * The list is in the tenant's term order, which the server applies. An empty list is a valid
- * answer: the UI then shows an advisor referral instead of a picker.
+ * The server lists terms in the tenant's term order; this schema does not enforce the order. An
+ * empty list is a valid answer: the UI then shows an advisor referral instead of a picker.
  */
 export const PlannableTermsResponseSchema = z
   .object({
