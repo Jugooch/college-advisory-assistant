@@ -7,20 +7,23 @@
 import type {
   CampusTransitionRepository,
   LatestSectionSnapshot,
-  SectionSnapshotRepository,
+  TermLatestSectionSnapshot,
+  TermSectionSnapshotRepository,
 } from '@caa/db';
-import type { CampusTransitionPolicy, SectionSnapshot } from '@caa/domain';
+import type { CampusTransitionPolicy, SectionSnapshot, Term } from '@caa/domain';
 
 /** Schedule backing data. Every field omitted means none stored. */
 export interface InMemoryScheduleStore {
   sectionSnapshots?: readonly SectionSnapshot[];
   /** At most one table per tenant: the current one. */
   transitionPolicies?: readonly CampusTransitionPolicy[];
+  /** The tenants' terms, read only by the per-term listing. */
+  terms?: readonly Term[];
 }
 
 /** The schedule repositories the fakes implement. */
 export interface InMemoryScheduleRepositories {
-  readonly sectionSnapshots: SectionSnapshotRepository;
+  readonly sectionSnapshots: TermSectionSnapshotRepository;
   readonly campusTransitions: CampusTransitionRepository;
 }
 
@@ -56,6 +59,38 @@ function findLatestPublished(
 }
 
 /**
+ * Lists each of the tenant's terms that has a snapshot with the head of its latest one, ordered
+ * by term sequence, like the PostgreSQL repository.
+ *
+ * @param store - Backing data.
+ * @param tenantId - Tenant that owns the terms.
+ * @returns One entry per term with a published snapshot.
+ */
+function listLatestPublishedByTerm(
+  store: InMemoryScheduleStore,
+  tenantId: string,
+): readonly TermLatestSectionSnapshot[] {
+  return (store.terms ?? [])
+    .filter((term) => term.tenantId === tenantId)
+    .toSorted((left, right) => left.sequence - right.sequence)
+    .flatMap((term) => {
+      const latest = findLatestPublished(store, tenantId, term.id);
+      if (latest === null) {
+        return [];
+      }
+      const head =
+        latest.status === 'FOUND'
+          ? {
+              status: 'FOUND' as const,
+              sectionSnapshotId: latest.snapshot.id,
+              sourceEffectiveAt: latest.snapshot.sourceEffectiveAt,
+            }
+          : { status: 'AMBIGUOUS' as const };
+      return [{ term, latest: head }];
+    });
+}
+
+/**
  * Creates the schedule repositories over the store, filtered by tenant like PostgreSQL.
  *
  * @param store - Backing data. Read on every call.
@@ -68,6 +103,8 @@ export function createInMemoryScheduleRepositories(
     sectionSnapshots: {
       findLatestPublished: (tenantId, termId) =>
         Promise.resolve(findLatestPublished(store, tenantId, termId)),
+      listLatestPublishedByTerm: (tenantId) =>
+        Promise.resolve(listLatestPublishedByTerm(store, tenantId)),
     },
     campusTransitions: {
       findPolicy: (tenantId) =>
