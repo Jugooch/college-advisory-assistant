@@ -9,6 +9,7 @@
 import type { z } from 'zod';
 
 import {
+  namedCampusIds,
   type ScheduleOptionsResponse,
   ScheduleOptionsResponseSchema,
   type SchedulePinnedInputs,
@@ -16,7 +17,9 @@ import {
 } from '@caa/api-contract';
 import { ScheduleLimitation, ScheduleOutcome } from '@caa/domain';
 
+import { SYNTHETIC_CAMPUSES } from '../fixtures/synthetic-campuses';
 import { syntheticId } from '../fixtures/synthetic-id';
+import { SYNTHETIC_SCHEDULE_TERM } from '../fixtures/synthetic-schedule-term';
 import { buildScheduleOption } from './schedule-option.builder';
 
 /** Raw input accepted for a response, as the contract schema reads it. */
@@ -42,9 +45,24 @@ export const SYNTHETIC_SCHEDULE_PINNED_INPUTS: SchedulePinnedInputs =
   });
 
 /**
+ * Names a campus ID for display: the synthetic campus's name when it is one of the two fixed
+ * campuses, else a synthetic name that carries the ID.
+ *
+ * @param id - The campus ID the response names.
+ * @returns The campus display entry.
+ */
+function displayCampus(id: string): { id: string; name: string } {
+  const known = Object.values(SYNTHETIC_CAMPUSES).find((campus) => campus.id === id);
+  return { id, name: known?.name ?? `Demo Campus ${id}` };
+}
+
+/**
  * Builds a valid schedule-options response. By default it is a complete `OPTIONS_FOUND` with
  * one option from `buildScheduleOption`, the option's courses as `courseIds`, every limitation
- * code, the synthetic pinned inputs, and no catalog entries.
+ * code, the synthetic pinned inputs, and no catalog entries. `term` is the synthetic schedule
+ * term (2027SP, the term of the section builders). `campuses` lists exactly the campuses the
+ * built response names, ascending by ID, so an override of `options`, `conflictSet` or
+ * `unresolved` gets a matching list unless `campuses` is overridden too.
  *
  * `courseIds` follow the first option's bundles unless given. Change the outcome together with
  * the fields it governs: for example `SEARCH_TIMEOUT` needs `searchComplete: false` and no
@@ -59,7 +77,7 @@ export function buildScheduleOptionsResponse(
   const options = overrides.options ?? [buildScheduleOption()];
   const [first] = options;
   const courseIds = first === undefined ? [] : first.bundles.map((bundle) => bundle.courseId);
-  return ScheduleOptionsResponseSchema.parse({
+  const response = ScheduleOptionsResponseSchema.parse({
     outcome: ScheduleOutcome.OptionsFound,
     searchComplete: true,
     courseIds,
@@ -68,7 +86,18 @@ export function buildScheduleOptionsResponse(
     limitations: Object.values(ScheduleLimitation),
     pinnedInputs: SYNTHETIC_SCHEDULE_PINNED_INPUTS,
     courses: [],
+    term: {
+      id: SYNTHETIC_SCHEDULE_TERM.termId,
+      termCode: SYNTHETIC_SCHEDULE_TERM.termCode,
+      startsOn: SYNTHETIC_SCHEDULE_TERM.startsOn,
+      endsOn: SYNTHETIC_SCHEDULE_TERM.endsOn,
+    },
     ...overrides,
     options,
+  });
+  if (overrides.campuses !== undefined) return response;
+  return ScheduleOptionsResponseSchema.parse({
+    ...response,
+    campuses: namedCampusIds(response).map(displayCampus),
   });
 }

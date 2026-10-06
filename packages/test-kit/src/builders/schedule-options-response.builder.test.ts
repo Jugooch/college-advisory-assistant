@@ -7,10 +7,14 @@ import { describe, expect, it } from 'vitest';
 
 import { ScheduleOutcome } from '@caa/domain';
 
+import { SYNTHETIC_CAMPUSES } from '../fixtures/synthetic-campuses';
+import { SYNTHETIC_COURSES } from '../fixtures/synthetic-courses';
+import { buildScheduleOption, buildSectionBundle } from './schedule-option.builder';
 import {
   buildScheduleOptionsResponse,
   SYNTHETIC_SCHEDULE_PINNED_INPUTS,
 } from './schedule-options-response.builder';
+import { buildOnlineAsynchronousSection, buildSection } from './section.builder';
 
 describe('buildScheduleOptionsResponse', () => {
   it('builds a complete OPTIONS_FOUND with one option and every limitation code', () => {
@@ -64,5 +68,60 @@ describe('buildScheduleOptionsResponse', () => {
     expect(() => buildScheduleOptionsResponse({ outcome: ScheduleOutcome.NoFeasiblePlan })).toThrow(
       /searchComplete, options, conflictSet, and unresolved must match the outcome/,
     );
+  });
+
+  it('defaults term to the synthetic schedule term of the section builders', () => {
+    expect(buildScheduleOptionsResponse().term).toEqual({
+      id: 'b0000000-0000-4000-8000-000000000004',
+      termCode: '2027SP',
+      startsOn: '2027-01-11',
+      endsOn: '2027-05-07',
+    });
+  });
+
+  it('defaults campuses to exactly the campus the default option names', () => {
+    expect(buildScheduleOptionsResponse().campuses).toEqual([
+      { id: 'd0000000-0000-4000-8000-000000000001', name: 'Demo North Campus' },
+    ]);
+  });
+
+  it('lists the campuses of overridden options, once each, sorted by id', () => {
+    const south = buildSection(
+      { campusId: SYNTHETIC_CAMPUSES.south.id, courseId: SYNTHETIC_COURSES.math102.id },
+      2,
+    );
+    const response = buildScheduleOptionsResponse({
+      options: [
+        buildScheduleOption({ bundles: [buildSectionBundle([south], 300)] }),
+        buildScheduleOption({ rank: 2 }),
+      ],
+    });
+
+    expect(response.campuses).toEqual([
+      { id: 'd0000000-0000-4000-8000-000000000001', name: 'Demo North Campus' },
+      { id: 'd0000000-0000-4000-8000-000000000002', name: 'Demo South Campus' },
+    ]);
+  });
+
+  it('defaults campuses to an empty list when the response names no campus', () => {
+    const online = buildScheduleOption({
+      bundles: [buildSectionBundle([buildOnlineAsynchronousSection()], 300)],
+    });
+
+    expect(buildScheduleOptionsResponse({ options: [online] }).campuses).toEqual([]);
+    expect(
+      buildScheduleOptionsResponse({
+        outcome: ScheduleOutcome.SearchTimeout,
+        searchComplete: false,
+        options: [],
+        courseIds: ['50000000-0000-4000-8000-000000000102'],
+      }).campuses,
+    ).toEqual([]);
+  });
+
+  it('keeps an overridden campuses list instead of deriving one', () => {
+    const campuses = [{ id: SYNTHETIC_CAMPUSES.north.id, name: 'Renamed North' }];
+
+    expect(buildScheduleOptionsResponse({ campuses }).campuses).toEqual(campuses);
   });
 });
