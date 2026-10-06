@@ -217,15 +217,13 @@ export const ScheduleOptionsResponseSchema = z
     courses: CourseDisplayListSchema,
     /**
      * The requested term, for display. Display data only.
-     * TODO(#331): make required once the API sets it on every 200.
      */
-    term: ScheduleTermSchema.optional(),
+    term: ScheduleTermSchema,
     /**
      * Exactly the campuses the response names, ordered by `id`; `[]` when it names none.
      * Display data only, never identity.
-     * TODO(#331): make required once the API sets it on every 200.
      */
-    campuses: z.array(CampusDisplaySchema).readonly().optional(),
+    campuses: z.array(CampusDisplaySchema).readonly(),
   })
   .refine((response) => isDistinct(response.courseIds), {
     message: 'courseIds must not repeat a course',

@@ -19,6 +19,7 @@ import { studentSnapshotAttemptTable } from '../tables/student-snapshot-attempt.
 import { termTable } from '../tables/term.table';
 import { assertAcademicPlanReferences } from './academic-plan-references';
 import type { DevSeedAcademicPlan } from './dev-seed-academic-plan';
+import { toRepeatColumns } from './repeat-columns';
 import { insertRequirementResults } from './requirement-result-writer';
 
 /** How many academic records the plan holds. Counts only, safe to log. */
@@ -63,9 +64,7 @@ async function insertCatalogAndPolicy(tx: SeedWriter, plan: DevSeedAcademicPlan)
     .values(
       plan.courses.map(({ repeatableForCredit, ...course }) => ({
         ...course,
-        repeatableForCredit: repeatableForCredit !== null && repeatableForCredit !== undefined,
-        repeatMaxAttempts: repeatableForCredit?.maxAttempts ?? null,
-        repeatMaxCreditsHundredths: repeatableForCredit?.maxCreditsHundredths ?? null,
+        ...toRepeatColumns(repeatableForCredit),
       })),
     )
     .onConflictDoNothing({ target: courseTable.id });

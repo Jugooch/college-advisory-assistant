@@ -211,20 +211,20 @@ describe('ScheduleOptionsResponseSchema limitations and pinning', () => {
   });
 
   it('rejects linked-course prerequisite evidence from a ruleset other than the pinned one', () => {
-    const linked = (rulesetVersion: string): unknown => ({
-      ...OPTIONS_FOUND,
-      options: [
-        buildOption({
-          linkedCourseResults: [
-            {
-              courseId: PHYS_301L,
-              prerequisite: prerequisiteCheck('PASS', rulesetVersion),
-              applicability: { kind: 'REQUIREMENT_APPLICABILITY', state: 'PASS' },
-            },
-          ],
-        }),
-      ],
-    });
+    const linked = (rulesetVersion: string): unknown =>
+      buildResponse({
+        options: [
+          buildOption({
+            linkedCourseResults: [
+              {
+                courseId: PHYS_301L,
+                prerequisite: prerequisiteCheck('PASS', rulesetVersion),
+                applicability: { kind: 'REQUIREMENT_APPLICABILITY', state: 'PASS' },
+              },
+            ],
+          }),
+        ],
+      });
 
     expect(accepts(linked('demo-2026.1'))).toBe(true);
     expect(accepts(linked('demo-2025.9'))).toBe(false);
