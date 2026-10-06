@@ -25,6 +25,8 @@ export const KNOWN_FINDINGS: ReadonlyMap<string, number> = new Map<string, numbe
   ['AC06: blocks the lecture when its only lab conflicts, with the conflict as evidence', 221],
   ['AC06: offers the lecture only with the lab that fits', 221],
   ['AC06: needs verification when the lab component permits no section', 221],
+  ['AC06: needs verification, never validated, when a linked lab adds its own credits', 221],
+  ['AC06: needs verification when an included lab has a prerequisite of its own', 221],
   ['AC07: allows the same weekly time in the two halves of the term', 221],
   ['AC07: rejects the same weekly time in the same half', 221],
   ['AC07: rejects halves that share a single meeting date', 221],
