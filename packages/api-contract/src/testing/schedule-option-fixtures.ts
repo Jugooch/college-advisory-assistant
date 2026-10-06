@@ -147,6 +147,14 @@ export const MISSING_SECTIONS = unknownScheduleWith({
   courseId: PHYS_301,
 });
 
+/** An UNKNOWN schedule for `unresolved`: a DEMO-PHYS 301 section lacks a linked section. */
+export const LINKED_UNAVAILABLE = unknownScheduleWith({
+  reasonCode: 'LINKED_SECTION_UNAVAILABLE',
+  courseId: PHYS_301,
+  primarySectionId: sectionId(1),
+  componentName: 'Lab',
+});
+
 /** An UNKNOWN schedule left undecided by the credit load, which carries the arithmetic. */
 export const UNKNOWN_LOAD_SCHEDULE: Payload = {
   kind: 'SCHEDULE_FEASIBILITY',

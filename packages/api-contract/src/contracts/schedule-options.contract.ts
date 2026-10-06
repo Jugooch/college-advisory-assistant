@@ -47,6 +47,12 @@ function isDistinct(values: readonly string[]): boolean {
   return new Set(values).size === values.length;
 }
 
+/**
+ * What `unresolved` may hold: `none` is empty, `some` has at least one entry, and `linked` is
+ * empty or holds only `LINKED_SECTION_UNAVAILABLE` results (ADR-0010 Amendment 5).
+ */
+type UnresolvedShape = 'none' | 'some' | 'linked';
+
 /** What each outcome carries (ADR-0010 §5). `null` for `searchComplete` means either value. */
 const OUTCOME_SHAPE: Readonly<
   Record<
@@ -55,7 +61,7 @@ const OUTCOME_SHAPE: Readonly<
       readonly searchComplete: boolean | null;
       readonly hasOptions: boolean;
       readonly hasConflictSet: boolean;
-      readonly hasUnresolved: boolean;
+      readonly unresolved: UnresolvedShape;
     }
   >
 > = {
@@ -63,25 +69,25 @@ const OUTCOME_SHAPE: Readonly<
     searchComplete: null,
     hasOptions: true,
     hasConflictSet: false,
-    hasUnresolved: false,
+    unresolved: 'linked',
   },
   [ScheduleOutcome.NoFeasiblePlan]: {
     searchComplete: true,
     hasOptions: false,
     hasConflictSet: true,
-    hasUnresolved: false,
+    unresolved: 'none',
   },
   [ScheduleOutcome.SearchTimeout]: {
     searchComplete: false,
     hasOptions: false,
     hasConflictSet: false,
-    hasUnresolved: false,
+    unresolved: 'linked',
   },
   [ScheduleOutcome.NeedsVerification]: {
     searchComplete: false,
     hasOptions: false,
     hasConflictSet: false,
-    hasUnresolved: true,
+    unresolved: 'some',
   },
 };
 
@@ -96,14 +102,22 @@ function hasOutcomeShape(response: {
   readonly searchComplete: boolean;
   readonly options: readonly unknown[];
   readonly conflictSet: object | null;
-  readonly unresolved: readonly unknown[];
+  readonly unresolved: readonly { readonly reasonCode?: unknown }[];
 }): boolean {
   const shape = OUTCOME_SHAPE[response.outcome];
+  const { unresolved } = response;
+  const hasFittingUnresolved =
+    shape.unresolved === 'some'
+      ? unresolved.length > 0
+      : shape.unresolved === 'none'
+        ? unresolved.length === 0
+        : // SAFETY: a search that ran lists only sections dropped for a missing linked component.
+          unresolved.every((check) => check.reasonCode === ReasonCode.LinkedSectionUnavailable);
   return (
     (shape.searchComplete === null || shape.searchComplete === response.searchComplete) &&
     shape.hasOptions === response.options.length > 0 &&
     shape.hasConflictSet === (response.conflictSet !== null) &&
-    shape.hasUnresolved === response.unresolved.length > 0
+    hasFittingUnresolved
   );
 }
 
@@ -170,9 +184,11 @@ export const ScheduleOptionsResponseSchema = z
     /** Verified conflicts for `NO_FEASIBLE_PLAN`; `null` for every other outcome. */
     conflictSet: ConflictSetSchema.nullable(),
     /**
-     * UNKNOWN SCHEDULE_FEASIBILITY results saying which data is missing, for
-     * `NEEDS_VERIFICATION`; empty for every other outcome. Each is `SECTION_DATA_MISSING` or
-     * `LINKED_SECTION_UNAVAILABLE`, the two reasons a course can have no bundle (ADR-0010 §5).
+     * UNKNOWN SCHEDULE_FEASIBILITY results saying which data is missing. `NEEDS_VERIFICATION`
+     * needs at least one, each `SECTION_DATA_MISSING` or `LINKED_SECTION_UNAVAILABLE`.
+     * `OPTIONS_FOUND` and `SEARCH_TIMEOUT` hold the sections dropped for a missing linked
+     * component, each `LINKED_SECTION_UNAVAILABLE`, or none. `NO_FEASIBLE_PLAN` has none
+     * (ADR-0010 §5, Amendment 5).
      */
     unresolved: z
       .array(

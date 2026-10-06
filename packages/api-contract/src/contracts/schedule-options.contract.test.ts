@@ -8,6 +8,7 @@ import {
   buildResponse,
   CREDIT_CONFLICT,
   LIMITATIONS,
+  LINKED_UNAVAILABLE,
   MISSING_SECTIONS,
   PHYS_301,
   PHYS_301L,
@@ -64,6 +65,22 @@ describe('ScheduleOptionsResponseSchema outcomes', () => {
     ['NO_FEASIBLE_PLAN with a conflict set', NO_FEASIBLE_PLAN],
     ['SEARCH_TIMEOUT with no options', SEARCH_TIMEOUT],
     ['NEEDS_VERIFICATION with unresolved data', NEEDS_VERIFICATION],
+    [
+      'OPTIONS_FOUND, complete, with a dropped linked section',
+      { ...OPTIONS_FOUND, unresolved: [LINKED_UNAVAILABLE] },
+    ],
+    [
+      'OPTIONS_FOUND, incomplete, with a dropped linked section',
+      { ...OPTIONS_FOUND, searchComplete: false, unresolved: [LINKED_UNAVAILABLE] },
+    ],
+    [
+      'SEARCH_TIMEOUT with a dropped linked section',
+      { ...SEARCH_TIMEOUT, unresolved: [LINKED_UNAVAILABLE] },
+    ],
+    [
+      'NEEDS_VERIFICATION with a linked section unavailable',
+      { ...NEEDS_VERIFICATION, unresolved: [LINKED_UNAVAILABLE] },
+    ],
   ])('accepts %s', (_name, payload) => {
     expect(ScheduleOptionsResponseSchema.parse(payload)).toEqual(payload);
   });
@@ -80,7 +97,22 @@ describe('ScheduleOptionsResponseSchema outcomes', () => {
     ['SEARCH_TIMEOUT from a complete search', { ...SEARCH_TIMEOUT, searchComplete: true }],
     ['SEARCH_TIMEOUT with a conflict set', { ...SEARCH_TIMEOUT, conflictSet: CONFLICT_SET }],
     ['NEEDS_VERIFICATION with nothing unresolved', { ...NEEDS_VERIFICATION, unresolved: [] }],
-    ['SEARCH_TIMEOUT with unresolved data', { ...SEARCH_TIMEOUT, unresolved: [MISSING_SECTIONS] }],
+    [
+      'SEARCH_TIMEOUT with missing section data',
+      { ...SEARCH_TIMEOUT, unresolved: [MISSING_SECTIONS] },
+    ],
+    [
+      'OPTIONS_FOUND with missing section data',
+      { ...OPTIONS_FOUND, unresolved: [MISSING_SECTIONS] },
+    ],
+    [
+      'OPTIONS_FOUND with a missing section beside a dropped linked one',
+      { ...OPTIONS_FOUND, unresolved: [LINKED_UNAVAILABLE, MISSING_SECTIONS] },
+    ],
+    [
+      'NO_FEASIBLE_PLAN with a dropped linked section',
+      { ...NO_FEASIBLE_PLAN, unresolved: [LINKED_UNAVAILABLE] },
+    ],
   ])('rejects %s', (_name, payload) => {
     expect(accepts(payload)).toBe(false);
   });
