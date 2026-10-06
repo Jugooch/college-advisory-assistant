@@ -10,6 +10,11 @@ import { institutionTable } from '../tables/institution.table';
 import { studentTable } from '../tables/student.table';
 import { userIdentityTable } from '../tables/user-identity.table';
 import type { DevSeedPlan, SeedAssignment, SeedIdentity, SeedStudent } from './dev-seed-plan';
+import {
+  insertCampuses,
+  insertCampusTransitionPolicy,
+  insertSectionSnapshot,
+} from './section-snapshot-writer';
 import { type AcademicSeedCounts, seedAcademicData } from './seed-academic-data';
 
 /** How many records of each kind the seed wrote. Counts only, safe to log. */
@@ -57,6 +62,11 @@ export async function seedDevData(db: Database, plan: DevSeedPlan): Promise<Seed
       }
       return lookup(studentIds, studentKey(student.tenantId, student.sourceStudentId));
     });
+    // NOTE: after the academic data, because sections refer to its courses and terms.
+    const { campuses, transitionPolicy, transitionPublishedAt, snapshot } = plan.sections;
+    await insertCampuses(tx, campuses);
+    await insertCampusTransitionPolicy(tx, transitionPolicy, transitionPublishedAt);
+    await insertSectionSnapshot(tx, snapshot);
     return {
       ...academicCounts,
       institutions: plan.institutions.length,
