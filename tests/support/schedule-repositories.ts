@@ -10,14 +10,17 @@
 import type {
   CampusTransitionRepository,
   LatestSectionSnapshot,
-  SectionSnapshotRepository,
+  TermLatestSectionSnapshot,
+  TermSectionSnapshotRepository,
 } from '@caa/db';
-import type { CampusTransitionPolicy, SectionSnapshot } from '@caa/domain';
+import type { CampusTransitionPolicy, SectionSnapshot, Term } from '@caa/domain';
 
 /** Schedule backing data. A field that is omitted means nothing of that kind is stored. */
 export interface ScheduleWorld {
   /** Published section snapshots of every term and tenant. */
   sectionSnapshots?: readonly SectionSnapshot[];
+  /** Terms of every tenant. The per-term listing walks these, so a term must be here to be listed. */
+  terms?: readonly Term[];
   /**
    * Published campus transition tables, oldest publication first. The last one of a tenant is
    * its current table.
@@ -30,7 +33,7 @@ export interface ScheduleWorld {
  * the harness gives the API's `Repositories`.
  */
 export interface ScheduleRepositories {
-  readonly sectionSnapshots: SectionSnapshotRepository;
+  readonly sectionSnapshots: TermSectionSnapshotRepository;
   readonly campusTransitions: CampusTransitionRepository;
 }
 
@@ -61,6 +64,40 @@ function latestSnapshot(
 }
 
 /**
+ * Lists each of the tenant's terms that has a published snapshot with the head of its latest one,
+ * ordered by term `sequence`. A tie for newest is `AMBIGUOUS`. Terms without a snapshot, and
+ * other tenants' terms, are absent.
+ *
+ * @param world - Backing data.
+ * @param tenantId - Tenant that owns the terms.
+ * @returns The entries, empty when the tenant has no snapshots.
+ */
+function listLatestByTerm(world: ScheduleWorld, tenantId: string): TermLatestSectionSnapshot[] {
+  const entries: TermLatestSectionSnapshot[] = [];
+  const terms = (world.terms ?? [])
+    .filter((term) => term.tenantId === tenantId)
+    .toSorted((left, right) => left.sequence - right.sequence);
+  for (const term of terms) {
+    const latest = latestSnapshot(world, { tenantId, termId: term.id });
+    if (latest === null) {
+      continue;
+    }
+    entries.push({
+      term,
+      latest:
+        latest.status === 'AMBIGUOUS'
+          ? { status: 'AMBIGUOUS' }
+          : {
+              status: 'FOUND',
+              sectionSnapshotId: latest.snapshot.id,
+              sourceEffectiveAt: latest.snapshot.sourceEffectiveAt,
+            },
+    });
+  }
+  return entries;
+}
+
+/**
  * Creates the schedule repositories over the world, each scoped to the tenant it is asked for.
  *
  * @param world - Backing data. Read on every call, so a case can change it between requests.
@@ -71,6 +108,7 @@ export function createScheduleRepositories(world: ScheduleWorld): ScheduleReposi
     sectionSnapshots: {
       findLatestPublished: (tenantId, termId) =>
         Promise.resolve(latestSnapshot(world, { tenantId, termId })),
+      listLatestPublishedByTerm: (tenantId) => Promise.resolve(listLatestByTerm(world, tenantId)),
     },
     campusTransitions: {
       findPolicy: (tenantId) =>
