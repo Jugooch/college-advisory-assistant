@@ -25,7 +25,7 @@ import {
   runCourseChecks as check,
 } from '../../testing/course-checks-harness';
 import type { InMemoryAcademicStore } from '../../testing/in-memory-academic-repositories';
-import { SEED_AUDITS, SEED_COURSES } from '../../testing/seed-scenario-fixtures';
+import { SEED_AUDITS, SEED_COURSES, SEED_SNAPSHOTS } from '../../testing/seed-scenario-fixtures';
 
 const { math102, ind390, engl101 } = SEED_COURSES;
 
@@ -166,7 +166,7 @@ describe('CourseChecksService.checkCourses', () => {
           actorUserId: '20000000-0000-4000-8000-000000000001',
           tenantId: '10000000-0000-4000-8000-000000000001',
           studentId: '30000000-0000-4000-8000-000000000001',
-          studentSnapshotId: 'a0000000-0000-4000-8000-000000000001',
+          studentSnapshotId: SEED_SNAPSHOTS.current.id,
           studentRecordEffectiveAt: '2026-09-01T05:00:00.000Z',
           auditRecordEffectiveAt: '2026-09-01T05:00:00.000Z',
           auditSource: 'demo-audit',
