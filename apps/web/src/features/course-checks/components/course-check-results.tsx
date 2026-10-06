@@ -13,12 +13,11 @@ import type { ReactElement } from 'react';
 import type { CourseChecksResponse } from '@caa/api-contract';
 
 import { StatusBadge } from '@/components/ui/status-badge';
+import { CheckResultItem } from '@/shared/components/check-result-item';
 import { CourseLabel } from '@/shared/components/course-label';
 import { describeAggregate } from '@/shared/utils/check-state-wording';
 import type { CourseLookup } from '@/shared/utils/course-display';
-
-import { describeAsOf } from '../utils/decisive-leaf-wording';
-import { CheckResultItem } from './check-result-item';
+import { describeAsOf } from '@/shared/utils/decisive-leaf-wording';
 
 /** Props for {@link CourseCheckResults}. */
 export interface CourseCheckResultsProps {
