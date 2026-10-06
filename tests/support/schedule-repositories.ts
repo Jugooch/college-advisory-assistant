@@ -90,7 +90,7 @@ function listLatestByTerm(world: ScheduleWorld, tenantId: string): TermLatestSec
           : {
               status: 'FOUND',
               sectionSnapshotId: latest.snapshot.id,
-              sourceEffectiveAt: latest.snapshot.sourceEffectiveAt,
+              sourceEffectiveAt: new Date(latest.snapshot.sourceEffectiveAt).toISOString(),
             },
     });
   }

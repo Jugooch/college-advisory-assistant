@@ -69,4 +69,36 @@ describe('schedule repository fake: listLatestPublishedByTerm', () => {
 
     expect(await repos.sectionSnapshots.listLatestPublishedByTerm(TENANT_B)).toEqual([]);
   });
+
+  it('orders several terms by ascending sequence whatever the stored order', async () => {
+    const third = buildTerm({}, 3);
+    const repos = createScheduleRepositories({
+      terms: [third, FALL, SPRING],
+      sectionSnapshots: [
+        buildSectionSnapshot({ termId: SPRING.id }, 1),
+        buildSectionSnapshot({ termId: third.id }, 2),
+        buildSectionSnapshot({ termId: FALL.id }, 3),
+      ],
+    });
+
+    const listed = await repos.sectionSnapshots.listLatestPublishedByTerm(TENANT_A);
+
+    expect(listed.map((entry) => entry.term.sequence)).toEqual([1, 2, 3]);
+  });
+
+  it('returns sourceEffectiveAt in UTC Z form for an offset input', async () => {
+    const repos = createScheduleRepositories({
+      terms: [FALL],
+      sectionSnapshots: [
+        buildSectionSnapshot(
+          { termId: FALL.id, sourceEffectiveAt: '2026-02-01T05:00:00+02:00' },
+          1,
+        ),
+      ],
+    });
+
+    const [entry] = await repos.sectionSnapshots.listLatestPublishedByTerm(TENANT_A);
+
+    expect(entry?.latest).toMatchObject({ sourceEffectiveAt: '2026-02-01T03:00:00.000Z' });
+  });
 });
