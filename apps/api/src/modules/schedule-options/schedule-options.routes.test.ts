@@ -13,13 +13,14 @@ import type { FastifyInstance } from 'fastify';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { ScheduleOptionsResponseSchema } from '@caa/api-contract';
-import { ErrorCode, ScheduleOutcome } from '@caa/domain';
+import { ErrorCode, ReasonCode, ScheduleOutcome } from '@caa/domain';
 import { buildStudent, SYNTHETIC_TENANTS } from '@caa/test-kit';
 
 import { buildSeededWorldApp, readLogLines } from '../../testing/course-checks-harness';
 import { bearer, readError, STUDENTS, TOKENS } from '../../testing/fixtures';
 import {
   buildScheduleSnapshot,
+  droppedSectionStore,
   scheduleRequest,
   scheduleStore,
 } from '../../testing/schedule-options-harness';
@@ -159,6 +160,25 @@ describe('POST /v1/students/:studentId/schedule-options sources and the cap', ()
       outcome: ScheduleOutcome.SearchTimeout,
       searchComplete: false,
       pinnedInputs: { solverWorkCap: 1 },
+    });
+  });
+
+  it('returns 200 with the dropped section in unresolved on OPTIONS_FOUND and SEARCH_TIMEOUT', async () => {
+    Object.assign(store, droppedSectionStore());
+    Object.assign(cappedStore, droppedSectionStore());
+
+    const found = await postOptions(STUDENTS.own.id, TOKENS.student);
+    const capped = await postOptions(STUDENTS.own.id, TOKENS.student, { target: cappedApp });
+
+    expect(found.statusCode).toBe(200);
+    expect(capped.statusCode).toBe(200);
+    expect(readOptions(found.json())).toMatchObject({
+      outcome: ScheduleOutcome.OptionsFound,
+      unresolved: [{ reasonCode: ReasonCode.LinkedSectionUnavailable }],
+    });
+    expect(readOptions(capped.json())).toMatchObject({
+      outcome: ScheduleOutcome.SearchTimeout,
+      unresolved: [{ reasonCode: ReasonCode.LinkedSectionUnavailable }],
     });
   });
 
