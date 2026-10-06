@@ -37,6 +37,7 @@ import {
   buildScheduleSnapshot,
   droppedSectionStore,
   runScheduleOptions as find,
+  SCHEDULE_CAMPUSES,
   SCHEDULE_SECTIONS as SECTIONS,
   scheduleRequest,
   scheduleStore,
@@ -120,7 +121,11 @@ describe('ScheduleOptionsService.findOptions', () => {
     });
 
     const response = await find(scheduleRequest(), {
-      schedule: { sectionSnapshots: [snapshot], transitionPolicies: [] },
+      schedule: {
+        sectionSnapshots: [snapshot],
+        transitionPolicies: [],
+        campuses: SCHEDULE_CAMPUSES,
+      },
       change: (store) => ({ ...store, rules: [...(store.rules ?? []), labRule] }),
     }).result;
 
@@ -225,6 +230,7 @@ describe('ScheduleOptionsService.findOptions section sources', () => {
         sectionSnapshots: [
           buildScheduleSnapshot(undefined, { sourceEffectiveAt: '2026-08-31T12:00:00.000Z' }),
         ],
+        campuses: SCHEDULE_CAMPUSES,
       },
     });
 

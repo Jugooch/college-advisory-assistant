@@ -13,12 +13,15 @@
  * @see docs/planning/08-academic-verification-and-planning.md
  */
 import type {
+  CampusDisplay,
+  PlannableTerm,
   ScheduleOption,
   ScheduleOptionsRequest,
   ScheduleOptionsResponse,
 } from '@caa/api-contract';
 import {
   type AcademicPolicy,
+  type Campus,
   type CampusTransitionPolicy,
   type CheckResult,
   type Course,
@@ -26,6 +29,7 @@ import {
   type PrerequisiteRule,
   ScheduleLimitation,
   type SectionSnapshot,
+  type Term,
 } from '@caa/domain';
 import {
   aggregateCheckStates,
@@ -187,7 +191,7 @@ export interface ScheduleResponseParts {
  * @param parts - The request, the answer, the checks, the catalog, and the pinned sources.
  * @returns The response body, before contract validation.
  */
-export function toScheduleOptionsResponse(parts: ScheduleResponseParts): ScheduleOptionsResponse {
+export function toScheduleOptionsResponse(parts: ScheduleResponseParts): ScheduleOptionsBody {
   const { request, solution, checks } = parts;
   const options = solution.options.map((option) => toOption(option, checks));
   const namedCourseIds = [
@@ -214,4 +218,48 @@ export function toScheduleOptionsResponse(parts: ScheduleResponseParts): Schedul
     },
     courses: selectCourseDisplays(namedCourseIds, parts.catalog),
   };
+}
+
+/** The response before its display data: everything the engine and the checks decide. */
+export type ScheduleOptionsBody = Omit<ScheduleOptionsResponse, 'term' | 'campuses'>;
+
+/**
+ * Reduces a term to the display fields the response carries.
+ *
+ * @param term - The requested term from the calendar.
+ * @returns The term without its tenant and sequence.
+ */
+export function toTermDisplay(term: Term): PlannableTerm {
+  return { id: term.id, termCode: term.termCode, startsOn: term.startsOn, endsOn: term.endsOn };
+}
+
+/** The campuses to show, and the named IDs that have no row. */
+export interface CampusDisplaySelection {
+  readonly campuses: readonly CampusDisplay[];
+  readonly missingIds: readonly string[];
+}
+
+/**
+ * Pairs each named campus ID with its loaded campus, keeping the ID order. Display only.
+ *
+ * @param namedIds - The IDs the response names, in the order to return.
+ * @param loaded - The campuses the repository returned.
+ * @returns One `{ id, name }` per found campus, and the IDs that were not found.
+ */
+export function selectCampusDisplays(
+  namedIds: readonly string[],
+  loaded: readonly Campus[],
+): CampusDisplaySelection {
+  const byId = new Map(loaded.map((campus) => [campus.id, campus]));
+  const campuses: CampusDisplay[] = [];
+  const missingIds: string[] = [];
+  for (const id of namedIds) {
+    const campus = byId.get(id as Campus['id']);
+    if (campus === undefined) {
+      missingIds.push(id);
+    } else {
+      campuses.push({ id: campus.id, name: campus.name });
+    }
+  }
+  return { campuses, missingIds };
 }

@@ -14,17 +14,24 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { ScheduleOptionsResponseSchema } from '@caa/api-contract';
 import { ErrorCode, ReasonCode, ScheduleOutcome } from '@caa/domain';
-import { buildStudent, SYNTHETIC_TENANTS } from '@caa/test-kit';
+import {
+  buildMeetingPattern,
+  buildSection,
+  buildStudent,
+  SYNTHETIC_CAMPUSES,
+  SYNTHETIC_TENANTS,
+} from '@caa/test-kit';
 
 import { buildSeededWorldApp, readLogLines } from '../../testing/course-checks-harness';
 import { bearer, readError, STUDENTS, TOKENS } from '../../testing/fixtures';
 import {
   buildScheduleSnapshot,
   droppedSectionStore,
+  SCHEDULE_SECTIONS,
   scheduleRequest,
   scheduleStore,
 } from '../../testing/schedule-options-harness';
-import { buildSeedAcademicStore } from '../../testing/seed-scenario-fixtures';
+import { buildSeedAcademicStore, SEED_COURSES } from '../../testing/seed-scenario-fixtures';
 
 // NOTE: every app is built once at module scope so Fastify's startup cost never counts against a
 // test's timeout (#83).
@@ -118,6 +125,15 @@ describe('POST /v1/students/:studentId/schedule-options', () => {
     expect(readError(response.json()).code).toBe(ErrorCode.InvalidRequest);
   });
 
+  it('sets the term and the campuses on a contract-valid 200', async () => {
+    const response = await postOptions(STUDENTS.own.id, TOKENS.student);
+
+    expect(readOptions(response.json())).toMatchObject({
+      term: { id: scheduleRequest().termId },
+      campuses: [{ id: SYNTHETIC_CAMPUSES.north.id, name: SYNTHETIC_CAMPUSES.north.name }],
+    });
+  });
+
   it('gives deep-equal bodies when the same request is replayed', async () => {
     const first = await postOptions(STUDENTS.own.id, TOKENS.student);
     const second = await postOptions(STUDENTS.own.id, TOKENS.student);
@@ -139,6 +155,50 @@ describe('POST /v1/students/:studentId/schedule-options sources and the cap', ()
       code: ErrorCode.StaleSource,
       message: 'Your academic record needs to be verified. Please contact your advisor.',
     });
+  });
+
+  it.each([
+    ['has no row', []],
+    [
+      'has a row only in another tenant',
+      [{ ...SYNTHETIC_CAMPUSES.north, tenantId: SYNTHETIC_TENANTS.b.id }],
+    ],
+  ])(
+    'returns 503 SOURCE_UNAVAILABLE, logging the campus ID, when a named campus %s',
+    async (_case, campuses) => {
+      store.campuses = campuses;
+
+      const response = await postOptions(STUDENTS.own.id, TOKENS.student);
+
+      expect(response.statusCode).toBe(503);
+      expect(readError(response.json()).code).toBe(ErrorCode.SourceUnavailable);
+      const entry = readLogLines(lines).find((line) => line.msg === 'campus missing');
+      expect(entry?.campusIds).toEqual([SYNTHETIC_CAMPUSES.north.id]);
+    },
+  );
+
+  it('lists two campuses ordered by id, and none when no section is returned', async () => {
+    const onSouth = buildSection(
+      {
+        courseId: SEED_COURSES.engl101.id,
+        campusId: SYNTHETIC_CAMPUSES.south.id,
+        meetings: [buildMeetingPattern({ startTime: '11:00', endTime: '11:50' })],
+      },
+      1011,
+    );
+    const others = Object.values(SCHEDULE_SECTIONS).filter(
+      (section) => section.id !== SCHEDULE_SECTIONS.engl101At11.id,
+    );
+    store.sectionSnapshots = [buildScheduleSnapshot([...others, onSouth])];
+    const both = await postOptions(STUDENTS.own.id, TOKENS.student);
+    store.sectionSnapshots = [buildScheduleSnapshot([SCHEDULE_SECTIONS.math102At9])];
+    const none = await postOptions(STUDENTS.own.id, TOKENS.student);
+
+    expect(readOptions(both.json()).campuses?.map(({ id }) => id)).toEqual(
+      [SYNTHETIC_CAMPUSES.north.id, SYNTHETIC_CAMPUSES.south.id].sort(),
+    );
+    expect(readOptions(none.json()).term).toBeDefined();
+    expect(readOptions(none.json())).toMatchObject({ campuses: [] });
   });
 
   it('returns 503 SOURCE_UNAVAILABLE when the term has no published snapshot', async () => {

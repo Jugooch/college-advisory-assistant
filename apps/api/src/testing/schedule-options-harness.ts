@@ -12,6 +12,7 @@ import {
   buildMeetingPattern,
   buildSection,
   buildSectionSnapshot,
+  SYNTHETIC_CAMPUSES,
   SYNTHETIC_SCHEDULE_TERM,
 } from '@caa/test-kit';
 
@@ -25,7 +26,10 @@ import {
   createSeededCourseSetInputs,
 } from './course-checks-harness';
 import { createRecordingLogger, type RecordingLogger } from './in-memory-repositories';
-import type { InMemoryScheduleStore } from './in-memory-schedule-repositories';
+import {
+  createInMemoryScheduleRepositories,
+  type InMemoryScheduleStore,
+} from './in-memory-schedule-repositories';
 import { buildSeedAcademicStore, SEED_COURSES } from './seed-scenario-fixtures';
 
 const { math102, phys201, engl101, phys301 } = SEED_COURSES;
@@ -56,6 +60,9 @@ export const SCHEDULE_SECTIONS = {
   phys301At14: buildSection({ courseId: phys301.id, meetings: [mwfAt(14)] }, 3011),
 } as const;
 
+/** The synthetic campuses the published sections are on. */
+export const SCHEDULE_CAMPUSES = Object.values(SYNTHETIC_CAMPUSES);
+
 /**
  * Builds the term's published snapshot.
  *
@@ -82,7 +89,11 @@ export function buildScheduleSnapshot(
  * @returns The store fields to merge.
  */
 export function scheduleStore(sections?: readonly Section[]): InMemoryScheduleStore {
-  return { sectionSnapshots: [buildScheduleSnapshot(sections)], transitionPolicies: [] };
+  return {
+    sectionSnapshots: [buildScheduleSnapshot(sections)],
+    transitionPolicies: [],
+    campuses: SCHEDULE_CAMPUSES,
+  };
 }
 
 /** A second DEMO-PHYS 301 section whose required lab has no permitted section, so it is dropped. */
@@ -112,7 +123,11 @@ export function droppedSectionStore(): InMemoryScheduleStore {
     },
     1,
   );
-  return { sectionSnapshots: [snapshot], transitionPolicies: [] };
+  return {
+    sectionSnapshots: [snapshot],
+    transitionPolicies: [],
+    campuses: SCHEDULE_CAMPUSES,
+  };
 }
 
 /** What a service-level schedule test varies. */
@@ -146,6 +161,7 @@ export function runScheduleOptions(
   const logger = createRecordingLogger();
   const service = createScheduleOptionsService({
     courseSetInputs: createSeededCourseSetInputs(store, setup),
+    campuses: createInMemoryScheduleRepositories(store).campuses,
     now: () => new Date(setup.now ?? CHECK_NOW),
     workCap: setup.workCap ?? DEFAULT_SCHEDULE_SOLVER_WORK_CAP,
   });

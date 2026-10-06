@@ -6,11 +6,13 @@ import {
   type AcademicPolicyRepository,
   type AdvisorAssignmentRepository,
   type AuditSnapshotRepository,
+  type CampusRepository,
   type CampusTransitionRepository,
   type CourseCatalogRepository,
   createAcademicPolicyRepository,
   createAdvisorAssignmentRepository,
   createAuditSnapshotRepository,
+  createCampusRepository,
   createCampusTransitionRepository,
   createCourseCatalogRepository,
   createDatabase,
@@ -92,6 +94,7 @@ export interface Repositories {
   readonly terms: TermRepository;
   readonly sectionSnapshots: SectionSnapshotRepository;
   readonly campusTransitions: CampusTransitionRepository;
+  readonly campuses: CampusRepository;
 }
 
 /** What {@link createContainer} needs. */
@@ -163,6 +166,7 @@ function createAcademicControllers(
   });
   const scheduleOptionsService = createScheduleOptionsService({
     courseSetInputs,
+    campuses: repositories.campuses,
     now,
     workCap: env.SCHEDULE_SOLVER_WORK_CAP,
   });
@@ -231,6 +235,7 @@ export function createRuntimeDependencies(env: ApiEnv): AppDependencies {
     terms: createTermRepository(db),
     sectionSnapshots: createSectionSnapshotRepository(db),
     campusTransitions: createCampusTransitionRepository(db),
+    campuses: createCampusRepository(db),
   };
   return createContainer({ env, repositories, now: () => new Date() });
 }

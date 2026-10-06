@@ -5,23 +5,27 @@
  * @see docs/standards/07-testing.md
  */
 import type {
+  CampusRepository,
   CampusTransitionRepository,
   LatestSectionSnapshot,
   SectionSnapshotRepository,
 } from '@caa/db';
-import type { CampusTransitionPolicy, SectionSnapshot } from '@caa/domain';
+import type { Campus, CampusTransitionPolicy, SectionSnapshot } from '@caa/domain';
 
 /** Schedule backing data. Every field omitted means none stored. */
 export interface InMemoryScheduleStore {
   sectionSnapshots?: readonly SectionSnapshot[];
   /** At most one table per tenant: the current one. */
   transitionPolicies?: readonly CampusTransitionPolicy[];
+  /** Campuses of every tenant. */
+  campuses?: readonly Campus[];
 }
 
 /** The schedule repositories the fakes implement. */
 export interface InMemoryScheduleRepositories {
   readonly sectionSnapshots: SectionSnapshotRepository;
   readonly campusTransitions: CampusTransitionRepository;
+  readonly campuses: CampusRepository;
 }
 
 /**
@@ -68,6 +72,14 @@ export function createInMemoryScheduleRepositories(
     sectionSnapshots: {
       findLatestPublished: (tenantId, termId) =>
         Promise.resolve(findLatestPublished(store, tenantId, termId)),
+    },
+    campuses: {
+      findByIds: (tenantId, campusIds) =>
+        Promise.resolve(
+          (store.campuses ?? [])
+            .filter((campus) => campus.tenantId === tenantId && campusIds.includes(campus.id))
+            .toSorted((left, right) => (left.id < right.id ? -1 : left.id > right.id ? 1 : 0)),
+        ),
     },
     campusTransitions: {
       findPolicy: (tenantId) =>
