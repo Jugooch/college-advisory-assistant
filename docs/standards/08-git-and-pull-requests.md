@@ -71,7 +71,7 @@ If anything else breaks (a golden case, an acceptance test, engine or db code), 
 5. **The PR body says so.** Under Handoffs, add:
    > **Ownership override (seed-mirror ripple, standard 08, authorized by #252):** the orchestrator changed only `<files>`. Mirrored change: `<record>.<field>: <value>`. api-engineer owns the mirror from here.
 
-If anything else breaks, this case doesn't apply. Examples are an api test that asserts on the changed value, or seeded data the mirror doesn't hold yet, such as sections. The affected owner changes its code first in its own PR where it can; otherwise the tech lead rules on the issue. This case is retired when the api fixtures are built from the seed plan instead of copied (#253, #254, #255).
+If anything else breaks, this case doesn't apply. Examples are an api test that asserts on the changed value, or seeded data the mirror doesn't hold yet, such as sections. The affected owner changes its code first in its own PR where it can; otherwise the tech lead rules on the issue. This case is retired when the api fixtures are built from the seed plan instead of copied (#253, #254, #255; retired by #333).
 
 ### Wording-map ripple
 

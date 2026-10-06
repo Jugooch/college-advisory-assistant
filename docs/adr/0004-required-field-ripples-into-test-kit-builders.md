@@ -72,7 +72,7 @@ Standard 08 §Seed-mirror ripple has the rules. CI already enforces the "authori
 
 - #216, #217, #229 and #241 can each land their seed change as one PR, and `main` stays green.
 - The mirror stays a hand copy until #255 lands. A seed change that breaks any other api test is outside the case, so that owner changes its code first.
-- When #255 merges, the tech lead removes the case from standard 08 and marks this amendment superseded (#253).
+- When #255 merges, the tech lead removes the case from standard 08 and marks this amendment superseded (#333; ADR-0009 Amendment 1).
 
 ## Amendment 2 (2026-09-29, issue #261): wording-map ripples
 

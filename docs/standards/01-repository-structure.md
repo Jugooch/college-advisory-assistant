@@ -148,6 +148,10 @@ packages/test-kit/src/golden/
 
   Any other package or app needs an amendment to this list. Anything else under `src/` stays private.
 
+  **App test support** (ADR-0009 Amendment 1). In `apps/api` and `apps/worker`, `src/testing.ts` and the files under `src/testing/**` are test support, not production code. They may import `@caa/db/testing`, so fixtures build from the seed plan instead of copying it. Two rules keep this test-only:
+  - No other production file imports `src/testing.ts` or `src/testing/**`, so test support is reachable only through the app's own `./testing` entry or from test files.
+  - Test support imports no other `./testing` entry. Apps still never import each other, so `@caa/api/testing` stays banned in `apps/worker`.
+
 ## Size
 
 Files over 250 lines or functions over 60 lines fail lint. Split by responsibility, not arbitrarily: extract a helper, a sub-component, or a new module.
