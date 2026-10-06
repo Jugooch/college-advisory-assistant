@@ -12,7 +12,7 @@ import { SYNTHETIC_TENANTS } from '../fixtures/synthetic-tenants';
  * Builds a valid fixed-credit course (3.00 credits) in tenant A with no equivalents.
  *
  * The default label is `DEMO-GEN` plus the seed padded to three digits, for example
- * `DEMO-GEN 001`. The default `title` is `null`, meaning the catalog supplies none. To refer to a named course, use `SYNTHETIC_COURSES` instead.
+ * `DEMO-GEN 001`. To refer to a named course, use `SYNTHETIC_COURSES` instead.
  *
  * @param overrides - Fields to replace in the default.
  * @param seed - Distinguishes courses; drives the default `id`, `sourceCourseId`, and `label`.
@@ -25,7 +25,6 @@ export function buildCourse(overrides: Partial<CourseInput> = {}, seed = 1): Cou
     tenantId: SYNTHETIC_TENANTS.a.id,
     sourceCourseId: `DEMO-GEN-${number}`,
     label: `DEMO-GEN ${number}`,
-    title: null,
     creditsHundredths: 300,
     minCreditsHundredths: null,
     maxCreditsHundredths: null,
