@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
 import { ApiError } from '@caa/api-contract';
-import { ErrorCode } from '@caa/domain';
+import { ErrorCode, TermIdSchema } from '@caa/domain';
 import { SYNTHETIC_COURSES, syntheticId } from '@caa/test-kit';
 
 import { indexCourses } from '@/shared/utils/course-display';
@@ -18,6 +18,12 @@ import { PlannerScreen } from './planner-screen';
 
 const STUDENT_ID = syntheticId('student', 1);
 const { math101 } = SYNTHETIC_COURSES;
+const TERM = {
+  id: TermIdSchema.parse(syntheticId('term', 1)),
+  termCode: 'FA-SYN',
+  startsOn: '2027-01-11',
+  endsOn: '2027-05-07',
+} as const;
 const BASE: SearchParams = {
   studentId: STUDENT_ID,
   term: syntheticId('term', 1),
@@ -45,6 +51,7 @@ function render(extra: SearchParams, step: string, outcome: ApiError | null = nu
       isCandidateListUnavailable={false}
       courses={indexCourses([])}
       credits={{ inputs: values.creditInputs, errors: plan.creditErrors }}
+      terms={[TERM]}
     />,
   );
 }

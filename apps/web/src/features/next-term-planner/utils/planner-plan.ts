@@ -119,7 +119,7 @@ function parseSlots(values: PlannerFormValues): {
 function checkTermAndCourses(values: PlannerFormValues): readonly PlannerIssue[] {
   const issues: PlannerIssue[] = [];
   if (!TermIdSchema.safeParse(values.termId).success) {
-    issues.push({ name: 'term', message: 'Enter the term ID you are planning for.' });
+    issues.push({ name: 'term', message: 'Choose the term you are planning for.' });
   }
   const { courseIds } = values;
   if (courseIds.length === 0) {
