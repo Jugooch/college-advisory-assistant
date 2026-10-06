@@ -1,7 +1,7 @@
 /**
  * @file Lists the courses the audit names as candidates, once each, with the requirements that
  * list them.
- * @module @caa/web/features/course-checks/utils/candidate-courses
+ * @module @caa/web/shared/utils/candidate-courses
  * @requirement FR-04
  */
 import type { AcademicSummaryResponse } from '@caa/api-contract';

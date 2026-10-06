@@ -8,8 +8,8 @@ import type { CourseDisplay } from '@caa/api-contract';
 import { SYNTHETIC_COURSES, syntheticId } from '@caa/test-kit';
 
 import { indexCourses } from '@/shared/utils/course-display';
+import type { CreditChoices } from '@/shared/utils/credit-choice';
 
-import type { CreditChoices } from '../utils/credit-choice';
 import { CoursePicker, type CoursePickerProps } from './course-picker';
 
 const STUDENT_ID = syntheticId('student', 1);

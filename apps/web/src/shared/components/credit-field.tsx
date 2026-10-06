@@ -1,17 +1,17 @@
 /**
  * @file The credit value field of one variable-credit course. Blank means no value is chosen,
  * which the credit-load check reports as needing verification; no value is ever filled in.
- * @module @caa/web/features/course-checks/components/credit-field
+ * @module @caa/web/shared/components/credit-field
  * @requirement FR-05
  * @requirement NFR-02
  */
 import type { ReactElement } from 'react';
 
-import { CourseLabel } from '@/shared/components/course-label';
 import type { CourseLookup } from '@/shared/utils/course-display';
+import { creditFieldName } from '@/shared/utils/credit-choice';
 import { formatCredits } from '@/shared/utils/format-display';
 
-import { creditFieldName } from '../utils/credit-choice';
+import { CourseLabel } from './course-label';
 
 /** Props for {@link CreditField}. */
 export interface CreditFieldProps {
