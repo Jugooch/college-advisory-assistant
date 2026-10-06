@@ -8,6 +8,7 @@
 import { ConstraintStrength, type ScheduleConstraint, ScheduleConstraintKind } from '@caa/domain';
 
 import { formatCredits } from '@/shared/utils/format-display';
+import { describeModality, describeWeekday } from '@/shared/utils/section-wording';
 
 /** One constraint as the review step lists it. */
 export interface ReviewedConstraint {
@@ -15,16 +16,6 @@ export interface ReviewedConstraint {
   readonly statement: string;
   /** How strict it is, in words: "Required" or "Preferred, priority 2". */
   readonly strength: string;
-}
-
-/**
- * Turns an enum value such as `ONLINE_SYNCHRONOUS` into text such as `online synchronous`.
- *
- * @param value - The enum value.
- * @returns Lower-case words.
- */
-function toWords(value: string): string {
-  return value.toLowerCase().replaceAll('_', ' ');
 }
 
 /**
@@ -46,7 +37,7 @@ function describeTime(time: string): string {
 function describeUnavailable(
   constraint: Extract<ScheduleConstraint, { kind: 'UNAVAILABLE_TIME' }>,
 ): string {
-  const days = constraint.weekdays.map((day) => toWords(day)).join(', ');
+  const days = constraint.weekdays.map((day) => describeWeekday(day)).join(', ');
   const isAllDay = constraint.startTime === '00:00' && constraint.endTime === '24:00';
   const when = isAllDay
     ? 'all day'
@@ -83,7 +74,7 @@ function describeStatement(constraint: ScheduleConstraint): string {
     case ScheduleConstraintKind.CreditRange:
       return describeCreditRange(constraint.minCreditsHundredths, constraint.maxCreditsHundredths);
     case ScheduleConstraintKind.AllowedModalities:
-      return `Only these formats: ${constraint.modalities.map((value) => toWords(value)).join(', ')}.`;
+      return `Only these formats: ${constraint.modalities.map((value) => describeModality(value)).join(', ')}.`;
     case ScheduleConstraintKind.AllowedCampuses:
       return `Only these campuses: ${constraint.campusIds.join(', ')}.`;
   }

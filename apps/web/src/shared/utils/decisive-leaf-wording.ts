@@ -1,7 +1,7 @@
 /**
  * @file Wording for the rule leaves and credit arithmetic behind a check, from structured
  * evidence only.
- * @module @caa/web/features/course-checks/utils/decisive-leaf-wording
+ * @module @caa/web/shared/utils/decisive-leaf-wording
  * @requirement FR-10
  * @see docs/planning/08-academic-verification-and-planning.md
  */
