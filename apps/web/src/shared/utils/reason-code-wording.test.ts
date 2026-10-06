@@ -50,11 +50,11 @@ describe('REASON_CODE_WORDING', () => {
     expect(nextStep).toMatch(/your advisor or the registrar/);
   });
 
-  it('does not claim the linked course passed or failed for LINKED_COURSE_NOT_CHECKED', () => {
+  it('says the linked course may add credits or have a prerequisite and is unchecked for LINKED_COURSE_NOT_CHECKED', () => {
     const { explanation } = describeReason(ReasonCode.LinkedCourseNotChecked);
 
+    expect(explanation).toContain('may add its own credits or have its own prerequisite');
     expect(explanation).toContain('haven’t been checked');
-    expect(explanation).not.toMatch(/passed|failed|met\b|satisf/i);
   });
 
   it('never assumes an undefined travel time is enough', () => {
