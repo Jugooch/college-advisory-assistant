@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-09-29
 - **Deciders:** Repo owner (budget, course choice, travel time, sprint size), orchestrator (endpoint, outcome field, deferrals), tech lead
-- **Related:** FR-07, FR-08, FR-18, NFR-01, NFR-07, AC06, AC07, AC08, AC12, planning/07 §Request lifecycle, planning/08 §Schedule model and §Constraint formulation, planning/09 §Logical app interfaces, ADR-0005, ADR-0008, issues #209, #210, #212, #213, #218, #219, #220, #221
+- **Related:** FR-07, FR-08, FR-18, NFR-01, NFR-07, AC06, AC07, AC08, AC12, planning/07 §Request lifecycle, planning/08 §Schedule model and §Constraint formulation, planning/09 §Logical app interfaces, ADR-0005, ADR-0008, issues #209, #210, #212, #213, #218, #219, #220, #221, #294
 
 ## Context
 
@@ -232,3 +232,49 @@ This states how section 1's measurement is taken. It changes no requirement, cap
 - The measurement is the duration Vitest reports for that test, which includes building the input. That makes it slightly pessimistic, never optimistic.
 
 **Revisit when** the step's timing becomes flaky near 2,000 ms on shared runners. Then take the median of several runs, and don't raise the target.
+
+## Amendment 4 (2026-10-05, issue #294): a linked course outside the plan is shown as unchecked
+
+**Related:** #221, PR #291 (academic-safety review at `6556a6c`), #294, #296, #297, #298. ADR-0005. Section 2. planning/08 §Candidate formation and §Constraint formulation.
+
+**Context.** Section 2 runs the course-set checks once, on the requested courses. A bundle can also bring in a linked section of a different catalog course. When that course's credits aren't included in a course of the plan (`creditsIncludedInCourseId` is `null` or names a course outside the plan), it adds its own credits, and the option shows it with `countsCredits: true`. An example is DEMO-PHYS 201L, 1.00 credit, linked to PHYS 201. No prerequisite, applicability or allocation check runs on it, yet the option could be VALIDATED. planning/08 validates the complete candidate set and applies prerequisite conditions to every selected section, so a check that never ran can't reach a validated label. The contract recomputes `aggregate` from the visible checks only, so the check can't be hidden in the API either.
+
+Options:
+
+- (i) a new contract field with one result per such course;
+- (ii) an UNKNOWN check inside `setResults.allocation`;
+- (iii) full course-set checks on the linked courses;
+- (iv) state that section 2 excludes linked courses.
+
+(iv) contradicts planning/08. (ii) puts a per-course fact in a set-level list, under a kind that doesn't describe it. (iii) is the end state, but allocation over the larger set changes the requested courses' results per option. That breaks section 2's "same for every option" and needs engine work. **Option (i) now, with UNKNOWN results; (iii) is deferred.**
+
+**Decision.**
+
+- **Which courses.** A linked course needs a result when a bundle has a section of it, it isn't a requested course, and either:
+  - it counts its own credits in the plan: its `creditsIncludedInCourseId` is `null` or names a course outside the plan, so its section shows `countsCredits: true`; or
+  - the catalog gives it a prerequisite rule of its own.
+
+  A linked course whose credits are included in a course of the plan and has no prerequisite of its own is a component of that course, and that course's checks cover it.
+
+- **The engine owns the rule.** Both the selection and the results are academic, so they live in `@caa/engine` (standard 01, standard 05 §Logic, ADR-0005 rule 6). A pure engine function takes the option's bundles, the requested course IDs and the catalog courses. It reuses the engine's existing `countsOwnCredits` and returns the results. The solver adds them to each option it outputs. The API only maps them into the response, as it maps every other engine result, and restates nothing.
+- **Field.** `ScheduleOption.linkedCourseResults`: one `CourseCheckResult` per selected course, in ascending course ID (UTF-16 code units), with no repeats. It is required, and `[]` when there are none.
+- **Results in S4.** The prerequisite and the applicability are both UNKNOWN with a new reason code, `LINKED_COURSE_NOT_CHECKED`: "a linked section adds a course that this check didn't verify". `UNSUPPORTED_RULE` is wrong, because nothing about the source rule is unsupported. Allocation stays about the requested courses and adds no result for the linked course.
+- **Aggregate.** `listOptionChecks` includes every check in `linkedCourseResults`. Such an option is therefore NEEDS_VERIFICATION, never VALIDATED, and it still ranks by section 4 unchanged. Linked results don't change the schedule feasibility or the outcome.
+- **Contract rules are structural only.** No entry names a requested course. Every entry names a course with a section in this option. The entries are sorted and don't repeat. The contract doesn't restate the selection rule. It can't see the catalog's prerequisite rules or the plan's credit inclusion, so it could only check part of the rule, and a second, partial copy is what ADR-0005 rule 5 forbids. No shared invariant is added, because no schema enforces the rule (ADR-0005 rule 1). The engine's tests and the QA acceptance cases prove the selection.
+
+This interprets planning/08 §Candidate formation; it doesn't deviate from it, so it needs no change-control record.
+
+**Order.** Each step keeps `main` green, because no code on `main` builds an option response until #291 merges.
+
+1. Domain (#296): the reason code, the field, the structural rules and `listOptionChecks`. The new code goes through the wording-map ripple (#261), and the schedule-option builder's `linkedCourseResults: []` through the ADR-0004 ripple.
+2. Engine (#298) and QA (#297), in parallel after #296. Engine: the selection function and the solver output. QA: AC06 keeps testing fit with a lab whose credits are included in PHYS 201, so it stays VALIDATED. New acceptance cases cover a credit-bearing linked lab and an included lab with its own prerequisite, and both expect NEEDS_VERIFICATION with `LINKED_COURSE_NOT_CHECKED`. They are known findings until #291 merges.
+3. API (#291): merges `main`, maps the engine's `linkedCourseResults` into each option, includes them in the aggregate it composes, and removes the known findings. #291 doesn't merge before steps 1 and 2. On the current contract there is no safe interim, and the uncommitted hidden-check attempt returns 500 on AC06.
+
+**Consequences.**
+
+- Domain (#296): `LINKED_COURSE_NOT_CHECKED`, `linkedCourseResults`, the structural rules, `listOptionChecks`, and contract tests for each rule and for the aggregate.
+- Engine (#298): the selection function and the solver output, with literal tests for a credit-bearing lab, an included lab (`[]`), an included lab with its own prerequisite, a lab included in a course outside the plan, and shuffle determinism.
+- API (#291): no academic rule. Its tests assert that the engine's results reach the response and the aggregate.
+- Web: the UI shows each linked course's results like a requested course's, from structured fields only.
+
+**Revisit when** planning needs options with credit-bearing linked courses to be VALIDATED. Then do (iii): run the course-set checks per option on the requested and linked courses together, and amend section 2, because the academic checks would then differ between options.
