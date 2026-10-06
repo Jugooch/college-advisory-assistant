@@ -93,18 +93,13 @@ export interface CourseChecks {
  * @param requestedIds - Every course ID of the candidate set.
  * @returns `false` when the course's credits are included in another course of the set;
  *   otherwise `true`.
- * @throws {Error} When the engine reports the inclusion as unknown, which is a defect.
  */
 function countsCreditsOf(course: Course, requestedIds: ReadonlySet<CourseId>): boolean {
   // NOTE: the rule is the engine's, shared with the schedule solver, so both count included
   // credits the same way (planning/08 §Constraint formulation).
-  const isCounted = countsCreditsInPlan(course, requestedIds);
-  // NOTE: `null` is unreachable now that `Course.creditsIncludedInCourseId` is required; the
-  // engine's type still allows it until its omitted-value branch is removed (#229).
-  if (isCounted === null) {
-    throw new Error('Engine reported unknown credit inclusion for a course with a required link');
-  }
-  return isCounted;
+  // NOTE: the engine's type still allows `null` until it is narrowed to `boolean` (#320); a
+  // required link never produces it, so only an explicit `false` skips the credits.
+  return countsCreditsInPlan(course, requestedIds) !== false;
 }
 
 /**
@@ -112,7 +107,6 @@ function countsCreditsOf(course: Course, requestedIds: ReadonlySet<CourseId>): b
  *
  * @param inputs - The requested courses and credit choices.
  * @returns One selection per course, in request order.
- * @throws {Error} As `countsCreditsOf`.
  */
 function toSelections(inputs: CourseSetInputs): readonly CourseSelection[] {
   const chosen = new Map(
