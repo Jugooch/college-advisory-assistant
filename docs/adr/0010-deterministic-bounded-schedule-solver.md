@@ -372,7 +372,14 @@ This adds an endpoint that planning/09 doesn't list, so planning/09 gets a decis
 **Decision.**
 
 - **`term`.** The requested term as `{ id, termCode, startsOn, endsOn }`, the same fields as a plannable term. The API takes it from the term calendar the request already reads.
-- **`campuses`.** `{ id, name }` for exactly the campuses the response names: every non-null section `campusId` and every transition-issue campus ID, in the options and the conflict set. Ordered by `id`, no repeats, no extras (data minimization). `[]` when the response names none.
+- **`campuses`.** `{ id, name }` for exactly the campus IDs the response contains, wherever they appear: the options, their checks, the conflict set and `unresolved`. The contract carries campus IDs in these places, and only these:
+  - each section's `campusId`, when not null;
+  - each meeting's `location.campusId`, when the location is `ON_CAMPUS`. It can differ from its section's `campusId`;
+  - `fromCampusId` and `toCampusId` of each `TRANSITION_TIME_INSUFFICIENT` and `TRANSITION_TIME_UNDEFINED` issue;
+  - `campusId` of each `CAMPUS_NOT_ALLOWED` issue.
+
+  Sorted ascending by `id` in UTF-16 code units, as `<` compares (not `localeCompare`). No repeats, no extras (data minimization). `[]` when the response contains no campus ID. A new contract field or issue kind that carries a campus ID joins this list.
+
 - **Display only.** Names never feed the engine, ranking, pinned inputs or identity. Campus names aren't versioned with the section snapshot, so the response shows the current name for a pinned campus ID. A named campus with no row is a source failure (503 `SOURCE_UNAVAILABLE`), never a guessed or dropped name.
 
 **Order.** Each step keeps `main` green. Web tests build responses with the test-kit builder, so it gains the fields before they become required.
