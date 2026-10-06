@@ -41,12 +41,20 @@ describe('REASON_CODE_WORDING', () => {
     ReasonCode.MeetingTimeUnknown,
     ReasonCode.MeetingLocationUnknown,
     ReasonCode.LinkedSectionUnavailable,
+    ReasonCode.LinkedCourseNotChecked,
     ReasonCode.SectionDataMissing,
   ])('says %s needs verification and names a human route', (code) => {
     const { nextStep } = describeReason(code);
 
     expect(nextStep).toMatch(/needing verification/);
     expect(nextStep).toMatch(/your advisor or the registrar/);
+  });
+
+  it('does not claim the linked course passed or failed for LINKED_COURSE_NOT_CHECKED', () => {
+    const { explanation } = describeReason(ReasonCode.LinkedCourseNotChecked);
+
+    expect(explanation).toContain('haven’t been checked');
+    expect(explanation).not.toMatch(/passed|failed|met\b|satisf/i);
   });
 
   it('never assumes an undefined travel time is enough', () => {

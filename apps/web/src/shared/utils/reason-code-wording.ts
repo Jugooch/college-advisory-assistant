@@ -187,6 +187,12 @@ export const REASON_CODE_WORDING: Readonly<Record<ReasonCode, ReasonWording>> = 
     nextStep:
       'Treat this schedule as needing verification. Ask your advisor or the registrar when the linked section will be offered.',
   },
+  LINKED_COURSE_NOT_CHECKED: {
+    explanation:
+      'This option includes a linked section, such as a lab, from a course you didn’t ask for. That course adds credits and may have its own prerequisite, and its prerequisites and requirements haven’t been checked.',
+    nextStep:
+      'Treat this schedule as needing verification. Ask your advisor or the registrar whether you can take that course and how it counts.',
+  },
   SECTION_DATA_MISSING: {
     explanation:
       'The term’s published schedule has no sections for a course you asked for, so it can’t be scheduled here.',
