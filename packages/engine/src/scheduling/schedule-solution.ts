@@ -12,12 +12,14 @@ import type {
   CampusTransitionPolicy,
   CheckResult,
   CourseId,
+  PrerequisiteRule,
   ScheduleConstraint,
   ScheduleOutcome,
   UnmetPreference,
 } from '@caa/domain';
 
 import type { SectionBundle, SectionBundles } from './build-section-bundles';
+import type { LinkedCourseResult } from './linked-course-results';
 
 /**
  * Default work cap (ADR-0010 §1). The unit is one attempt to add one bundle to a partial
@@ -57,6 +59,11 @@ export interface SolveScheduleInput {
   readonly constraints: readonly ScheduleConstraint[];
   /** The tenant's campus transition table, or `null` when it has none. */
   readonly transitionPolicy: CampusTransitionPolicy | null;
+  /**
+   * Every prerequisite rule of the pinned ruleset for a course of the bundles, linked courses
+   * included; only `courseId` is read, to find the linked courses with a rule of their own.
+   */
+  readonly prerequisiteRules: readonly Pick<PrerequisiteRule, 'courseId'>[];
   /** Most attempts the search may make, a whole number from 1 to the default. */
   readonly workCap: number;
 }
@@ -80,6 +87,11 @@ export interface SolvedScheduleOption {
   readonly creditLoad: CheckResult;
   /** Every place the option misses a preference, by priority rank. */
   readonly unmetPreferences: readonly UnmetPreference[];
+  /**
+   * One UNKNOWN result per linked course the requested courses' checks don't cover, ascending
+   * by course ID without repeats; empty when there is none (ADR-0010 Amendment 4).
+   */
+  readonly linkedCourseResults: readonly LinkedCourseResult[];
 }
 
 /** Verified conflicts that explain `NO_FEASIBLE_PLAN`; never claimed to be minimal. */
