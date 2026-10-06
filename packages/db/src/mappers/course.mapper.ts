@@ -27,5 +27,11 @@ export function toCourse(row: CourseRow): Course {
     maxCreditsHundredths: row.maxCreditsHundredths,
     equivalencyGroupId: row.equivalencyGroupId,
     creditsIncludedInCourseId: row.creditsIncludedInCourseId,
+    repeatableForCredit: row.repeatableForCredit
+      ? {
+          maxAttempts: row.repeatMaxAttempts,
+          maxCreditsHundredths: row.repeatMaxCreditsHundredths,
+        }
+      : null,
   });
 }

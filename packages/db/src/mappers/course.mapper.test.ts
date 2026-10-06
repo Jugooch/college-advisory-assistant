@@ -18,6 +18,9 @@ const ROW: CourseRow = {
   maxCreditsHundredths: null,
   equivalencyGroupId: null,
   creditsIncludedInCourseId: null,
+  repeatableForCredit: false,
+  repeatMaxAttempts: null,
+  repeatMaxCreditsHundredths: null,
   createdAt: new Date('2026-09-25T12:00:00.000Z'),
 };
 
@@ -38,7 +41,39 @@ describe('toCourse', () => {
       maxCreditsHundredths: null,
       equivalencyGroupId: null,
       creditsIncludedInCourseId: null,
+      repeatableForCredit: null,
     });
+  });
+
+  it('maps a repeatable row with caps to its statement', () => {
+    const row = {
+      ...ROW,
+      repeatableForCredit: true,
+      repeatMaxAttempts: 4,
+      repeatMaxCreditsHundredths: 400,
+    };
+
+    expect(toCourse(row).repeatableForCredit).toEqual({
+      maxAttempts: 4,
+      maxCreditsHundredths: 400,
+    });
+  });
+
+  it('maps a repeatable row with no caps to null caps', () => {
+    expect(toCourse({ ...ROW, repeatableForCredit: true }).repeatableForCredit).toEqual({
+      maxAttempts: null,
+      maxCreditsHundredths: null,
+    });
+  });
+
+  it('fails loudly when the stored credit cap is below one attempt', () => {
+    const row = {
+      ...ROW,
+      repeatableForCredit: true,
+      repeatMaxCreditsHundredths: 200,
+    };
+
+    expect(() => toCourse(row)).toThrow(ZodError);
   });
 
   it('keeps a null title as null, meaning the catalog supplies none', () => {
