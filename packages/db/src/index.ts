@@ -6,6 +6,7 @@ export * from './client';
 export * from './repositories/academic-policy.repository';
 export * from './repositories/advisor-assignment.repository';
 export * from './repositories/audit-snapshot.repository';
+export * from './repositories/campus.repository';
 export * from './repositories/campus-transition.repository';
 export * from './repositories/course-catalog.repository';
 export * from './repositories/import-batch.repository';
