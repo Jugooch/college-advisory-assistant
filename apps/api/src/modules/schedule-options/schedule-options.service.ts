@@ -16,16 +16,28 @@
  */
 import { createHash } from 'node:crypto';
 
-import type { ScheduleOptionsRequest, ScheduleOptionsResponse } from '@caa/api-contract';
-import type { Actor, StudentId } from '@caa/domain';
+import {
+  namedCampusIds,
+  type ScheduleOptionsRequest,
+  type ScheduleOptionsResponse,
+} from '@caa/api-contract';
+import type { CampusRepository } from '@caa/db';
+import { type Actor, CampusIdSchema, type StudentId } from '@caa/domain';
 import { normalizeScheduleRequest, type ScheduleSolution } from '@caa/engine';
 
+import { SourceUnavailableError } from '../../shared/domain-errors';
 import type { RequestContext } from '../../shared/request-context';
 import type {
   CourseSetInputsService,
   LoadedScheduleSet,
 } from '../course-set-inputs/course-set-inputs.service';
-import { solveScheduleOptions, toScheduleOptionsResponse } from './schedule-options.logic';
+import {
+  type ScheduleOptionsBody,
+  selectCampusDisplays,
+  solveScheduleOptions,
+  toScheduleOptionsResponse,
+  toTermDisplay,
+} from './schedule-options.logic';
 
 /** Names schedule options in log lines. */
 const OPERATION = 'schedule options';
@@ -34,6 +46,8 @@ const OPERATION = 'schedule options';
 export interface ScheduleOptionsServiceDependencies {
   /** Applies the access rule, loads and refuses pinned inputs, and runs the course checks. */
   readonly courseSetInputs: CourseSetInputsService;
+  /** Names the campuses a response contains, for display only. */
+  readonly campuses: CampusRepository;
   /** Read only to log how long the solver took; never to stop it (ADR-0010 §1). */
   readonly now: () => Date;
   /** Validated `SCHEDULE_SOLVER_WORK_CAP`. */
@@ -59,7 +73,7 @@ export interface ScheduleOptionsService {
    * @throws {NotFoundError} When the student doesn't exist, the actor may not see them, or a
    *   loaded record or section snapshot is out of scope.
    * @throws {SourceUnavailableError} When the student has no snapshot or no audit, the term has
-   *   no published section snapshot, the ruleset has no policy, or stored data is unusable.
+   *   no published section snapshot or no calendar entry, a named campus has no row, the ruleset has no policy, or stored data is unusable.
    * @throws {StaleSourceError} When a record, audit, or section snapshot is tied for latest or
    *   older than the maximum source age.
    * @throws {InvalidRequestError} When a course isn't in the tenant's catalog, or the engine
@@ -85,6 +99,50 @@ function hashRequest(request: ScheduleOptionsRequest): string {
   return `sha256:${digest}`;
 }
 
+/** What the display data is read from. */
+interface DisplayCall {
+  readonly actor: Actor;
+  readonly loaded: LoadedScheduleSet;
+  readonly request: ScheduleOptionsRequest;
+  readonly body: ScheduleOptionsBody;
+}
+
+/**
+ * Adds the requested term and the names of the campuses the response contains. Display only.
+ *
+ * @param repository - The campus repository.
+ * @param call - The actor, the pinned inputs, the request, and the response body.
+ * @param context - Request-scoped values.
+ * @returns The response with `term` and `campuses`.
+ * @throws {SourceUnavailableError} When the term has no calendar entry or a named campus has no row.
+ */
+async function withDisplayData(
+  repository: CampusRepository,
+  call: DisplayCall,
+  context: RequestContext,
+): Promise<ScheduleOptionsResponse> {
+  const { actor, body } = call;
+  const term = call.loaded.inputs.termCalendar.find((entry) => entry.id === call.request.termId);
+  if (term === undefined) {
+    context.logger.warn({ termId: call.request.termId }, 'term missing from calendar');
+    throw new SourceUnavailableError();
+  }
+  const namedIds = namedCampusIds(body);
+  // SECURITY: campuses are read for the session's tenant. Names are display only and never
+  // reach the engine, ranking or pinned inputs (ADR-0010 Amendment 7).
+  const loaded = await repository.findByIds(
+    actor.tenantId,
+    namedIds.map((id) => CampusIdSchema.parse(id)),
+  );
+  const { campuses, missingIds } = selectCampusDisplays(namedIds, loaded);
+  // SAFETY: a named campus with no row is a source failure, never a dropped or guessed name.
+  if (missingIds.length > 0) {
+    context.logger.warn({ tenantId: actor.tenantId, campusIds: missingIds }, 'campus missing');
+    throw new SourceUnavailableError();
+  }
+  return { ...body, term: toTermDisplay(term), campuses };
+}
+
 /**
  * Creates the schedule options service.
  *
@@ -95,7 +153,6 @@ export function createScheduleOptionsService(
   dependencies: ScheduleOptionsServiceDependencies,
 ): ScheduleOptionsService {
   const { courseSetInputs, now, workCap } = dependencies;
-
   /**
    * Runs the solver, turning its input errors into a typed error for whoever caused them.
    *
@@ -153,7 +210,7 @@ export function createScheduleOptionsService(
         },
         'schedule options run',
       );
-      return toScheduleOptionsResponse({
+      const body = toScheduleOptionsResponse({
         request,
         solution,
         checks,
@@ -162,6 +219,7 @@ export function createScheduleOptionsService(
         transitionPolicy: loaded.sections.transitionPolicy,
         constraintHash: hashRequest(request),
       });
+      return withDisplayData(dependencies.campuses, { actor, loaded, request, body }, context);
     },
   };
 }
