@@ -43,21 +43,22 @@ export function seedId(prefix: string, seed: number): string {
  * the two overlap, and the source ID is the label with a hyphen, as there.
  *
  * @param seed - Number in the course ID.
- * @param label - Display label such as `DEMO-MATH 101`.
+ * @param names - Display label such as `DEMO-MATH 101` and synthetic title such as `Demo Calculus I`.
  * @param credits - Fixed credits in hundredths, or a variable `[min, max]` range.
  * @returns The course.
  */
 function catalogCourse(
   seed: number,
-  label: string,
+  names: { readonly label: string; readonly title: string },
   credits: number | readonly [number, number],
 ): Course {
   const isFixed = typeof credits === 'number';
   return createCourse({
     id: seedId('50000000', seed),
     tenantId: SEED_TENANT_ID,
-    sourceCourseId: label.replace(' ', '-'),
-    label,
+    sourceCourseId: names.label.replace(' ', '-'),
+    label: names.label,
+    title: names.title,
     creditsHundredths: isFixed ? credits : null,
     minCreditsHundredths: isFixed ? null : credits[0],
     maxCreditsHundredths: isFixed ? null : credits[1],
@@ -68,21 +69,33 @@ function catalogCourse(
 }
 
 /** The seeded lecture whose credit total includes its lab's. */
-const PHYS_301 = catalogCourse(0x301, 'DEMO-PHYS 301', 400);
+const PHYS_301 = catalogCourse(
+  0x301,
+  { label: 'DEMO-PHYS 301', title: 'Demo Electromagnetism' },
+  400,
+);
 
 /** The seeded catalog, by key. */
 export const SEED_CATALOG = {
-  math101: catalogCourse(0x101, 'DEMO-MATH 101', 300),
-  math102: catalogCourse(0x102, 'DEMO-MATH 102', 300),
-  phys201: catalogCourse(0x201, 'DEMO-PHYS 201', 400),
+  math101: catalogCourse(0x101, { label: 'DEMO-MATH 101', title: 'Demo Calculus I' }, 300),
+  math102: catalogCourse(0x102, { label: 'DEMO-MATH 102', title: 'Demo Calculus II' }, 300),
+  phys201: catalogCourse(0x201, { label: 'DEMO-PHYS 201', title: 'Demo Mechanics' }, 400),
   phys301: PHYS_301,
   // NOTE: the lab's credits are included in the lecture's total, so a load counts them once.
   phys301Lab: createCourse({
-    ...catalogCourse(0x3010, 'DEMO-PHYS 301L', 100),
+    ...catalogCourse(
+      0x3010,
+      { label: 'DEMO-PHYS 301L', title: 'Demo Electromagnetism Laboratory' },
+      100,
+    ),
     creditsIncludedInCourseId: PHYS_301.id,
   }),
-  engl101: catalogCourse(0x1101, 'DEMO-ENGL 101', 300),
-  ind390: catalogCourse(0x390, 'DEMO-IND 390', [100, 300]),
+  engl101: catalogCourse(0x1101, { label: 'DEMO-ENGL 101', title: 'Demo Composition' }, 300),
+  ind390: catalogCourse(
+    0x390,
+    { label: 'DEMO-IND 390', title: 'Demo Independent Study' },
+    [100, 300],
+  ),
 } as const;
 
 /**

@@ -155,6 +155,20 @@ describe('buildDevSeedAcademicPlan', () => {
     ]);
   });
 
+  it('gives every seeded course a synthetic title, and the program the ID the audits cite', () => {
+    expect(PLAN.courses.map((course) => course.title)).toEqual([
+      'Demo Calculus I',
+      'Demo Calculus II',
+      'Demo Mechanics',
+      'Demo Electromagnetism',
+      'Demo Electromagnetism Laboratory',
+      'Demo Composition',
+      'Demo Independent Study',
+    ]);
+    expect(PLAN.programs.map((program) => program.name)).toEqual(['Demo B.S. Physics']);
+    expect(PLAN.audits.every((audit) => audit.programId === PLAN.programs[0]?.id)).toBe(true);
+  });
+
   it('states the policy the scenarios assume, including credit bounds', () => {
     expect(PLAN.policy).toMatchObject({
       allowsInProgressPrerequisites: true,
