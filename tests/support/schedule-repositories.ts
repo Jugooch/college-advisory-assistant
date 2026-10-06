@@ -8,12 +8,13 @@
  * @see docs/standards/07-testing.md
  */
 import type {
+  CampusRepository,
   CampusTransitionRepository,
   LatestSectionSnapshot,
   TermLatestSectionSnapshot,
   TermSectionSnapshotRepository,
 } from '@caa/db';
-import type { CampusTransitionPolicy, SectionSnapshot, Term } from '@caa/domain';
+import type { Campus, CampusTransitionPolicy, SectionSnapshot, Term } from '@caa/domain';
 
 /** Schedule backing data. A field that is omitted means nothing of that kind is stored. */
 export interface ScheduleWorld {
@@ -26,6 +27,8 @@ export interface ScheduleWorld {
    * its current table.
    */
   campusTransitionPolicies?: readonly CampusTransitionPolicy[];
+  /** Campuses of every tenant. */
+  campuses?: readonly Campus[];
 }
 
 /**
@@ -35,6 +38,7 @@ export interface ScheduleWorld {
 export interface ScheduleRepositories {
   readonly sectionSnapshots: TermSectionSnapshotRepository;
   readonly campusTransitions: CampusTransitionRepository;
+  readonly campuses: CampusRepository;
 }
 
 /**
@@ -98,6 +102,27 @@ function listLatestByTerm(world: ScheduleWorld, tenantId: string): TermLatestSec
 }
 
 /**
+ * Finds a tenant's campuses by ID. As the repository contract states, the result is ordered by
+ * `id` ascending by UTF-16 code units, a repeated ID counts once, and another tenant's campus or
+ * an unknown ID is absent.
+ *
+ * @param world - Backing data.
+ * @param tenantId - Tenant that owns the campuses.
+ * @param campusIds - Campuses wanted.
+ * @returns The campuses found.
+ */
+function findCampuses(
+  world: ScheduleWorld,
+  tenantId: string,
+  campusIds: readonly string[],
+): readonly Campus[] {
+  const wanted = new Set(campusIds);
+  return (world.campuses ?? [])
+    .filter((campus) => campus.tenantId === tenantId && wanted.has(campus.id))
+    .toSorted((left, right) => (left.id < right.id ? -1 : left.id > right.id ? 1 : 0));
+}
+
+/**
  * Creates the schedule repositories over the world, each scoped to the tenant it is asked for.
  *
  * @param world - Backing data. Read on every call, so a case can change it between requests.
@@ -109,6 +134,9 @@ export function createScheduleRepositories(world: ScheduleWorld): ScheduleReposi
       findLatestPublished: (tenantId, termId) =>
         Promise.resolve(latestSnapshot(world, { tenantId, termId })),
       listLatestPublishedByTerm: (tenantId) => Promise.resolve(listLatestByTerm(world, tenantId)),
+    },
+    campuses: {
+      findByIds: (tenantId, campusIds) => Promise.resolve(findCampuses(world, tenantId, campusIds)),
     },
     campusTransitions: {
       findPolicy: (tenantId) =>
