@@ -43,8 +43,8 @@ export function ReviewStep({
         <p>You stated no constraints, so every schedule for your courses is allowed.</p>
       ) : (
         <ul className="constraint-list">
-          {constraints.map((constraint) => (
-            <li key={`${constraint.statement}-${constraint.strength}`}>
+          {constraints.map((constraint, index) => (
+            <li key={`${String(index)}-${constraint.statement}`}>
               <strong>{constraint.strength}:</strong> {constraint.statement}
             </li>
           ))}

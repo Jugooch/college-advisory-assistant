@@ -4,7 +4,7 @@
  * @module @caa/web/shared/utils/candidate-courses
  * @requirement FR-04
  */
-import type { AcademicSummaryResponse } from '@caa/api-contract';
+import { type AcademicSummaryResponse, ApiError } from '@caa/api-contract';
 
 /** One candidate course and the labels of the requirements that list it, in audit order. */
 export interface CandidateCourse {
@@ -34,4 +34,21 @@ export function listCandidateCourses(
     courseId,
     requirementLabels,
   }));
+}
+
+/**
+ * Plans the candidates a course form offers. When the summary failed, the audit's candidates
+ * can't be listed, so the form offers the courses already chosen, so they can be submitted again.
+ *
+ * @param summary - The summary, or its error envelope.
+ * @param chosenCourseIds - The courses chosen in the last submission.
+ * @returns The candidates to offer.
+ */
+export function planCandidateCourses(
+  summary: AcademicSummaryResponse | ApiError,
+  chosenCourseIds: readonly string[],
+): readonly CandidateCourse[] {
+  return summary instanceof ApiError
+    ? chosenCourseIds.map((courseId) => ({ courseId, requirementLabels: [] }))
+    : listCandidateCourses(summary.requirements);
 }

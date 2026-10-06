@@ -13,7 +13,6 @@ import { ApiError } from '@caa/api-contract';
 
 import { getAcademicSummary } from '@/api/academic-summary.api';
 import { findScheduleOptions } from '@/api/schedule-options.api';
-import { summaryCourses } from '@/features/course-checks/utils/check-request-plan';
 import { PlannerScreen } from '@/features/next-term-planner/components/planner-screen';
 import { planScheduleRequest } from '@/features/next-term-planner/utils/planner-plan';
 import {
@@ -27,7 +26,8 @@ import {
 import { StudentLookupForm } from '@/features/session/components/student-lookup-form';
 import { StudentNav } from '@/features/student-navigation/components/student-nav';
 import { ApiErrorNotice } from '@/shared/components/api-error-notice';
-import { listCandidateCourses } from '@/shared/utils/candidate-courses';
+import { planCandidateCourses } from '@/shared/utils/candidate-courses';
+import { summaryCourses } from '@/shared/utils/course-display';
 import { keepApiError } from '@/shared/utils/keep-api-error';
 
 /** Page title. */
@@ -59,7 +59,8 @@ export default async function NextTermPlannerPage({
   // The summary comes first: its catalog entries give each variable-credit course's range.
   const summary = await keepApiError(getAcademicSummary(student.studentId));
   const isSummaryFailed = summary instanceof ApiError;
-  const plan = planScheduleRequest(values, summaryCourses(summary));
+  const courses = summaryCourses(summary);
+  const plan = planScheduleRequest(values, courses);
   const outcome =
     isSearchRequested(step, plan) && plan.request !== null
       ? await keepApiError(findScheduleOptions(student.studentId, plan.request))
@@ -76,13 +77,9 @@ export default async function NextTermPlannerPage({
         studentId={student.studentId}
         view={planPlannerView(step, plan, outcome)}
         values={values}
-        candidates={
-          isSummaryFailed
-            ? values.courseIds.map((courseId) => ({ courseId, requirementLabels: [] }))
-            : listCandidateCourses(summary.requirements)
-        }
+        candidates={planCandidateCourses(summary, values.courseIds)}
         isCandidateListUnavailable={isSummaryFailed}
-        courses={summaryCourses(summary)}
+        courses={courses}
         credits={{ inputs: values.creditInputs, errors: plan.creditErrors }}
       />
     </>

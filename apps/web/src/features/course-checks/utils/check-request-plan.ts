@@ -6,13 +6,10 @@
  * @requirement FR-09
  * @see docs/planning/08-academic-verification-and-planning.md
  */
-import {
-  type AcademicSummaryResponse,
-  ApiError,
-  type CourseChecksRequest,
-} from '@caa/api-contract';
+import type { ApiError } from '@caa/api-contract';
+import { type AcademicSummaryResponse, type CourseChecksRequest } from '@caa/api-contract';
 
-import { type CourseLookup, indexCourses } from '@/shared/utils/course-display';
+import { summaryCourses } from '@/shared/utils/course-display';
 import { planCreditSelections } from '@/shared/utils/credit-selections';
 
 import type { CourseCheckQuery } from './course-check-query';
@@ -23,16 +20,6 @@ export interface CheckRequestPlan {
   readonly request: CourseChecksRequest | null;
   /** Why a typed credit value was rejected, by course ID. */
   readonly creditErrors: ReadonlyMap<string, string>;
-}
-
-/**
- * Lists the summary's display entries.
- *
- * @param summary - The summary, or its error envelope.
- * @returns The entries by course ID; empty when the summary failed or sent none.
- */
-export function summaryCourses(summary: AcademicSummaryResponse | ApiError): CourseLookup {
-  return indexCourses(summary instanceof ApiError ? undefined : summary.courses);
 }
 
 /**

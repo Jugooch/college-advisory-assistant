@@ -58,6 +58,7 @@ const MESSAGE_BY_PART: Readonly<Record<string, string>> = {
   start: 'Enter a start time that is earlier than the end time.',
   end: 'Enter an end time that is later than the start time.',
   rank: 'Enter a priority from 1 to 99, where 1 matters most.',
+  campus: 'Enter each campus ID once, separated by commas.',
   min: 'Enter a minimum, a maximum, or both. The minimum can’t be more than the maximum.',
   max: 'Enter a maximum that is not below the minimum.',
 };
@@ -100,7 +101,8 @@ function parseSlots(values: PlannerFormValues): {
         constraints.push(parsed.data);
       } else {
         const name = fieldFor(slot, parsed.error.issues[0]?.path[0]);
-        const part = name.slice(name.lastIndexOf('-') + 1);
+        const part =
+          name === 'campus' || name === 'modality' ? name : name.slice(name.lastIndexOf('-') + 1);
         issues.push({ name, message: MESSAGE_BY_PART[part] ?? 'Check this constraint.' });
       }
     }

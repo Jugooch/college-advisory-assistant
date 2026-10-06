@@ -3,10 +3,11 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import type { CourseDisplay } from '@caa/api-contract';
+import { type AcademicSummaryResponse, ApiError, type CourseDisplay } from '@caa/api-contract';
+import { ErrorCode } from '@caa/domain';
 import { SYNTHETIC_COURSES } from '@caa/test-kit';
 
-import { describeCourse, indexCourses, nameCourse } from './course-display';
+import { describeCourse, indexCourses, nameCourse, summaryCourses } from './course-display';
 
 const { math101, math102 } = SYNTHETIC_COURSES;
 const MATH_101: CourseDisplay = {
@@ -59,5 +60,26 @@ describe('describeCourse', () => {
     expect(describeCourse(math102.id, indexCourses())).toBe(
       `course ${math102.id} (no catalog details available)`,
     );
+  });
+});
+
+describe('summaryCourses', () => {
+  it('indexes the summary entries, and nothing for an error', () => {
+    const entry = {
+      courseId: 'c1',
+      code: 'DEMO 1',
+      title: null,
+      credits: { kind: 'FIXED', creditsHundredths: 300 },
+    };
+    const summary = { courses: [entry] } as unknown as AcademicSummaryResponse;
+    const error = new ApiError({
+      code: ErrorCode.SourceUnavailable,
+      status: 503,
+      message: 'down',
+      requestId: null,
+    });
+
+    expect(summaryCourses(summary).get('c1')?.code).toBe('DEMO 1');
+    expect(summaryCourses(error).size).toBe(0);
   });
 });

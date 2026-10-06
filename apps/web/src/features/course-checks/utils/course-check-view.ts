@@ -11,7 +11,7 @@ import {
   type CourseChecksResponse,
 } from '@caa/api-contract';
 
-import { type CandidateCourse, listCandidateCourses } from '@/shared/utils/candidate-courses';
+import { type CandidateCourse, planCandidateCourses } from '@/shared/utils/candidate-courses';
 import { type CourseLookup, indexCourses } from '@/shared/utils/course-display';
 import type { CreditChoices } from '@/shared/utils/credit-choice';
 
@@ -73,9 +73,7 @@ export function planCourseCheckView({
     result: checked,
     resultError: result instanceof ApiError ? result : null,
     summaryError: isSummaryFailed ? summary : null,
-    candidates: isSummaryFailed
-      ? checkedCourseIds.map((courseId) => ({ courseId, requirementLabels: [] }))
-      : listCandidateCourses(summary.requirements),
+    candidates: planCandidateCourses(summary, checkedCourseIds),
     isCandidateListUnavailable: isSummaryFailed,
     selectionError: describeSelectionError(query.selection) ?? creditError,
     courses: indexCourses(checked?.courses, isSummaryFailed ? undefined : summary.courses),

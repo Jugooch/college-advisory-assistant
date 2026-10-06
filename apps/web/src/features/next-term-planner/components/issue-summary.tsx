@@ -17,7 +17,7 @@ import type { PlannerIssue } from '../utils/planner-plan';
  */
 function targetId(name: string): string {
   if (name === 'course') {
-    return 'planner-course-hint';
+    return 'planner-course';
   }
   return name.startsWith('credits-')
     ? `pick-credits-${name.slice('credits-'.length)}`

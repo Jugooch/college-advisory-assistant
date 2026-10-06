@@ -106,4 +106,14 @@ describe('planScheduleRequest', () => {
 
     expect(result.issues[0]).toMatchObject({ name: 'block1-day' });
   });
+
+  it('explains a repeated campus ID instead of a generic message', () => {
+    const id = syntheticId('campus', 1);
+
+    const result = plan({ campus: `${id} ${id}` });
+
+    expect(result.issues).toEqual([
+      { name: 'campus', message: 'Enter each campus ID once, separated by commas.' },
+    ]);
+  });
 });

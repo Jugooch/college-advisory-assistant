@@ -92,7 +92,11 @@ function CourseChoices({
 }: PlannerFormProps): ReactElement {
   const error = errors.get('course');
   return (
-    <fieldset aria-describedby={error === undefined ? undefined : 'planner-course-error'}>
+    <fieldset
+      id="planner-course"
+      tabIndex={-1}
+      aria-describedby={error === undefined ? undefined : 'planner-course-error'}
+    >
       <legend>Courses to schedule</legend>
       <p id="planner-course-hint">
         Choose 1 to {MAX_SCHEDULE_OPTION_COURSES} courses. All of them are scheduled together.
@@ -105,7 +109,7 @@ function CourseChoices({
         </p>
       ) : null}
       {error === undefined ? null : (
-        <p id="planner-course-error" className="field-error" role="alert">
+        <p id="planner-course-error" className="field-error">
           {error}
         </p>
       )}
