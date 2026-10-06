@@ -7,7 +7,7 @@ import Link from 'next/link';
 import type { ReactElement } from 'react';
 
 /** The student screens. */
-export type StudentScreen = 'overview' | 'course-checks';
+export type StudentScreen = 'overview' | 'course-checks' | 'next-term-planner';
 
 /** Props for {@link StudentNav}. */
 export interface StudentNavProps {
@@ -25,6 +25,7 @@ const SCREENS: readonly {
 }[] = [
   { screen: 'overview', path: '/overview', label: 'Overview' },
   { screen: 'course-checks', path: '/course-checks', label: 'Course checks' },
+  { screen: 'next-term-planner', path: '/next-term-planner', label: 'Plan next term' },
 ];
 
 /**

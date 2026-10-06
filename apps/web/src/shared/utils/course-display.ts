@@ -5,7 +5,7 @@
  * @requirement FR-10
  * @requirement NFR-02
  */
-import type { CourseDisplay } from '@caa/api-contract';
+import { type AcademicSummaryResponse, ApiError, type CourseDisplay } from '@caa/api-contract';
 
 /** Display entries by course ID. */
 export type CourseLookup = ReadonlyMap<string, CourseDisplay>;
@@ -66,4 +66,14 @@ export function describeCourse(courseId: string, lookup: CourseLookup): string {
     return `course ${name.courseId} (${NO_CATALOG_DETAILS})`;
   }
   return name.title === null ? name.code : `${name.code} (${name.title})`;
+}
+
+/**
+ * Lists the summary's display entries.
+ *
+ * @param summary - The summary, or its error envelope.
+ * @returns The entries by course ID; empty when the summary failed or sent none.
+ */
+export function summaryCourses(summary: AcademicSummaryResponse | ApiError): CourseLookup {
+  return indexCourses(summary instanceof ApiError ? undefined : summary.courses);
 }

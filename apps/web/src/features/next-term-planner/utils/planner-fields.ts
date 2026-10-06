@@ -1,0 +1,97 @@
+/**
+ * @file The planner form's fields: the step, the constraint slots, their query names, and the
+ * raw values a submission carries. Names only; nothing here is validated.
+ * @module @caa/web/features/next-term-planner/utils/planner-fields
+ * @requirement FR-08
+ * @see docs/planning/11-ux-and-accessibility-design.md
+ */
+
+/** Which step of the planner a submission asks for. */
+export const PlannerStep = {
+  /** Show the form, filled with the submitted values. */
+  Edit: 'edit',
+  /** Check the values and list the constraints for the student to confirm. */
+  Review: 'review',
+  /** Search with the confirmed constraints. */
+  Search: 'search',
+} as const;
+
+/** Union of every {@link PlannerStep} value. */
+export type PlannerStep = (typeof PlannerStep)[keyof typeof PlannerStep];
+
+/** The unavailable-time block slots the form offers, in form order. */
+export const TIME_BLOCK_SLOTS = ['block1', 'block2', 'block3'] as const;
+
+/** One constraint slot of the form; each slot states at most one constraint. */
+export type ConstraintSlot =
+  (typeof TIME_BLOCK_SLOTS)[number] | 'credit-range' | 'modality' | 'campus';
+
+/** Every constraint slot, in form order, which is also the order of the default priorities. */
+export const CONSTRAINT_SLOTS: readonly ConstraintSlot[] = [
+  ...TIME_BLOCK_SLOTS,
+  'credit-range',
+  'modality',
+  'campus',
+];
+
+/** How strict a slot is and its priority, as typed. */
+export interface StrengthInput {
+  /** `HARD`, `PREFERRED`, or empty when not sent, which means preferred. */
+  readonly strength: string;
+  /** The typed priority, 1 first. Used only for a preference. */
+  readonly rank: string;
+}
+
+/** One unavailable-time block, as typed. */
+export interface TimeBlockInput extends StrengthInput {
+  readonly days: readonly string[];
+  /** `HH:MM`, or empty for the start of the day. */
+  readonly start: string;
+  /** `HH:MM`, or empty for the end of the day. */
+  readonly end: string;
+}
+
+/** Every value of a planner submission, as typed, so the form can be filled again. */
+export interface PlannerFormValues {
+  readonly termId: string;
+  /** The chosen course values, once each, in submitted order. */
+  readonly courseIds: readonly string[];
+  /** Typed credit text by course ID. */
+  readonly creditInputs: ReadonlyMap<string, string>;
+  readonly timeBlocks: Readonly<Record<(typeof TIME_BLOCK_SLOTS)[number], TimeBlockInput>>;
+  readonly creditRange: StrengthInput & { readonly min: string; readonly max: string };
+  readonly modality: StrengthInput & { readonly values: readonly string[] };
+  readonly campus: StrengthInput & { readonly text: string };
+}
+
+/**
+ * Names the query field of one part of a slot.
+ *
+ * @param slot - The constraint slot.
+ * @param part - The part, for example `strength` or `start`.
+ * @returns For example `block1-start`.
+ */
+export function slotFieldName(slot: ConstraintSlot, part: string): string {
+  return `${slot}-${part}`;
+}
+
+/**
+ * Names the element id of one field, so errors can link to it.
+ *
+ * @param name - The field's query name, for example `term` or `block1-start`.
+ * @returns For example `planner-block1-start`.
+ */
+export function plannerFieldId(name: string): string {
+  return `planner-${name}`;
+}
+
+/**
+ * Gives a slot's default priority: its position in the form, 1 first. The student sees it in
+ * the field and can change it before reviewing.
+ *
+ * @param slot - The constraint slot.
+ * @returns The default priority text.
+ */
+export function defaultRank(slot: ConstraintSlot): string {
+  return String(CONSTRAINT_SLOTS.indexOf(slot) + 1);
+}

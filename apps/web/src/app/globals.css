@@ -170,3 +170,13 @@ td {
 .nav-list [aria-current='page'] {
   font-weight: bold;
 }
+
+.constraint-list {
+  padding-left: 1rem;
+}
+
+.issue-summary {
+  margin: 1rem 0;
+  padding: 0.5rem 1rem;
+  border: 2px solid var(--color-negative);
+}
