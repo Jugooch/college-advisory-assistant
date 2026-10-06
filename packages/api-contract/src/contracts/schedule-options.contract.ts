@@ -30,6 +30,11 @@ import { defineEndpoint } from '../define-endpoint';
 import { CourseDisplayListSchema } from './course-display.contract';
 import { ConflictSetSchema } from './schedule-conflict-set.contract';
 import {
+  CampusDisplaySchema,
+  hasExactCampuses,
+  ScheduleTermSchema,
+} from './schedule-display.contract';
+import {
   MAX_SCHEDULE_OPTIONS,
   type ScheduleOption,
   ScheduleOptionSchema,
@@ -210,6 +215,17 @@ export const ScheduleOptionsResponseSchema = z
     pinnedInputs: SchedulePinnedInputsSchema,
     /** Catalog display fields for the requested and linked courses. Display data only. */
     courses: CourseDisplayListSchema,
+    /**
+     * The requested term, for display. Display data only.
+     * TODO(#331): make required once the API sets it on every 200.
+     */
+    term: ScheduleTermSchema.optional(),
+    /**
+     * Exactly the campuses the response names, ordered by `id`; `[]` when it names none.
+     * Display data only, never identity.
+     * TODO(#331): make required once the API sets it on every 200.
+     */
+    campuses: z.array(CampusDisplaySchema).readonly().optional(),
   })
   .refine((response) => isDistinct(response.courseIds), {
     message: 'courseIds must not repeat a course',
@@ -287,6 +303,12 @@ export const ScheduleOptionsResponseSchema = z
     },
     { message: 'courses must list only courses the response names', path: ['courses'] },
   )
+  // SECURITY: data minimization. Campus names are sent only for campuses the response names,
+  // and a named campus is never left without its name (ADR-0010 Amendment 7).
+  .refine(hasExactCampuses, {
+    message: 'campuses must list exactly the campuses the response names, once each, by id',
+    path: ['campuses'],
+  })
   .readonly();
 
 /** Response body for `POST /v1/students/:studentId/schedule-options`. */
