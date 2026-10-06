@@ -35,6 +35,7 @@ import {
 } from '../../shared/domain-errors';
 import {
   buildScheduleSnapshot,
+  droppedSectionStore,
   runScheduleOptions as find,
   SCHEDULE_SECTIONS as SECTIONS,
   scheduleRequest,
@@ -187,6 +188,29 @@ describe('ScheduleOptionsService.findOptions', () => {
       'workCap',
       'workUsed',
     ]);
+  });
+});
+
+describe('ScheduleOptionsService.findOptions dropped linked sections', () => {
+  const unresolved = [
+    { state: CheckState.Unknown, reasonCode: ReasonCode.LinkedSectionUnavailable },
+  ];
+
+  it('carries the dropped section in unresolved on OPTIONS_FOUND, with options unchanged', async () => {
+    const base = await find(scheduleRequest()).result;
+    const response = await find(scheduleRequest(), { schedule: droppedSectionStore() }).result;
+
+    expect(ScheduleOptionsResponseSchema.safeParse(response).success).toBe(true);
+    expect(response).toMatchObject({ outcome: ScheduleOutcome.OptionsFound, unresolved });
+    expect(response.options).toEqual(base.options);
+  });
+
+  it('carries the same unresolved on SEARCH_TIMEOUT', async () => {
+    const schedule = droppedSectionStore();
+    const response = await find(scheduleRequest(), { schedule, workCap: 1 }).result;
+
+    expect(ScheduleOptionsResponseSchema.safeParse(response).success).toBe(true);
+    expect(response).toMatchObject({ outcome: ScheduleOutcome.SearchTimeout, unresolved });
   });
 });
 

@@ -7,6 +7,8 @@
 import type { ScheduleOptionsRequest, ScheduleOptionsResponse } from '@caa/api-contract';
 import { type MeetingPattern, type Section, type SectionSnapshot, TermIdSchema } from '@caa/domain';
 import {
+  buildLinkedSectionComponent,
+  buildLinkedSectionGroup,
   buildMeetingPattern,
   buildSection,
   buildSectionSnapshot,
@@ -81,6 +83,36 @@ export function buildScheduleSnapshot(
  */
 export function scheduleStore(sections?: readonly Section[]): InMemoryScheduleStore {
   return { sectionSnapshots: [buildScheduleSnapshot(sections)], transitionPolicies: [] };
+}
+
+/** A second DEMO-PHYS 301 section whose required lab has no permitted section, so it is dropped. */
+export const DROPPED_SECTION = buildSection({ courseId: phys301.id, meetings: [mwfAt(15)] }, 3012);
+
+/**
+ * The schedule fields of a store whose snapshot also lists {@link DROPPED_SECTION}, with a linked
+ * group requiring a lab that has no permitted section.
+ *
+ * @returns The store fields to merge.
+ */
+export function droppedSectionStore(): InMemoryScheduleStore {
+  const group = buildLinkedSectionGroup({
+    primarySectionId: DROPPED_SECTION.id,
+    components: [
+      buildLinkedSectionComponent({
+        courseId: SEED_COURSES.phys301Lab.id,
+        permittedSectionIds: [],
+      }),
+    ],
+  });
+  const snapshot = buildSectionSnapshot(
+    {
+      sections: [...Object.values(SCHEDULE_SECTIONS), DROPPED_SECTION],
+      linkedSectionGroups: [group],
+      sourceEffectiveAt: SECTIONS_AT,
+    },
+    1,
+  );
+  return { sectionSnapshots: [snapshot], transitionPolicies: [] };
 }
 
 /** What a service-level schedule test varies. */
