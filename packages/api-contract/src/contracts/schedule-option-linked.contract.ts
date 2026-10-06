@@ -1,6 +1,6 @@
 /**
- * @file Rules for the linked-course results of a schedule option: which linked courses need an
- *   entry, and how the entries are ordered (ADR-0010 Amendment 4).
+ * @file Structural rules for the linked-course results of a schedule option: which courses an
+ *   entry may name, and how the entries are ordered (ADR-0010 Amendment 4).
  * @module @caa/api-contract/contracts/schedule-option-linked
  * @requirement FR-07
  * @requirement FR-09
@@ -12,7 +12,7 @@
 export interface LinkedCourseShape {
   readonly bundles: readonly {
     readonly courseId: string;
-    readonly sections: readonly { readonly courseId: string; readonly countsCredits: boolean }[];
+    readonly sections: readonly { readonly courseId: string }[];
   }[];
   readonly linkedCourseResults: readonly { readonly courseId: string }[];
 }
@@ -31,35 +31,18 @@ export function isStrictlyAscending(courseIds: readonly string[]): boolean {
 }
 
 /**
- * Lists the courses of shown sections that no bundle requested.
- *
- * @param option - The bundles.
- * @returns A map from each linked course to whether any of its shown sections counts credits.
- */
-function linkedCoursesShown(option: LinkedCourseShape): ReadonlyMap<string, boolean> {
-  const requested = new Set(option.bundles.map((bundle) => bundle.courseId));
-  const shown = new Map<string, boolean>();
-  for (const section of option.bundles.flatMap((bundle) => bundle.sections)) {
-    if (!requested.has(section.courseId)) {
-      shown.set(section.courseId, (shown.get(section.courseId) ?? false) || section.countsCredits);
-    }
-  }
-  return shown;
-}
-
-/**
- * Returns whether the linked-course entries match the shown sections: no entry names a requested
- * course or a course without a shown section, and every non-requested course with a shown
- * section that counts credits has an entry.
+ * Returns whether every linked-course entry names a course with a shown section that no bundle
+ * requested. Which linked courses need an entry is the engine's rule, not restated here.
  *
  * @param option - The bundles and the linked-course entries.
- * @returns `true` when the entries fit the bundles.
+ * @returns `true` when each entry is about a shown, non-requested course.
  */
-export function linkedResultsMatchSections(option: LinkedCourseShape): boolean {
-  const shown = linkedCoursesShown(option);
-  const entries = new Set(option.linkedCourseResults.map((result) => result.courseId));
-  return (
-    [...entries].every((courseId) => shown.has(courseId)) &&
-    [...shown].every(([courseId, countsCredits]) => !countsCredits || entries.has(courseId))
+export function linkedEntriesAreStructural(option: LinkedCourseShape): boolean {
+  const requested = new Set(option.bundles.map((bundle) => bundle.courseId));
+  const shown = new Set(
+    option.bundles.flatMap((bundle) => bundle.sections.map((section) => section.courseId)),
+  );
+  return option.linkedCourseResults.every(
+    ({ courseId }) => shown.has(courseId) && !requested.has(courseId),
   );
 }

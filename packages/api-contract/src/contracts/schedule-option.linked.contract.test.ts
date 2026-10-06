@@ -65,8 +65,8 @@ describe('ScheduleOptionSchema linkedCourseResults', () => {
     expect(accepts(buildOption({ linkedCourseResults: [] }))).toBe(true);
   });
 
-  it('rejects a credit-bearing linked section with no entry', () => {
-    expect(accepts(buildOption({ bundles: [CREDIT_BEARING_BUNDLE], ...credit }))).toBe(false);
+  it('accepts no entries whatever the sections countsCredits, the engine owns that rule', () => {
+    expect(accepts(buildOption({ bundles: [CREDIT_BEARING_BUNDLE], ...credit }))).toBe(true);
   });
 
   it('accepts an entry for an included lab, such as one with a prerequisite of its own', () => {

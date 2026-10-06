@@ -23,7 +23,7 @@ import {
 } from '@caa/domain';
 
 import { CourseCheckResultSchema, SetCheckResultsSchema } from './course-checks.contract';
-import { isStrictlyAscending, linkedResultsMatchSections } from './schedule-option-linked.contract';
+import { isStrictlyAscending, linkedEntriesAreStructural } from './schedule-option-linked.contract';
 import { MAX_SCHEDULE_OPTION_COURSES } from './schedule-options-request.contract';
 
 /** Most options one response may carry (FR-18). */
@@ -188,8 +188,8 @@ export const ScheduleOptionSchema = z
       .max(MAX_SCHEDULE_OPTION_COURSES)
       .readonly(),
     /**
-     * One result per linked course the option adds beyond the requested ones: a course of a shown
-     * section that no bundle requests and that counts its own credits (ADR-0010 Amendment 4). In
+     * One result per linked course the option adds beyond the requested ones, chosen by the
+     * engine (ADR-0010 Amendment 4). In
      * ascending course ID, never repeated, and `[]` when there are none. Its checks count in the
      * aggregate, so an option with an entry is never VALIDATED.
      */
@@ -260,12 +260,10 @@ export const ScheduleOptionSchema = z
       path: ['bundles'],
     },
   )
-  // SAFETY: a linked section can add a course whose credits count and no check ran on (ADR-0010
-  // Amendment 4). Each such course must show a result, so it can't be hidden from the aggregate,
-  // and an entry must be about a course the option shows, never a requested one.
-  .refine((option) => linkedResultsMatchSections(option), {
-    message:
-      'linkedCourseResults must name each credit-bearing linked course once, and no other course',
+  // SAFETY: an entry must be about a linked course the option shows, never a requested one, or
+  // its UNKNOWN checks would describe a course the student didn't see (ADR-0010 Amendment 4).
+  .refine((option) => linkedEntriesAreStructural(option), {
+    message: 'linkedCourseResults must name only shown courses that no bundle requests',
     path: ['linkedCourseResults'],
   })
   .refine((option) => isStrictlyAscending(option.linkedCourseResults.map((r) => r.courseId)), {
