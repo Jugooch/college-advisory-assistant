@@ -8,12 +8,15 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { ScheduleOutcome } from '@caa/domain';
+import { CheckState, ReasonCode, ScheduleOutcome, Weekday } from '@caa/domain';
 import {
+  buildUnavailableTime,
   expectOneOption,
   GoldenScheduleFamily,
+  HARD_STRENGTH,
   SCHEDULE_PASS,
   scheduleCase,
+  scheduleCheck,
   scheduleInputs,
   scheduleSection,
   sectionIdsOf,
@@ -90,6 +93,43 @@ describe('findScheduleMismatches', () => {
     );
 
     expect(mismatches.join('\n')).toContain('prohibited OPTIONS_FOUND: never offered');
+  });
+
+  it('compares an option’s schedule issues, so a wrong section fails', () => {
+    const unknownOn = (section: typeof FIRST): ReturnType<typeof scheduleCheck> =>
+      scheduleCheck(CheckState.Unknown, [
+        { reasonCode: ReasonCode.MeetingTimeUnknown, sectionIds: sectionIdsOf(section) },
+      ]);
+    const tba = scheduleSection(math102.id, 3903, {
+      meeting: { weekdays: null, startTime: null, endTime: null },
+    });
+    const tbaCase = (named: typeof FIRST): ReturnType<typeof scheduleCase> =>
+      runnerCase({
+        inputs: scheduleInputs({
+          requestedCourseIds: [math102.id],
+          sections: [tba],
+          constraints: [
+            buildUnavailableTime({
+              ...HARD_STRENGTH,
+              weekdays: [Weekday.Friday],
+              startTime: '00:00',
+              endTime: '24:00',
+            }),
+          ],
+        }),
+        expected: {
+          outcome: ScheduleOutcome.OptionsFound,
+          searchComplete: true,
+          options: [{ sectionIds: sectionIdsOf(tba), scheduleFeasibility: unknownOn(named) }],
+          conflictSet: null,
+          unresolved: [],
+        },
+      });
+
+    expect(findScheduleMismatches(tbaCase(tba))).toEqual([]);
+    expect(findScheduleMismatches(tbaCase(FIRST)).join('\n')).toContain(
+      'options[0].schedule.evidence.scheduleIssues',
+    );
   });
 
   it('accepts an allowed alternative when the primary expectation differs', () => {

@@ -15,6 +15,7 @@ import {
   solveSchedule,
 } from '@caa/engine';
 import {
+  type ExpectedCheck,
   type ExpectedSchedule,
   type GoldenScheduleCase,
   makesClaim,
@@ -81,6 +82,22 @@ function sectionIdsOfOption(option: SolvedScheduleOption): SectionId[] {
 }
 
 /**
+ * Folds an expected schedule check's issues into its evidence, so the comparison covers them.
+ *
+ * @param item - The expected check with its issues.
+ * @param item.check - The check.
+ * @param item.issues - The issues that explain it, decisive first.
+ * @returns The check with `evidence.scheduleIssues` set when it has issues.
+ */
+function withIssues(item: ExpectedSchedule['unresolved'][number]): ExpectedCheck {
+  const { check, issues } = item;
+  return {
+    ...check,
+    evidence: { ...check.evidence, ...(issues.length > 0 ? { scheduleIssues: issues } : {}) },
+  };
+}
+
+/**
  * Compares one expected option with the solver's option at the same rank.
  *
  * @param expected - The expected option.
@@ -101,7 +118,7 @@ function compareOption(
   );
   return [
     ...compareCheck(
-      expected.scheduleFeasibility.check,
+      withIssues(expected.scheduleFeasibility),
       returned.scheduleFeasibility,
       `${at}.schedule`,
     ),
@@ -186,17 +203,7 @@ function compareChecks(
     const returned = actual[index];
     return returned === undefined
       ? []
-      : compareCheck(
-          {
-            ...check,
-            evidence: {
-              ...check.evidence,
-              ...(issues.length > 0 ? { scheduleIssues: issues } : {}),
-            },
-          },
-          returned,
-          `${at}[${String(index)}]`,
-        );
+      : compareCheck(withIssues({ check, issues }), returned, `${at}[${String(index)}]`);
   });
 }
 
