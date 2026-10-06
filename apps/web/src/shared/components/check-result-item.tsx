@@ -1,6 +1,6 @@
 /**
  * @file One check dimension: its state in words, what it means, the next step, and evidence.
- * @module @caa/web/features/course-checks/components/check-result-item
+ * @module @caa/web/shared/components/check-result-item
  * @requirement FR-09
  * @requirement FR-10
  * @requirement NFR-02
@@ -11,11 +11,10 @@ import type { ReactElement } from 'react';
 import type { CheckResult } from '@caa/domain';
 
 import { StatusBadge } from '@/components/ui/status-badge';
+import { CheckEvidence } from '@/shared/components/check-evidence';
 import { ReasonExplanation } from '@/shared/components/reason-explanation';
 import { describeCheckState } from '@/shared/utils/check-state-wording';
 import type { CourseLookup } from '@/shared/utils/course-display';
-
-import { CheckEvidence } from './check-evidence';
 
 /** Props for {@link CheckResultItem}. */
 export interface CheckResultItemProps {
@@ -27,6 +26,8 @@ export interface CheckResultItemProps {
   readonly asOf: string;
   /** Catalog display entries by course ID, to name the courses in the evidence. */
   readonly courses: CourseLookup;
+  /** Short lowercase name of the rule for the "no rule" message; defaults to the dimension. */
+  readonly ruleName?: string;
 }
 
 /**
@@ -40,13 +41,17 @@ export function CheckResultItem({
   check,
   asOf,
   courses,
+  ruleName,
 }: CheckResultItemProps): ReactElement {
   if (check === null) {
     return (
       <li className="check">
         <h4>{dimension}</h4>
         <StatusBadge label="No rule to check" tone="neutral" />
-        <p>This course has no {dimension.toLowerCase()} rule, so nothing was checked here.</p>
+        <p>
+          This course has no {ruleName ?? dimension.toLowerCase()} rule, so nothing was checked
+          here.
+        </p>
       </li>
     );
   }

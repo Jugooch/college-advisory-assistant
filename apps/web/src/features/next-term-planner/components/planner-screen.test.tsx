@@ -105,7 +105,7 @@ describe('PlannerScreen review', () => {
     );
 
     expect(html).toContain(
-      '<strong>Preferred, priority 1:</strong> Not available on friday, all day.',
+      '<strong>Preferred, priority 1:</strong> Not available on Friday, all day.',
     );
     expect(html).toContain('<strong>Required:</strong> Take at most 15 credits.');
   });
@@ -132,7 +132,7 @@ describe('PlannerScreen review', () => {
 
     expect(html).toContain('req-syn-001');
     expect(html).toContain('Try the search again');
-    expect(html).toContain('<strong>Required:</strong> Not available on friday, all day.');
+    expect(html).toContain('<strong>Required:</strong> Not available on Friday, all day.');
     expect(html).toContain('<input type="hidden" name="block1-strength" value="HARD"/>');
   });
 
