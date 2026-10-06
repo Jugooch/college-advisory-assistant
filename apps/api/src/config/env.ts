@@ -3,11 +3,14 @@
  * @module @caa/api/config/env
  * @requirement FR-01
  * @requirement FR-04
+ * @requirement NFR-07
+ * @see docs/adr/0010-deterministic-bounded-schedule-solver.md
  * @see docs/standards/09-errors-logging-and-security.md
  * @see docs/planning/07-system-architecture-and-design.md
  */
 import { z } from 'zod';
 
+import { MAX_SOLVER_WORK_CAP } from '@caa/api-contract';
 import { AuthMode } from '@caa/domain';
 
 // NOTE: the domain enum, so `/v1/health` reports exactly the mode this validates (#151).
@@ -69,6 +72,26 @@ const AcademicSourceMaxAgeSchema = z
   .optional();
 
 /**
+ * Default `SCHEDULE_SOLVER_WORK_CAP` in every environment: an engineering calibration, not
+ * institutional policy, sized to finish the worst S4 search (ADR-0010 §1).
+ */
+export const DEFAULT_SCHEDULE_SOLVER_WORK_CAP = 3_000_000;
+
+/**
+ * `SCHEDULE_SOLVER_WORK_CAP`: how many attempts to add a bundle the schedule solver may make
+ * per request (ADR-0010 §1). Digits only, so an empty or fractional value fails instead of
+ * coercing to 0 or rounding.
+ */
+const ScheduleSolverWorkCapSchema = z
+  .string()
+  .regex(/^\d+$/, 'must be a whole number of work units')
+  .default(String(DEFAULT_SCHEDULE_SOLVER_WORK_CAP))
+  .transform(Number)
+  // NOTE: the ceiling is the contract's, so a pinned cap always fits the response. Raising it
+  // needs an ADR-0010 amendment with a new measurement.
+  .pipe(z.number().int().min(1).max(MAX_SOLVER_WORK_CAP));
+
+/**
  * Parses a JSON string, reporting malformed JSON as a validation issue without echoing the value.
  *
  * @param raw - Raw environment value.
@@ -102,6 +125,7 @@ const ApiEnvSchema = z
      */
     ACTIVE_RULESET_VERSION: z.string().trim().min(1).optional(),
     ACADEMIC_SOURCE_MAX_AGE_MS: AcademicSourceMaxAgeSchema,
+    SCHEDULE_SOLVER_WORK_CAP: ScheduleSolverWorkCapSchema,
   })
   // SECURITY: dev tokens are guessable shortcuts, so production refuses to start with them.
   .refine((env) => !(env.NODE_ENV === 'production' && env.AUTH_MODE === AuthMode.Dev), {

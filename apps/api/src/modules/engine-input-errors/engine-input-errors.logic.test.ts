@@ -10,6 +10,7 @@ import {
   AuditRecordInputError,
   CandidateSetInputError,
   PrerequisiteInputMismatchError,
+  ScheduleInputError,
 } from '@caa/engine';
 
 import { CreditInclusionUnknownError } from '../course-verification/course-verification.logic';
@@ -27,6 +28,22 @@ describe('classifyEngineInputError', () => {
     expect(classifyEngineInputError(new CandidateSetInputError(issue))).toEqual({
       cause,
       reason: `CandidateSetInputError:${issue}`,
+    });
+  });
+
+  it.each([
+    ['courseInTwoRequests', 'REQUEST'],
+    ['creditRange', 'REQUEST'],
+    ['linkCycle', 'STORED_DATA'],
+    ['courseMissing', 'STORED_DATA'],
+    ['tenantMismatch', 'INTERNAL'],
+    ['sameSection', 'INTERNAL'],
+    ['workCap', 'INTERNAL'],
+    ['requests', 'INTERNAL'],
+  ] as const)('classifies the schedule input issue %s as %s', (issue, cause) => {
+    expect(classifyEngineInputError(new ScheduleInputError(issue))).toEqual({
+      cause,
+      reason: `ScheduleInputError:${issue}`,
     });
   });
 

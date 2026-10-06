@@ -23,6 +23,8 @@ export interface TestAppOptions {
   readonly logStream?: LogDestination;
   /** Repositories to use instead of the in-memory ones. */
   readonly repositoryOverrides?: Partial<Repositories>;
+  /** `SCHEDULE_SOLVER_WORK_CAP`; the documented default when omitted. */
+  readonly solverWorkCap?: number;
 }
 
 /**
@@ -42,6 +44,9 @@ export function buildTestApp(options: TestAppOptions): FastifyInstance {
     ACTIVE_RULESET_VERSION: 'demo-2026.1',
     // NOTE: pinned here, not left to the development default, so tests don't depend on it.
     ACADEMIC_SOURCE_MAX_AGE_MS: '86400000',
+    ...(options.solverWorkCap === undefined
+      ? {}
+      : { SCHEDULE_SOLVER_WORK_CAP: String(options.solverWorkCap) }),
   });
   const repositories: Repositories = {
     ...createInMemoryRepositories(options.store),

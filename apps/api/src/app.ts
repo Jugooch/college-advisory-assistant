@@ -8,6 +8,7 @@ import type { AppDependencies } from './container';
 import { registerAcademicSummaryRoutes } from './modules/academic-summary/academic-summary.routes';
 import { registerCourseChecksRoutes } from './modules/course-checks/course-checks.routes';
 import { registerHealthRoutes } from './modules/health/health.routes';
+import { registerScheduleOptionsRoutes } from './modules/schedule-options/schedule-options.routes';
 import { registerSessionRoutes } from './modules/session/session.routes';
 import { registerStudentsRoutes } from './modules/students/students.routes';
 import { registerAuthenticatedScope } from './plugins/auth.plugin';
@@ -39,6 +40,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
       registerStudentsRoutes(scope, controllers.students);
       registerAcademicSummaryRoutes(scope, controllers.academicSummary);
       registerCourseChecksRoutes(scope, controllers.courseChecks);
+      registerScheduleOptionsRoutes(scope, controllers.scheduleOptions);
     },
   });
   return app;

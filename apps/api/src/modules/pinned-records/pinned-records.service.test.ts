@@ -202,3 +202,42 @@ describe('PinnedRecordsService.loadLatest out-of-scope backstop', () => {
     ]);
   });
 });
+
+describe('PinnedRecordsService.assertFresh section snapshot', () => {
+  const now = '2026-09-02T00:00:00.000Z';
+  const fresh = {
+    snapshot: buildRecordSnapshot({ sourceEffectiveAt: now, ingestedAt: now }),
+    audit: null,
+  };
+
+  /**
+   * Gates the fresh record with a section snapshot effective at the given time, 24 hours max.
+   *
+   * @param sourceEffectiveAt - The section snapshot's source time.
+   * @returns The gate's outcome, and the recording logger.
+   */
+  function gate(sourceEffectiveAt: string) {
+    const logger = createRecordingLogger();
+    const service = createPinnedRecordsService({
+      ...createInMemoryRepositories({ identities: [], students: [], assignments: [] }),
+      now: () => new Date(now),
+      maxSourceAgeMs: 86_400_000,
+    });
+    const scope = { actor, studentId: student.id, context: { logger } };
+    const run = () => {
+      service.assertFresh(scope, { ...fresh, sectionSnapshot: { sourceEffectiveAt } });
+    };
+    return { run, logger };
+  }
+
+  it('accepts a section snapshot exactly at the maximum age', () => {
+    expect(gate('2026-09-01T00:00:00.000Z').run).not.toThrow();
+  });
+
+  it('throws STALE_SOURCE and logs the reason one millisecond past the maximum age', () => {
+    const { run, logger } = gate('2026-08-31T23:59:59.999Z');
+
+    expect(run).toThrow(StaleSourceError);
+    expect(logger.entries.map((entry) => entry.details.reason)).toEqual(['SOURCE_NOT_FRESH']);
+  });
+});

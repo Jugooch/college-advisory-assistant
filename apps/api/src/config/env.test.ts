@@ -149,3 +149,23 @@ describe('loadApiEnv ACADEMIC_SOURCE_MAX_AGE_MS', () => {
     },
   );
 });
+
+describe('loadApiEnv SCHEDULE_SOLVER_WORK_CAP', () => {
+  it('defaults to 3,000,000 units in every environment', () => {
+    expect(loadApiEnv(BASE).SCHEDULE_SOLVER_WORK_CAP).toBe(3_000_000);
+    expect(loadApiEnv({ ...BASE, ...PRODUCTION }).SCHEDULE_SOLVER_WORK_CAP).toBe(3_000_000);
+  });
+
+  it('accepts 1 and exactly 3,000,000, and refuses one unit more', () => {
+    const at = (value: string) => (): unknown =>
+      loadApiEnv({ ...BASE, SCHEDULE_SOLVER_WORK_CAP: value });
+
+    expect(at('1')()).toMatchObject({ SCHEDULE_SOLVER_WORK_CAP: 1 });
+    expect(at('3000000')()).toMatchObject({ SCHEDULE_SOLVER_WORK_CAP: 3_000_000 });
+    expect(at('3000001')).toThrow(ZodError);
+  });
+
+  it.each(['', ' ', '0', '-1', '1.5', '1e3', 'many'])('refuses %j at startup', (value) => {
+    expect(() => loadApiEnv({ ...BASE, SCHEDULE_SOLVER_WORK_CAP: value })).toThrow(ZodError);
+  });
+});

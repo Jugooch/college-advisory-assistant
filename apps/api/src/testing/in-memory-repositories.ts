@@ -11,9 +11,13 @@ import {
   createInMemoryAcademicRepositories,
   type InMemoryAcademicStore,
 } from './in-memory-academic-repositories';
+import {
+  createInMemoryScheduleRepositories,
+  type InMemoryScheduleStore,
+} from './in-memory-schedule-repositories';
 
 /** Mutable backing data, so a test can change it between two calls (for example to revoke). */
-export interface InMemoryStore extends InMemoryAcademicStore {
+export interface InMemoryStore extends InMemoryAcademicStore, InMemoryScheduleStore {
   identities: readonly UserIdentity[];
   students: readonly Student[];
   assignments: readonly AdvisorAssignment[];
@@ -72,6 +76,7 @@ export function createInMemoryRepositories(store: InMemoryStore): Repositories {
       },
     },
     ...createInMemoryAcademicRepositories(store),
+    ...createInMemoryScheduleRepositories(store),
     advisorAssignments: {
       findActive: (tenantId, { advisorUserId, studentId, at }) => {
         const instant = Date.parse(at);
