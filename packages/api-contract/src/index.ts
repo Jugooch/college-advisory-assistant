@@ -10,6 +10,7 @@ export * from './contracts/course-checks.contract';
 export * from './contracts/course-checks-request.contract';
 export * from './contracts/course-display.contract';
 export * from './contracts/health.contract';
+export * from './contracts/plannable-terms.contract';
 export * from './contracts/schedule-conflict-set.contract';
 export * from './contracts/schedule-option.contract';
 export * from './contracts/schedule-options.contract';
