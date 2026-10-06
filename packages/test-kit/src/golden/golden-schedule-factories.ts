@@ -12,6 +12,7 @@ import {
   type CampusTransition,
   CheckKind,
   CheckState,
+  type Course,
   type LinkedSectionGroup,
   type MeetingPatternInput,
   type ReasonCode,
@@ -56,6 +57,8 @@ export const SCHEDULE_REVIEW = {
 /** What a scheduling case states about its inputs; the rest takes the documented defaults. */
 export interface ScheduleInputsAuthored {
   readonly requestedCourseIds: readonly string[];
+  /** Catalog entries beyond the synthetic catalog, for example a lab included in its lecture. */
+  readonly extraCourses?: readonly Course[];
   readonly sections: readonly Section[];
   /** None by default. */
   readonly linkedSectionGroups?: readonly LinkedSectionGroup[];
@@ -87,7 +90,7 @@ export interface ScheduleInputsAuthored {
 export function scheduleInputs(authored: ScheduleInputsAuthored): GoldenScheduleInputsInput {
   const transitions = authored.transitions === undefined ? [] : authored.transitions;
   return {
-    courses: Object.values(SYNTHETIC_COURSES),
+    courses: [...Object.values(SYNTHETIC_COURSES), ...(authored.extraCourses ?? [])],
     requestedCourseIds: authored.requestedCourseIds,
     creditSelections: authored.creditSelections ?? [],
     sectionSnapshot: buildSectionSnapshot({

@@ -108,7 +108,18 @@ export const HOLDOUT_SCHEDULE_LINK_CASES: readonly GoldenScheduleCase[] = [
       sections: [LECTURE, LECTURE_UNLINKED],
       linkedSectionGroups: lectureNeedsLab([]),
     }),
-    expected: expectOneOption(sectionIdsOf(LECTURE_UNLINKED)),
+    expected: {
+      ...expectOneOption(sectionIdsOf(LECTURE_UNLINKED)),
+      unresolved: [
+        scheduleCheck(CheckState.Unknown, [
+          {
+            reasonCode: ReasonCode.LinkedSectionUnavailable,
+            sectionIds: sectionIdsOf(LECTURE),
+            courseId: phys201Lab.id,
+          },
+        ]),
+      ],
+    },
     prohibitedClaims: [
       {
         outcome: ScheduleOutcome.NeedsVerification,
@@ -116,8 +127,8 @@ export const HOLDOUT_SCHEDULE_LINK_CASES: readonly GoldenScheduleCase[] = [
       },
     ],
     rationale:
-      'The linked lecture has no permitted lab, so it forms no bundle. The course keeps the unlinked lecture, which needs no lab.',
-    citations: ['ADR-0010 §5', 'planning/08 §Schedule model'],
+      'The linked lecture has no permitted lab, so it forms no bundle. The course keeps the unlinked lecture, which needs no lab. Re-adjudicated in v0.5 from ADR-0010 Amendment 5: the dropped lecture is shown as an UNKNOWN LINKED_SECTION_UNAVAILABLE result beside the options, never hidden.',
+    citations: ['ADR-0010 §5', 'ADR-0010 Amendment 5', 'planning/08 §Schedule model'],
   }),
   scheduleCase({
     id: 'GH-LINK-003',

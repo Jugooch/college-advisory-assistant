@@ -60,7 +60,14 @@ async function insertCatalogAndPolicy(tx: SeedWriter, plan: DevSeedAcademicPlan)
     .onConflictDoNothing({ target: programTable.id });
   await tx
     .insert(courseTable)
-    .values(plan.courses.map((course) => ({ ...course })))
+    .values(
+      plan.courses.map(({ repeatableForCredit, ...course }) => ({
+        ...course,
+        repeatableForCredit: repeatableForCredit !== null && repeatableForCredit !== undefined,
+        repeatMaxAttempts: repeatableForCredit?.maxAttempts ?? null,
+        repeatMaxCreditsHundredths: repeatableForCredit?.maxCreditsHundredths ?? null,
+      })),
+    )
     .onConflictDoNothing({ target: courseTable.id });
   await tx
     .insert(prerequisiteRuleTable)

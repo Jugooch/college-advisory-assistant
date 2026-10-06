@@ -23,6 +23,7 @@ type CatalogEntry = Pick<
   | 'minCreditsHundredths'
   | 'maxCreditsHundredths'
   | 'equivalencyGroupId'
+  | 'repeatableForCredit'
 >;
 
 /**
@@ -40,9 +41,13 @@ function catalogCourse(seed: number, entry: CatalogEntry): Course {
     sourceCourseId: entry.label.replace(' ', '-'),
     title: null,
     creditsIncludedInCourseId: null,
+    repeatableForCredit: null,
     ...entry,
   });
 }
+
+/** Keys of {@link SYNTHETIC_REPEATABLE_COURSES}. */
+export type SyntheticRepeatableCourseKey = 'ensemble110' | 'topics280';
 
 /**
  * Describes a fixed-credit catalog entry.
@@ -63,6 +68,7 @@ function fixed(
     minCreditsHundredths: null,
     maxCreditsHundredths: null,
     equivalencyGroupId,
+    repeatableForCredit: null,
   };
 }
 
@@ -98,5 +104,27 @@ export const SYNTHETIC_COURSES: Readonly<Record<SyntheticCourseKey, Course>> = {
     minCreditsHundredths: 100,
     maxCreditsHundredths: 300,
     equivalencyGroupId: null,
+    repeatableForCredit: null,
   }),
 };
+
+/**
+ * Repeatable-for-credit synthetic courses in tenant A. These are kept out of
+ * {@link SYNTHETIC_COURSES} so no existing golden catalog or outcome changes.
+ *
+ * | Key          | Label          | Credits | Repeat caps                                  | ID (last group) |
+ * | ------------ | -------------- | ------- | -------------------------------------------- | --------------- |
+ * | `ensemble110` | DEMO-ENS 110   | 1.00    | 4 attempts, 4.00 credits                     | `000000000110`  |
+ * | `topics280`  | DEMO-TOP 280   | 3.00    | uncapped (both caps `null`)                  | `000000000280`  |
+ */
+export const SYNTHETIC_REPEATABLE_COURSES: Readonly<Record<SyntheticRepeatableCourseKey, Course>> =
+  {
+    ensemble110: catalogCourse(0x110, {
+      ...fixed('DEMO-ENS 110', 100),
+      repeatableForCredit: { maxAttempts: 4, maxCreditsHundredths: 400 },
+    }),
+    topics280: catalogCourse(0x280, {
+      ...fixed('DEMO-TOP 280', 300),
+      repeatableForCredit: { maxAttempts: null, maxCreditsHundredths: null },
+    }),
+  };

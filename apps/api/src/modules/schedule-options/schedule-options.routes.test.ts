@@ -194,9 +194,10 @@ describe('POST /v1/students/:studentId/schedule-options sources and the cap', ()
     store.sectionSnapshots = [buildScheduleSnapshot([SCHEDULE_SECTIONS.math102At9])];
     const none = await postOptions(STUDENTS.own.id, TOKENS.student);
 
-    expect(readOptions(both.json()).campuses?.map(({ id }) => id)).toEqual(
-      [SYNTHETIC_CAMPUSES.north.id, SYNTHETIC_CAMPUSES.south.id].sort(),
-    );
+    const expectedIds = [SYNTHETIC_CAMPUSES.north.id, SYNTHETIC_CAMPUSES.south.id].sort();
+    expect(readOptions(both.json())).toMatchObject({
+      campuses: expectedIds.map((id) => ({ id })),
+    });
     expect(readOptions(none.json()).term).toBeDefined();
     expect(readOptions(none.json())).toMatchObject({ campuses: [] });
   });

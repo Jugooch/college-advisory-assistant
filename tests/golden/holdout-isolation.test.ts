@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { GOLDEN_DEVELOPMENT_CORPUS } from '@caa/test-kit';
+import { GOLDEN_DEVELOPMENT_CORPUS, GOLDEN_DEVELOPMENT_SCHEDULE_CORPUS } from '@caa/test-kit';
 
 import { sourceFiles } from '../support/source-files';
 import { GOLDEN_HOLDOUT_CORPUS, GOLDEN_HOLDOUT_SCHEDULE_CORPUS } from './holdout/holdout-corpus';
@@ -58,6 +58,18 @@ describe('golden holdout isolation', () => {
     expect(GOLDEN_HOLDOUT_SCHEDULE_CORPUS.every((golden) => golden.id.startsWith('GH-'))).toBe(
       true,
     );
+  });
+
+  it('shares no scheduling case ID or input set with the development scheduling cases', () => {
+    const ids = new Set(GOLDEN_DEVELOPMENT_SCHEDULE_CORPUS.map((golden) => golden.id));
+    const inputs = new Set(
+      GOLDEN_DEVELOPMENT_SCHEDULE_CORPUS.map((golden) => JSON.stringify(golden.inputs)),
+    );
+
+    expect(GOLDEN_HOLDOUT_SCHEDULE_CORPUS.filter((golden) => ids.has(golden.id))).toEqual([]);
+    expect(
+      GOLDEN_HOLDOUT_SCHEDULE_CORPUS.filter((golden) => inputs.has(JSON.stringify(golden.inputs))),
+    ).toEqual([]);
   });
 
   it('shares no input set with the development corpus', () => {

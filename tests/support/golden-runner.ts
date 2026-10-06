@@ -61,7 +61,7 @@ export function runGoldenCase(golden: GoldenCase): readonly CheckResult[] {
  * @param actual - The value the engine returned.
  * @returns The message, or `null` when the values are deep-equal.
  */
-function differ(field: string, expected: unknown, actual: unknown): string | null {
+export function differ(field: string, expected: unknown, actual: unknown): string | null {
   return isDeepStrictEqual(expected, actual)
     ? null
     : `${field}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`;
@@ -75,7 +75,7 @@ function differ(field: string, expected: unknown, actual: unknown): string | nul
  * @param at - The check's position, for messages.
  * @returns One message per field that differs.
  */
-function compareCheck(expected: ExpectedCheck, actual: CheckResult, at: string): string[] {
+export function compareCheck(expected: ExpectedCheck, actual: CheckResult, at: string): string[] {
   const fields = [
     differ(`${at}.kind`, expected.kind, actual.kind),
     differ(`${at}.state`, expected.state, actual.state),

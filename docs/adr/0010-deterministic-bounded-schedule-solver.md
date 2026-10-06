@@ -237,6 +237,8 @@ This states how section 1's measurement is taken. It changes no requirement, cap
 
 **Related:** #221, PR #291 (academic-safety review at `6556a6c`), #294, #296, #297, #298. ADR-0005. Section 2. planning/08 §Candidate formation and §Constraint formulation.
 
+**Amended by ADR-0012 §1:** "has no prerequisite of its own" means the course's rule is an explicit `NONE`. An included linked course with no rule row is UNKNOWN `LINKED_COURSE_NOT_CHECKED` (#361).
+
 **Context.** Section 2 runs the course-set checks once, on the requested courses. A bundle can also bring in a linked section of a different catalog course. When that course's credits aren't included in a course of the plan (`creditsIncludedInCourseId` is `null` or names a course outside the plan), it adds its own credits, and the option shows it with `countsCredits: true`. An example is DEMO-PHYS 201L, 1.00 credit, linked to PHYS 201. No prerequisite, applicability or allocation check runs on it, yet the option could be VALIDATED. planning/08 validates the complete candidate set and applies prerequisite conditions to every selected section, so a check that never ran can't reach a validated label. The contract recomputes `aggregate` from the visible checks only, so the check can't be hidden in the API either.
 
 Options:

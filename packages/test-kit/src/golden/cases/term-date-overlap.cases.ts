@@ -1,6 +1,5 @@
 /**
- * @file Golden cases: meetings in half-terms and other partial date ranges (#218, AC07). Planned
- *   as GC-HALF-001–004 in `tests/golden/scheduling.golden.test.ts`.
+ * @file Golden cases: meetings in half-terms and other partial date ranges (#218, AC07). GC-HALF-001–004.
  * @module @caa/test-kit/golden/cases/term-date-overlap
  * @requirement FR-07
  * @see docs/planning/08-academic-verification-and-planning.md
