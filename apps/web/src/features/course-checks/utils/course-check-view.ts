@@ -11,12 +11,12 @@ import {
   type CourseChecksResponse,
 } from '@caa/api-contract';
 
+import { type CandidateCourse, planCandidateCourses } from '@/shared/utils/candidate-courses';
 import { type CourseLookup, indexCourses } from '@/shared/utils/course-display';
+import type { CreditChoices } from '@/shared/utils/credit-choice';
 
-import { type CandidateCourse, listCandidateCourses } from './candidate-courses';
 import type { CheckRequestPlan } from './check-request-plan';
 import { type CourseCheckQuery, describeSelectionError } from './course-check-query';
-import type { CreditChoices } from './credit-choice';
 
 /** The picker's error when only a credit value stopped the check. */
 export const CREDIT_ERROR_SUMMARY = 'Fix the credit value marked below, then check again.';
@@ -73,9 +73,7 @@ export function planCourseCheckView({
     result: checked,
     resultError: result instanceof ApiError ? result : null,
     summaryError: isSummaryFailed ? summary : null,
-    candidates: isSummaryFailed
-      ? checkedCourseIds.map((courseId) => ({ courseId, requirementLabels: [] }))
-      : listCandidateCourses(summary.requirements),
+    candidates: planCandidateCourses(summary, checkedCourseIds),
     isCandidateListUnavailable: isSummaryFailed,
     selectionError: describeSelectionError(query.selection) ?? creditError,
     courses: indexCourses(checked?.courses, isSummaryFailed ? undefined : summary.courses),

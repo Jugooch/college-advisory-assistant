@@ -11,11 +11,10 @@ import type { ReactElement } from 'react';
 
 import { MAX_COURSE_CHECK_COURSES } from '@caa/api-contract';
 
+import { CourseChoice } from '@/shared/components/course-choice';
+import type { CandidateCourse } from '@/shared/utils/candidate-courses';
 import type { CourseLookup } from '@/shared/utils/course-display';
-
-import type { CandidateCourse } from '../utils/candidate-courses';
-import type { CreditChoices } from '../utils/credit-choice';
-import { CourseChoice } from './course-choice';
+import type { CreditChoices } from '@/shared/utils/credit-choice';
 
 /** Props for {@link CoursePicker}. */
 export interface CoursePickerProps {

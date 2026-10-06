@@ -1,7 +1,7 @@
 /**
  * @file One candidate in the course picker: its checkbox, the requirements that list it, its
  * credits, and, for a variable-credit course, the credit value field.
- * @module @caa/web/features/course-checks/components/course-choice
+ * @module @caa/web/shared/components/course-choice
  * @requirement FR-04
  * @requirement FR-05
  * @requirement NFR-02
@@ -10,11 +10,11 @@ import type { ReactElement } from 'react';
 
 import { CreditRuleKind } from '@caa/domain';
 
-import { CourseLabel } from '@/shared/components/course-label';
+import type { CandidateCourse } from '@/shared/utils/candidate-courses';
 import type { CourseLookup } from '@/shared/utils/course-display';
+import { type CreditChoices, describeCreditRule } from '@/shared/utils/credit-choice';
 
-import type { CandidateCourse } from '../utils/candidate-courses';
-import { type CreditChoices, describeCreditRule } from '../utils/credit-choice';
+import { CourseLabel } from './course-label';
 import { CreditField } from './credit-field';
 
 /** Props for {@link CourseChoice}. */
@@ -39,7 +39,7 @@ export interface CourseChoiceProps {
 function describeListing(candidate: CandidateCourse, courses: CourseLookup): string {
   const listed =
     candidate.requirementLabels.length === 0
-      ? ' Checked earlier; its requirements can’t be listed right now.'
+      ? ' Chosen earlier; its requirements can’t be listed right now.'
       : ` Listed for: ${candidate.requirementLabels.join(', ')}.`;
   const rule = courses.get(candidate.courseId)?.credits;
   return rule === undefined ? listed : `${listed} ${describeCreditRule(rule)}.`;

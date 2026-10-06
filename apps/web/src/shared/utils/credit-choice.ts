@@ -1,7 +1,7 @@
 /**
  * @file Credit choices for variable-credit courses: the field names, parsing the typed value,
  * checking it against the catalog range, and the wording of a credit rule.
- * @module @caa/web/features/course-checks/utils/credit-choice
+ * @module @caa/web/shared/utils/credit-choice
  * @requirement FR-05
  * @requirement FR-09
  * @see docs/planning/08-academic-verification-and-planning.md

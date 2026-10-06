@@ -11,9 +11,8 @@ import {
 } from '@caa/api-contract';
 import { CourseIdSchema } from '@caa/domain';
 
+import { readCreditInputs } from '@/shared/utils/credit-selections';
 import { readStudentIdQuery, type StudentIdQuery } from '@/shared/utils/student-id-query';
-
-import { CREDIT_FIELD_PREFIX } from './credit-choice';
 
 /** Search params as Next passes them. */
 export type SearchParams = Readonly<Record<string, string | readonly string[] | undefined>>;
@@ -59,22 +58,6 @@ function toSelection(courseIds: readonly string[], isSubmitted: boolean): Course
   }
   const parsed = CourseChecksRequestSchema.safeParse({ courseIds });
   return parsed.success ? { kind: 'valid', request: parsed.data } : { kind: 'invalid-course' };
-}
-
-/**
- * Reads the typed credit values. A repeated field is joined, so it fails parsing and is reported.
- *
- * @param query - The page's search params.
- * @returns The typed text by course ID.
- */
-function readCreditInputs(query: SearchParams): ReadonlyMap<string, string> {
-  const inputs = new Map<string, string>();
-  for (const [key, value] of Object.entries(query)) {
-    if (key.startsWith(CREDIT_FIELD_PREFIX) && value !== undefined) {
-      inputs.set(key.slice(CREDIT_FIELD_PREFIX.length), [value].flat().join(','));
-    }
-  }
-  return inputs;
 }
 
 /**
