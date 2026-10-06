@@ -8,6 +8,7 @@
 import { IdentityStatus, Role } from '@caa/domain';
 
 import { buildDevSeedAcademicPlan, type DevSeedAcademicPlan } from './dev-seed-academic-plan';
+import { buildDevSeedSectionPlan, type DevSeedSectionPlan } from './dev-seed-section-plan';
 
 /** A synthetic institution (tenant). Upserted by `id`. */
 export interface SeedInstitution {
@@ -61,6 +62,8 @@ export interface DevSeedPlan {
   readonly assignments: readonly SeedAssignment[];
   /** Catalog, rules, policy, terms, snapshots, and audits; written after the students. */
   readonly academic: DevSeedAcademicPlan;
+  /** Campuses, the transition table, and the 2027SP section snapshot; written last. */
+  readonly sections: DevSeedSectionPlan;
 }
 
 /** Issuer of every seeded identity; matches `DEV_AUTH_TOKENS` in `infra/env.example`. */
@@ -77,7 +80,7 @@ const SOURCE_EFFECTIVE_AT = '2026-08-15T00:00:00.000Z';
  * fictional; nothing here is real data. The advisor and student subjects match the example
  * `DEV_AUTH_TOKENS`.
  */
-const DEV_SEED_ACCESS_PLAN: Omit<DevSeedPlan, 'academic'> = {
+const DEV_SEED_ACCESS_PLAN: Omit<DevSeedPlan, 'academic' | 'sections'> = {
   institutions: [
     { id: TENANT_A, name: 'Demo State University', timezone: 'America/Chicago' },
     { id: TENANT_B, name: 'Sample Community College', timezone: 'America/Denver' },
@@ -170,5 +173,9 @@ const DEV_SEED_ACCESS_PLAN: Omit<DevSeedPlan, 'academic'> = {
  * @throws {RangeError} When `now` is invalid.
  */
 export function buildDevSeedPlan(now: Date): DevSeedPlan {
-  return { ...DEV_SEED_ACCESS_PLAN, academic: buildDevSeedAcademicPlan(now) };
+  return {
+    ...DEV_SEED_ACCESS_PLAN,
+    academic: buildDevSeedAcademicPlan(now),
+    sections: buildDevSeedSectionPlan(now),
+  };
 }
