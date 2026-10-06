@@ -34,6 +34,9 @@ export function sectionId(seed: number): string {
   return `5ec71010-0000-4000-8000-${String(seed).padStart(12, '0')}`;
 }
 
+export /**
+ *
+ */
 const MEETING: Payload = {
   weekdays: ['MONDAY', 'WEDNESDAY'],
   startTime: '09:00',

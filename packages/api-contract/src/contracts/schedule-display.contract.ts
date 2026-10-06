@@ -40,7 +40,10 @@ interface CampusNamingParts {
   readonly options: readonly {
     readonly scheduleFeasibility: CheckResult;
     readonly bundles: readonly {
-      readonly sections: readonly { readonly campusId: string | null }[];
+      readonly sections: readonly {
+        readonly campusId: string | null;
+        readonly meetings: readonly { readonly location?: object | null | undefined }[];
+      }[];
     }[];
   }[];
   readonly conflictSet: { readonly items: readonly CheckResult[] } | null;
@@ -48,11 +51,12 @@ interface CampusNamingParts {
 }
 
 /**
- * Lists the campus IDs a response names: every non-null section campus, and both campuses of
- * every transition issue, in the options, the conflict set and `unresolved`.
+ * Lists every campus ID the response contains: each non-null section `campusId`, each
+ * `ON_CAMPUS` meeting location, and every campus ID in a schedule issue (`CampusNotAllowed`
+ * and both campuses of a transition), in the options, the conflict set and `unresolved`.
  *
  * @param response - The response parts that can name a campus.
- * @returns The distinct campus IDs, sorted ascending.
+ * @returns The distinct campus IDs, ascending by UTF-16 code units, as `<` compares.
  */
 export function namedCampusIds(response: CampusNamingParts): readonly string[] {
   const checks = [
@@ -60,16 +64,23 @@ export function namedCampusIds(response: CampusNamingParts): readonly string[] {
     ...(response.conflictSet?.items ?? []),
     ...response.unresolved,
   ];
+  const sections = response.options.flatMap((option) =>
+    option.bundles.flatMap((bundle) => bundle.sections),
+  );
   const ids = new Set<string>([
-    ...response.options.flatMap((option) =>
-      option.bundles.flatMap((bundle) =>
-        bundle.sections.flatMap((section) => (section.campusId === null ? [] : [section.campusId])),
+    ...sections.flatMap((section) => (section.campusId === null ? [] : [section.campusId])),
+    ...sections.flatMap((section) =>
+      section.meetings.flatMap(({ location }) =>
+        location && 'campusId' in location && typeof location.campusId === 'string'
+          ? [location.campusId]
+          : [],
       ),
     ),
     ...checks.flatMap((check) =>
-      (check.evidence?.scheduleIssues ?? []).flatMap((issue) =>
-        'fromCampusId' in issue ? [issue.fromCampusId, issue.toCampusId] : [],
-      ),
+      (check.evidence?.scheduleIssues ?? []).flatMap((issue) => [
+        ...('campusId' in issue ? [issue.campusId] : []),
+        ...('fromCampusId' in issue ? [issue.fromCampusId, issue.toCampusId] : []),
+      ]),
     ),
   ]);
   return [...ids].sort();
@@ -77,7 +88,7 @@ export function namedCampusIds(response: CampusNamingParts): readonly string[] {
 
 /**
  * Returns whether `campuses` lists exactly the campuses the response names, ordered by `id`
- * with no repeats. An absent list passes while the field is optional.
+ * with no repeats (ascending by UTF-16 code units). An absent list passes while the field is optional.
  *
  * @param response - The response parts that can name a campus, and the campus list.
  * @returns `false` when a named campus is missing, an unnamed one is listed, an ID repeats, or

@@ -7,10 +7,14 @@ import { describe, expect, it } from 'vitest';
 import {
   buildOption,
   buildResponse,
+  bundleOf,
   creditLoadCheck,
   LECTURE_LAB_BUNDLE,
+  LECTURE_SECTION,
+  MEETING,
   MISSING_SECTIONS,
   NORTH_CAMPUS_ID,
+  PHYS_301,
   singleSectionOption,
   TERM_ID,
 } from '../testing/schedule-option-fixtures';
@@ -159,6 +163,44 @@ describe('ScheduleOptionsResponseSchema term and campuses', () => {
     const response = buildResponse({ options: [option] });
     expect(accepts({ ...response, campuses: [SOUTH, EAST] })).toBe(true);
     expect(accepts({ ...response, campuses: [SOUTH] })).toBe(false);
+  });
+
+  it('names the campus of an on-campus meeting location', () => {
+    const section = {
+      ...LECTURE_SECTION,
+      campusId: null,
+      meetings: [
+        { ...MEETING, location: { kind: 'ON_CAMPUS', campusId: SOUTH_CAMPUS_ID, room: null } },
+      ],
+    };
+    const response = buildResponse({
+      options: [buildOption({ rank: 1, bundles: [bundleOf(PHYS_301, [section], 400)] })],
+    });
+    expect(accepts({ ...response, campuses: [SOUTH] })).toBe(true);
+    expect(accepts({ ...response, campuses: [] })).toBe(false);
+  });
+
+  it('names the campus of a CampusNotAllowed issue in the conflict set', () => {
+    const issue = {
+      reasonCode: 'CAMPUS_NOT_ALLOWED',
+      sectionId: '5ec70000-0000-4000-8000-000000000001',
+      meetingIndex: 0,
+      campusId: EAST_CAMPUS_ID,
+      constraintIndex: 0,
+    };
+    const check = {
+      kind: 'SCHEDULE_FEASIBILITY',
+      state: 'FAIL',
+      reasonCode: issue.reasonCode,
+      evidence: { rulesetVersion: null, decisiveLeaves: [], scheduleIssues: [issue] },
+    };
+    const response = buildResponse({
+      outcome: 'NO_FEASIBLE_PLAN',
+      options: [],
+      conflictSet: { items: [check], isMinimal: false, omittedCount: 0 },
+    });
+    expect(accepts({ ...response, campuses: [EAST] })).toBe(true);
+    expect(accepts({ ...response, campuses: [] })).toBe(false);
   });
 
   it('rejects a term that ends before it starts', () => {
