@@ -36,8 +36,10 @@ import { compareText } from './tie-break-key';
  *   `NEEDS_VERIFICATION` with the UNKNOWN results, and no search.
  *
  * A course that keeps some bundles but had sections dropped for missing data still enters the
- * search; if the search then finishes with no candidate, the outcome is `NEEDS_VERIFICATION`
- * with those UNKNOWN results, never `NO_FEASIBLE_PLAN`.
+ * search, and those sections' UNKNOWN results are always in `unresolved`, by course ID. If the
+ * search finds options or hits the cap, the outcome, options and ranking are as without them;
+ * if it finishes with no candidate, the outcome is `NEEDS_VERIFICATION`, never
+ * `NO_FEASIBLE_PLAN`.
  *
  * The search then tries one bundle per course, never relaxing the pairwise meeting and travel
  * rules or the credit load against the policy and the student's hard range. It counts each
@@ -108,7 +110,11 @@ function search(input: SolveScheduleInput, prepared: PreparedRequest): ScheduleS
   };
   const result = searchSchedules(space, input.workCap);
   const context = { input, bundles, table, credits, slots: prepared.slots };
-  const base = { workCap: input.workCap, workUsed: result.workUsed, unresolved: [] };
+  // SAFETY: a section dropped for missing data was never searched, so its UNKNOWN result is
+  // shown on every outcome of the search, never omitted; the options are the best among the
+  // sections with complete data (ADR-0010 Amendment 5; planning/08 §Candidate formation).
+  const unresolved = prepared.courses.flatMap((course) => course.dropped);
+  const base = { workCap: input.workCap, workUsed: result.workUsed, unresolved };
   if (result.top.length > 0) {
     return {
       ...base,
