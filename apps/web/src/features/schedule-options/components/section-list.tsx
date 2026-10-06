@@ -11,8 +11,9 @@ import type { ScheduleOption } from '@caa/api-contract';
 import { CourseLabel } from '@/shared/components/course-label';
 import type { CourseLookup } from '@/shared/utils/course-display';
 import { formatCredits } from '@/shared/utils/format-display';
+import { describeModality } from '@/shared/utils/section-wording';
 
-import { describeDateRange, describeMeeting, describeModality } from '../utils/meeting-wording';
+import { describeDateRange, describeMeeting } from '../utils/meeting-wording';
 
 /** Props for {@link SectionList}. */
 export interface SectionListProps {
@@ -43,16 +44,18 @@ export function SectionList({ bundles, courses }: SectionListProps): ReactElemen
           <ul>
             {bundle.sections.map((section) => (
               <li key={section.sectionId}>
-                Section {section.sectionCode}
-                {section.courseId === bundle.courseId ? null : (
-                  <>
-                    {' '}
-                    (linked section of <CourseLabel courseId={section.courseId} courses={courses} />
-                    )
-                  </>
-                )}
-                : {describeModality(section.modality)}, runs{' '}
-                {describeDateRange(section.startsOn, section.endsOn)}.
+                <span>
+                  Section {section.sectionCode}
+                  {section.courseId === bundle.courseId ? null : (
+                    <>
+                      {' '}
+                      (linked section of{' '}
+                      <CourseLabel courseId={section.courseId} courses={courses} />)
+                    </>
+                  )}
+                  : {describeModality(section.modality)}, runs{' '}
+                  {describeDateRange(section.startsOn, section.endsOn)}.
+                </span>
                 {section.meetings.length === 0 ? (
                   <p>No meeting times.</p>
                 ) : (

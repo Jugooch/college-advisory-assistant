@@ -26,8 +26,8 @@ export interface OptionComparisonProps {
  */
 export function OptionComparison({ options, asOf }: OptionComparisonProps): ReactElement {
   return (
-    <table>
-      <caption>Options compared. Open an option below for its sections and evidence.</caption>
+    <table className="comparison">
+      <caption>Open an option below for its sections and evidence.</caption>
       <thead>
         <tr>
           <th scope="col">Option</th>
@@ -46,11 +46,17 @@ export function OptionComparison({ options, asOf }: OptionComparisonProps): Reac
               <th scope="row">
                 <a href={`#option-${String(option.rank)}-heading`}>Option {option.rank}</a>
               </th>
-              <td>{describeAggregate(option.aggregate).label}</td>
-              <td>{describeCheckState(option.scheduleFeasibility.state, asOf).label}</td>
-              <td>{describeCheckState(option.setResults.creditLoad.state, asOf).label}</td>
-              <td>{total === undefined ? 'Not determined' : formatCredits(total)}</td>
-              <td>{option.unmetPreferences.length}</td>
+              <td data-label="Overall state">{describeAggregate(option.aggregate).label}</td>
+              <td data-label="Schedule feasibility">
+                {describeCheckState(option.scheduleFeasibility.state, asOf).label}
+              </td>
+              <td data-label="Credit load">
+                {describeCheckState(option.setResults.creditLoad.state, asOf).label}
+              </td>
+              <td data-label="Total credits">
+                {total === undefined ? 'Not determined' : formatCredits(total)}
+              </td>
+              <td data-label="Missed preferences">{option.unmetPreferences.length}</td>
             </tr>
           );
         })}

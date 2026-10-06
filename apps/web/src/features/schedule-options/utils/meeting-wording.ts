@@ -7,7 +7,9 @@
  * @requirement NFR-02
  * @see docs/planning/11-ux-and-accessibility-design.md
  */
-import type { MeetingPattern, SectionModality, Weekday } from '@caa/domain';
+import type { MeetingPattern } from '@caa/domain';
+
+import { describeWeekday } from '@/shared/utils/section-wording';
 
 const TO_BE_ANNOUNCED = 'to be announced';
 
@@ -18,23 +20,6 @@ const TIME_FORMAT = new Intl.DateTimeFormat('en-US', {
   minute: '2-digit',
   timeZone: 'UTC',
 });
-
-const MODALITY_WORDING: Readonly<Record<SectionModality, string>> = {
-  IN_PERSON: 'In person',
-  HYBRID: 'Hybrid',
-  ONLINE_SYNCHRONOUS: 'Online, at set times',
-  ONLINE_ASYNCHRONOUS: 'Online, no set meeting times',
-};
-
-const WEEKDAY_WORDING: Readonly<Record<Weekday, string>> = {
-  MONDAY: 'Monday',
-  TUESDAY: 'Tuesday',
-  WEDNESDAY: 'Wednesday',
-  THURSDAY: 'Thursday',
-  FRIDAY: 'Friday',
-  SATURDAY: 'Saturday',
-  SUNDAY: 'Sunday',
-};
 
 /**
  * Formats a calendar date.
@@ -54,16 +39,6 @@ export function formatDate(isoDate: string): string {
  */
 export function formatClockTime(time: string): string {
   return TIME_FORMAT.format(new Date(`1970-01-01T${time}:00Z`));
-}
-
-/**
- * Names a section's modality.
- *
- * @param modality - The section modality from the API.
- * @returns Its fixed wording.
- */
-export function describeModality(modality: SectionModality): string {
-  return MODALITY_WORDING[modality];
 }
 
 /**
@@ -99,7 +74,7 @@ export function describeMeeting(meeting: MeetingPattern): string {
   const days =
     meeting.weekdays === null
       ? `days ${TO_BE_ANNOUNCED}`
-      : meeting.weekdays.map((day) => WEEKDAY_WORDING[day]).join(', ');
+      : meeting.weekdays.map((day) => describeWeekday(day)).join(', ');
   const time =
     meeting.startTime === null || meeting.endTime === null
       ? `time ${TO_BE_ANNOUNCED}`

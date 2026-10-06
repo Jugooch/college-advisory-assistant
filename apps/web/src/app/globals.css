@@ -186,3 +186,33 @@ td {
   padding: 0.5rem 1rem;
   border: 1px solid var(--color-neutral);
 }
+
+/* Below 30rem the comparison becomes stacked rows, each cell labelled by its column, so nothing
+   scrolls sideways (WCAG 1.4.10) and the column headers stay available to screen readers. */
+@media (max-width: 30rem) {
+  .comparison,
+  .comparison tbody,
+  .comparison tr,
+  .comparison th,
+  .comparison td {
+    display: block;
+    width: 100%;
+  }
+
+  .comparison thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .comparison tr {
+    margin-bottom: 1rem;
+  }
+
+  .comparison td::before {
+    content: attr(data-label) ': ';
+    font-weight: bold;
+  }
+}

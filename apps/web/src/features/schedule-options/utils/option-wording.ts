@@ -124,7 +124,7 @@ const CONSTRAINT_WORDING: Readonly<Record<ScheduleConstraintKind, string>> = {
  * Describes an unmet preference.
  *
  * @param unmet - The unmet preference from the API.
- * @returns For example `Preference 2: A section is taught in a way you didn’t prefer`. A
+ * @returns For example `Preference ranked 2: A section is taught in a way you didn’t prefer.`. A
  *   preference that depends on data still to be announced is said to be unknown, never met.
  */
 export function describeUnmetPreference(unmet: UnmetPreference): string {

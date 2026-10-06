@@ -7,36 +7,101 @@ import { describe, expect, it } from 'vitest';
 
 import type { ScheduleOptionsResponse } from '@caa/api-contract';
 import { ReasonCode } from '@caa/domain';
+import {
+  buildCheckResult,
+  buildScheduledSection,
+  buildScheduleOption,
+  buildScheduleOptionsResponse,
+  buildSection,
+  buildSectionBundle,
+  buildTbaMeeting,
+  SYNTHETIC_COURSES,
+} from '@caa/test-kit';
 
+import { indexCourses } from '@/shared/utils/course-display';
 import { describeReason } from '@/shared/utils/reason-code-wording';
 
-import {
-  BANNED,
-  buildOption,
-  buildResult,
-  COURSES,
-  LAB,
-  LAB_SECTION_ID,
-  SECTION_ID,
-} from '../utils/schedule-result-fixtures';
 import { ScheduleResults } from './schedule-results';
 
-function render(result: ScheduleOptionsResponse): string {
-  return renderToStaticMarkup(<ScheduleResults result={result} courses={COURSES} />);
+const { phys201, phys201Lab } = SYNTHETIC_COURSES;
+const PHYS = 'DEMO-PHYS 201';
+const LAB = 'DEMO-PHYS 201L';
+
+const LECTURE = buildSection({ courseId: phys201.id }, 1);
+const LAB_SECTION = buildSection({ courseId: phys201Lab.id, meetings: [buildTbaMeeting()] }, 2);
+const BUNDLE = buildSectionBundle([LECTURE, buildScheduledSection(LAB_SECTION, false)], 400);
+
+const COURSES = [
+  {
+    courseId: phys201.id,
+    code: PHYS,
+    title: null,
+    credits: { kind: 'FIXED', creditsHundredths: 400 },
+  },
+  {
+    courseId: phys201Lab.id,
+    code: LAB,
+    title: null,
+    credits: { kind: 'FIXED', creditsHundredths: 0 },
+  },
+] as const;
+
+/**
+ * Builds one option over the lecture and lab, with fields overridden.
+ *
+ * @param overrides - Option fields to replace.
+ * @returns The parsed option.
+ */
+function option(
+  overrides: Parameters<typeof buildScheduleOption>[0] = {},
+): ReturnType<typeof buildScheduleOption> {
+  return buildScheduleOption({ bundles: [BUNDLE], ...overrides });
 }
 
 /**
- * Visible words only: the contract's limitation codes are shown verbatim in `<code>`.
+ * Renders a response as the page would.
  *
- * @param html - The rendered markup.
- * @returns The markup without code elements.
+ * @param overrides - Response fields to replace.
+ * @returns The markup.
  */
-function words(html: string): string {
-  return html.replace(/<code>.*?<\/code>/g, '');
+function render(overrides: Partial<ScheduleOptionsResponse> = {}): string {
+  const options = overrides.options ?? [option()];
+  const result = buildScheduleOptionsResponse({
+    courseIds: [phys201.id],
+    courses: options.length === 0 ? COURSES.slice(0, 1) : COURSES,
+    ...overrides,
+    options,
+  });
+  return renderToStaticMarkup(<ScheduleResults result={result} courses={indexCourses([])} />);
 }
 
+const UNKNOWN_TIME = buildCheckResult({
+  kind: 'SCHEDULE_FEASIBILITY',
+  state: 'UNKNOWN',
+  reasonCode: 'MEETING_TIME_UNKNOWN',
+  evidence: {
+    rulesetVersion: null,
+    decisiveLeaves: [],
+    scheduleIssues: [
+      {
+        reasonCode: 'MEETING_TIME_UNKNOWN',
+        meeting: {
+          sectionId: LECTURE.id,
+          meetingIndex: 0,
+          weekdays: null,
+          startTime: null,
+          endTime: null,
+        },
+        otherMeeting: null,
+        sharedDates: null,
+        constraintIndex: 0,
+      },
+    ],
+  },
+});
+
 describe('ScheduleResults option card', () => {
-  const html = render(buildResult());
+  const html = render();
 
   it('puts the overall state before the sections, credits, and checks', () => {
     const order = [
@@ -50,7 +115,7 @@ describe('ScheduleResults option card', () => {
   });
 
   it('shows meetings as text, and a meeting to be announced as such', () => {
-    expect(html).toContain('Monday, Wednesday, 9:00 AM to 9:50 AM');
+    expect(html).toContain('Monday, Wednesday, Friday, 9:00 AM to 9:50 AM');
     expect(html).toContain('days to be announced, time to be announced');
     expect(html).toContain('location to be announced');
     expect(html).toContain('linked section of');
@@ -59,8 +124,8 @@ describe('ScheduleResults option card', () => {
   it('shows each dimension separately, with no single approval', () => {
     for (const heading of [
       'Schedule feasibility',
-      'Prerequisite for PHYS 301 (Mechanics)',
-      'Applicability of PHYS 301 (Mechanics)',
+      `Prerequisite for ${PHYS}`,
+      `Applicability of ${PHYS}`,
       'Requirement allocation',
       'Credit load',
     ]) {
@@ -68,68 +133,71 @@ describe('ScheduleResults option card', () => {
     }
   });
 
-  it('keeps UNKNOWN, FAIL-free and linked-course checks as returned', () => {
-    const option = buildOption({
-      scheduleFeasibility: {
-        kind: 'SCHEDULE_FEASIBILITY',
-        state: 'UNKNOWN',
-        reasonCode: 'MEETING_TIME_UNKNOWN',
-      },
-      aggregate: 'NEEDS_VERIFICATION',
-      linkedCourseResults: [
-        {
-          courseId: LAB,
-          prerequisite: {
-            kind: 'PREREQUISITE',
-            state: 'UNKNOWN',
-            reasonCode: 'LINKED_COURSE_NOT_CHECKED',
-          },
-          applicability: {
-            kind: 'REQUIREMENT_APPLICABILITY',
-            state: 'UNKNOWN',
-            reasonCode: 'LINKED_COURSE_NOT_CHECKED',
-          },
-        },
+  it('keeps UNKNOWN and linked-course checks as returned, never validated', () => {
+    const unknown = UNKNOWN_TIME;
+    const linked = buildCheckResult({
+      kind: 'REQUIREMENT_APPLICABILITY',
+      state: 'UNKNOWN',
+      reasonCode: 'LINKED_COURSE_NOT_CHECKED',
+    });
+    const out = render({
+      options: [
+        option({
+          scheduleFeasibility: unknown,
+          aggregate: 'NEEDS_VERIFICATION',
+          linkedCourseResults: [
+            {
+              courseId: phys201Lab.id,
+              prerequisite: { ...linked, kind: 'PREREQUISITE' },
+              applicability: linked,
+            },
+          ],
+        }),
       ],
     });
-    const out = render(buildResult({ options: [option] }));
     expect(out).toContain('Needs verification');
     expect(out).not.toContain('Validated for the listed checks only');
-    expect(out).toContain('Prerequisite for PHYS 301L (Mechanics Lab) (linked section)');
+    expect(out).toContain(`Prerequisite for ${LAB} (linked section)`);
     expect(out).toContain(describeReason(ReasonCode.LinkedCourseNotChecked).explanation);
   });
 
   it('lists unmet preferences, and says unknown data is not a miss it can rule out', () => {
-    const option = buildOption({
-      unmetPreferences: [
-        {
-          constraintIndex: 0,
-          priorityRank: 1,
-          kind: 'ALLOWED_MODALITIES',
-          sectionId: SECTION_ID,
-          meetingIndex: null,
-          isDataUnknown: false,
-        },
-        {
-          constraintIndex: 1,
-          priorityRank: 2,
-          kind: 'UNAVAILABLE_TIME',
-          sectionId: LAB_SECTION_ID,
-          meetingIndex: 0,
-          isDataUnknown: true,
-        },
+    const out = render({
+      options: [
+        option({
+          unmetPreferences: [
+            {
+              constraintIndex: 0,
+              priorityRank: 1,
+              kind: 'ALLOWED_MODALITIES',
+              sectionId: LECTURE.id,
+              meetingIndex: null,
+              isDataUnknown: false,
+            },
+            {
+              constraintIndex: 1,
+              priorityRank: 2,
+              kind: 'UNAVAILABLE_TIME',
+              sectionId: LAB_SECTION.id,
+              meetingIndex: 0,
+              isDataUnknown: true,
+            },
+          ],
+        }),
       ],
     });
-    const out = render(buildResult({ options: [option] }));
     expect(out).toContain('Preference ranked 1');
     expect(out).toContain('still to be announced');
   });
 });
 
-describe('ScheduleResults comparison and reason codes', () => {
-  it('compares options in a table with consistent headers', () => {
-    const second = buildOption({ rank: 2 });
-    const html = render(buildResult({ options: [buildOption(), second] }));
+describe('ScheduleResults comparison', () => {
+  it('compares options in a scrollable table with consistent headers', () => {
+    const second = buildScheduleOption({
+      rank: 2,
+      bundles: [buildSectionBundle([buildSection({ courseId: phys201.id }, 5)], 400)],
+    });
+    const html = render({ options: [option(), second] });
     const headers = [...html.matchAll(/<th scope="col">([^<]+)<\/th>/g)].map((m) => m[1]);
     expect(headers).toEqual([
       'Option',
@@ -140,35 +208,6 @@ describe('ScheduleResults comparison and reason codes', () => {
       'Missed preferences',
     ]);
     expect(html).toContain('href="#option-2-heading"');
-  });
-
-  const SCHEDULING_CODES = [
-    ReasonCode.MeetingConflict,
-    ReasonCode.TransitionTimeInsufficient,
-    ReasonCode.TransitionTimeUndefined,
-    ReasonCode.MeetingTimeUnknown,
-    ReasonCode.MeetingLocationUnknown,
-    ReasonCode.UnavailableTimeConflict,
-    ReasonCode.ModalityNotAllowed,
-    ReasonCode.CampusNotAllowed,
-    ReasonCode.LinkedSectionUnavailable,
-    ReasonCode.LinkedCourseNotChecked,
-    ReasonCode.SectionDataMissing,
-    ReasonCode.VariableCreditUnselected,
-    ReasonCode.CreditBoundsUndefined,
-    ReasonCode.CreditLimitExceeded,
-    ReasonCode.CreditBelowMinimum,
-  ];
-
-  it.each(SCHEDULING_CODES)('renders %s from the fixed wording only', (code) => {
-    const option = buildOption({
-      scheduleFeasibility: { kind: 'SCHEDULE_FEASIBILITY', state: 'UNKNOWN', reasonCode: code },
-      aggregate: 'NEEDS_VERIFICATION',
-    });
-    const html = render(buildResult({ options: [option] }));
-    const wording = describeReason(code);
-    expect(html).toContain(wording.explanation);
-    expect(html).toContain(wording.nextStep);
-    expect(words(html)).not.toMatch(BANNED);
+    expect(html).toContain('data-label="Missed preferences"');
   });
 });

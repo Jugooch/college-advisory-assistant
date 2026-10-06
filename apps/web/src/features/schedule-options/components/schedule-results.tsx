@@ -15,13 +15,13 @@ import type { ScheduleOptionsResponse } from '@caa/api-contract';
 import { type CourseLookup, indexCourses } from '@/shared/utils/course-display';
 import { describeAsOf } from '@/shared/utils/decisive-leaf-wording';
 
-import { describeOutcome } from '../utils/option-wording';
 import { ConflictList } from './conflict-list';
 import { LimitationsList } from './limitations-list';
 import { OptionCard } from './option-card';
 import { OptionComparison } from './option-comparison';
 import { OutcomeNotice } from './outcome-notice';
 import { PinnedInputs } from './pinned-inputs';
+import { ResultsHeading } from './results-heading';
 import { UnresolvedList } from './unresolved-list';
 
 /** Props for {@link ScheduleResults}. */
@@ -42,8 +42,7 @@ export function ScheduleResults({ result, courses }: ScheduleResultsProps): Reac
   const asOf = describeAsOf(result.pinnedInputs);
   return (
     <section aria-labelledby="results-heading">
-      <h2 id="results-heading">Schedule search results</h2>
-      <p role="status">{describeOutcome(result.outcome).heading}.</p>
+      <ResultsHeading />
       <OutcomeNotice outcome={result.outcome} searchComplete={result.searchComplete} />
       <LimitationsList limitations={result.limitations} />
       <UnresolvedList unresolved={result.unresolved} asOf={asOf} courses={names} />

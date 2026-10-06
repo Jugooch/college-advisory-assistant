@@ -5,12 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { CampusId } from '@caa/domain';
 
-import {
-  describeDateRange,
-  describeMeeting,
-  describeModality,
-  formatClockTime,
-} from './meeting-wording';
+import { describeDateRange, describeMeeting, formatClockTime } from './meeting-wording';
 
 const BASE = {
   weekdays: ['TUESDAY', 'THURSDAY'],
@@ -26,11 +21,6 @@ describe('meeting wording', () => {
   it('formats times and date ranges', () => {
     expect(formatClockTime('13:30')).toBe('1:30 PM');
     expect(describeDateRange('2026-08-24', '2026-12-11')).toBe('Aug 24, 2026 to Dec 11, 2026');
-  });
-
-  it('names every modality in words', () => {
-    expect(describeModality('HYBRID')).toBe('Hybrid');
-    expect(describeModality('ONLINE_ASYNCHRONOUS')).toContain('no set meeting times');
   });
 
   it('describes days, time, dates, skipped dates, and place', () => {
