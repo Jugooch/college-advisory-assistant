@@ -6,6 +6,7 @@
  */
 import { sql } from 'drizzle-orm';
 import {
+  boolean,
   check,
   foreignKey,
   integer,
@@ -48,6 +49,12 @@ export const courseTable = pgTable(
      * its lecture. Null means the course counts its own credits. Sourced from the catalog.
      */
     creditsIncludedInCourseId: uuid('credits_included_in_course_id'),
+    /** True when the institution states the course is repeatable for credit. False states nothing. */
+    repeatableForCredit: boolean('repeatable_for_credit').notNull().default(false),
+    /** Most attempts that may earn credit, or null when no cap is stated. */
+    repeatMaxAttempts: integer('repeat_max_attempts'),
+    /** Most credits all attempts may earn together, in hundredths, or null when uncapped. */
+    repeatMaxCreditsHundredths: integer('repeat_max_credits_hundredths'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -70,6 +77,19 @@ export const courseTable = pgTable(
     check(
       'course_credits_not_included_in_itself',
       sql`${table.creditsIncludedInCourseId} IS NULL OR ${table.creditsIncludedInCourseId} <> ${table.id}`,
+    ),
+    // SAFETY: mirrors `RepeatableForCreditSchema`: caps exist only on a repeatable course.
+    check(
+      'course_repeat_caps_need_flag',
+      sql`${table.repeatableForCredit} OR (${table.repeatMaxAttempts} IS NULL AND ${table.repeatMaxCreditsHundredths} IS NULL)`,
+    ),
+    check(
+      'course_repeat_max_attempts_min',
+      sql`${table.repeatMaxAttempts} IS NULL OR ${table.repeatMaxAttempts} >= 2`,
+    ),
+    check(
+      'course_repeat_max_credits_positive',
+      sql`${table.repeatMaxCreditsHundredths} IS NULL OR ${table.repeatMaxCreditsHundredths} > 0`,
     ),
     check('course_source_course_id_not_empty', sql`length(${table.sourceCourseId}) > 0`),
     // SAFETY: unknown is an explicit null, never an empty title.

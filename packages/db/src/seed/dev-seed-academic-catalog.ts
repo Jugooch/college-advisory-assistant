@@ -65,6 +65,8 @@ function catalogCourse(
     equivalencyGroupId: null,
     // NOTE: stated explicitly on every seeded course: null means it counts its own credits.
     creditsIncludedInCourseId: null,
+    // NOTE: null means the institution states no repeat-for-credit rule.
+    repeatableForCredit: null,
   });
 }
 

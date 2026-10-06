@@ -1,0 +1,3571 @@
+{
+  "id": "9eb3d17f-62bc-4130-bf9f-1360349bac77",
+  "prevId": "fa3dd2e9-7c85-4533-837c-b16b771a7dfc",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.academic_policy": {
+      "name": "academic_policy",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ruleset_version": {
+          "name": "ruleset_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "allows_in_progress_prerequisites": {
+          "name": "allows_in_progress_prerequisites",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pass_satisfies_minimum_grade": {
+          "name": "pass_satisfies_minimum_grade",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "letter_grade_order": {
+          "name": "letter_grade_order",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lowest_passing_letter_grade": {
+          "name": "lowest_passing_letter_grade",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "repeat_policy": {
+          "name": "repeat_policy",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "term_min_credits_hundredths": {
+          "name": "term_min_credits_hundredths",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "term_max_credits_hundredths": {
+          "name": "term_max_credits_hundredths",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "academic_policy_tenant_id_institution_id_fk": {
+          "name": "academic_policy_tenant_id_institution_id_fk",
+          "tableFrom": "academic_policy",
+          "tableTo": "institution",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "academic_policy_tenant_id_ruleset_version_key": {
+          "name": "academic_policy_tenant_id_ruleset_version_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "ruleset_version"
+          ]
+        },
+        "academic_policy_tenant_id_id_key": {
+          "name": "academic_policy_tenant_id_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "academic_policy_ruleset_version_not_empty": {
+          "name": "academic_policy_ruleset_version_not_empty",
+          "value": "length(\"academic_policy\".\"ruleset_version\") > 0"
+        },
+        "academic_policy_letter_grade_order_not_empty": {
+          "name": "academic_policy_letter_grade_order_not_empty",
+          "value": "cardinality(\"academic_policy\".\"letter_grade_order\") > 0"
+        },
+        "academic_policy_term_credit_bounds_both_or_neither": {
+          "name": "academic_policy_term_credit_bounds_both_or_neither",
+          "value": "(\"academic_policy\".\"term_min_credits_hundredths\" IS NULL) = (\"academic_policy\".\"term_max_credits_hundredths\" IS NULL)"
+        },
+        "academic_policy_term_credit_bounds_range": {
+          "name": "academic_policy_term_credit_bounds_range",
+          "value": "\"academic_policy\".\"term_min_credits_hundredths\" IS NULL\n        OR (\"academic_policy\".\"term_min_credits_hundredths\" >= 0\n          AND \"academic_policy\".\"term_min_credits_hundredths\" <= \"academic_policy\".\"term_max_credits_hundredths\")"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.advisor_assignment": {
+      "name": "advisor_assignment",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "advisor_user_id": {
+          "name": "advisor_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "student_id": {
+          "name": "student_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "effective_from": {
+          "name": "effective_from",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "effective_to": {
+          "name": "effective_to",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "approved_by": {
+          "name": "approved_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "advisor_assignment_lookup_idx": {
+          "name": "advisor_assignment_lookup_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "advisor_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "student_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "advisor_assignment_tenant_id_institution_id_fk": {
+          "name": "advisor_assignment_tenant_id_institution_id_fk",
+          "tableFrom": "advisor_assignment",
+          "tableTo": "institution",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "advisor_assignment_advisor_fk": {
+          "name": "advisor_assignment_advisor_fk",
+          "tableFrom": "advisor_assignment",
+          "tableTo": "user_identity",
+          "columnsFrom": [
+            "tenant_id",
+            "advisor_user_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "advisor_assignment_student_fk": {
+          "name": "advisor_assignment_student_fk",
+          "tableFrom": "advisor_assignment",
+          "tableTo": "student",
+          "columnsFrom": [
+            "tenant_id",
+            "student_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "advisor_assignment_approver_fk": {
+          "name": "advisor_assignment_approver_fk",
+          "tableFrom": "advisor_assignment",
+          "tableTo": "user_identity",
+          "columnsFrom": [
+            "tenant_id",
+            "approved_by"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "advisor_assignment_tenant_id_id_key": {
+          "name": "advisor_assignment_tenant_id_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "advisor_assignment_effective_range": {
+          "name": "advisor_assignment_effective_range",
+          "value": "\"advisor_assignment\".\"effective_to\" IS NULL OR \"advisor_assignment\".\"effective_to\" >= \"advisor_assignment\".\"effective_from\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.audit_snapshot": {
+      "name": "audit_snapshot",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "student_id": {
+          "name": "student_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "student_snapshot_id": {
+          "name": "student_snapshot_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "program_id": {
+          "name": "program_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "audit_source": {
+          "name": "audit_source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "audit_version": {
+          "name": "audit_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "catalog_year": {
+          "name": "catalog_year",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "generated_at": {
+          "name": "generated_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "student_record_effective_at": {
+          "name": "student_record_effective_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ingested_at": {
+          "name": "ingested_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "audit_snapshot_latest_idx": {
+          "name": "audit_snapshot_latest_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "student_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "generated_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "audit_snapshot_tenant_id_institution_id_fk": {
+          "name": "audit_snapshot_tenant_id_institution_id_fk",
+          "tableFrom": "audit_snapshot",
+          "tableTo": "institution",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "audit_snapshot_student_snapshot_fk": {
+          "name": "audit_snapshot_student_snapshot_fk",
+          "tableFrom": "audit_snapshot",
+          "tableTo": "student_snapshot",
+          "columnsFrom": [
+            "tenant_id",
+            "student_id",
+            "student_snapshot_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "student_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "audit_snapshot_tenant_id_id_key": {
+          "name": "audit_snapshot_tenant_id_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "id"
+          ]
+        },
+        "audit_snapshot_tenant_id_id_student_snapshot_id_key": {
+          "name": "audit_snapshot_tenant_id_id_student_snapshot_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "id",
+            "student_snapshot_id"
+          ]
+        },
+        "audit_snapshot_run_key": {
+          "name": "audit_snapshot_run_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "student_id",
+            "audit_source",
+            "audit_version"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "audit_snapshot_text_not_empty": {
+          "name": "audit_snapshot_text_not_empty",
+          "value": "length(\"audit_snapshot\".\"audit_source\") > 0 AND length(\"audit_snapshot\".\"audit_version\") > 0\n        AND length(\"audit_snapshot\".\"catalog_year\") > 0"
+        },
+        "audit_snapshot_record_before_generated": {
+          "name": "audit_snapshot_record_before_generated",
+          "value": "\"audit_snapshot\".\"student_record_effective_at\" <= \"audit_snapshot\".\"generated_at\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.campus": {
+      "name": "campus",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_campus_id": {
+          "name": "source_campus_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "campus_tenant_id_institution_id_fk": {
+          "name": "campus_tenant_id_institution_id_fk",
+          "tableFrom": "campus",
+          "tableTo": "institution",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "campus_tenant_id_source_campus_id_key": {
+          "name": "campus_tenant_id_source_campus_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "source_campus_id"
+          ]
+        },
+        "campus_tenant_id_id_key": {
+          "name": "campus_tenant_id_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "campus_text_not_empty": {
+          "name": "campus_text_not_empty",
+          "value": "length(\"campus\".\"source_campus_id\") > 0 AND length(\"campus\".\"name\") > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.campus_transition": {
+      "name": "campus_transition",
+      "schema": "",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "version": {
+          "name": "version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "from_campus_id": {
+          "name": "from_campus_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "to_campus_id": {
+          "name": "to_campus_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "minutes": {
+          "name": "minutes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "campus_transition_tenant_id_institution_id_fk": {
+          "name": "campus_transition_tenant_id_institution_id_fk",
+          "tableFrom": "campus_transition",
+          "tableTo": "institution",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "campus_transition_version_fk": {
+          "name": "campus_transition_version_fk",
+          "tableFrom": "campus_transition",
+          "tableTo": "campus_transition_version",
+          "columnsFrom": [
+            "tenant_id",
+            "version"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "version"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "campus_transition_from_campus_fk": {
+          "name": "campus_transition_from_campus_fk",
+          "tableFrom": "campus_transition",
+          "tableTo": "campus",
+          "columnsFrom": [
+            "tenant_id",
+            "from_campus_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "campus_transition_to_campus_fk": {
+          "name": "campus_transition_to_campus_fk",
+          "tableFrom": "campus_transition",
+          "tableTo": "campus",
+          "columnsFrom": [
+            "tenant_id",
+            "to_campus_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "campus_transition_pkey": {
+          "name": "campus_transition_pkey",
+          "columns": [
+            "tenant_id",
+            "version",
+            "from_campus_id",
+            "to_campus_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "campus_transition_different_campuses": {
+          "name": "campus_transition_different_campuses",
+          "value": "\"campus_transition\".\"from_campus_id\" <> \"campus_transition\".\"to_campus_id\""
+        },
+        "campus_transition_minutes_nonnegative": {
+          "name": "campus_transition_minutes_nonnegative",
+          "value": "\"campus_transition\".\"minutes\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.campus_transition_version": {
+      "name": "campus_transition_version",
+      "schema": "",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "version": {
+          "name": "version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "published_at": {
+          "name": "published_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "campus_transition_version_tenant_id_institution_id_fk": {
+          "name": "campus_transition_version_tenant_id_institution_id_fk",
+          "tableFrom": "campus_transition_version",
+          "tableTo": "institution",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "campus_transition_version_pkey": {
+          "name": "campus_transition_version_pkey",
+          "columns": [
+            "tenant_id",
+            "version"
+          ]
+        }
+      },
+      "uniqueConstraints": {
+        "campus_transition_version_published_key": {
+          "name": "campus_transition_version_published_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "published_at"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "campus_transition_version_not_empty": {
+          "name": "campus_transition_version_not_empty",
+          "value": "length(\"campus_transition_version\".\"version\") > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.course_attempt": {
+      "name": "course_attempt",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "student_id": {
+          "name": "student_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "course_id": {
+          "name": "course_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_attempt_id": {
+          "name": "source_attempt_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "term_code": {
+          "name": "term_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "grade_scheme": {
+          "name": "grade_scheme",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "grade_value": {
+          "name": "grade_value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "credits_earned_hundredths": {
+          "name": "credits_earned_hundredths",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "course_attempt_tenant_id_institution_id_fk": {
+          "name": "course_attempt_tenant_id_institution_id_fk",
+          "tableFrom": "course_attempt",
+          "tableTo": "institution",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "course_attempt_student_fk": {
+          "name": "course_attempt_student_fk",
+          "tableFrom": "course_attempt",
+          "tableTo": "student",
+          "columnsFrom": [
+            "tenant_id",
+            "student_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "course_attempt_course_fk": {
+          "name": "course_attempt_course_fk",
+          "tableFrom": "course_attempt",
+          "tableTo": "course",
+          "columnsFrom": [
+            "tenant_id",
+            "course_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "course_attempt_tenant_id_id_key": {
+          "name": "course_attempt_tenant_id_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "id"
+          ]
+        },
+        "course_attempt_tenant_id_student_id_id_key": {
+          "name": "course_attempt_tenant_id_student_id_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "student_id",
+            "id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "course_attempt_source_attempt_id_not_empty": {
+          "name": "course_attempt_source_attempt_id_not_empty",
+          "value": "length(\"course_attempt\".\"source_attempt_id\") > 0"
+        },
+        "course_attempt_term_code_not_empty": {
+          "name": "course_attempt_term_code_not_empty",
+          "value": "length(\"course_attempt\".\"term_code\") > 0"
+        },
+        "course_attempt_grade_both_or_neither": {
+          "name": "course_attempt_grade_both_or_neither",
+          "value": "(\"course_attempt\".\"grade_scheme\" IS NULL) = (\"course_attempt\".\"grade_value\" IS NULL)"
+        },
+        "course_attempt_credits_nonnegative": {
+          "name": "course_attempt_credits_nonnegative",
+          "value": "\"course_attempt\".\"credits_earned_hundredths\" IS NULL OR \"course_attempt\".\"credits_earned_hundredths\" >= 0"
+        },
+        "course_attempt_ungraded_status_has_no_grade": {
+          "name": "course_attempt_ungraded_status_has_no_grade",
+          "value": "\"course_attempt\".\"status\" NOT IN ('IN_PROGRESS', 'TRANSFER_PENDING') OR \"course_attempt\".\"grade_scheme\" IS NULL"
+        },
+        "course_attempt_credits_only_when_earned": {
+          "name": "course_attempt_credits_only_when_earned",
+          "value": "\"course_attempt\".\"credits_earned_hundredths\" IS NULL OR \"course_attempt\".\"status\" IN ('COMPLETED', 'TRANSFER_AWARDED')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.course": {
+      "name": "course",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_course_id": {
+          "name": "source_course_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "label": {
+          "name": "label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "credits_hundredths": {
+          "name": "credits_hundredths",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "min_credits_hundredths": {
+          "name": "min_credits_hundredths",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "max_credits_hundredths": {
+          "name": "max_credits_hundredths",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "equivalency_group_id": {
+          "name": "equivalency_group_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "credits_included_in_course_id": {
+          "name": "credits_included_in_course_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "repeatable_for_credit": {
+          "name": "repeatable_for_credit",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "repeat_max_attempts": {
+          "name": "repeat_max_attempts",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "repeat_max_credits_hundredths": {
+          "name": "repeat_max_credits_hundredths",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "course_tenant_id_institution_id_fk": {
+          "name": "course_tenant_id_institution_id_fk",
+          "tableFrom": "course",
+          "tableTo": "institution",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "course_equivalency_group_fk": {
+          "name": "course_equivalency_group_fk",
+          "tableFrom": "course",
+          "tableTo": "equivalency_group",
+          "columnsFrom": [
+            "tenant_id",
+            "equivalency_group_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "course_credits_included_in_course_fk": {
+          "name": "course_credits_included_in_course_fk",
+          "tableFrom": "course",
+          "tableTo": "course",
+          "columnsFrom": [
+            "tenant_id",
+            "credits_included_in_course_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "course_tenant_id_source_course_id_key": {
+          "name": "course_tenant_id_source_course_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "source_course_id"
+          ]
+        },
+        "course_tenant_id_id_key": {
+          "name": "course_tenant_id_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "course_credits_not_included_in_itself": {
+          "name": "course_credits_not_included_in_itself",
+          "value": "\"course\".\"credits_included_in_course_id\" IS NULL OR \"course\".\"credits_included_in_course_id\" <> \"course\".\"id\""
+        },
+        "course_repeat_caps_need_flag": {
+          "name": "course_repeat_caps_need_flag",
+          "value": "\"course\".\"repeatable_for_credit\" OR (\"course\".\"repeat_max_attempts\" IS NULL AND \"course\".\"repeat_max_credits_hundredths\" IS NULL)"
+        },
+        "course_repeat_max_attempts_min": {
+          "name": "course_repeat_max_attempts_min",
+          "value": "\"course\".\"repeat_max_attempts\" IS NULL OR \"course\".\"repeat_max_attempts\" >= 2"
+        },
+        "course_repeat_max_credits_positive": {
+          "name": "course_repeat_max_credits_positive",
+          "value": "\"course\".\"repeat_max_credits_hundredths\" IS NULL OR \"course\".\"repeat_max_credits_hundredths\" > 0"
+        },
+        "course_source_course_id_not_empty": {
+          "name": "course_source_course_id_not_empty",
+          "value": "length(\"course\".\"source_course_id\") > 0"
+        },
+        "course_title_not_empty": {
+          "name": "course_title_not_empty",
+          "value": "\"course\".\"title\" IS NULL OR length(\"course\".\"title\") > 0"
+        },
+        "course_label_not_empty": {
+          "name": "course_label_not_empty",
+          "value": "length(\"course\".\"label\") > 0"
+        },
+        "course_credit_form": {
+          "name": "course_credit_form",
+          "value": "(\"course\".\"credits_hundredths\" IS NOT NULL AND \"course\".\"min_credits_hundredths\" IS NULL AND \"course\".\"max_credits_hundredths\" IS NULL)\n        OR (\"course\".\"credits_hundredths\" IS NULL AND \"course\".\"min_credits_hundredths\" IS NOT NULL AND \"course\".\"max_credits_hundredths\" IS NOT NULL)"
+        },
+        "course_credits_nonnegative": {
+          "name": "course_credits_nonnegative",
+          "value": "coalesce(\"course\".\"credits_hundredths\", 0) >= 0\n        AND coalesce(\"course\".\"min_credits_hundredths\", 0) >= 0\n        AND coalesce(\"course\".\"max_credits_hundredths\", 0) >= 0"
+        },
+        "course_credit_range": {
+          "name": "course_credit_range",
+          "value": "\"course\".\"min_credits_hundredths\" IS NULL OR \"course\".\"max_credits_hundredths\" IS NULL\n        OR \"course\".\"min_credits_hundredths\" <= \"course\".\"max_credits_hundredths\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.equivalency_group": {
+      "name": "equivalency_group",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_equivalency_group_id": {
+          "name": "source_equivalency_group_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "equivalency_group_tenant_id_institution_id_fk": {
+          "name": "equivalency_group_tenant_id_institution_id_fk",
+          "tableFrom": "equivalency_group",
+          "tableTo": "institution",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "equivalency_group_tenant_id_source_equivalency_group_id_key": {
+          "name": "equivalency_group_tenant_id_source_equivalency_group_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "source_equivalency_group_id"
+          ]
+        },
+        "equivalency_group_tenant_id_id_key": {
+          "name": "equivalency_group_tenant_id_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "equivalency_group_source_id_not_empty": {
+          "name": "equivalency_group_source_id_not_empty",
+          "value": "length(\"equivalency_group\".\"source_equivalency_group_id\") > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.import_batch": {
+      "name": "import_batch",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "schema_version": {
+          "name": "schema_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "batch_id": {
+          "name": "batch_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "extracted_at": {
+          "name": "extracted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_effective_at": {
+          "name": "source_effective_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "checksum": {
+          "name": "checksum",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "record_count": {
+          "name": "record_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "operation": {
+          "name": "operation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rejected_count": {
+          "name": "rejected_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ingested_at": {
+          "name": "ingested_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "import_batch_tenant_id_institution_id_fk": {
+          "name": "import_batch_tenant_id_institution_id_fk",
+          "tableFrom": "import_batch",
+          "tableTo": "institution",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "import_batch_tenant_id_source_id_batch_id_key": {
+          "name": "import_batch_tenant_id_source_id_batch_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "source_id",
+            "batch_id"
+          ]
+        },
+        "import_batch_tenant_id_id_key": {
+          "name": "import_batch_tenant_id_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "import_batch_record_count_nonnegative": {
+          "name": "import_batch_record_count_nonnegative",
+          "value": "\"import_batch\".\"record_count\" >= 0"
+        },
+        "import_batch_rejected_count_nonnegative": {
+          "name": "import_batch_rejected_count_nonnegative",
+          "value": "\"import_batch\".\"rejected_count\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.import_quarantine": {
+      "name": "import_quarantine",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "import_batch_id": {
+          "name": "import_batch_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "row_index": {
+          "name": "row_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_record_id": {
+          "name": "source_record_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "import_quarantine_tenant_id_institution_id_fk": {
+          "name": "import_quarantine_tenant_id_institution_id_fk",
+          "tableFrom": "import_quarantine",
+          "tableTo": "institution",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "import_quarantine_batch_fk": {
+          "name": "import_quarantine_batch_fk",
+          "tableFrom": "import_quarantine",
+          "tableTo": "import_batch",
+          "columnsFrom": [
+            "tenant_id",
+            "import_batch_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "import_quarantine_tenant_id_id_key": {
+          "name": "import_quarantine_tenant_id_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "import_quarantine_row_index_nonnegative": {
+          "name": "import_quarantine_row_index_nonnegative",
+          "value": "\"import_quarantine\".\"row_index\" >= 0"
+        },
+        "import_quarantine_reason_not_empty": {
+          "name": "import_quarantine_reason_not_empty",
+          "value": "length(\"import_quarantine\".\"reason\") > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.institution": {
+      "name": "institution",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "timezone": {
+          "name": "timezone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.prerequisite_rule": {
+      "name": "prerequisite_rule",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "course_id": {
+          "name": "course_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ruleset_version": {
+          "name": "ruleset_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expression": {
+          "name": "expression",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_ref": {
+          "name": "source_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "prerequisite_rule_tenant_id_institution_id_fk": {
+          "name": "prerequisite_rule_tenant_id_institution_id_fk",
+          "tableFrom": "prerequisite_rule",
+          "tableTo": "institution",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "prerequisite_rule_course_fk": {
+          "name": "prerequisite_rule_course_fk",
+          "tableFrom": "prerequisite_rule",
+          "tableTo": "course",
+          "columnsFrom": [
+            "tenant_id",
+            "course_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "prerequisite_rule_tenant_id_course_id_ruleset_version_key": {
+          "name": "prerequisite_rule_tenant_id_course_id_ruleset_version_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "course_id",
+            "ruleset_version"
+          ]
+        },
+        "prerequisite_rule_tenant_id_id_key": {
+          "name": "prerequisite_rule_tenant_id_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "prerequisite_rule_ruleset_version_not_empty": {
+          "name": "prerequisite_rule_ruleset_version_not_empty",
+          "value": "length(\"prerequisite_rule\".\"ruleset_version\") > 0"
+        },
+        "prerequisite_rule_source_ref_not_empty": {
+          "name": "prerequisite_rule_source_ref_not_empty",
+          "value": "length(\"prerequisite_rule\".\"source_ref\") > 0"
+        },
+        "prerequisite_rule_expression_object": {
+          "name": "prerequisite_rule_expression_object",
+          "value": "jsonb_typeof(\"prerequisite_rule\".\"expression\") = 'object'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.program": {
+      "name": "program",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_program_id": {
+          "name": "source_program_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "program_tenant_id_institution_id_fk": {
+          "name": "program_tenant_id_institution_id_fk",
+          "tableFrom": "program",
+          "tableTo": "institution",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "program_tenant_id_source_program_id_key": {
+          "name": "program_tenant_id_source_program_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "source_program_id"
+          ]
+        },
+        "program_tenant_id_id_key": {
+          "name": "program_tenant_id_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "program_source_program_id_not_empty": {
+          "name": "program_source_program_id_not_empty",
+          "value": "length(\"program\".\"source_program_id\") > 0"
+        },
+        "program_name_not_empty": {
+          "name": "program_name_not_empty",
+          "value": "\"program\".\"name\" IS NULL OR length(\"program\".\"name\") > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.requirement_result_allocated_attempt": {
+      "name": "requirement_result_allocated_attempt",
+      "schema": "",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "audit_snapshot_id": {
+          "name": "audit_snapshot_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "requirement_result_id": {
+          "name": "requirement_result_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "student_snapshot_id": {
+          "name": "student_snapshot_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "course_attempt_id": {
+          "name": "course_attempt_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "requirement_result_allocated_attempt_tenant_id_institution_id_fk": {
+          "name": "requirement_result_allocated_attempt_tenant_id_institution_id_fk",
+          "tableFrom": "requirement_result_allocated_attempt",
+          "tableTo": "institution",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "requirement_result_allocated_attempt_requirement_fk": {
+          "name": "requirement_result_allocated_attempt_requirement_fk",
+          "tableFrom": "requirement_result_allocated_attempt",
+          "tableTo": "requirement_result",
+          "columnsFrom": [
+            "tenant_id",
+            "audit_snapshot_id",
+            "requirement_result_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "audit_snapshot_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "requirement_result_allocated_attempt_audit_fk": {
+          "name": "requirement_result_allocated_attempt_audit_fk",
+          "tableFrom": "requirement_result_allocated_attempt",
+          "tableTo": "audit_snapshot",
+          "columnsFrom": [
+            "tenant_id",
+            "audit_snapshot_id",
+            "student_snapshot_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id",
+            "student_snapshot_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "requirement_result_allocated_attempt_snapshot_attempt_fk": {
+          "name": "requirement_result_allocated_attempt_snapshot_attempt_fk",
+          "tableFrom": "requirement_result_allocated_attempt",
+          "tableTo": "student_snapshot_attempt",
+          "columnsFrom": [
+            "tenant_id",
+            "student_snapshot_id",
+            "course_attempt_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "student_snapshot_id",
+            "course_attempt_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "requirement_result_allocated_attempt_pkey": {
+          "name": "requirement_result_allocated_attempt_pkey",
+          "columns": [
+            "tenant_id",
+            "requirement_result_id",
+            "course_attempt_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {
+        "requirement_result_allocated_attempt_position_key": {
+          "name": "requirement_result_allocated_attempt_position_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "requirement_result_id",
+            "position"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "requirement_result_allocated_attempt_position_nonnegative": {
+          "name": "requirement_result_allocated_attempt_position_nonnegative",
+          "value": "\"requirement_result_allocated_attempt\".\"position\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.requirement_result_candidate_course": {
+      "name": "requirement_result_candidate_course",
+      "schema": "",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "audit_snapshot_id": {
+          "name": "audit_snapshot_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "requirement_result_id": {
+          "name": "requirement_result_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "course_id": {
+          "name": "course_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "requirement_result_candidate_course_tenant_id_institution_id_fk": {
+          "name": "requirement_result_candidate_course_tenant_id_institution_id_fk",
+          "tableFrom": "requirement_result_candidate_course",
+          "tableTo": "institution",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "requirement_result_candidate_course_requirement_fk": {
+          "name": "requirement_result_candidate_course_requirement_fk",
+          "tableFrom": "requirement_result_candidate_course",
+          "tableTo": "requirement_result",
+          "columnsFrom": [
+            "tenant_id",
+            "audit_snapshot_id",
+            "requirement_result_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "audit_snapshot_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "requirement_result_candidate_course_course_fk": {
+          "name": "requirement_result_candidate_course_course_fk",
+          "tableFrom": "requirement_result_candidate_course",
+          "tableTo": "course",
+          "columnsFrom": [
+            "tenant_id",
+            "course_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "requirement_result_candidate_course_pkey": {
+          "name": "requirement_result_candidate_course_pkey",
+          "columns": [
+            "tenant_id",
+            "requirement_result_id",
+            "course_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {
+        "requirement_result_candidate_course_position_key": {
+          "name": "requirement_result_candidate_course_position_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "requirement_result_id",
+            "position"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "requirement_result_candidate_course_position_nonnegative": {
+          "name": "requirement_result_candidate_course_position_nonnegative",
+          "value": "\"requirement_result_candidate_course\".\"position\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.requirement_result": {
+      "name": "requirement_result",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "audit_snapshot_id": {
+          "name": "audit_snapshot_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_requirement_id": {
+          "name": "source_requirement_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "parent_source_requirement_id": {
+          "name": "parent_source_requirement_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "label": {
+          "name": "label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "remaining_credits_hundredths": {
+          "name": "remaining_credits_hundredths",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "remaining_course_count": {
+          "name": "remaining_course_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_reusable": {
+          "name": "is_reusable",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_ref": {
+          "name": "source_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "requirement_result_tenant_id_institution_id_fk": {
+          "name": "requirement_result_tenant_id_institution_id_fk",
+          "tableFrom": "requirement_result",
+          "tableTo": "institution",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "requirement_result_audit_snapshot_fk": {
+          "name": "requirement_result_audit_snapshot_fk",
+          "tableFrom": "requirement_result",
+          "tableTo": "audit_snapshot",
+          "columnsFrom": [
+            "tenant_id",
+            "audit_snapshot_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "requirement_result_parent_fk": {
+          "name": "requirement_result_parent_fk",
+          "tableFrom": "requirement_result",
+          "tableTo": "requirement_result",
+          "columnsFrom": [
+            "tenant_id",
+            "audit_snapshot_id",
+            "parent_source_requirement_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "audit_snapshot_id",
+            "source_requirement_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "requirement_result_tenant_id_id_key": {
+          "name": "requirement_result_tenant_id_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "id"
+          ]
+        },
+        "requirement_result_tenant_id_audit_snapshot_id_id_key": {
+          "name": "requirement_result_tenant_id_audit_snapshot_id_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "audit_snapshot_id",
+            "id"
+          ]
+        },
+        "requirement_result_source_requirement_key": {
+          "name": "requirement_result_source_requirement_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "audit_snapshot_id",
+            "source_requirement_id"
+          ]
+        },
+        "requirement_result_position_key": {
+          "name": "requirement_result_position_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "audit_snapshot_id",
+            "position"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "requirement_result_not_own_parent": {
+          "name": "requirement_result_not_own_parent",
+          "value": "\"requirement_result\".\"parent_source_requirement_id\" IS NULL\n        OR \"requirement_result\".\"parent_source_requirement_id\" <> \"requirement_result\".\"source_requirement_id\""
+        },
+        "requirement_result_position_nonnegative": {
+          "name": "requirement_result_position_nonnegative",
+          "value": "\"requirement_result\".\"position\" >= 0"
+        },
+        "requirement_result_text_not_empty": {
+          "name": "requirement_result_text_not_empty",
+          "value": "length(\"requirement_result\".\"source_requirement_id\") > 0 AND length(\"requirement_result\".\"label\") > 0\n        AND length(\"requirement_result\".\"source_ref\") > 0"
+        },
+        "requirement_result_remaining_nonnegative": {
+          "name": "requirement_result_remaining_nonnegative",
+          "value": "coalesce(\"requirement_result\".\"remaining_credits_hundredths\", 0) >= 0\n        AND coalesce(\"requirement_result\".\"remaining_course_count\", 0) >= 0"
+        },
+        "requirement_result_complete_has_no_remainder": {
+          "name": "requirement_result_complete_has_no_remainder",
+          "value": "\"requirement_result\".\"state\" <> 'COMPLETE'\n        OR (coalesce(\"requirement_result\".\"remaining_credits_hundredths\", 0) = 0\n          AND coalesce(\"requirement_result\".\"remaining_course_count\", 0) = 0)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.section_link_component": {
+      "name": "section_link_component",
+      "schema": "",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "section_snapshot_id": {
+          "name": "section_snapshot_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "group_id": {
+          "name": "group_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "course_id": {
+          "name": "course_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "section_link_component_tenant_id_institution_id_fk": {
+          "name": "section_link_component_tenant_id_institution_id_fk",
+          "tableFrom": "section_link_component",
+          "tableTo": "institution",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "section_link_component_group_fk": {
+          "name": "section_link_component_group_fk",
+          "tableFrom": "section_link_component",
+          "tableTo": "section_link_group",
+          "columnsFrom": [
+            "tenant_id",
+            "section_snapshot_id",
+            "group_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "section_snapshot_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "section_link_component_course_fk": {
+          "name": "section_link_component_course_fk",
+          "tableFrom": "section_link_component",
+          "tableTo": "course",
+          "columnsFrom": [
+            "tenant_id",
+            "course_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "section_link_component_pkey": {
+          "name": "section_link_component_pkey",
+          "columns": [
+            "tenant_id",
+            "group_id",
+            "position"
+          ]
+        }
+      },
+      "uniqueConstraints": {
+        "section_link_component_course_key": {
+          "name": "section_link_component_course_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "section_snapshot_id",
+            "group_id",
+            "position",
+            "course_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "section_link_component_position_nonnegative": {
+          "name": "section_link_component_position_nonnegative",
+          "value": "\"section_link_component\".\"position\" >= 0"
+        },
+        "section_link_component_name_not_empty": {
+          "name": "section_link_component_name_not_empty",
+          "value": "length(\"section_link_component\".\"name\") > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.section_link_group": {
+      "name": "section_link_group",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "section_snapshot_id": {
+          "name": "section_snapshot_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "primary_section_id": {
+          "name": "primary_section_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "section_link_group_tenant_id_institution_id_fk": {
+          "name": "section_link_group_tenant_id_institution_id_fk",
+          "tableFrom": "section_link_group",
+          "tableTo": "institution",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "section_link_group_primary_fk": {
+          "name": "section_link_group_primary_fk",
+          "tableFrom": "section_link_group",
+          "tableTo": "section",
+          "columnsFrom": [
+            "tenant_id",
+            "section_snapshot_id",
+            "primary_section_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "section_snapshot_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "section_link_group_tenant_id_section_snapshot_id_id_key": {
+          "name": "section_link_group_tenant_id_section_snapshot_id_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "section_snapshot_id",
+            "id"
+          ]
+        },
+        "section_link_group_primary_key": {
+          "name": "section_link_group_primary_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "section_snapshot_id",
+            "primary_section_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.section_link_member": {
+      "name": "section_link_member",
+      "schema": "",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "section_snapshot_id": {
+          "name": "section_snapshot_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "group_id": {
+          "name": "group_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "component_position": {
+          "name": "component_position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "course_id": {
+          "name": "course_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "section_id": {
+          "name": "section_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "section_link_member_tenant_id_institution_id_fk": {
+          "name": "section_link_member_tenant_id_institution_id_fk",
+          "tableFrom": "section_link_member",
+          "tableTo": "institution",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "section_link_member_component_fk": {
+          "name": "section_link_member_component_fk",
+          "tableFrom": "section_link_member",
+          "tableTo": "section_link_component",
+          "columnsFrom": [
+            "tenant_id",
+            "section_snapshot_id",
+            "group_id",
+            "component_position",
+            "course_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "section_snapshot_id",
+            "group_id",
+            "position",
+            "course_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "section_link_member_section_fk": {
+          "name": "section_link_member_section_fk",
+          "tableFrom": "section_link_member",
+          "tableTo": "section",
+          "columnsFrom": [
+            "tenant_id",
+            "section_snapshot_id",
+            "section_id",
+            "course_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "section_snapshot_id",
+            "id",
+            "course_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "section_link_member_pkey": {
+          "name": "section_link_member_pkey",
+          "columns": [
+            "tenant_id",
+            "group_id",
+            "section_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {
+        "section_link_member_position_key": {
+          "name": "section_link_member_position_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "group_id",
+            "component_position",
+            "position"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "section_link_member_position_nonnegative": {
+          "name": "section_link_member_position_nonnegative",
+          "value": "\"section_link_member\".\"position\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.section_meeting": {
+      "name": "section_meeting",
+      "schema": "",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "section_id": {
+          "name": "section_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "weekdays": {
+          "name": "weekdays",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "start_time": {
+          "name": "start_time",
+          "type": "time(0)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "end_time": {
+          "name": "end_time",
+          "type": "time(0)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "starts_on": {
+          "name": "starts_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ends_on": {
+          "name": "ends_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "excluded_dates": {
+          "name": "excluded_dates",
+          "type": "date[]",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "location_kind": {
+          "name": "location_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "location_campus_id": {
+          "name": "location_campus_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "room": {
+          "name": "room",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "section_meeting_tenant_id_institution_id_fk": {
+          "name": "section_meeting_tenant_id_institution_id_fk",
+          "tableFrom": "section_meeting",
+          "tableTo": "institution",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "section_meeting_section_fk": {
+          "name": "section_meeting_section_fk",
+          "tableFrom": "section_meeting",
+          "tableTo": "section",
+          "columnsFrom": [
+            "tenant_id",
+            "section_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "section_meeting_campus_fk": {
+          "name": "section_meeting_campus_fk",
+          "tableFrom": "section_meeting",
+          "tableTo": "campus",
+          "columnsFrom": [
+            "tenant_id",
+            "location_campus_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "section_meeting_pkey": {
+          "name": "section_meeting_pkey",
+          "columns": [
+            "tenant_id",
+            "section_id",
+            "position"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "section_meeting_position_nonnegative": {
+          "name": "section_meeting_position_nonnegative",
+          "value": "\"section_meeting\".\"position\" >= 0"
+        },
+        "section_meeting_weekdays_known": {
+          "name": "section_meeting_weekdays_known",
+          "value": "\"section_meeting\".\"weekdays\" IS NULL OR (cardinality(\"section_meeting\".\"weekdays\") > 0\n        AND \"section_meeting\".\"weekdays\" <@ ARRAY['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY',\n          'SATURDAY', 'SUNDAY']::text[])"
+        },
+        "section_meeting_time_range": {
+          "name": "section_meeting_time_range",
+          "value": "(\"section_meeting\".\"start_time\" IS NULL AND \"section_meeting\".\"end_time\" IS NULL)\n        OR (\"section_meeting\".\"start_time\" IS NOT NULL AND \"section_meeting\".\"end_time\" IS NOT NULL\n          AND \"section_meeting\".\"start_time\" < \"section_meeting\".\"end_time\")"
+        },
+        "section_meeting_date_range": {
+          "name": "section_meeting_date_range",
+          "value": "\"section_meeting\".\"starts_on\" <= \"section_meeting\".\"ends_on\""
+        },
+        "section_meeting_location_shape": {
+          "name": "section_meeting_location_shape",
+          "value": "(\"section_meeting\".\"location_kind\" = 'ON_CAMPUS' AND \"section_meeting\".\"location_campus_id\" IS NOT NULL)\n        OR (\"section_meeting\".\"location_kind\" = 'ONLINE' AND \"section_meeting\".\"location_campus_id\" IS NULL\n          AND \"section_meeting\".\"room\" IS NULL)\n        OR (\"section_meeting\".\"location_kind\" IS NULL AND \"section_meeting\".\"location_campus_id\" IS NULL\n          AND \"section_meeting\".\"room\" IS NULL)"
+        },
+        "section_meeting_room_not_empty": {
+          "name": "section_meeting_room_not_empty",
+          "value": "\"section_meeting\".\"room\" IS NULL OR length(\"section_meeting\".\"room\") > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.section_snapshot": {
+      "name": "section_snapshot",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "term_id": {
+          "name": "term_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "term_starts_on": {
+          "name": "term_starts_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "term_ends_on": {
+          "name": "term_ends_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "timezone": {
+          "name": "timezone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_effective_at": {
+          "name": "source_effective_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ingested_at": {
+          "name": "ingested_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "section_snapshot_latest_idx": {
+          "name": "section_snapshot_latest_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "term_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "source_effective_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "section_snapshot_tenant_id_institution_id_fk": {
+          "name": "section_snapshot_tenant_id_institution_id_fk",
+          "tableFrom": "section_snapshot",
+          "tableTo": "institution",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "section_snapshot_term_fk": {
+          "name": "section_snapshot_term_fk",
+          "tableFrom": "section_snapshot",
+          "tableTo": "term",
+          "columnsFrom": [
+            "tenant_id",
+            "term_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "section_snapshot_tenant_id_id_key": {
+          "name": "section_snapshot_tenant_id_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "id"
+          ]
+        },
+        "section_snapshot_tenant_id_id_term_id_key": {
+          "name": "section_snapshot_tenant_id_id_term_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "id",
+            "term_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "section_snapshot_term_date_range": {
+          "name": "section_snapshot_term_date_range",
+          "value": "\"section_snapshot\".\"term_starts_on\" <= \"section_snapshot\".\"term_ends_on\""
+        },
+        "section_snapshot_timezone_not_empty": {
+          "name": "section_snapshot_timezone_not_empty",
+          "value": "length(\"section_snapshot\".\"timezone\") > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.section": {
+      "name": "section",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "section_snapshot_id": {
+          "name": "section_snapshot_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "term_id": {
+          "name": "term_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "course_id": {
+          "name": "course_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_section_id": {
+          "name": "source_section_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "section_code": {
+          "name": "section_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "campus_id": {
+          "name": "campus_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "modality": {
+          "name": "modality",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "starts_on": {
+          "name": "starts_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ends_on": {
+          "name": "ends_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "section_tenant_id_institution_id_fk": {
+          "name": "section_tenant_id_institution_id_fk",
+          "tableFrom": "section",
+          "tableTo": "institution",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "section_snapshot_fk": {
+          "name": "section_snapshot_fk",
+          "tableFrom": "section",
+          "tableTo": "section_snapshot",
+          "columnsFrom": [
+            "tenant_id",
+            "section_snapshot_id",
+            "term_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id",
+            "term_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "section_course_fk": {
+          "name": "section_course_fk",
+          "tableFrom": "section",
+          "tableTo": "course",
+          "columnsFrom": [
+            "tenant_id",
+            "course_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "section_campus_fk": {
+          "name": "section_campus_fk",
+          "tableFrom": "section",
+          "tableTo": "campus",
+          "columnsFrom": [
+            "tenant_id",
+            "campus_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "section_tenant_id_id_key": {
+          "name": "section_tenant_id_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "id"
+          ]
+        },
+        "section_tenant_id_section_snapshot_id_id_course_id_key": {
+          "name": "section_tenant_id_section_snapshot_id_id_course_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "section_snapshot_id",
+            "id",
+            "course_id"
+          ]
+        },
+        "section_tenant_id_section_snapshot_id_id_key": {
+          "name": "section_tenant_id_section_snapshot_id_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "section_snapshot_id",
+            "id"
+          ]
+        },
+        "section_source_section_key": {
+          "name": "section_source_section_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "section_snapshot_id",
+            "source_section_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "section_text_not_empty": {
+          "name": "section_text_not_empty",
+          "value": "length(\"section\".\"source_section_id\") > 0 AND length(\"section\".\"section_code\") > 0"
+        },
+        "section_date_range": {
+          "name": "section_date_range",
+          "value": "\"section\".\"starts_on\" <= \"section\".\"ends_on\""
+        },
+        "section_modality_known": {
+          "name": "section_modality_known",
+          "value": "\"section\".\"modality\" IN ('IN_PERSON', 'HYBRID', 'ONLINE_SYNCHRONOUS', 'ONLINE_ASYNCHRONOUS')"
+        },
+        "section_in_person_has_campus": {
+          "name": "section_in_person_has_campus",
+          "value": "\"section\".\"campus_id\" IS NOT NULL OR \"section\".\"modality\" NOT IN ('IN_PERSON', 'HYBRID')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.student_snapshot_attempt": {
+      "name": "student_snapshot_attempt",
+      "schema": "",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "student_id": {
+          "name": "student_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "student_snapshot_id": {
+          "name": "student_snapshot_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "course_attempt_id": {
+          "name": "course_attempt_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "student_snapshot_attempt_tenant_id_institution_id_fk": {
+          "name": "student_snapshot_attempt_tenant_id_institution_id_fk",
+          "tableFrom": "student_snapshot_attempt",
+          "tableTo": "institution",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "student_snapshot_attempt_snapshot_fk": {
+          "name": "student_snapshot_attempt_snapshot_fk",
+          "tableFrom": "student_snapshot_attempt",
+          "tableTo": "student_snapshot",
+          "columnsFrom": [
+            "tenant_id",
+            "student_id",
+            "student_snapshot_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "student_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "student_snapshot_attempt_attempt_fk": {
+          "name": "student_snapshot_attempt_attempt_fk",
+          "tableFrom": "student_snapshot_attempt",
+          "tableTo": "course_attempt",
+          "columnsFrom": [
+            "tenant_id",
+            "student_id",
+            "course_attempt_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "student_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "student_snapshot_attempt_pkey": {
+          "name": "student_snapshot_attempt_pkey",
+          "columns": [
+            "tenant_id",
+            "student_snapshot_id",
+            "course_attempt_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {
+        "student_snapshot_attempt_position_key": {
+          "name": "student_snapshot_attempt_position_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "student_snapshot_id",
+            "position"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "student_snapshot_attempt_position_nonnegative": {
+          "name": "student_snapshot_attempt_position_nonnegative",
+          "value": "\"student_snapshot_attempt\".\"position\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.student_snapshot": {
+      "name": "student_snapshot",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "student_id": {
+          "name": "student_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "program_id": {
+          "name": "program_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "catalog_year": {
+          "name": "catalog_year",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_effective_at": {
+          "name": "source_effective_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ingested_at": {
+          "name": "ingested_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "student_snapshot_latest_idx": {
+          "name": "student_snapshot_latest_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "student_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "source_effective_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "student_snapshot_tenant_id_institution_id_fk": {
+          "name": "student_snapshot_tenant_id_institution_id_fk",
+          "tableFrom": "student_snapshot",
+          "tableTo": "institution",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "student_snapshot_student_fk": {
+          "name": "student_snapshot_student_fk",
+          "tableFrom": "student_snapshot",
+          "tableTo": "student",
+          "columnsFrom": [
+            "tenant_id",
+            "student_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "student_snapshot_tenant_id_id_key": {
+          "name": "student_snapshot_tenant_id_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "id"
+          ]
+        },
+        "student_snapshot_tenant_id_student_id_id_key": {
+          "name": "student_snapshot_tenant_id_student_id_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "student_id",
+            "id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "student_snapshot_catalog_year_not_empty": {
+          "name": "student_snapshot_catalog_year_not_empty",
+          "value": "\"student_snapshot\".\"catalog_year\" IS NULL OR length(\"student_snapshot\".\"catalog_year\") > 0"
+        },
+        "student_snapshot_effective_before_ingested": {
+          "name": "student_snapshot_effective_before_ingested",
+          "value": "\"student_snapshot\".\"source_effective_at\" <= \"student_snapshot\".\"ingested_at\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.student": {
+      "name": "student",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_student_id": {
+          "name": "source_student_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "record_version": {
+          "name": "record_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_effective_at": {
+          "name": "source_effective_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_deleted": {
+          "name": "is_deleted",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "student_tenant_id_source_id_idx": {
+          "name": "student_tenant_id_source_id_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "source_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "student_tenant_id_institution_id_fk": {
+          "name": "student_tenant_id_institution_id_fk",
+          "tableFrom": "student",
+          "tableTo": "institution",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "student_user_fk": {
+          "name": "student_user_fk",
+          "tableFrom": "student",
+          "tableTo": "user_identity",
+          "columnsFrom": [
+            "tenant_id",
+            "user_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "student_tenant_id_source_student_id_key": {
+          "name": "student_tenant_id_source_student_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "source_student_id"
+          ]
+        },
+        "student_tenant_id_id_key": {
+          "name": "student_tenant_id_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "student_source_id_not_empty": {
+          "name": "student_source_id_not_empty",
+          "value": "\"student\".\"source_id\" IS NULL OR length(\"student\".\"source_id\") > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.term": {
+      "name": "term",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "term_code": {
+          "name": "term_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "starts_on": {
+          "name": "starts_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ends_on": {
+          "name": "ends_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sequence": {
+          "name": "sequence",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "term_tenant_id_institution_id_fk": {
+          "name": "term_tenant_id_institution_id_fk",
+          "tableFrom": "term",
+          "tableTo": "institution",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "term_tenant_id_term_code_key": {
+          "name": "term_tenant_id_term_code_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "term_code"
+          ]
+        },
+        "term_tenant_id_sequence_key": {
+          "name": "term_tenant_id_sequence_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "sequence"
+          ]
+        },
+        "term_tenant_id_id_key": {
+          "name": "term_tenant_id_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "term_term_code_not_empty": {
+          "name": "term_term_code_not_empty",
+          "value": "length(\"term\".\"term_code\") > 0"
+        },
+        "term_date_range": {
+          "name": "term_date_range",
+          "value": "\"term\".\"starts_on\" <= \"term\".\"ends_on\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.user_identity": {
+      "name": "user_identity",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "issuer": {
+          "name": "issuer",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "subject": {
+          "name": "subject",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "roles": {
+          "name": "roles",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "user_identity_tenant_id_institution_id_fk": {
+          "name": "user_identity_tenant_id_institution_id_fk",
+          "tableFrom": "user_identity",
+          "tableTo": "institution",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "user_identity_issuer_subject_key": {
+          "name": "user_identity_issuer_subject_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "issuer",
+            "subject"
+          ]
+        },
+        "user_identity_tenant_id_id_key": {
+          "name": "user_identity_tenant_id_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "user_identity_roles_not_empty": {
+          "name": "user_identity_roles_not_empty",
+          "value": "cardinality(\"user_identity\".\"roles\") > 0"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

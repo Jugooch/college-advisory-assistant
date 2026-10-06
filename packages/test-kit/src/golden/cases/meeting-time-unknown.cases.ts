@@ -1,8 +1,7 @@
 /**
  * @file Golden cases: meetings whose times or days are to be announced, which are never PASS
- *   where they could meet (#218, ruling GR-02). Planned as GC-TBA-001–006 in
- *   `tests/golden/scheduling.golden.test.ts`; GC-TBA-004, about a hard constraint, waits for the
- *   solver (#220).
+ *   where they could meet (#218, ruling GR-02). GC-TBA-001–003, -005 and -006;
+ *   GC-TBA-004, about a hard constraint, is a solver case in `solver-travel-and-tba.cases.ts`.
  * @module @caa/test-kit/golden/cases/meeting-time-unknown
  * @requirement FR-07
  * @see docs/adr/0010-deterministic-bounded-schedule-solver.md
