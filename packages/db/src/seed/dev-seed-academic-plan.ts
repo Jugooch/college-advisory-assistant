@@ -15,10 +15,12 @@ import {
   type CourseAttempt,
   createAuditSnapshot,
   createCourseAttempt,
+  createProgram,
   createStudentSnapshot,
   GradeScheme,
   LetterGrade,
   type PrerequisiteRule,
+  type Program,
   type RequirementResultInput,
   RequirementState,
   type StudentSnapshot,
@@ -37,6 +39,7 @@ import { seedInstantMs, seedRecordTimes, seedRevisionId } from './dev-seed-recor
 
 /** Everything academic the dev seed writes, for one tenant. */
 export interface DevSeedAcademicPlan {
+  readonly programs: readonly Program[];
   readonly courses: readonly Course[];
   readonly rules: readonly PrerequisiteRule[];
   readonly policy: AcademicPolicy;
@@ -51,6 +54,16 @@ const CURRENT_STUDENT = '30000000-0000-4000-8000-000000000001';
 /** SYN-000002: deliberately shows a stale audit (UNKNOWN), for advisors. */
 const STALE_STUDENT = '30000000-0000-4000-8000-000000000002';
 const PROGRAM = seedId('80000000', 1);
+
+/** The seeded program, named as a catalog would. The ID is the one the snapshots and audits cite. */
+const SEED_PROGRAMS: readonly Program[] = [
+  createProgram({
+    id: PROGRAM,
+    tenantId: SEED_TENANT_ID,
+    sourceProgramId: 'DEMO-BS-PHYS',
+    name: 'Demo B.S. Physics',
+  }),
+];
 const CATALOG_YEAR = '2025-2026';
 
 const ATTEMPT = {
@@ -288,6 +301,7 @@ export function buildDevSeedAcademicPlan(now: Date): DevSeedAcademicPlan {
     staleNewer: seedRevisionId('a0000000', 3, now),
   };
   return {
+    programs: SEED_PROGRAMS,
     courses: Object.values(SEED_CATALOG),
     rules: SEED_RULES,
     policy: SEED_POLICY,

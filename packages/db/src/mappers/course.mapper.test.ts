@@ -12,6 +12,7 @@ const ROW: CourseRow = {
   tenantId: '0b8f6a36-3f7e-4a53-9c1e-8f1b2c3d4e5f',
   sourceCourseId: 'DEMO-MATH-101',
   label: 'DEMO-MATH 101',
+  title: 'Demo Calculus I',
   creditsHundredths: 300,
   minCreditsHundredths: null,
   maxCreditsHundredths: null,
@@ -31,12 +32,21 @@ describe('toCourse', () => {
       tenantId: '0b8f6a36-3f7e-4a53-9c1e-8f1b2c3d4e5f',
       sourceCourseId: 'DEMO-MATH-101',
       label: 'DEMO-MATH 101',
+      title: 'Demo Calculus I',
       creditsHundredths: 300,
       minCreditsHundredths: null,
       maxCreditsHundredths: null,
       equivalencyGroupId: null,
       creditsIncludedInCourseId: null,
     });
+  });
+
+  it('keeps a null title as null, meaning the catalog supplies none', () => {
+    expect(toCourse({ ...ROW, title: null }).title).toBeNull();
+  });
+
+  it('rejects a stored empty title', () => {
+    expect(() => toCourse({ ...ROW, title: '' })).toThrow(ZodError);
   });
 
   it('keeps the course whose credit total includes this one', () => {

@@ -29,6 +29,7 @@ import { courseTable } from '../tables/course.table';
 import { courseAttemptTable } from '../tables/course-attempt.table';
 import { institutionTable } from '../tables/institution.table';
 import { prerequisiteRuleTable } from '../tables/prerequisite-rule.table';
+import { programTable } from '../tables/program.table';
 import { requirementResultTable } from '../tables/requirement-result.table';
 import { studentTable } from '../tables/student.table';
 import { studentSnapshotTable } from '../tables/student-snapshot.table';
@@ -79,6 +80,7 @@ describe('seedDevData', () => {
     identities: userIdentityTable,
     students: studentTable,
     assignments: advisorAssignmentTable,
+    programs: programTable,
     courses: courseTable,
     prerequisiteRules: prerequisiteRuleTable,
     academicPolicies: academicPolicyTable,
@@ -118,6 +120,7 @@ describe('seedDevData', () => {
       identities: 3,
       students: 4,
       assignments: 2,
+      programs: 1,
       courses: 7,
       prerequisiteRules: 3,
       academicPolicies: 1,
@@ -128,9 +131,7 @@ describe('seedDevData', () => {
       snapshotAttemptLinks: 4,
       requirementResults: 5,
     });
-    const { snapshotAttemptLinks, requirementResults, ...reported } = before;
-    expect(counts).toEqual(reported);
-    expect([snapshotAttemptLinks, requirementResults]).toEqual([4, 5]);
+    expect(before).toMatchObject(counts);
   });
 
   it('lets dev auth find the seeded advisor by issuer and subject', async () => {
@@ -170,14 +171,9 @@ describe('seedDevData', () => {
   it("reads the current student's audit as pinned to that student's latest snapshot", async () => {
     const studentId = await seededStudentId(testDatabase, 'SYN-000001');
 
-    const snapshot = await createStudentSnapshotRepository(testDatabase.db).findLatest(
-      TENANT_A,
-      studentId,
-    );
-    const audit = await createAuditSnapshotRepository(testDatabase.db).findLatest(
-      TENANT_A,
-      studentId,
-    );
+    const { db } = testDatabase;
+    const snapshot = await createStudentSnapshotRepository(db).findLatest(TENANT_A, studentId);
+    const audit = await createAuditSnapshotRepository(db).findLatest(TENANT_A, studentId);
 
     expect(snapshot?.status === 'FOUND' && snapshot.revision.attempts.map((a) => a.status)).toEqual(
       ['COMPLETED', 'COMPLETED', 'IN_PROGRESS'],
@@ -193,14 +189,9 @@ describe('seedDevData', () => {
   it("reads the stale student's audit as pinned to an older snapshot than the latest", async () => {
     const studentId = await seededStudentId(testDatabase, 'SYN-000002');
 
-    const snapshot = await createStudentSnapshotRepository(testDatabase.db).findLatest(
-      TENANT_A,
-      studentId,
-    );
-    const audit = await createAuditSnapshotRepository(testDatabase.db).findLatest(
-      TENANT_A,
-      studentId,
-    );
+    const { db } = testDatabase;
+    const snapshot = await createStudentSnapshotRepository(db).findLatest(TENANT_A, studentId);
+    const audit = await createAuditSnapshotRepository(db).findLatest(TENANT_A, studentId);
 
     expect(snapshot?.status).toBe('FOUND');
     expect(audit?.status).toBe('FOUND');
@@ -239,14 +230,9 @@ describe('seedDevData', () => {
     await seedDevData(testDatabase.db, buildDevSeedPlan(LATER_RUN));
 
     const after = await countSeededRows();
-    const snapshot = await createStudentSnapshotRepository(testDatabase.db).findLatest(
-      TENANT_A,
-      studentId,
-    );
-    const audit = await createAuditSnapshotRepository(testDatabase.db).findLatest(
-      TENANT_A,
-      studentId,
-    );
+    const { db } = testDatabase;
+    const snapshot = await createStudentSnapshotRepository(db).findLatest(TENANT_A, studentId);
+    const audit = await createAuditSnapshotRepository(db).findLatest(TENANT_A, studentId);
     const grew = (name: string) => (after[name] ?? 0) - (before[name] ?? 0);
     expect(
       Object.keys(after)

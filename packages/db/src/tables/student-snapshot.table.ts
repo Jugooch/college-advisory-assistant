@@ -34,7 +34,7 @@ export const studentSnapshotTable = pgTable(
       .notNull()
       .references(() => institutionTable.id),
     studentId: uuid('student_id').notNull(),
-    // NOTE: no foreign key yet; programs aren't persisted, so the ID is validated by the mapper.
+    // NOTE: no foreign key to `program` yet (a follow-up); the ID is validated by the mapper.
     /** Official program in the source record, or null when the source didn't supply one. */
     programId: uuid('program_id'),
     /** Catalog label such as `2025-2026`, or null when the source didn't supply one. */

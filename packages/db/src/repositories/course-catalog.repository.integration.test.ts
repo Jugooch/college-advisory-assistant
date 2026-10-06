@@ -25,6 +25,7 @@ describe('CourseCatalogRepository.findCatalog', () => {
     const variableId = await insertCourse(db, tenantId, {
       sourceCourseId: 'DEMO-MATH-290',
       label: 'DEMO-MATH 290',
+      title: 'Demo Variable Topics',
       creditsHundredths: null,
       minCreditsHundredths: 100,
       maxCreditsHundredths: 400,
@@ -43,6 +44,7 @@ describe('CourseCatalogRepository.findCatalog', () => {
         tenantId,
         sourceCourseId: 'DEMO-MATH-101',
         label: 'DEMO-MATH 101',
+        title: null,
         creditsHundredths: 300,
         minCreditsHundredths: null,
         maxCreditsHundredths: null,
@@ -54,6 +56,7 @@ describe('CourseCatalogRepository.findCatalog', () => {
         tenantId,
         sourceCourseId: 'DEMO-MATH-290',
         label: 'DEMO-MATH 290',
+        title: 'Demo Variable Topics',
         creditsHundredths: null,
         minCreditsHundredths: 100,
         maxCreditsHundredths: 400,
@@ -61,6 +64,15 @@ describe('CourseCatalogRepository.findCatalog', () => {
         creditsIncludedInCourseId: null,
       },
     ]);
+  });
+
+  it('rejects an empty title, because unknown is stored as null', async () => {
+    const { db } = testDatabase;
+    const tenantId = await insertTenant(db);
+
+    await expect(insertCourse(db, tenantId, { title: '' })).rejects.toMatchObject(
+      violationOf('course_title_not_empty'),
+    );
   });
 
   it('round-trips a lab whose credits are included in its lecture', async () => {
