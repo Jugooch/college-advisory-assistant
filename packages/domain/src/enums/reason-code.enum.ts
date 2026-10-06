@@ -83,6 +83,8 @@ import { z } from 'zod';
  *   lab) for which the registrar published no permitted section.
  * - `SECTION_DATA_MISSING` (UNKNOWN): a requested course has no section in the term's published
  *   section data.
+ * - `LINKED_COURSE_NOT_CHECKED` (UNKNOWN): a linked section adds a course that this check didn't
+ *   verify.
  */
 export const ReasonCode = {
   MinGradeNotMet: 'MIN_GRADE_NOT_MET',
@@ -121,6 +123,7 @@ export const ReasonCode = {
   CampusNotAllowed: 'CAMPUS_NOT_ALLOWED',
   LinkedSectionUnavailable: 'LINKED_SECTION_UNAVAILABLE',
   SectionDataMissing: 'SECTION_DATA_MISSING',
+  LinkedCourseNotChecked: 'LINKED_COURSE_NOT_CHECKED',
 } as const;
 
 /** Union of every {@link ReasonCode} value. */

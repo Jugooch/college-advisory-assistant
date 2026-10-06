@@ -10,7 +10,9 @@ import {
   LIMITATIONS,
   MISSING_SECTIONS,
   PHYS_301,
+  PHYS_301L,
   PINNED_INPUTS,
+  prerequisiteCheck,
   singleSectionBundle,
   singleSectionOption,
   UNKNOWN_SCHEDULE,
@@ -174,6 +176,26 @@ describe('ScheduleOptionsResponseSchema limitations and pinning', () => {
     expect(accepts(pinned({ solverWorkCap: 3_000_001 }))).toBe(false);
     expect(accepts(pinned({ constraintHash: `sha256:${'0A'.repeat(32)}` }))).toBe(false);
     expect(accepts(pinned({ constraintHash: 'abc' }))).toBe(false);
+  });
+
+  it('rejects linked-course prerequisite evidence from a ruleset other than the pinned one', () => {
+    const linked = (rulesetVersion: string): unknown => ({
+      ...OPTIONS_FOUND,
+      options: [
+        buildOption({
+          linkedCourseResults: [
+            {
+              courseId: PHYS_301L,
+              prerequisite: prerequisiteCheck('PASS', rulesetVersion),
+              applicability: { kind: 'REQUIREMENT_APPLICABILITY', state: 'PASS' },
+            },
+          ],
+        }),
+      ],
+    });
+
+    expect(accepts(linked('demo-2026.1'))).toBe(true);
+    expect(accepts(linked('demo-2025.9'))).toBe(false);
   });
 
   it('rejects catalog display entries for courses the response does not name', () => {

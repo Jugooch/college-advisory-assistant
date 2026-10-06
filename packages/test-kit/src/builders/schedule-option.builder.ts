@@ -108,8 +108,9 @@ function passingLoad(
 
 /**
  * Builds a valid schedule option. By default it is rank 1 with one PASS bundle (DEMO-MATH 102,
- * 3.00 credits), no prerequisite rule, PASS applicability and allocation, a PASS credit load of
- * the bundles' credits, no unmet preference, and a `VALIDATED` aggregate.
+ * 3.00 credits), no prerequisite rule, no linked-course result, PASS applicability and
+ * allocation, a PASS credit load of the bundles' credits, no unmet preference, and a `VALIDATED`
+ * aggregate.
  *
  * Course results follow the bundles unless given, and so does the credit load. Change a check's
  * state and the aggregate together: the contract rejects an aggregate that doesn't follow the
@@ -129,6 +130,7 @@ export function buildScheduleOption(overrides: Partial<ScheduleOptionInput> = {}
       prerequisite: null,
       applicability: { kind: CheckKind.RequirementApplicability, state: CheckState.Pass },
     })),
+    linkedCourseResults: [],
     setResults: {
       allocation: [{ kind: CheckKind.RequirementAllocation, state: CheckState.Pass }],
       creditLoad: passingLoad(parsedBundles),
