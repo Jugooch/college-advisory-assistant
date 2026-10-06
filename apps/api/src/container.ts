@@ -21,11 +21,11 @@ import {
   createTermRepository,
   createUserIdentityRepository,
   type PrerequisiteRuleRepository,
-  type SectionSnapshotRepository,
   type StudentRepository,
   type StudentSnapshotRepository,
   type StudentUserLinkRepository,
   type TermRepository,
+  type TermSectionSnapshotRepository,
   type UserIdentityRepository,
 } from '@caa/db';
 
@@ -46,6 +46,11 @@ import { createHealthController, type HealthController } from './modules/health/
 import { createHealthService } from './modules/health/health.service';
 import { createPinnedRecordsService } from './modules/pinned-records/pinned-records.service';
 import { createPinnedSectionsService } from './modules/pinned-sections/pinned-sections.service';
+import {
+  createPlannableTermsController,
+  type PlannableTermsController,
+} from './modules/plannable-terms/plannable-terms.controller';
+import { createPlannableTermsService } from './modules/plannable-terms/plannable-terms.service';
 import {
   createScheduleOptionsController,
   type ScheduleOptionsController,
@@ -75,6 +80,7 @@ export interface Controllers {
   readonly academicSummary: AcademicSummaryController;
   readonly courseChecks: CourseChecksController;
   readonly scheduleOptions: ScheduleOptionsController;
+  readonly plannableTerms: PlannableTermsController;
 }
 
 /** Every repository the API reads through. Tests pass in-memory fakes. */
@@ -90,7 +96,7 @@ export interface Repositories {
   readonly prerequisiteRules: PrerequisiteRuleRepository;
   readonly academicPolicies: AcademicPolicyRepository;
   readonly terms: TermRepository;
-  readonly sectionSnapshots: SectionSnapshotRepository;
+  readonly sectionSnapshots: TermSectionSnapshotRepository;
   readonly campusTransitions: CampusTransitionRepository;
 }
 
@@ -203,6 +209,14 @@ export function createContainer(options: ContainerOptions): AppDependencies {
       ),
       students: createStudentsController(studentsService),
       ...createAcademicControllers(options, studentsService),
+      plannableTerms: createPlannableTermsController(
+        createPlannableTermsService({
+          access: accessService,
+          sectionSnapshots: repositories.sectionSnapshots,
+          now,
+          maxSourceAgeMs: env.ACADEMIC_SOURCE_MAX_AGE_MS,
+        }),
+      ),
     },
     sessionResolver: createSessionResolver(env, repositories.userIdentities),
   };
