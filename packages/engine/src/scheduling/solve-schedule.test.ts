@@ -87,6 +87,7 @@ function solve(
     policy: POLICY,
     constraints: [],
     transitionPolicy: null,
+    prerequisiteRules: [],
     workCap: 3_000_000,
     ...overrides,
   });
