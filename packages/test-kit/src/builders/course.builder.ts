@@ -25,6 +25,7 @@ export function buildCourse(overrides: Partial<CourseInput> = {}, seed = 1): Cou
     tenantId: SYNTHETIC_TENANTS.a.id,
     sourceCourseId: `DEMO-GEN-${number}`,
     label: `DEMO-GEN ${number}`,
+    title: null,
     creditsHundredths: 300,
     minCreditsHundredths: null,
     maxCreditsHundredths: null,
