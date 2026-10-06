@@ -81,6 +81,8 @@ Error vocabulary: UNAUTHORIZED, OUT_OF_SCOPE, SOURCE_UNAVAILABLE, STALE_SOURCE, 
 
 _Decision note (2026-09-29, ADR-0010, #209):_ Until plan drafts (FR-11) need a stored request, schedule options are served synchronously by `POST /v1/students/:studentId/schedule-options` on pinned inputs, bounded by the solver's work cap, like course checks. The request-and-poll pair above is deferred. SEARCH_TIMEOUT and NO_FEASIBLE_PLAN are returned as values of a 200 response's `outcome` field, with verified evidence, not as error envelopes. A stale section snapshot is still 409 STALE_SOURCE, and seat and registration claims are left out and named as limitations.
 
+_Decision note (2026-10-06, ADR-0010 Amendment 6, #310):_ `GET /v1/students/:studentId/plannable-terms` lists the tenant's terms whose latest published section snapshot is unique and fresh, so the planner can offer a term picker. It is read-only, takes the tenant from the session, and carries no freshness marker. Schedule options still gates the chosen term.
+
 ## Retention and deletion proposal
 
 Minimize imported fields. Do not ingest SSNs, medical detail, full financial-aid files, or immigration documents for V1. Proposed defaults for review: raw conversation 30 days; reproducibility snapshots and plan/case records for the agreed pilot plus 90 days; security access events 1 year; backups 35 days. These are placeholders pending institutional records schedules, legal holds, and contractual needs, not asserted legal requirements.
