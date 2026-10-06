@@ -34,7 +34,7 @@ A third library package needs test-only exports, which would suggest a dedicated
 
 ## Amendment 1 (2026-10-06, issue #253): app test support may import `@caa/db/testing`
 
-**Related:** standard 01 §Test entry points, standard 08 §Seed-mirror ripple, ADR-0004 Amendment 1, issues #252, #253, #254, #255.
+**Related:** standard 01 §Test entry points, standard 08 §Seed-mirror ripple (retired), ADR-0004 Amendment 1, issues #252, #253, #254, #255.
 
 **Context.** `apps/api/src/testing/seed-scenario-fixtures.ts` is a hand copy of the dev seed, because lint applies the `TEST_ONLY` ban to every file under `apps/*/src/**`, including the app's own test support. So each seed change needs the seed-mirror ripple override (ADR-0004 Amendment 1). Yet `src/testing.ts` and `src/testing/**` are already test-only: the production bundle is built from the app's server entry and never includes them. Option (b) of #252 removes the copy by letting that test support import the seed plan.
 
@@ -53,7 +53,7 @@ A third library package needs test-only exports, which would suggest a dedicated
 
 **Consequences.**
 
-- A seed change no longer needs an api edit, so the seed-mirror ripple override retires after step 3.
+- A seed change no longer needs an api edit, so the seed-mirror ripple override retires after step 3. Done: #255 merged as PR #346, and #333 retired the case and marked ADR-0004 Amendment 1 superseded.
 - An api test that asserts on a seeded value still breaks when that value changes. As today, that is outside any override: the api-engineer changes the test first in its own PR where it can, otherwise the tech lead rules on the issue.
 
 **Revisit when** a library package needs test support that imports another `./testing` entry.
