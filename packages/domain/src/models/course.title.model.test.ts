@@ -5,8 +5,8 @@ import { describe, expect, it } from 'vitest';
 
 import { type CourseInput, createCourse } from './course.model';
 
-/** A course from a producer that doesn't set the title yet (staged rollout, #241). */
-const WITHOUT_TITLE: CourseInput = {
+/** A course input with the title omitted; each test sets it explicitly. */
+const WITHOUT_TITLE: Omit<CourseInput, 'title'> = {
   id: '3c4d5e6f-0000-4000-8000-000000000101',
   tenantId: '0b8f6a36-3f7e-4a53-9c1e-8f1b2c3d4e5f',
   sourceCourseId: 'DEMO-MATH-101',
@@ -29,8 +29,8 @@ describe('createCourse title', () => {
     expect(createCourse({ ...WITHOUT_TITLE, title: null }).title).toBeNull();
   });
 
-  it('accepts an omitted title during the staged rollout, and keeps it omitted', () => {
-    expect('title' in createCourse(WITHOUT_TITLE)).toBe(false);
+  it('rejects an omitted title, because the key is required', () => {
+    expect(() => createCourse(WITHOUT_TITLE as CourseInput)).toThrow();
   });
 
   it('rejects an empty title, because unknown is an explicit null', () => {

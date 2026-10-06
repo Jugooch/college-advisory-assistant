@@ -60,11 +60,9 @@ export const CourseSchema = z
     label: z.string().min(1),
     /**
      * Catalog title such as `Calculus I`: plain catalog data, never AI-generated and never
-     * identity. `null` means the catalog supplies no title; an omitted value means the producer
-     * hasn't been updated yet (staged rollout, standard 08 §Required-field ripple).
+     * identity. `null` means the catalog supplies no title.
      */
-    // TODO(#241): remove `.optional()` once the db mapper, seed, and test-kit fixtures set it.
-    title: z.string().min(1).nullable().optional(),
+    title: z.string().min(1).nullable(),
     /** Fixed credit value in hundredths of a credit, or `null` for a variable-credit course. */
     creditsHundredths: CreditsHundredthsSchema.nullable(),
     /** Lower credit bound in hundredths for a variable-credit course, or `null` when fixed. */

@@ -11,6 +11,7 @@ const ENSEMBLE: CourseInput = {
   tenantId: '0b8f6a36-3f7e-4a53-9c1e-8f1b2c3d4e5f',
   sourceCourseId: 'DEMO-MUS-150',
   label: 'DEMO-MUS 150',
+  title: null,
   creditsHundredths: 100,
   minCreditsHundredths: null,
   maxCreditsHundredths: null,
