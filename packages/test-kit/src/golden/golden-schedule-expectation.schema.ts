@@ -110,7 +110,11 @@ const UnresolvedItemSchema = ExpectedScheduleCheckSchema.refine(
   { message: 'An unresolved item is an UNKNOWN check for a missing section or link' },
 );
 
-/** What each outcome carries (ADR-0010 §5). `null` for `searchComplete` means either value. */
+/**
+ * What each outcome carries (ADR-0010 §5 and Amendment 5). `null` for `searchComplete` means
+ * either value. `unresolved` is `'required'`, `'never'`, or `'optional'`, which Amendment 5
+ * allows on a search that ran, for sections dropped because a linked component has none.
+ */
 const OUTCOME_SHAPE: Readonly<
   Record<
     ScheduleOutcome,
@@ -118,7 +122,7 @@ const OUTCOME_SHAPE: Readonly<
       readonly searchComplete: boolean | null;
       readonly options: boolean;
       readonly conflicts: boolean;
-      readonly unresolved: boolean;
+      readonly unresolved: 'required' | 'never' | 'optional';
     }
   >
 > = {
@@ -126,25 +130,25 @@ const OUTCOME_SHAPE: Readonly<
     searchComplete: null,
     options: true,
     conflicts: false,
-    unresolved: false,
+    unresolved: 'optional',
   },
   [ScheduleOutcome.NoFeasiblePlan]: {
     searchComplete: true,
     options: false,
     conflicts: true,
-    unresolved: false,
+    unresolved: 'never',
   },
   [ScheduleOutcome.SearchTimeout]: {
     searchComplete: false,
     options: false,
     conflicts: false,
-    unresolved: false,
+    unresolved: 'optional',
   },
   [ScheduleOutcome.NeedsVerification]: {
     searchComplete: false,
     options: false,
     conflicts: false,
-    unresolved: true,
+    unresolved: 'required',
   },
 };
 
@@ -180,10 +184,23 @@ export const ExpectedScheduleSchema = z
         (shape.searchComplete === null || shape.searchComplete === expected.searchComplete) &&
         shape.options === expected.options.length > 0 &&
         shape.conflicts === (expected.conflictSet !== null) &&
-        shape.unresolved === expected.unresolved.length > 0
+        (shape.unresolved === 'required'
+          ? expected.unresolved.length > 0
+          : shape.unresolved === 'optional' || expected.unresolved.length === 0)
       );
     },
     { message: 'searchComplete, options, conflictSet and unresolved must match the outcome' },
+  )
+  // SAFETY: a search that ran drops a section only for a missing linked component, so a missing
+  // section there would mean a course the search never had (ADR-0010 Amendment 5).
+  .refine(
+    ({ outcome, unresolved }) =>
+      outcome === ScheduleOutcome.NeedsVerification ||
+      unresolved.every(({ check }) => check.reasonCode === ReasonCode.LinkedSectionUnavailable),
+    {
+      message: 'A search that ran lists only LINKED_SECTION_UNAVAILABLE as unresolved',
+      path: ['unresolved'],
+    },
   )
   // SAFETY: an UNKNOWN schedule never ranks above a PASS one, and options are distinct
   // (ADR-0010 §4).

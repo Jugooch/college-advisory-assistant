@@ -6,9 +6,10 @@
  * @requirement NFR-01
  * @see docs/planning/13-test-and-evaluation-strategy.md
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect } from 'vitest';
 
 import { findGoldenMismatches } from '../support/golden-runner';
+import { findScheduleMismatches } from '../support/golden-schedule-runner';
 import { itForFinding } from '../support/known-findings';
 import {
   GOLDEN_HOLDOUT_CORPUS,
@@ -24,10 +25,12 @@ describe(`golden corpus holdout ${GOLDEN_HOLDOUT_VERSION}`, () => {
   }
 });
 
-// NOTE: the scheduling cases are validated by their schema when this file loads, and run once
-// the solver exists (#220, which builds on #218 and #219); until then each todo names #220.
+// NOTE: the scheduling cases are validated by their schema when this file loads, and run through
+// the solver (#220).
 describe(`golden corpus holdout ${GOLDEN_HOLDOUT_VERSION}: scheduling`, () => {
   for (const golden of GOLDEN_HOLDOUT_SCHEDULE_CORPUS) {
-    it.todo(`${golden.id} (#220)`);
+    itForFinding(golden.id, golden.id, () => {
+      expect(findScheduleMismatches(golden)).toEqual([]);
+    });
   }
 });
