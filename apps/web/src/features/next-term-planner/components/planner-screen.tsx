@@ -53,15 +53,6 @@ export function PlannerScreen({ view, ...form }: PlannerScreenProps): ReactEleme
       {view.kind === 'search-failed' ? (
         <ApiErrorNotice error={view.error} headingId="search-error-heading" />
       ) : null}
-      {view.kind === 'searched' ? (
-        <section aria-labelledby="searched-heading">
-          <h2 id="searched-heading">Search finished</h2>
-          <p>
-            The search found {view.result.options.length} schedule option
-            {view.result.options.length === 1 ? '' : 's'}. Nothing was registered.
-          </p>
-        </section>
-      ) : null}
       <ReviewStep
         studentId={studentId}
         values={values}

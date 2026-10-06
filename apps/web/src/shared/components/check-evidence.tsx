@@ -1,7 +1,7 @@
 /**
  * @file The evidence behind one check, one interaction away: source reference, ruleset, rule
  * leaves, courses, and credit arithmetic.
- * @module @caa/web/features/course-checks/components/check-evidence
+ * @module @caa/web/shared/components/check-evidence
  * @requirement FR-10
  * @requirement NFR-02
  */
@@ -11,9 +11,8 @@ import type { CheckResult } from '@caa/domain';
 
 import { CourseLabel } from '@/shared/components/course-label';
 import type { CourseLookup } from '@/shared/utils/course-display';
+import { describeCreditLoad, describeLeaf } from '@/shared/utils/decisive-leaf-wording';
 import { describeReason } from '@/shared/utils/reason-code-wording';
-
-import { describeCreditLoad, describeLeaf } from '../utils/decisive-leaf-wording';
 
 /** Props for {@link CheckEvidence}. */
 export interface CheckEvidenceProps {
@@ -68,6 +67,18 @@ function detailFacts(
       </li>
     ));
     facts.push({ term: 'Rule parts that decided it', detail: <ul>{leaves}</ul> });
+  }
+  const issues = evidence.scheduleIssues ?? [];
+  if (issues.length > 0) {
+    // SAFETY: schedule issues are shown only through the fixed reason-code wording.
+    const items = issues.map((issue, index) => (
+      <li key={`${String(index)}-${issue.reasonCode}`}>
+        {'courseId' in issue ? <CourseLabel courseId={issue.courseId} courses={courses} /> : null}
+        {'courseId' in issue ? ': ' : null}
+        {describeReason(issue.reasonCode).explanation}
+      </li>
+    ));
+    facts.push({ term: 'Schedule issues', detail: <ul>{items}</ul> });
   }
   const courseIds = evidence.courseIds ?? [];
   if (courseIds.length > 0) {
