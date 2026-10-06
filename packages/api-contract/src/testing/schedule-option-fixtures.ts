@@ -6,6 +6,8 @@
  * @see docs/standards/07-testing.md
  */
 
+import { namedCampusIds } from '../contracts/schedule-display.contract';
+
 /** A JSON-like payload a test passes to a schema. */
 export type Payload = Readonly<Record<string, unknown>>;
 
@@ -299,6 +301,14 @@ export const LIMITATIONS = [
   'NOT_REGISTERED',
 ] as const;
 
+/** The requested term of a synthetic response. */
+const SYNTHETIC_TERM: Payload = {
+  id: TERM_ID,
+  termCode: '2026FA',
+  startsOn: '2026-08-24',
+  endsOn: '2026-12-11',
+};
+
 /** Pinned inputs of a synthetic response. */
 export const PINNED_INPUTS: Payload = {
   studentSnapshotId: '3c4d5e6f-0000-4000-8000-000000000001',
@@ -323,7 +333,7 @@ export const CREDIT_CONFLICT = creditLoadCheck(2000, 'FAIL');
  * @returns A response payload.
  */
 export function buildResponse(fields: Payload = {}): Payload {
-  return {
+  const response: Payload = {
     outcome: 'OPTIONS_FOUND',
     searchComplete: true,
     courseIds: [PHYS_301],
@@ -333,6 +343,15 @@ export function buildResponse(fields: Payload = {}): Payload {
     limitations: LIMITATIONS,
     pinnedInputs: PINNED_INPUTS,
     courses: [],
+    term: SYNTHETIC_TERM,
     ...fields,
   };
+  // Lists exactly the campuses the payload names, unless the caller sets `campuses`.
+  const campuses = namedCampusIds(response as unknown as Parameters<typeof namedCampusIds>[0]).map(
+    (id) => ({
+      id,
+      name: `Campus ${id.slice(-4)}`,
+    }),
+  );
+  return { campuses, ...response };
 }
