@@ -1,10 +1,10 @@
 /**
  * @file Acceptance: course checks reach the student with the states the golden corpus adjudicated,
  * unchanged by the API. AC02 stays CONDITIONAL only where policy permits, AC05 competing courses
- * are never both satisfied, and AC18 counts the selected credit value. A course with no rule has
- * `prerequisite: null`, never a PASS, and a course outside the tenant's catalog is refused.
- * Expected values restate golden cases GC-IP-001, GC-IP-002, GC-ALLOC-001, GC-ALLOC-004,
- * GC-APP-001, GC-VAR-001 and GC-VAR-002 literally.
+ * are never both satisfied, and AC18 counts the selected credit value. A course outside the tenant's
+ * catalog is refused. Expected values restate golden cases GC-IP-001, GC-IP-002, GC-ALLOC-001,
+ * GC-ALLOC-004, GC-APP-001, GC-VAR-001 and GC-VAR-002 literally. Missing and explicit-`NONE`
+ * rules are in AC29's second file.
  * @requirement FR-05
  * @requirement FR-06
  * @requirement FR-09
@@ -20,7 +20,6 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { AggregateState, CheckKind, CheckState, ReasonCode } from '@caa/domain';
 import {
   buildCourse,
-  buildPrerequisiteRule,
   completedAttempt,
   inProgressAttempt,
   SYNTHETIC_COURSES,
@@ -232,20 +231,6 @@ describe('AC29 course checks carry the engine states unchanged', () => {
     });
     expect(response.body).not.toMatchObject({ data: { aggregate: AggregateState.Validated } });
     expect(response.body).not.toMatchObject({ data: { aggregate: AggregateState.Conditional } });
-  });
-
-  it('returns prerequisite null, not a PASS, for a course with no rule', async () => {
-    world.rules = [
-      buildPrerequisiteRule(),
-      buildPrerequisiteRule({ courseId: phys201.id, rulesetVersion: 'demo-2025.1' }, 2),
-    ];
-
-    const response = await checkCourses(app, { courseIds: [phys201.id] });
-
-    expect(response).toMatchObject({
-      statusCode: 200,
-      body: { data: { courseResults: [{ courseId: phys201.id, prerequisite: null }] } },
-    });
   });
 
   it('refuses a course that is not in the catalog with 400', async () => {
