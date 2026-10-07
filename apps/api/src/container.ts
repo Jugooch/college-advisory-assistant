@@ -17,12 +17,14 @@ import {
   createCourseCatalogRepository,
   createDatabase,
   createPrerequisiteRuleRepository,
+  createProgramRepository,
   createSectionSnapshotRepository,
   createStudentRepository,
   createStudentSnapshotRepository,
   createTermRepository,
   createUserIdentityRepository,
   type PrerequisiteRuleRepository,
+  type ProgramRepository,
   type StudentRepository,
   type StudentSnapshotRepository,
   type StudentUserLinkRepository,
@@ -95,6 +97,7 @@ export interface Repositories {
   readonly studentSnapshots: StudentSnapshotRepository;
   readonly auditSnapshots: AuditSnapshotRepository;
   readonly courseCatalog: CourseCatalogRepository;
+  readonly programs: ProgramRepository;
   readonly prerequisiteRules: PrerequisiteRuleRepository;
   readonly academicPolicies: AcademicPolicyRepository;
   readonly terms: TermRepository;
@@ -154,6 +157,7 @@ function createAcademicControllers(
     pinnedRecords,
     maxSkewMs: env.AUDIT_RECORD_MAX_SKEW_MS,
     courseCatalog: repositories.courseCatalog,
+    programs: repositories.programs,
   });
   const courseSetInputs = createCourseSetInputsService({
     courseCatalog: repositories.courseCatalog,
@@ -244,6 +248,7 @@ export function createRuntimeDependencies(env: ApiEnv): AppDependencies {
     studentSnapshots: createStudentSnapshotRepository(db),
     auditSnapshots: createAuditSnapshotRepository(db),
     courseCatalog: createCourseCatalogRepository(db),
+    programs: createProgramRepository(db),
     prerequisiteRules: createPrerequisiteRuleRepository(db),
     academicPolicies: createAcademicPolicyRepository(db),
     terms: createTermRepository(db),

@@ -81,7 +81,7 @@ export const SEED_COURSES = {
   ind390: seedCourse('DEMO-IND-390'),
 } as const;
 
-/** The seeded prerequisite rules. DEMO-MATH 101, DEMO-ENGL 101, the lab, and IND 390 have none. */
+/** The seeded prerequisite rules. DEMO-MATH 101, DEMO-ENGL 101, the lab, and IND 390 have an explicit `NONE` rule. */
 export const SEED_RULES = academic.rules;
 
 /** The seeded policy: in-progress prerequisites allowed, MOST_RECENT repeats, 12.00 to 18.00. */
