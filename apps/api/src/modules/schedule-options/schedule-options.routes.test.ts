@@ -22,7 +22,11 @@ import {
   SYNTHETIC_TENANTS,
 } from '@caa/test-kit';
 
-import { buildSeededWorldApp, readLogLines } from '../../testing/course-checks-harness';
+import {
+  buildSeededWorldApp,
+  readLogLines,
+  withoutRuleOf,
+} from '../../testing/course-checks-harness';
 import { bearer, readError, STUDENTS, TOKENS } from '../../testing/fixtures';
 import {
   buildScheduleSnapshot,
@@ -107,6 +111,20 @@ describe('POST /v1/students/:studentId/schedule-options', () => {
 
     expect(response.statusCode).toBe(404);
     expect(readError(response.json()).code).toBe(ErrorCode.NotFound);
+  });
+
+  it('sends UNKNOWN PREREQUISITE_RULE_MISSING for a requested course with no rule row', async () => {
+    Object.assign(store, withoutRuleOf(SEED_COURSES.math102.id)(store));
+
+    const response = await postOptions(STUDENTS.own.id, TOKENS.student);
+
+    expect(response.statusCode).toBe(200);
+    for (const option of readOptions(response.json()).options) {
+      expect(option.aggregate).not.toBe('VALIDATED');
+      expect(option.courseResults.map((r) => r.prerequisite?.reasonCode)).toContain(
+        'PREREQUISITE_RULE_MISSING',
+      );
+    }
   });
 
   it('returns 401 without a session', async () => {

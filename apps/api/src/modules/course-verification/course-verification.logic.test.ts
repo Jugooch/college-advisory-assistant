@@ -241,14 +241,20 @@ describe('verifyCourseSet credits included in a linked course (#222)', () => {
 });
 
 describe('verifyCourseSet', () => {
-  it('reports a course with no prerequisite rule as null, not a PASS', () => {
+  it('reports a course with no rule row as UNKNOWN PREREQUISITE_RULE_MISSING, not a PASS', () => {
     const inputs = inputsFor(CURRENT, [engl101]);
     const withoutRule = {
       ...inputs,
       courses: inputs.courses.map((entry) => ({ ...entry, rule: null })),
     };
 
-    expect(verifyCourseSet(withoutRule).courseResults[0]?.prerequisite).toBeNull();
+    const checks = verifyCourseSet(withoutRule);
+
+    expect(checks.courseResults[0]?.prerequisite).toMatchObject({
+      state: 'UNKNOWN',
+      reasonCode: 'PREREQUISITE_RULE_MISSING',
+    });
+    expect(checks.aggregate).not.toBe('VALIDATED');
   });
 
   it('pins the snapshot, audit, and ruleset versions, and the record times they describe', () => {
@@ -287,7 +293,7 @@ describe('verifyCourseSet', () => {
       ...checks.courseResults.flatMap((result) => [result.prerequisite, result.applicability]),
       ...checks.setResults.allocation,
       checks.setResults.creditLoad,
-    ].filter((result) => result !== null && result.state !== CheckState.Pass);
+    ].filter((result) => result.state !== CheckState.Pass);
 
     expect(nonPassing).toEqual([
       expect.objectContaining({ kind: 'PREREQUISITE', state: 'CONDITIONAL' }),

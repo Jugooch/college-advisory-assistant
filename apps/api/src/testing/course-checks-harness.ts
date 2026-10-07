@@ -8,7 +8,7 @@ import { z } from 'zod';
 
 import { type CourseChecksResponse, CourseChecksResponseSchema } from '@caa/api-contract';
 import type { PrerequisiteRuleRepository } from '@caa/db';
-import type { PrerequisiteRule } from '@caa/domain';
+import type { CourseId, PrerequisiteRule } from '@caa/domain';
 import { buildActor, SYNTHETIC_TENANTS } from '@caa/test-kit';
 
 import type { Repositories } from '../container';
@@ -255,4 +255,20 @@ export function rulesAtRuleset(rulesetVersion: string): PrerequisiteRuleReposito
       return Promise.resolve(rule === undefined ? null : { ...rule, rulesetVersion });
     },
   };
+}
+
+/**
+ * A store change that removes every prerequisite rule of one course, to simulate a ruleset that
+ * has no rule row for it.
+ *
+ * @param courseId - The course whose rule rows are removed.
+ * @returns The change, for `CheckSetup.change`.
+ */
+export function withoutRuleOf(
+  courseId: CourseId,
+): (store: InMemoryAcademicStore) => InMemoryAcademicStore {
+  return (store) => ({
+    ...store,
+    rules: (store.rules ?? []).filter((r) => r.courseId !== courseId),
+  });
 }
