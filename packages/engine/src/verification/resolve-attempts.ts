@@ -13,24 +13,45 @@ import {
   type CourseId,
   type EquivalencyGroupId,
   ReasonCode,
+  type RepeatableForCredit,
 } from '@caa/domain';
 
+import { countRepeatCredit, type RepeatCreditResolution } from './count-repeat-credit';
+import { type GroupRepeatStatement, groupRepeatStatement } from './group-repeat-statement';
 import {
   type AttemptResolutionContext,
   type CountingResolution,
   selectCountingAttempt,
 } from './select-counting-attempt';
 
+/**
+ * Which attempts of a group count. A group is repeatable for credit when every catalog course
+ * of it states the same `repeatableForCredit`; then several attempts can count (`attempts`,
+ * see `countRepeatCredit`). Otherwise at most one counts, chosen by the repeat policy.
+ */
+export type GroupCounting =
+  | {
+      /** `null`: no statement, or the group's courses disagree. */
+      readonly repeatableForCredit: null;
+      readonly counting: CountingResolution;
+    }
+  | {
+      /** The statement shared by every catalog course of the group. */
+      readonly repeatableForCredit: RepeatableForCredit;
+      readonly counting: RepeatCreditResolution;
+    };
+
 /** A student's attempts at one course, or at any course of one equivalency group. */
-export interface AttemptGroup {
+export type AttemptGroup = AttemptGroupFields & GroupCounting;
+
+/** The fields of an {@link AttemptGroup} that don't depend on how its attempts count. */
+interface AttemptGroupFields {
   /** `equivalency:<id>` for an equivalency group, `course:<id>` for a course without one. */
   readonly groupKey: string;
   /** The shared equivalency group, or `null` when the group is a single course. */
   readonly equivalencyGroupId: EquivalencyGroupId | null;
   /** Distinct course IDs attempted in this group, sorted. */
   readonly courseIds: readonly CourseId[];
-  /** The one attempt that counts, if it can be determined. At most one per group. */
-  readonly counting: CountingResolution;
   /** IN_PROGRESS attempts. They earn nothing yet. */
   readonly inProgress: readonly CourseAttempt[];
   /** TRANSFER_PENDING attempts. They never earn credit until awarded. */
@@ -50,14 +71,29 @@ interface GroupDraft {
   readonly attempts: CourseAttempt[];
 }
 
-/** Resolves a group's counting attempt from its COMPLETED and TRANSFER_AWARDED attempts. */
-type CountingSelector = (completed: readonly CourseAttempt[]) => CountingResolution;
+/** Resolves a group's counting attempts from its COMPLETED and TRANSFER_AWARDED attempts. */
+type CountingSelector = (
+  completed: readonly CourseAttempt[],
+  statement: GroupRepeatStatement,
+) => GroupCounting;
 
 /** Every group's resolution when the catalog doesn't cover every attempted course. */
-const CATALOG_INCOMPLETE: CountingResolution = {
-  state: CountingState.Undetermined,
-  reasonCode: ReasonCode.CourseNotInCatalog,
-  earnedCreditsHundredths: null,
+const CATALOG_INCOMPLETE: GroupCounting = {
+  repeatableForCredit: null,
+  counting: {
+    state: CountingState.Undetermined,
+    reasonCode: ReasonCode.CourseNotInCatalog,
+    earnedCreditsHundredths: null,
+  },
+};
+
+const STATEMENTS_CONFLICT: GroupCounting = {
+  repeatableForCredit: null,
+  counting: {
+    state: CountingState.Undetermined,
+    reasonCode: ReasonCode.RepeatPolicyUndefined,
+    earnedCreditsHundredths: null,
+  },
 };
 
 /**
@@ -65,7 +101,11 @@ const CATALOG_INCOMPLETE: CountingResolution = {
  * each group's counting attempt so that repeats and aliases never earn credit twice.
  *
  * Earned credit for a group is the counting attempt's `creditsEarnedHundredths`, for fixed and
- * variable-credit courses alike; the course's credit fields are never used as a fallback.
+ * variable-credit courses alike; the course's credit fields are never used as a fallback. When
+ * every catalog course of the group states the same `repeatableForCredit`, several attempts
+ * can count within its caps (see `countRepeatCredit`); when they state different values, a
+ * group with two or more completed or awarded attempts is UNDETERMINED
+ * (`REPEAT_POLICY_UNDEFINED`).
  *
  * If any attempt's course is missing from `courses`, every group is UNDETERMINED
  * (`COURSE_NOT_IN_CATALOG`), because the missing course could be an alias in any group.
@@ -101,35 +141,81 @@ export function resolveAttempts(
   // §Candidate formation: never count two aliases of the same course as separate credits).
   const isCatalogComplete = attempts.every((attempt) => courseById.has(attempt.courseId));
   const selectCounting: CountingSelector = isCatalogComplete
-    ? (completed) => selectCountingAttempt(completed, context)
+    ? (completed, statement) => resolveCounting(completed, statement, context)
     : () => CATALOG_INCOMPLETE;
   // NOTE: keys are compared by UTF-16 code unit, not localeCompare, so the order is the same
   // on every machine.
   return [...drafts.entries()]
     .sort(([left], [right]) => Number(left > right) - Number(left < right))
-    .map(([groupKey, draft]) => toAttemptGroup(groupKey, draft, selectCounting));
+    .map(([groupKey, draft]) => {
+      const groupCourses = courses.filter((course) =>
+        draft.equivalencyGroupId === null
+          ? course.id === draft.attempts[0]?.courseId
+          : course.equivalencyGroupId === draft.equivalencyGroupId,
+      );
+      return toAttemptGroup(
+        { groupKey, draft, statement: groupRepeatStatement(groupCourses) },
+        selectCounting,
+      );
+    });
 }
 
 /**
- * Finishes one group: splits attempts by status and resolves the counting attempt.
+ * Resolves a group's counting attempts under its repeat-for-credit statement.
  *
- * @param groupKey - The group's key.
- * @param draft - The group's collected attempts.
- * @param selectCounting - Resolves the counting attempt from the group's countable attempts.
+ * @param completed - The group's COMPLETED and TRANSFER_AWARDED attempts.
+ * @param statement - The statement shared by the group's catalog courses.
+ * @param context - The academic policy and the term order.
+ * @returns The group's statement and counting resolution.
+ */
+function resolveCounting(
+  completed: readonly CourseAttempt[],
+  statement: GroupRepeatStatement,
+  context: AttemptResolutionContext,
+): GroupCounting {
+  // SAFETY: when the catalog disagrees on whether a repeat earns credit again, the engine can't
+  // tell how many attempts count. A single attempt is unaffected (ADR-0012 §2: when it
+  // applies; AC04).
+  if (statement.isConflict && completed.length >= 2) {
+    return STATEMENTS_CONFLICT;
+  }
+  // SAFETY: without an explicit statement only one attempt ever counts (AC04: no duplicate
+  // earned credit unless policy explicitly permits it).
+  if (statement.isConflict || statement.statement === null) {
+    return { repeatableForCredit: null, counting: selectCountingAttempt(completed, context) };
+  }
+  return {
+    repeatableForCredit: statement.statement,
+    counting: countRepeatCredit(completed, statement.statement, context),
+  };
+}
+
+/**
+ * Finishes one group: splits attempts by status and resolves the counting attempts.
+ *
+ * @param group - The group's key, its collected attempts, and its catalog statement.
+ * @param group.groupKey - The group's key.
+ * @param group.draft - The group's collected attempts.
+ * @param group.statement - The repeat-for-credit statement of the group's catalog courses.
+ * @param selectCounting - Resolves the counting attempts from the group's countable attempts.
  * @returns The resolved group.
  */
 function toAttemptGroup(
-  groupKey: string,
-  draft: GroupDraft,
+  group: {
+    readonly groupKey: string;
+    readonly draft: GroupDraft;
+    readonly statement: GroupRepeatStatement;
+  },
   selectCounting: CountingSelector,
 ): AttemptGroup {
+  const { groupKey, draft, statement } = group;
   const withStatus = (statuses: readonly AttemptStatus[]): readonly CourseAttempt[] =>
     draft.attempts.filter((attempt) => statuses.includes(attempt.status));
   return {
     groupKey,
     equivalencyGroupId: draft.equivalencyGroupId,
     courseIds: [...new Set(draft.attempts.map((attempt) => attempt.courseId))].sort(),
-    counting: selectCounting(withStatus(COUNTABLE_STATUSES)),
+    ...selectCounting(withStatus(COUNTABLE_STATUSES), statement),
     inProgress: withStatus([AttemptStatus.InProgress]),
     // SAFETY: pending transfers are reported separately and never count as earned credit
     // (planning/08 §Eligibility semantics).
