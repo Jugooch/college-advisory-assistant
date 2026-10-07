@@ -3,7 +3,13 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { type AdvisingCaseInput, createAdvisingCase } from './advising-case.model';
+import {
+  type AdvisingCaseInput,
+  createAdvisingCase,
+  hasMatchingDiscrepancySubject,
+  hasRequiredPlanRevision,
+  isCaseOwnerConsistent,
+} from './advising-case.model';
 
 const VALID: AdvisingCaseInput = {
   id: '4d5e6f70-0000-4000-8000-000000000001',
@@ -73,5 +79,31 @@ describe('createAdvisingCase', () => {
   it('rejects a lastSequence below 1 and a non-UUID ID', () => {
     expect(() => createAdvisingCase({ ...VALID, lastSequence: 0 })).toThrow();
     expect(() => createAdvisingCase({ ...VALID, id: 'nope' })).toThrow();
+  });
+});
+
+describe('shared case invariants', () => {
+  it('requires a plan revision for every reason except a discrepancy', () => {
+    expect(hasRequiredPlanRevision('PLAN_REVIEW', null)).toBe(false);
+    expect(hasRequiredPlanRevision('NEEDS_VERIFICATION', null)).toBe(false);
+    expect(hasRequiredPlanRevision('PLAN_REVIEW', 'rev-1')).toBe(true);
+    expect(hasRequiredPlanRevision('SOURCE_DISCREPANCY', null)).toBe(true);
+  });
+
+  it('requires a subject exactly for a discrepancy', () => {
+    expect(hasMatchingDiscrepancySubject('SOURCE_DISCREPANCY', 'SECTION')).toBe(true);
+    expect(hasMatchingDiscrepancySubject('SOURCE_DISCREPANCY', null)).toBe(false);
+    expect(hasMatchingDiscrepancySubject('PLAN_REVIEW', 'SECTION')).toBe(false);
+    expect(hasMatchingDiscrepancySubject('PLAN_REVIEW', null)).toBe(true);
+  });
+
+  it('requires an owner exactly for IN_REVIEW and RESOLVED', () => {
+    expect(isCaseOwnerConsistent('OPEN', false)).toBe(true);
+    expect(isCaseOwnerConsistent('WITHDRAWN', false)).toBe(true);
+    expect(isCaseOwnerConsistent('IN_REVIEW', true)).toBe(true);
+    expect(isCaseOwnerConsistent('RESOLVED', true)).toBe(true);
+    expect(isCaseOwnerConsistent('OPEN', true)).toBe(false);
+    expect(isCaseOwnerConsistent('IN_REVIEW', false)).toBe(false);
+    expect(isCaseOwnerConsistent('RESOLVED', false)).toBe(false);
   });
 });

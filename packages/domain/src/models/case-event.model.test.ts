@@ -3,7 +3,12 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { type CaseEventInput, createCaseEvent } from './case-event.model';
+import {
+  type CaseEventInput,
+  createCaseEvent,
+  isCaseEventOriginValid,
+  isCaseResolutionPlacementValid,
+} from './case-event.model';
 
 const CREATE: CaseEventInput = {
   id: '6f708192-0000-4000-8000-000000000001',
@@ -59,5 +64,42 @@ describe('createCaseEvent', () => {
     expect(createCaseEvent({ ...RESOLVE, note: 'a'.repeat(1000) }).note).toHaveLength(1000);
     expect(() => createCaseEvent({ ...RESOLVE, note: 'a'.repeat(1001) })).toThrow();
     expect(createCaseEvent({ ...RESOLVE, note: null }).note).toBeNull();
+  });
+});
+
+describe('shared case event invariants', () => {
+  it('allows no prior status and sequence 1 only for CREATE', () => {
+    expect(isCaseEventOriginValid({ action: 'CREATE', sequence: 1, fromStatus: null })).toBe(true);
+    expect(isCaseEventOriginValid({ action: 'CREATE', sequence: 2, fromStatus: null })).toBe(false);
+    expect(isCaseEventOriginValid({ action: 'CREATE', sequence: 1, fromStatus: 'OPEN' })).toBe(
+      false,
+    );
+    expect(isCaseEventOriginValid({ action: 'CLAIM', sequence: 2, fromStatus: 'OPEN' })).toBe(true);
+    expect(isCaseEventOriginValid({ action: 'CLAIM', sequence: 1, fromStatus: 'OPEN' })).toBe(
+      false,
+    );
+    expect(isCaseEventOriginValid({ action: 'CLAIM', sequence: 2, fromStatus: null })).toBe(false);
+  });
+
+  it('allows a resolution and note only with RESOLVE', () => {
+    const none = { resolution: null, note: null };
+    expect(isCaseResolutionPlacementValid({ action: 'CLAIM', ...none })).toBe(true);
+    expect(isCaseResolutionPlacementValid({ action: 'RESOLVE', ...none })).toBe(false);
+    expect(
+      isCaseResolutionPlacementValid({
+        action: 'RESOLVE',
+        resolution: 'PLAN_REVIEWED',
+        note: null,
+      }),
+    ).toBe(true);
+    expect(
+      isCaseResolutionPlacementValid({ action: 'RESOLVE', resolution: 'PLAN_REVIEWED', note: 'x' }),
+    ).toBe(true);
+    expect(
+      isCaseResolutionPlacementValid({ action: 'CLAIM', resolution: 'PLAN_REVIEWED', note: null }),
+    ).toBe(false);
+    expect(isCaseResolutionPlacementValid({ action: 'CLAIM', resolution: null, note: 'x' })).toBe(
+      false,
+    );
   });
 });
