@@ -100,7 +100,8 @@ const PrerequisiteCaseSchema = z.object({
       termCalendar: TermCalendarSchema,
       courses: z.array(CourseSchema).readonly(),
       attempts: z.array(CourseAttemptSchema).readonly(),
-      rule: PrerequisiteRuleSchema,
+      /** The course's rule, or `null` when the pinned ruleset has no row for it (ADR-0012 §1). */
+      rule: PrerequisiteRuleSchema.nullable(),
     })
     .strict()
     .readonly(),

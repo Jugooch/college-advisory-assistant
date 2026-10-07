@@ -19,7 +19,15 @@ import { it } from 'vitest';
  *
  * The fixing PR removes its entry, and nothing else in `tests/`.
  */
-export const KNOWN_FINDINGS: ReadonlyMap<string, number> = new Map<string, number>([]);
+export const KNOWN_FINDINGS: ReadonlyMap<string, number> = new Map<string, number>([
+  // ADR-0012 §1: a course with no rule row is UNKNOWN, never `prerequisite: null` or PASS (#362).
+  [
+    'AC29: reports UNKNOWN PREREQUISITE_RULE_MISSING, not a PASS, for a course with no rule row',
+    362,
+  ],
+  ['AC29: treats a rule that exists only in another ruleset version as a missing rule', 362],
+  ['AC29: keeps a course with a rule PASS while a sibling with no rule row is UNKNOWN', 362],
+]);
 
 /** A key of the register: a golden case ID, or an acceptance case and its exact test title. */
 export const FINDING_KEY = /^(G[CH]-[A-Z]+-\d{3}|AC\d{2}: \S.*)$/;

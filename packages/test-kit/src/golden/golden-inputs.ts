@@ -109,8 +109,11 @@ export interface PrerequisiteVariation {
   /** Policy switches this case is about; the rest stay the conservative defaults. */
   readonly policy?: Partial<AcademicPolicyInput>;
   readonly attempts?: readonly CourseAttempt[];
-  /** The rule; defaults to DEMO-MATH 102 requiring DEMO-MATH 101 with at least `C`. */
-  readonly rule?: PrerequisiteRule;
+  /**
+   * The rule; defaults to DEMO-MATH 102 requiring DEMO-MATH 101 with at least `C`. `null` means
+   * the pinned ruleset has no rule row for the course.
+   */
+  readonly rule?: PrerequisiteRule | null;
   /** The catalog; defaults to {@link GOLDEN_CATALOG}. */
   readonly courses?: readonly Course[];
   /** The term calendar; defaults to {@link GOLDEN_TERM_CALENDAR}. */
@@ -128,14 +131,14 @@ export function prerequisiteInputs(variation: PrerequisiteVariation = {}): {
   termCalendar: TermCalendar;
   courses: readonly Course[];
   attempts: readonly CourseAttempt[];
-  rule: PrerequisiteRule;
+  rule: PrerequisiteRule | null;
 } {
   return {
     academicPolicy: buildAcademicPolicy(variation.policy),
     termCalendar: variation.termCalendar ?? GOLDEN_TERM_CALENDAR,
     courses: variation.courses ?? GOLDEN_CATALOG,
     attempts: variation.attempts ?? [],
-    rule: variation.rule ?? buildPrerequisiteRule(),
+    rule: variation.rule === undefined ? buildPrerequisiteRule() : variation.rule,
   };
 }
 

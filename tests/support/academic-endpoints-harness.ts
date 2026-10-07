@@ -12,6 +12,8 @@ import {
   type AuditSnapshot,
   type AuditSnapshotInput,
   type CourseAttempt,
+  PrerequisiteExpressionType,
+  type PrerequisiteRule,
   type RequirementResultInput,
   Role,
   type StudentSnapshot,
@@ -150,7 +152,19 @@ export function resetAcademicWorld(world: AcceptanceWorld, scenario: AcademicSce
   world.studentSnapshots = [recordSnapshot({ attemptIds: attempts.map((item) => item.id) })];
   world.audits = [recordAudit(scenario.requirements)];
   world.courses = Object.values(SYNTHETIC_COURSES);
-  world.rules = [buildPrerequisiteRule()];
+  // NOTE: every other synthetic course states "no prerequisite" with an explicit NONE rule, so a
+  // course without a rule row is never read as PASS (ADR-0012 §1).
+  world.rules = [
+    buildPrerequisiteRule(),
+    ...Object.values(SYNTHETIC_COURSES)
+      .filter((item) => item.id !== SYNTHETIC_COURSES.math102.id)
+      .map((item, index) =>
+        buildPrerequisiteRule(
+          { courseId: item.id, expression: { type: PrerequisiteExpressionType.None } },
+          index + 2,
+        ),
+      ),
+  ];
   world.policies = [
     buildAcademicPolicy({
       termCreditBounds: { minCreditsHundredths: 100, maxCreditsHundredths: 1800 },
@@ -158,6 +172,35 @@ export function resetAcademicWorld(world: AcceptanceWorld, scenario: AcademicSce
     }),
   ];
   world.terms = buildTermCalendar();
+}
+
+/**
+ * Sets a course's prerequisite rule in the world, replacing any rule the world already holds for
+ * that course, so the rule that applies is always the one given.
+ *
+ * @param world - The world.
+ * @param rule - The rule to publish.
+ */
+export function setPrerequisiteRule(world: AcceptanceWorld, rule: PrerequisiteRule): void {
+  world.rules = [...(world.rules ?? []).filter((item) => item.courseId !== rule.courseId), rule];
+}
+
+/**
+ * States that a course has no prerequisite, with an explicit `NONE` rule in the pinned ruleset,
+ * so the course is not an unimported rule (ADR-0012 §1).
+ *
+ * @param world - The world.
+ * @param courseId - The course.
+ * @param seed - Distinguishes the rule's `sourceRef`.
+ */
+export function stateNoPrerequisite(world: AcceptanceWorld, courseId: string, seed = 90): void {
+  setPrerequisiteRule(
+    world,
+    buildPrerequisiteRule(
+      { courseId, expression: { type: PrerequisiteExpressionType.None } },
+      seed,
+    ),
+  );
 }
 
 /**

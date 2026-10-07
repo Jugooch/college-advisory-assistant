@@ -4,10 +4,12 @@
  */
 import {
   createPrerequisiteExpression,
+  createPrerequisiteRootExpression,
   createPrerequisiteRule,
   type GradeInput,
   type PrerequisiteExpression,
   PrerequisiteExpressionType,
+  type PrerequisiteRootExpression,
   type PrerequisiteRule,
   type PrerequisiteRuleInput,
   ReasonCode,
@@ -55,6 +57,17 @@ export function course(
     courseId,
     minimumGrade,
   });
+}
+
+/**
+ * Builds the explicit "no prerequisite" root: `{ type: 'NONE' }`. Use it as a rule's
+ * `expression`, for example `buildPrerequisiteRule({ expression: none() })`. It is valid only at
+ * the root of a rule, never inside `all` or `any`.
+ *
+ * @returns A validated root expression.
+ */
+export function none(): PrerequisiteRootExpression {
+  return createPrerequisiteRootExpression({ type: PrerequisiteExpressionType.None });
 }
 
 /**

@@ -20,10 +20,16 @@ import {
   buildPrerequisiteRule,
   buildSection,
   course,
+  none,
   SYNTHETIC_COURSES,
 } from '@caa/test-kit';
 
-import { buildAcademicApp, createAcademicWorld } from '../support/academic-endpoints-harness';
+import {
+  buildAcademicApp,
+  createAcademicWorld,
+  setPrerequisiteRule,
+  stateNoPrerequisite,
+} from '../support/academic-endpoints-harness';
 import { acceptanceIt } from '../support/known-findings';
 import {
   conflictIssues,
@@ -119,6 +125,7 @@ describe('AC06 a lecture that fits with a required lab that conflicts blocks the
   beforeEach(() => {
     resetScheduleWorld(world);
     world.courses = [...Object.values(SYNTHETIC_COURSES), includedLab];
+    stateNoPrerequisite(world, includedLab.id);
   });
 
   acceptanceIt(
@@ -159,6 +166,13 @@ describe('AC06 a lecture that fits with a required lab that conflicts blocks the
   );
 
   acceptanceIt('AC06', 'offers the lecture only with the lab that fits', async () => {
+    // NOTE: both courses state "no prerequisite" with explicit NONE rules, so neither is an
+    // unimported rule (ADR-0012 §1).
+    world.rules = [
+      ...(world.rules ?? []),
+      buildPrerequisiteRule({ courseId: phys201.id, expression: none() }, 2),
+      buildPrerequisiteRule({ courseId: includedLab.id, expression: none() }, 3),
+    ];
     publishSections(world, [LECTURE, LAB_L01, LAB_L02], {
       linkedSectionGroups: [lectureRequiresLab([LAB_L01.id, LAB_L02.id])],
     });
@@ -250,10 +264,10 @@ describe('AC06 a lecture that fits with a required lab that conflicts blocks the
     'AC06',
     'needs verification when an included lab has a prerequisite of its own',
     async () => {
-      world.rules = [
-        ...(world.rules ?? []),
+      setPrerequisiteRule(
+        world,
         buildPrerequisiteRule({ courseId: includedLab.id, expression: course(math101.id) }, 2),
-      ];
+      );
       publishLectureWithLab(includedLab);
 
       const response = await findScheduleOptions(app, scheduleRequest([phys201.id]));

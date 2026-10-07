@@ -6,7 +6,14 @@ import { describe, expect, it } from 'vitest';
 import { PrerequisiteExpressionSchema, PrerequisiteRuleSchema, ReasonCode } from '@caa/domain';
 
 import { letter, pass } from './grade.builder';
-import { all, any, buildPrerequisiteRule, course, unsupported } from './prerequisite-rule.builder';
+import {
+  all,
+  any,
+  buildPrerequisiteRule,
+  course,
+  none,
+  unsupported,
+} from './prerequisite-rule.builder';
 
 const MATH101 = '50000000-0000-4000-8000-000000000101';
 const MATH111 = '50000000-0000-4000-8000-000000000111';
@@ -102,6 +109,21 @@ describe('expression helpers', () => {
       sourceText: 'See department',
       reasonCode: 'AUDIT_AMBIGUOUS',
     });
+  });
+
+  it('builds the explicit no-prerequisite root', () => {
+    expect(none()).toEqual({ type: 'NONE' });
+  });
+
+  it('builds a rule with a NONE expression that passes the domain schema', () => {
+    const rule = buildPrerequisiteRule({ expression: none() });
+
+    expect(rule.expression).toEqual({ type: 'NONE' });
+    expect(PrerequisiteRuleSchema.safeParse(rule).success).toBe(true);
+  });
+
+  it('rejects NONE inside a group', () => {
+    expect(() => all({ type: 'NONE' } as never)).toThrow();
   });
 
   it('rejects an empty group', () => {

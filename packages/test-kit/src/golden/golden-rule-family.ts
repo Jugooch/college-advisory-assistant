@@ -33,6 +33,7 @@ import { z } from 'zod';
  * - `CREDIT_BOUNDS`: a candidate set's credit total against the load bounds.
  * - `VARIABLE_CREDIT`: a variable-credit course inside a candidate set.
  * - `TERM_ORDER`: repeated attempts ordered by the tenant's term calendar.
+ * - `NO_PREREQUISITE`: an explicit `NONE` rule (PASS) against a course with no rule row (UNKNOWN).
  */
 export const GoldenRuleFamily = {
   MinimumGrade: 'MINIMUM_GRADE',
@@ -55,6 +56,7 @@ export const GoldenRuleFamily = {
   CreditBounds: 'CREDIT_BOUNDS',
   VariableCredit: 'VARIABLE_CREDIT',
   TermOrder: 'TERM_ORDER',
+  NoPrerequisite: 'NO_PREREQUISITE',
 } as const;
 
 /** Union of every {@link GoldenRuleFamily} value. */

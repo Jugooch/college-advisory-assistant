@@ -5,11 +5,11 @@
  * @see docs/planning/13-test-and-evaluation-strategy.md
  */
 import { type CheckResult } from '@caa/domain';
-import { evaluatePrerequisite } from '@caa/engine';
+import { evaluatePrerequisite, missingPrerequisiteRuleCheck } from '@caa/engine';
 import { prerequisiteInputs, type PrerequisiteVariation } from '@caa/test-kit';
 
 /**
- * Evaluates the default rule (DEMO-MATH 102 needs DEMO-MATH 101 ≥ C) or the given one against the
+ * Evaluates the default rule (DEMO-MATH 102 needs DEMO-MATH 101 ≥ C) or the given one (`null` for no rule row) against the
  * full synthetic catalog and the synthetic term calendar.
  *
  * @param variation - Policy switches, attempts, and optionally the rule.
@@ -17,5 +17,8 @@ import { prerequisiteInputs, type PrerequisiteVariation } from '@caa/test-kit';
  */
 export function evaluateDefaultPrerequisite(variation: PrerequisiteVariation): CheckResult {
   const { rule, attempts, courses, academicPolicy, termCalendar } = prerequisiteInputs(variation);
+  if (rule === null) {
+    return missingPrerequisiteRuleCheck(academicPolicy.rulesetVersion);
+  }
   return evaluatePrerequisite(rule, { attempts, courses }, { academicPolicy, termCalendar });
 }
