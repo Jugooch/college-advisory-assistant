@@ -51,7 +51,7 @@ function setup(overrides: Partial<InMemoryStore> = {}) {
   });
   const canView = (actor: Actor, studentId: StudentId) =>
     service.canViewStudent(actor, studentId, { logger });
-  return { canView, store, clock, logger };
+  return { canView, store, clock, logger, service };
 }
 
 describe('AccessService.canViewStudent', () => {
@@ -178,5 +178,46 @@ describe('AccessService.canViewStudent', () => {
       },
     ]);
     expect(JSON.stringify(logger.entries)).not.toContain(ownStudent.sourceStudentId);
+  });
+});
+
+describe('AccessService.canSavePlan', () => {
+  const canSave = (actor: Actor, studentId: StudentId) => {
+    const { service } = setup();
+    return service.canSavePlan(actor, studentId, { logger: createRecordingLogger() });
+  };
+
+  it('allows a student to save a plan for their own record', async () => {
+    expect(await canSave(studentActor, ownStudent.id)).toBe(true);
+  });
+
+  it.each([
+    ['an assigned advisor', advisorActor, ownStudent.id],
+    ['an admin of the same tenant', adminActor, ownStudent.id],
+    ['another student', studentActor, otherStudent.id],
+    ['an actor viewing a student of another tenant', adminActor, tenantBStudent.id],
+    ['a student that does not exist', studentActor, buildStudent({}, 99).id],
+  ])('denies %s', async (_case, actor, studentId) => {
+    expect(await canSave(actor, studentId)).toBe(false);
+  });
+
+  it('logs the decision with opaque IDs only', async () => {
+    const { service } = setup();
+    const logger = createRecordingLogger();
+
+    await service.canSavePlan(advisorActor, ownStudent.id, { logger });
+
+    expect(logger.entries).toEqual([
+      {
+        level: 'info',
+        message: 'plan save access decision',
+        details: {
+          actorUserId: advisorActor.userId,
+          tenantId: SYNTHETIC_TENANTS.a.id,
+          studentId: ownStudent.id,
+          isAllowed: false,
+        },
+      },
+    ]);
   });
 });

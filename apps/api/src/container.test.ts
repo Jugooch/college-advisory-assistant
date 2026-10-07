@@ -59,6 +59,7 @@ describe('createRuntimeDependencies', () => {
       'academicSummary',
       'courseChecks',
       'scheduleOptions',
+      'planDrafts',
       'plannableTerms',
     ]);
   });

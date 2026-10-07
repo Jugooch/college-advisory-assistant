@@ -16,6 +16,7 @@ import {
   createCampusTransitionRepository,
   createCourseCatalogRepository,
   createDatabase,
+  createPlanRepository,
   createPrerequisiteRuleRepository,
   createProgramRepository,
   createSectionSnapshotRepository,
@@ -23,6 +24,7 @@ import {
   createStudentSnapshotRepository,
   createTermRepository,
   createUserIdentityRepository,
+  type PlanRepository,
   type PrerequisiteRuleRepository,
   type ProgramRepository,
   type StudentRepository,
@@ -39,7 +41,7 @@ import {
   createAcademicSummaryController,
 } from './modules/academic-summary/academic-summary.controller';
 import { createAcademicSummaryService } from './modules/academic-summary/academic-summary.service';
-import { createAccessService } from './modules/access/access.service';
+import { type AccessService, createAccessService } from './modules/access/access.service';
 import {
   type CourseChecksController,
   createCourseChecksController,
@@ -50,6 +52,10 @@ import { createHealthController, type HealthController } from './modules/health/
 import { createHealthService } from './modules/health/health.service';
 import { createPinnedRecordsService } from './modules/pinned-records/pinned-records.service';
 import { createPinnedSectionsService } from './modules/pinned-sections/pinned-sections.service';
+import { createPlanDraftsController } from './modules/plan-drafts/plan-drafts.controller';
+import { createPlanDraftsService } from './modules/plan-drafts/plan-drafts.service';
+import { createPlanFreshnessService } from './modules/plan-freshness/plan-freshness.service';
+import { createPlanViewsService } from './modules/plan-views/plan-views.service';
 import {
   createPlannableTermsController,
   type PlannableTermsController,
@@ -85,6 +91,7 @@ export interface Controllers {
   readonly courseChecks: CourseChecksController;
   readonly scheduleOptions: ScheduleOptionsController;
   readonly plannableTerms: PlannableTermsController;
+  readonly planDrafts: ReturnType<typeof createPlanDraftsController>;
 }
 
 /** Every repository the API reads through. Tests pass in-memory fakes. */
@@ -104,6 +111,7 @@ export interface Repositories {
   readonly sectionSnapshots: TermSectionSnapshotRepository;
   readonly campusTransitions: CampusTransitionRepository;
   readonly campuses: CampusRepository;
+  readonly plans: PlanRepository;
 }
 
 /** What {@link createContainer} needs. */
@@ -135,16 +143,52 @@ function createSessionResolver(env: ApiEnv, identities: UserIdentityRepository):
 }
 
 /**
- * Builds the controllers of the academic reads: summary, course checks, and schedule options.
+ * Builds the plan drafts controller: saves replay schedule options, and reads derive freshness.
  *
  * @param options - Configuration, repositories, and clock.
- * @param studentsService - Applies the access rule every academic read starts with.
+ * @param access - The access rule, including who may author a plan.
+ * @param scheduleOptions - The existing schedule options service the save replays.
+ * @returns The plan drafts controller.
+ */
+function createPlanControllers(
+  options: ContainerOptions,
+  access: AccessService,
+  scheduleOptions: ReturnType<typeof createScheduleOptionsService>,
+): Controllers['planDrafts'] {
+  const { env, repositories, now } = options;
+  const planViews = createPlanViewsService({
+    access,
+    plans: repositories.plans,
+    freshness: createPlanFreshnessService({
+      ...repositories,
+      now,
+      maxSourceAgeMs: env.ACADEMIC_SOURCE_MAX_AGE_MS,
+      rulesetVersion: env.ACTIVE_RULESET_VERSION ?? null,
+    }),
+  });
+  const planDraftsService = createPlanDraftsService({
+    ...repositories,
+    access,
+    scheduleOptions,
+    views: planViews,
+    now,
+  });
+  return createPlanDraftsController(planDraftsService, planViews);
+}
+
+/**
+ * Builds the controllers of the academic reads and plan drafts: summary, course checks,
+ * schedule options, and saved plans.
+ *
+ * @param options - Configuration, repositories, and clock.
+ * @param access - The access rule: students for reads, and the plan authoring rule.
  * @returns The academic controllers.
  */
 function createAcademicControllers(
   options: ContainerOptions,
-  studentsService: StudentsService,
-): Pick<Controllers, 'academicSummary' | 'courseChecks' | 'scheduleOptions'> {
+  access: { readonly students: StudentsService; readonly service: AccessService },
+): Pick<Controllers, 'academicSummary' | 'courseChecks' | 'scheduleOptions' | 'planDrafts'> {
+  const studentsService = access.students;
   const { env, repositories, now } = options;
   const pinnedRecords = createPinnedRecordsService({
     studentSnapshots: repositories.studentSnapshots,
@@ -184,6 +228,7 @@ function createAcademicControllers(
     academicSummary: createAcademicSummaryController(academicSummaryService),
     courseChecks: createCourseChecksController(createCourseChecksService({ courseSetInputs })),
     scheduleOptions: createScheduleOptionsController(scheduleOptionsService),
+    planDrafts: createPlanControllers(options, access.service, scheduleOptionsService),
   };
 }
 
@@ -216,7 +261,7 @@ export function createContainer(options: ContainerOptions): AppDependencies {
         createSessionService({ studentUserLinks: repositories.studentUserLinks }),
       ),
       students: createStudentsController(studentsService),
-      ...createAcademicControllers(options, studentsService),
+      ...createAcademicControllers(options, { students: studentsService, service: accessService }),
       plannableTerms: createPlannableTermsController(
         createPlannableTermsService({
           access: accessService,
@@ -255,6 +300,7 @@ export function createRuntimeDependencies(env: ApiEnv): AppDependencies {
     sectionSnapshots: createSectionSnapshotRepository(db),
     campusTransitions: createCampusTransitionRepository(db),
     campuses: createCampusRepository(db),
+    plans: createPlanRepository(db),
   };
   return createContainer({ env, repositories, now: () => new Date() });
 }

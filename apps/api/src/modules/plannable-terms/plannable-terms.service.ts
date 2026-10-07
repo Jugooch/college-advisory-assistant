@@ -18,7 +18,7 @@ import { selectPlannableTerms } from './plannable-terms.logic';
 
 /** Dependencies of the plannable terms service. */
 export interface PlannableTermsServiceDependencies {
-  readonly access: AccessService;
+  readonly access: Pick<AccessService, 'canViewStudent'>;
   readonly sectionSnapshots: TermSectionSnapshotRepository;
   /** Returns the current time. */
   readonly now: () => Date;
