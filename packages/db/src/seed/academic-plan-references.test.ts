@@ -71,7 +71,11 @@ describe('assertAcademicPlanReferences', () => {
       expression: createPrerequisiteExpression({
         type: PrerequisiteExpressionType.Any,
         items: [
-          base.expression,
+          {
+            type: PrerequisiteExpressionType.Course,
+            courseId: at(PLAN.courses, 0).id,
+            minimumGrade: null,
+          },
           { type: PrerequisiteExpressionType.Course, courseId: UNCATALOGUED, minimumGrade: null },
         ],
       }),
