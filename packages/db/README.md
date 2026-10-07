@@ -3,6 +3,14 @@
 Tables, row mappers, and repositories. The dev seed (`pnpm --filter @caa/db db:seed`) refuses to run in
 production and is idempotent.
 
+## Prerequisite rules
+
+The seed writes exactly one rule per seeded course in the seeded ruleset: a real prerequisite, or an
+explicit `NONE` rule (linked labs included). A course with no rule row is UNKNOWN, never "none".
+No rule importer exists yet. When one is added it must write `NONE` when the source states no
+prerequisite, write `UNSUPPORTED` when it can't parse the rule, and never leave a course without a
+row to mean "none".
+
 ## Seeded section scenarios (tenant A, term 2027SP)
 
 Expected results are derived by hand from planning/08 and planning/13, not from engine output.

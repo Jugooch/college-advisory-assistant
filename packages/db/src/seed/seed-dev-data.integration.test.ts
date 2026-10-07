@@ -122,7 +122,7 @@ describe('seedDevData', () => {
       assignments: 2,
       programs: 1,
       courses: 7,
-      prerequisiteRules: 3,
+      prerequisiteRules: 7,
       academicPolicies: 1,
       terms: 4,
       courseAttempts: 4,

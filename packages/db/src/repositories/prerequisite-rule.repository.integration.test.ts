@@ -170,4 +170,18 @@ describe('PrerequisiteRuleRepository.findRule', () => {
 
     await expect(repository().findRule(tenantId, math102, 'demo-2026.3')).rejects.toThrow(ZodError);
   });
+
+  it('reads a stored NONE rule back as an explicit no-prerequisite rule', async () => {
+    await insertRule('demo-2026.4', { type: 'NONE' });
+
+    const rule = await repository().findRule(tenantId, math102, 'demo-2026.4');
+
+    expect(rule?.expression).toEqual({ type: 'NONE' });
+  });
+
+  it('fails loudly when a stored NONE carries extra fields', async () => {
+    await insertRule('demo-2026.5', { type: 'NONE', items: [] });
+
+    await expect(repository().findRule(tenantId, math102, 'demo-2026.5')).rejects.toThrow(ZodError);
+  });
 });

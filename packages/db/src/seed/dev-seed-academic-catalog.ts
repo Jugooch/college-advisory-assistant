@@ -17,6 +17,7 @@ import {
   LetterGrade,
   type PrerequisiteExpression,
   PrerequisiteExpressionType,
+  type PrerequisiteRootExpression,
   type PrerequisiteRule,
   RepeatPolicy,
   type TermInput,
@@ -119,10 +120,10 @@ function needs(course: Course, minimum: LetterGrade): PrerequisiteExpression {
  * Builds a prerequisite rule in the seeded ruleset version.
  *
  * @param course - Course the rule is for.
- * @param expression - Its prerequisite expression.
+ * @param expression - Its prerequisite expression, or `NONE`.
  * @returns The rule.
  */
-function rule(course: Course, expression: PrerequisiteExpression): PrerequisiteRule {
+function rule(course: Course, expression: PrerequisiteRootExpression): PrerequisiteRule {
   return createPrerequisiteRule({
     tenantId: SEED_TENANT_ID,
     courseId: course.id,
@@ -134,8 +135,8 @@ function rule(course: Course, expression: PrerequisiteExpression): PrerequisiteR
 
 const { math101, math102, phys201, phys301 } = SEED_CATALOG;
 
-/** Prerequisite rules of the seeded ruleset version. */
-export const SEED_RULES: readonly PrerequisiteRule[] = [
+/** Rules that state a real prerequisite. */
+const PREREQUISITE_RULES: readonly PrerequisiteRule[] = [
   rule(math102, needs(math101, LetterGrade.C)),
   rule(phys201, needs(math101, LetterGrade.C)),
   // NOTE: the AND/OR rule: DEMO-PHYS 201, and either DEMO-MATH 102 or DEMO-MATH 101, each ≥ C.
@@ -152,6 +153,18 @@ export const SEED_RULES: readonly PrerequisiteRule[] = [
       ],
     }),
   ),
+];
+
+// SAFETY: a course with no rule row is UNKNOWN, so every course without a prerequisite gets an
+// explicit `NONE` rule. A course that has a real rule never gets one, so `NONE` can't mask it.
+const COURSES_WITH_RULES = new Set(PREREQUISITE_RULES.map((entry) => entry.courseId));
+
+/** Prerequisite rules of the seeded ruleset version: exactly one per seeded course. */
+export const SEED_RULES: readonly PrerequisiteRule[] = [
+  ...PREREQUISITE_RULES,
+  ...Object.values(SEED_CATALOG)
+    .filter((course) => !COURSES_WITH_RULES.has(course.id))
+    .map((course) => rule(course, { type: PrerequisiteExpressionType.None })),
 ];
 
 /** Academic policy of the seeded ruleset version. */

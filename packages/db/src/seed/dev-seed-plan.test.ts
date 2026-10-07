@@ -6,8 +6,15 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
-import { IdentityStatus, InstitutionIdSchema, Role, UserIdentitySchema } from '@caa/domain';
+import {
+  IdentityStatus,
+  InstitutionIdSchema,
+  PrerequisiteExpressionType,
+  Role,
+  UserIdentitySchema,
+} from '@caa/domain';
 
+import { SEED_CATALOG, SEED_RULESET_VERSION } from './dev-seed-academic-catalog';
 import { buildDevSeedPlan, DEV_SEED_ISSUER } from './dev-seed-plan';
 
 const DEV_SEED_PLAN = buildDevSeedPlan(new Date('2026-10-01T12:00:00.000Z'));
@@ -109,5 +116,39 @@ describe('buildDevSeedPlan', () => {
       true,
     );
     expect([...tenantIds].every((id) => InstitutionIdSchema.safeParse(id).success)).toBe(true);
+  });
+
+  describe('prerequisite rules', () => {
+    const { rules, courses } = DEV_SEED_PLAN.academic;
+
+    it('gives every seeded course exactly one rule in the seeded ruleset', () => {
+      const inRuleset = rules.filter((rule) => rule.rulesetVersion === SEED_RULESET_VERSION);
+
+      expect(inRuleset.map((rule) => rule.courseId).sort()).toEqual(
+        courses.map((course) => course.id).sort(),
+      );
+    });
+
+    it('states NONE for DEMO-ENGL 101 and every linked lab', () => {
+      const ruleFor = (courseId: string) => rules.find((rule) => rule.courseId === courseId);
+
+      expect(ruleFor(SEED_CATALOG.engl101.id)?.expression).toEqual({
+        type: PrerequisiteExpressionType.None,
+      });
+      expect(ruleFor(SEED_CATALOG.phys301Lab.id)?.expression.type).toBe(
+        PrerequisiteExpressionType.None,
+      );
+      expect(ruleFor(SEED_CATALOG.engl101.id)?.sourceRef).toBe('demo-catalog-rule:DEMO-ENGL-101');
+    });
+
+    it('keeps the real rules and never states NONE for a course with a prerequisite', () => {
+      const real = [SEED_CATALOG.math102, SEED_CATALOG.phys201, SEED_CATALOG.phys301];
+
+      for (const course of real) {
+        const rule = rules.find((entry) => entry.courseId === course.id);
+        expect(rule?.expression.type).not.toBe(PrerequisiteExpressionType.None);
+      }
+      expect(rules.filter((rule) => rule.expression.type !== 'NONE')).toHaveLength(real.length);
+    });
   });
 });
