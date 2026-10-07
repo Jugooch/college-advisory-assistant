@@ -120,6 +120,7 @@ interface ScheduleOptionShape {
 
 /**
  * Lists every check of an option. A `null` prerequisite is not a check and isn't listed.
+ * A missing rule row is an UNKNOWN `PREREQUISITE_RULE_MISSING` check, not `null` (ADR-0012).
  *
  * @param option - The option's checks.
  * @returns Every check result: schedule feasibility, then per-course, then linked-course, then
