@@ -19,6 +19,7 @@ import { studentSnapshotAttemptTable } from '../tables/student-snapshot-attempt.
 import { termTable } from '../tables/term.table';
 import { assertAcademicPlanReferences } from './academic-plan-references';
 import type { DevSeedAcademicPlan } from './dev-seed-academic-plan';
+import { toRepeatColumns } from './repeat-columns';
 import { insertRequirementResults } from './requirement-result-writer';
 
 /** How many academic records the plan holds. Counts only, safe to log. */
@@ -60,7 +61,12 @@ async function insertCatalogAndPolicy(tx: SeedWriter, plan: DevSeedAcademicPlan)
     .onConflictDoNothing({ target: programTable.id });
   await tx
     .insert(courseTable)
-    .values(plan.courses.map((course) => ({ ...course })))
+    .values(
+      plan.courses.map(({ repeatableForCredit, ...course }) => ({
+        ...course,
+        ...toRepeatColumns(repeatableForCredit),
+      })),
+    )
     .onConflictDoNothing({ target: courseTable.id });
   await tx
     .insert(prerequisiteRuleTable)

@@ -11,6 +11,7 @@ import type { ReactElement } from 'react';
 import type { ScheduleOptionsResponse } from '@caa/api-contract';
 
 import { CheckResultItem } from '@/shared/components/check-result-item';
+import type { CampusLookup } from '@/shared/utils/campus-display';
 import type { CourseLookup } from '@/shared/utils/course-display';
 
 /** Props for {@link UnresolvedList}. */
@@ -18,15 +19,21 @@ export interface UnresolvedListProps {
   readonly unresolved: ScheduleOptionsResponse['unresolved'];
   readonly asOf: string;
   readonly courses: CourseLookup;
+  readonly campuses: CampusLookup;
 }
 
 /**
  * Lists unresolved items, or says there are none.
  *
- * @param props - The unresolved checks, the as-of text, and the course names.
+ * @param props - The unresolved checks, the as-of text, and the course and campus names.
  * @returns The section.
  */
-export function UnresolvedList({ unresolved, asOf, courses }: UnresolvedListProps): ReactElement {
+export function UnresolvedList({
+  unresolved,
+  asOf,
+  courses,
+  campuses,
+}: UnresolvedListProps): ReactElement {
   return (
     <section aria-labelledby="unresolved-heading">
       <h3 id="unresolved-heading">Not resolved</h3>
@@ -46,6 +53,7 @@ export function UnresolvedList({ unresolved, asOf, courses }: UnresolvedListProp
                 check={check}
                 asOf={asOf}
                 courses={courses}
+                campuses={campuses}
               />
             ))}
           </ul>

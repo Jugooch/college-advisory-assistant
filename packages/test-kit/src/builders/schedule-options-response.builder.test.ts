@@ -3,8 +3,9 @@
  *   timeout, and a loud failure for an outcome whose evidence doesn't fit it.
  * @see docs/adr/0010-deterministic-bounded-schedule-solver.md
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
+import { ScheduleOptionsResponseSchema } from '@caa/api-contract';
 import { ScheduleOutcome } from '@caa/domain';
 
 import { SYNTHETIC_CAMPUSES } from '../fixtures/synthetic-campuses';
@@ -123,5 +124,18 @@ describe('buildScheduleOptionsResponse', () => {
     const campuses = [{ id: SYNTHETIC_CAMPUSES.north.id, name: 'Renamed North' }];
 
     expect(buildScheduleOptionsResponse({ campuses }).campuses).toEqual(campuses);
+  });
+
+  it('parses once, with the campuses and term already present', () => {
+    const parse = vi.spyOn(ScheduleOptionsResponseSchema, 'parse');
+
+    buildScheduleOptionsResponse();
+
+    expect(parse).toHaveBeenCalledTimes(1);
+    expect(parse.mock.calls[0]?.[0]).toMatchObject({
+      campuses: [{ id: SYNTHETIC_CAMPUSES.north.id, name: 'Demo North Campus' }],
+      term: { termCode: '2027SP' },
+    });
+    parse.mockRestore();
   });
 });

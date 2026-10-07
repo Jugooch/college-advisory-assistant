@@ -5,7 +5,11 @@ import { describe, expect, it } from 'vitest';
 
 import { CourseSchema } from '@caa/domain';
 
-import { SYNTHETIC_COURSES, SYNTHETIC_MATH_EQUIVALENCY_GROUP_ID } from './synthetic-courses';
+import {
+  SYNTHETIC_COURSES,
+  SYNTHETIC_MATH_EQUIVALENCY_GROUP_ID,
+  SYNTHETIC_REPEATABLE_COURSES,
+} from './synthetic-courses';
 
 describe('SYNTHETIC_COURSES', () => {
   it('defines DEMO-MATH 101 with a fixed ID, 3 credits, and the math equivalency group', () => {
@@ -20,7 +24,14 @@ describe('SYNTHETIC_COURSES', () => {
       equivalencyGroupId: '90000000-0000-4000-8000-000000000001',
       title: null,
       creditsIncludedInCourseId: null,
+      repeatableForCredit: null,
     });
+  });
+
+  it('states for every course that it is not repeatable for credit', () => {
+    const repeatable = Object.values(SYNTHETIC_COURSES).map((course) => course.repeatableForCredit);
+
+    expect(repeatable).toEqual([null, null, null, null, null, null]);
   });
 
   it('states for every course that the catalog supplies no title', () => {
@@ -86,5 +97,43 @@ describe('SYNTHETIC_COURSES', () => {
     expect(
       Object.values(SYNTHETIC_COURSES).every((course) => CourseSchema.safeParse(course).success),
     ).toBe(true);
+  });
+});
+
+describe('SYNTHETIC_REPEATABLE_COURSES', () => {
+  it('defines a 1.00-credit ensemble capped at 4 attempts and 4.00 credits', () => {
+    expect(SYNTHETIC_REPEATABLE_COURSES.ensemble110).toEqual({
+      id: '50000000-0000-4000-8000-000000000110',
+      tenantId: '10000000-0000-4000-8000-000000000001',
+      sourceCourseId: 'DEMO-ENS-110',
+      label: 'DEMO-ENS 110',
+      title: null,
+      creditsHundredths: 100,
+      minCreditsHundredths: null,
+      maxCreditsHundredths: null,
+      equivalencyGroupId: null,
+      creditsIncludedInCourseId: null,
+      repeatableForCredit: { maxAttempts: 4, maxCreditsHundredths: 400 },
+    });
+  });
+
+  it('defines an uncapped 3.00-credit topics course with both caps null', () => {
+    expect(SYNTHETIC_REPEATABLE_COURSES.topics280).toEqual({
+      id: '50000000-0000-4000-8000-000000000280',
+      tenantId: '10000000-0000-4000-8000-000000000001',
+      sourceCourseId: 'DEMO-TOP-280',
+      label: 'DEMO-TOP 280',
+      title: null,
+      creditsHundredths: 300,
+      minCreditsHundredths: null,
+      maxCreditsHundredths: null,
+      equivalencyGroupId: null,
+      creditsIncludedInCourseId: null,
+      repeatableForCredit: { maxAttempts: null, maxCreditsHundredths: null },
+    });
+  });
+
+  it('keeps the repeatable courses out of the main catalog', () => {
+    expect(Object.keys(SYNTHETIC_COURSES)).not.toContain('ensemble110');
   });
 });

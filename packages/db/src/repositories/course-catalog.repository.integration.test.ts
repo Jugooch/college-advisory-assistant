@@ -50,6 +50,7 @@ describe('CourseCatalogRepository.findCatalog', () => {
         maxCreditsHundredths: null,
         equivalencyGroupId: groupId,
         creditsIncludedInCourseId: null,
+        repeatableForCredit: null,
       },
       {
         id: variableId,
@@ -62,6 +63,7 @@ describe('CourseCatalogRepository.findCatalog', () => {
         maxCreditsHundredths: 400,
         equivalencyGroupId: null,
         creditsIncludedInCourseId: null,
+        repeatableForCredit: null,
       },
     ]);
   });
@@ -73,6 +75,38 @@ describe('CourseCatalogRepository.findCatalog', () => {
     await expect(insertCourse(db, tenantId, { title: '' })).rejects.toMatchObject(
       violationOf('course_title_not_empty'),
     );
+  });
+
+  it('rejects repeat caps on a non-repeatable course and out-of-range caps', async () => {
+    const { db } = testDatabase;
+    const tenantId = await insertTenant(db);
+
+    await expect(insertCourse(db, tenantId, { repeatMaxAttempts: 3 })).rejects.toMatchObject(
+      violationOf('course_repeat_caps_need_flag'),
+    );
+    await expect(
+      insertCourse(db, tenantId, { repeatableForCredit: true, repeatMaxAttempts: 1 }),
+    ).rejects.toMatchObject(violationOf('course_repeat_max_attempts_min'));
+    await expect(
+      insertCourse(db, tenantId, { repeatableForCredit: true, repeatMaxCreditsHundredths: 0 }),
+    ).rejects.toMatchObject(violationOf('course_repeat_max_credits_positive'));
+  });
+
+  it('round-trips a repeatable course with caps', async () => {
+    const { db } = testDatabase;
+    const tenantId = await insertTenant(db);
+    await insertCourse(db, tenantId, {
+      repeatableForCredit: true,
+      repeatMaxAttempts: 4,
+      repeatMaxCreditsHundredths: 1200,
+    });
+
+    const catalog = await createCourseCatalogRepository(db).findCatalog(tenantId);
+
+    expect(catalog[0]?.repeatableForCredit).toEqual({
+      maxAttempts: 4,
+      maxCreditsHundredths: 1200,
+    });
   });
 
   it('round-trips a lab whose credits are included in its lecture', async () => {

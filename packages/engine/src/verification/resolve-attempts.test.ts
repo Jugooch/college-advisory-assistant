@@ -65,6 +65,7 @@ describe('resolveAttempts', () => {
         groupKey: `equivalency:${GROUP_ID}`,
         equivalencyGroupId: GROUP_ID,
         courseIds: [CALC_ID, CALC_ALIAS_ID],
+        repeatableForCredit: null,
         counting: { state: 'COUNTED', attempt: alias, earnedCreditsHundredths: 300 },
         inProgress: [],
         pendingTransfer: [],

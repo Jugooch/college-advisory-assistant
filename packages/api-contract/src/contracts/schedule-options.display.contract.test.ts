@@ -1,6 +1,6 @@
 /**
  * @file Tests for the term and campus display data of the schedule-options response
- *   (ADR-0010 Amendment 7): both optional, and the campuses must be exactly the ones named.
+ *   (ADR-0010 Amendment 7): both required, and the campuses must be exactly the ones named.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -77,6 +77,8 @@ const NAMES_NORTH = buildResponse({
   options: [buildOption({ rank: 1, bundles: [LECTURE_LAB_BUNDLE] })],
 });
 
+const without = (payload: Record<string, unknown>, key: string): unknown =>
+  Object.fromEntries(Object.entries(payload).filter(([name]) => name !== key));
 const accepts = (payload: unknown): boolean =>
   ScheduleOptionsResponseSchema.safeParse(payload).success;
 const messages = (payload: unknown): readonly string[] =>
@@ -84,8 +86,12 @@ const messages = (payload: unknown): readonly string[] =>
   [];
 
 describe('ScheduleOptionsResponseSchema term and campuses', () => {
-  it('accepts a response without term and campuses', () => {
-    expect(accepts(buildResponse())).toBe(true);
+  it('rejects a response without a term', () => {
+    expect(accepts(without(buildResponse(), 'term'))).toBe(false);
+  });
+
+  it('rejects a response without campuses, even when it names none', () => {
+    expect(accepts(without(buildResponse(), 'campuses'))).toBe(false);
   });
 
   it('accepts a term and exactly the campuses the sections name', () => {

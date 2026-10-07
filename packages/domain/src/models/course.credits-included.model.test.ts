@@ -22,6 +22,7 @@ const LECTURE: CourseInput = {
   maxCreditsHundredths: null,
   equivalencyGroupId: null,
   creditsIncludedInCourseId: null,
+  repeatableForCredit: null,
 };
 
 const LAB: CourseInput = {
