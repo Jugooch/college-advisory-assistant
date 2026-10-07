@@ -269,7 +269,7 @@ export function createAdvisingCaseRepository(db: Database): AdvisingCaseReposito
     listForStudent: (tenantId, studentId) =>
       readCases(db, tenantId, { where: eq(cases.studentId, studentId), newestFirst: true }),
 
-    listQueue(tenantId, advisorUserId, { at, status }) {
+    async listQueue(tenantId, advisorUserId, { at, status }) {
       const instant = parseInstant(at);
       return readCases(db, tenantId, {
         where: and(
@@ -279,7 +279,7 @@ export function createAdvisingCaseRepository(db: Database): AdvisingCaseReposito
       });
     },
 
-    listUnrouted(tenantId, at) {
+    async listUnrouted(tenantId, at) {
       const instant = parseInstant(at);
       return readCases(db, tenantId, {
         where: and(eq(cases.status, CaseStatus.Open), notExists(activeAssignment(db, instant))),

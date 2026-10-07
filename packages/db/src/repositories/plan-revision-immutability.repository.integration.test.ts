@@ -74,10 +74,10 @@ describe('plan_revision immutability', () => {
 
   it('refuses to truncate the table', async () => {
     // NOTE: rolled back either way, so a missing trigger fails this test without emptying
-    // the table for other tests. advising_case references the table, so it is listed too;
+    // the table for other tests. advising_case and case_event reference it, so they are listed too;
     // plan_revision comes first, so its trigger is the one that fires.
     const truncate = testDatabase.db.transaction(async (tx) => {
-      await tx.execute(sql`TRUNCATE "plan_revision", "advising_case"`);
+      await tx.execute(sql`TRUNCATE "plan_revision", "advising_case", "case_event"`);
       throw new Error('rollback');
     });
 
