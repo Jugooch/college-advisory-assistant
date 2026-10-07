@@ -55,6 +55,11 @@ export const CaseQueueItemSchema = z
     createdAt: z.iso.datetime({ offset: true }),
     /** Whether the signed-in user owns the case. */
     ownerIsYou: z.boolean(),
+    /**
+     * `false` when the student has no active advisor assignment. Only admins see such rows
+     * (ADR-0013 §6 Routing and the queue).
+     */
+    routed: z.boolean(),
   })
   .readonly();
 
@@ -139,7 +144,10 @@ export const getCaseEndpoint = defineEndpoint({
   response: CaseViewSchema,
 });
 
-/** Lists the advisor or admin queue, oldest first. Query: `CaseQueueQuerySchema`. */
+/**
+ * Lists the advisor or admin queue, oldest first. Query: `CaseQueueQuerySchema`. The `unrouted`
+ * filter and `routed: false` rows are admin-only.
+ */
 export const listAdvisorCasesEndpoint = defineEndpoint({
   method: 'GET',
   path: '/v1/advisor/cases',

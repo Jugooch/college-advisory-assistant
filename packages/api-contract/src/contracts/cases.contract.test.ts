@@ -32,6 +32,7 @@ const QUEUE_ROW = {
   status: 'OPEN',
   createdAt: EARLY,
   ownerIsYou: false,
+  routed: true,
 };
 
 describe('case endpoints', () => {
@@ -104,6 +105,12 @@ describe('CaseQueueResponseSchema', () => {
   it('accepts an empty queue and oldest first', () => {
     expect(accepts({ cases: [] })).toBe(true);
     expect(accepts({ cases: [QUEUE_ROW, { ...QUEUE_ROW, createdAt: LATE }] })).toBe(true);
+  });
+
+  it('accepts an unrouted row and requires the routing flag', () => {
+    expect(accepts({ cases: [{ ...QUEUE_ROW, routed: false }] })).toBe(true);
+    expect(accepts({ cases: [{ ...QUEUE_ROW, routed: undefined }] })).toBe(false);
+    expect(accepts({ cases: [{ ...QUEUE_ROW, routed: 'no' }] })).toBe(false);
   });
 
   it('rejects newest first', () => {

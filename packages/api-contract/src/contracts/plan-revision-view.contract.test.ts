@@ -48,6 +48,16 @@ describe('PlanRevisionViewSchema', () => {
     expect(accepts({ ...noResult, courseIds: [PHYS_301L, PHYS_301L] })).toBe(false);
   });
 
+  it('reports a domain-rule failure at the field that broke it', () => {
+    const noResult = { result: null, resultUnavailable: true };
+    const selection = { courseId: PHYS_301L, selectedCreditsHundredths: 200 };
+    const parsed = PlanRevisionViewSchema.safeParse(
+      buildRevisionView({ ...noResult, creditSelections: [selection] }),
+    );
+
+    expect(parsed.error?.issues.map((issue) => issue.path)).toContainEqual(['creditSelections']);
+  });
+
   it('accepts a null result flagged unavailable and rejects either one alone', () => {
     expect(accepts({ result: null, resultUnavailable: true })).toBe(true);
     expect(accepts({ result: null, resultUnavailable: false })).toBe(false);

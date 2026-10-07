@@ -129,6 +129,13 @@ describe('CaseQueueQuerySchema', () => {
     expect(CaseQueueQuerySchema.safeParse({ status: 'OPEN' }).success).toBe(true);
   });
 
+  it('parses unrouted strictly as true or false', () => {
+    expect(CaseQueueQuerySchema.parse({ unrouted: 'true' })).toEqual({ unrouted: true });
+    expect(CaseQueueQuerySchema.parse({ unrouted: 'false' })).toEqual({ unrouted: false });
+    expect(CaseQueueQuerySchema.safeParse({ unrouted: '1' }).success).toBe(false);
+    expect(CaseQueueQuerySchema.safeParse({ unrouted: 'yes' }).success).toBe(false);
+  });
+
   it('rejects an unknown status and extra keys such as tenantId', () => {
     expect(CaseQueueQuerySchema.safeParse({ status: 'DONE' }).success).toBe(false);
     expect(CaseQueueQuerySchema.safeParse({ tenantId: 'x' }).success).toBe(false);

@@ -46,17 +46,17 @@ export const PlanRevisionViewSchema = z
   // SAFETY: the stored fields still obey every rule of PlanRevisionSchema (distinct courses,
   // credit selections, selection vs outcome). The domain schema is re-run with a fixed
   // placeholder for the dropped `createdBy`, so those rules have one definition (ADR-0013 §2).
-  .refine(
-    (revision) =>
-      PlanRevisionSchema.safeParse({
-        ...Object.fromEntries(STORED_KEYS.map((key) => [key, Reflect.get(revision, key)])),
-        createdBy: PLACEHOLDER_USER_ID,
-      }).success,
-    {
-      message: 'stored revision fields must satisfy the plan revision rules',
-      path: ['courseIds'],
-    },
-  )
+  .superRefine((revision, ctx) => {
+    const stored = PlanRevisionSchema.safeParse({
+      ...Object.fromEntries(STORED_KEYS.map((key) => [key, Reflect.get(revision, key)])),
+      createdBy: PLACEHOLDER_USER_ID,
+    });
+    if (!stored.success) {
+      for (const issue of stored.error.issues) {
+        ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
+      }
+    }
+  })
   // SAFETY: an unreadable result is always flagged and a readable one never is, so the UI
   // can't render a missing result as a pass (ADR-0013 §2).
   .refine((revision) => revision.resultUnavailable === (revision.result === null), {

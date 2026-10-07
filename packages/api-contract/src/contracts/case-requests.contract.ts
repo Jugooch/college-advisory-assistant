@@ -101,11 +101,19 @@ export const CaseEventRequestSchema = z
 export type CaseEventRequest = z.infer<typeof CaseEventRequestSchema>;
 
 /**
- * Query for `GET /v1/advisor/cases`. Optional status filter; tenant and the advisor's
- * assignments come from the session.
+ * Query for `GET /v1/advisor/cases`. Optional filters; tenant and the advisor's assignments come
+ * from the session.
+ *
+ * `unrouted` is `true` or `false` (strictly parsed from the query string). `true` asks for the
+ * admin-only view of open cases whose student has no active advisor assignment, so the student
+ * always has a human route (ADR-0013 §6 Routing and the queue). The api answers 404 to an
+ * advisor who sends it.
  */
 export const CaseQueueQuerySchema = z
-  .strictObject({ status: CaseStatusSchema.optional() })
+  .strictObject({
+    status: CaseStatusSchema.optional(),
+    unrouted: z.stringbool({ truthy: ['true'], falsy: ['false'] }).optional(),
+  })
   .readonly();
 
 /** Query for `GET /v1/advisor/cases`. */
