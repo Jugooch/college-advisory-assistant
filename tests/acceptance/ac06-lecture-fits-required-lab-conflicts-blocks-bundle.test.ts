@@ -23,7 +23,12 @@ import {
   SYNTHETIC_COURSES,
 } from '@caa/test-kit';
 
-import { buildAcademicApp, createAcademicWorld } from '../support/academic-endpoints-harness';
+import {
+  buildAcademicApp,
+  createAcademicWorld,
+  setPrerequisiteRule,
+  stateNoPrerequisite,
+} from '../support/academic-endpoints-harness';
 import { acceptanceIt } from '../support/known-findings';
 import {
   conflictIssues,
@@ -119,6 +124,7 @@ describe('AC06 a lecture that fits with a required lab that conflicts blocks the
   beforeEach(() => {
     resetScheduleWorld(world);
     world.courses = [...Object.values(SYNTHETIC_COURSES), includedLab];
+    stateNoPrerequisite(world, includedLab.id);
   });
 
   acceptanceIt(
@@ -250,10 +256,10 @@ describe('AC06 a lecture that fits with a required lab that conflicts blocks the
     'AC06',
     'needs verification when an included lab has a prerequisite of its own',
     async () => {
-      world.rules = [
-        ...(world.rules ?? []),
+      setPrerequisiteRule(
+        world,
         buildPrerequisiteRule({ courseId: includedLab.id, expression: course(math101.id) }, 2),
-      ];
+      );
       publishLectureWithLab(includedLab);
 
       const response = await findScheduleOptions(app, scheduleRequest([phys201.id]));
