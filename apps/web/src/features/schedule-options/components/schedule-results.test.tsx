@@ -23,6 +23,7 @@ import { ScheduleResults } from './schedule-results';
 const BANNED = /registered|enrolled|approved/i;
 const { math102 } = SYNTHETIC_COURSES;
 const MATH_LABEL = 'DEMO-MATH 102';
+const MATH_NAME = `${MATH_LABEL} (title not available)`;
 
 const COURSE_DISPLAY = {
   courseId: math102.id,
@@ -133,7 +134,7 @@ describe('ScheduleResults outcomes', () => {
     const html = render(response(NEEDS_VERIFICATION));
     expect(html).not.toContain('Nothing was left unresolved');
     expect(html).toContain(describeReason(ReasonCode.SectionDataMissing).explanation);
-    expect(html).toContain(`${MATH_LABEL}: `);
+    expect(html).toContain(`${MATH_NAME}: `);
   });
 
   it('says a timeout is not "no schedule", and a no-plan outcome lists its conflicts', () => {

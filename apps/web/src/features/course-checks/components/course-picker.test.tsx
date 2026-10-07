@@ -95,7 +95,7 @@ describe('CoursePicker', () => {
     const field = inputWith(html, `id="pick-credits-${ind390.id}"`);
 
     expect(html).toContain(
-      `<label for="pick-credits-${ind390.id}">Credits for DEMO-IND 390</label>`,
+      `<label for="pick-credits-${ind390.id}">Credits for DEMO-IND 390 (title not available)</label>`,
     );
     expect(field).toContain(`name="credits-${ind390.id}"`);
     expect(field).toContain('value=""');

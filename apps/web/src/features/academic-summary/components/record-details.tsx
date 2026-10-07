@@ -25,14 +25,16 @@ interface ProgramNameProps {
 }
 
 /**
- * Names a program by its catalog name, or by its ID when no name was supplied.
+ * Names a program by its catalog name, or by its ID and a note when no name was supplied.
  *
  * @param props - The program ID and its name.
  * @returns The name, or the ID as code.
  */
 function ProgramName({ programId, programName }: ProgramNameProps): ReactElement {
   return programName === null || programName === undefined ? (
-    <code>{programId}</code>
+    <>
+      <code>{programId}</code> (name not available)
+    </>
   ) : (
     <>{programName}</>
   );

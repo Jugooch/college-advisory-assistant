@@ -51,7 +51,9 @@ describe('describeLeaf', () => {
       reasonCode: ReasonCode.InProgressMinGrade,
     });
 
-    expect(describeLeaf(leaf, COURSES)).toBe('Requires C or higher in DEMO-MATH 101');
+    expect(describeLeaf(leaf, COURSES)).toBe(
+      'Requires C or higher in DEMO-MATH 101 (title not available)',
+    );
   });
 
   it('names the course by its ID, and says so, when it has no catalog entry', () => {
@@ -79,7 +81,9 @@ describe('describeLeaf', () => {
       reasonCode: null,
     });
 
-    expect(describeLeaf(leaf, COURSES)).toBe('Requires a passing grade in DEMO-MATH 101');
+    expect(describeLeaf(leaf, COURSES)).toBe(
+      'Requires a passing grade in DEMO-MATH 101 (title not available)',
+    );
   });
 
   it('quotes rule text the planner cannot interpret', () => {

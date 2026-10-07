@@ -59,12 +59,16 @@ describe('RecordDetails', () => {
     expect(html).not.toContain(`<code>${PROGRAM_ID}</code>`);
   });
 
-  it('shows the program ID when no name is supplied', () => {
+  it('shows the program ID and says the name is unavailable when no name is supplied', () => {
     const html = renderToStaticMarkup(
       <RecordDetails summary={summaryWith({ record: null, audit: null })} />,
     );
 
-    expect(html).toContain(`<dt>Program in your record</dt><dd><code>${PROGRAM_ID}</code></dd>`);
-    expect(html).toContain(`<dd><code>${PROGRAM_ID}</code>, catalog 2025-2026</dd>`);
+    expect(html).toContain(
+      `<dt>Program in your record</dt><dd><code>${PROGRAM_ID}</code> (name not available)</dd>`,
+    );
+    expect(html).toContain(
+      `<dd><code>${PROGRAM_ID}</code> (name not available), catalog 2025-2026</dd>`,
+    );
   });
 });
