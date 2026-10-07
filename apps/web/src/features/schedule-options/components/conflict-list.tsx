@@ -10,6 +10,7 @@ import type { ReactElement } from 'react';
 import type { ConflictSet } from '@caa/api-contract';
 
 import { CheckResultItem } from '@/shared/components/check-result-item';
+import type { CampusLookup } from '@/shared/utils/campus-display';
 import type { CourseLookup } from '@/shared/utils/course-display';
 
 /** Props for {@link ConflictList}. */
@@ -17,6 +18,7 @@ export interface ConflictListProps {
   readonly conflictSet: ConflictSet;
   readonly asOf: string;
   readonly courses: CourseLookup;
+  readonly campuses: CampusLookup;
 }
 
 /**
@@ -25,7 +27,12 @@ export interface ConflictListProps {
  * @param props - The conflict set, the as-of text, and the course names.
  * @returns The section.
  */
-export function ConflictList({ conflictSet, asOf, courses }: ConflictListProps): ReactElement {
+export function ConflictList({
+  conflictSet,
+  asOf,
+  courses,
+  campuses,
+}: ConflictListProps): ReactElement {
   return (
     <section aria-labelledby="conflicts-heading">
       <h3 id="conflicts-heading">Verified conflicts</h3>
@@ -41,6 +48,7 @@ export function ConflictList({ conflictSet, asOf, courses }: ConflictListProps):
             check={check}
             asOf={asOf}
             courses={courses}
+            campuses={campuses}
           />
         ))}
       </ul>
