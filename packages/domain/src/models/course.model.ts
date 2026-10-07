@@ -85,11 +85,10 @@ export const CourseSchema = z
      * The institution's statement that attempts of this course may each earn credit, with any
      * caps. `null` means the institution doesn't state that, so only one attempt counts (AC04:
      * duplicate earned credit only when policy explicitly permits it). Sourced from the
-     * institution's catalog, never inferred from labels such as "topics". An omitted value means
-     * the producer hasn't been updated yet (staged rollout, standard 08 §Required-field ripple).
+     * institution's catalog, never inferred from labels such as "topics". Required: an omitted
+     * value doesn't parse (standard 04 rule 10).
      */
-    // TODO(#267): remove `.optional()` once the db mapper, seed, and test-kit fixtures set it.
-    repeatableForCredit: RepeatableForCreditSchema.nullable().optional(),
+    repeatableForCredit: RepeatableForCreditSchema.nullable(),
   })
   // SAFETY: a course whose credits are included in itself would drop its own credits from
   // every credit total.
