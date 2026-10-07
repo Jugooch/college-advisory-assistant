@@ -13,6 +13,7 @@ import type { CheckResult } from '@caa/domain';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { CheckEvidence } from '@/shared/components/check-evidence';
 import { ReasonExplanation } from '@/shared/components/reason-explanation';
+import type { CampusLookup } from '@/shared/utils/campus-display';
 import { describeCheckState } from '@/shared/utils/check-state-wording';
 import type { CourseLookup } from '@/shared/utils/course-display';
 
@@ -26,6 +27,8 @@ export interface CheckResultItemProps {
   readonly asOf: string;
   /** Catalog display entries by course ID, to name the courses in the evidence. */
   readonly courses: CourseLookup;
+  /** Campus names by ID, to name the campuses in schedule issues. */
+  readonly campuses?: CampusLookup | undefined;
   /** Short lowercase name of the rule for the "no rule" message; defaults to the dimension. */
   readonly ruleName?: string;
 }
@@ -41,6 +44,7 @@ export function CheckResultItem({
   check,
   asOf,
   courses,
+  campuses,
   ruleName,
 }: CheckResultItemProps): ReactElement {
   if (check === null) {
@@ -61,7 +65,7 @@ export function CheckResultItem({
       <h4>{dimension}</h4>
       <StatusBadge label={display.label} tone={display.tone} />
       {check.reasonCode === undefined ? null : <ReasonExplanation code={check.reasonCode} />}
-      <CheckEvidence dimension={dimension} check={check} courses={courses} />
+      <CheckEvidence dimension={dimension} check={check} courses={courses} campuses={campuses} />
     </li>
   );
 }

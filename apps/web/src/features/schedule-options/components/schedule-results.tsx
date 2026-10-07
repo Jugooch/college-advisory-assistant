@@ -12,9 +12,11 @@ import type { ReactElement } from 'react';
 
 import type { ScheduleOptionsResponse } from '@caa/api-contract';
 
+import { indexCampuses } from '@/shared/utils/campus-display';
 import { type CourseLookup, indexCourses } from '@/shared/utils/course-display';
 import { describeAsOf } from '@/shared/utils/decisive-leaf-wording';
 
+import { describeDateRange } from '../utils/meeting-wording';
 import { ConflictList } from './conflict-list';
 import { LimitationsList } from './limitations-list';
 import { OptionCard } from './option-card';
@@ -39,22 +41,37 @@ export interface ScheduleResultsProps {
  */
 export function ScheduleResults({ result, courses }: ScheduleResultsProps): ReactElement {
   const names = indexCourses(result.courses, [...courses.values()]);
+  const campuses = indexCampuses(result.campuses);
   const asOf = describeAsOf(result.pinnedInputs);
   return (
     <section aria-labelledby="results-heading">
       <ResultsHeading />
+      <p>
+        Term: {result.term.termCode} ({describeDateRange(result.term.startsOn, result.term.endsOn)})
+      </p>
       <OutcomeNotice outcome={result.outcome} searchComplete={result.searchComplete} />
       <LimitationsList limitations={result.limitations} />
       <UnresolvedList unresolved={result.unresolved} asOf={asOf} courses={names} />
       {result.conflictSet === null ? null : (
-        <ConflictList conflictSet={result.conflictSet} asOf={asOf} courses={names} />
+        <ConflictList
+          conflictSet={result.conflictSet}
+          asOf={asOf}
+          courses={names}
+          campuses={campuses}
+        />
       )}
       {result.options.length === 0 ? null : (
         <section aria-labelledby="options-heading">
           <h3 id="options-heading">Options</h3>
           <OptionComparison options={result.options} asOf={asOf} />
           {result.options.map((option) => (
-            <OptionCard key={option.rank} option={option} asOf={asOf} courses={names} />
+            <OptionCard
+              key={option.rank}
+              option={option}
+              asOf={asOf}
+              courses={names}
+              campuses={campuses}
+            />
           ))}
         </section>
       )}
