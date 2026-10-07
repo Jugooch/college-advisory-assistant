@@ -108,7 +108,7 @@ describe('CourseChecksResponseSchema aggregate precedence', () => {
     expect(acceptedAggregates({}, {})).toEqual(['VALIDATED']);
   });
 
-  it('ignores a null prerequisite, which is no rule rather than a check', () => {
+  it('ignores a null prerequisite, which is no check rather than a missing rule', () => {
     expect(acceptedAggregates({ prerequisite: null }, { prerequisite: null })).toEqual([
       'VALIDATED',
     ]);
