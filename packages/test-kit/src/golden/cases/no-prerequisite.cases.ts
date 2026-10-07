@@ -110,22 +110,7 @@ export const NO_PREREQUISITE_CASES: readonly GoldenCase[] = [
       NOT_MISSING_FAIL,
     ],
     rationale:
-      'No rule row means the rule was not imported. That is missing data, so the check is UNKNOWN and never PASS, with no decisive leaves and no source reference.',
-    citations: [ADR, SPLIT, 'planning/08 §Eligibility semantics (UNKNOWN is never PASS)'],
-  }),
-  prerequisiteCase({
-    id: 'GC-NOPRE-005',
-    family: GoldenRuleFamily.NoPrerequisite,
-    title: 'A course with no rule row stays UNKNOWN when the record is full of passes',
-    requirementIds: ['FR-05', 'FR-06', 'NFR-01'],
-    inputs: prerequisiteInputs({
-      rule: null,
-      attempts: [completedAttempt({ grade: letter('A') }, 1)],
-    }),
-    expected: [MISSING],
-    prohibitedClaims: [NEVER_PASS_WHEN_UNKNOWN, NOT_MISSING_FAIL],
-    rationale:
-      'Boundary: a completed A in DEMO-MATH 101 is no evidence about a rule nobody imported. A strong record never turns a missing rule into PASS.',
+      'No rule row means the rule was not imported. That is missing data, so the check is UNKNOWN and never PASS, with no decisive leaves. The engine has no rule lookup yet, so this case runs its missing-rule check directly; the lookup, and the record being irrelevant, are covered by the AC29 acceptance cases (#362).',
     citations: [ADR, SPLIT, 'planning/08 §Eligibility semantics (UNKNOWN is never PASS)'],
   }),
 ];

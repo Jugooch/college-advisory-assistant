@@ -1,8 +1,7 @@
 /**
  * @file Acceptance AC29 (second file): a course with no rule row is UNKNOWN
  * `PREREQUISITE_RULE_MISSING` and never a PASS, while an explicit `NONE` rule is PASS with no
- * decisive leaves (ADR-0012 §1). Expected values restate golden cases GC-NOPRE-001, GC-NOPRE-004
- * and GC-NOPRE-005 literally.
+ * decisive leaves (ADR-0012 §1). Expected values restate golden cases GC-NOPRE-001, GC-NOPRE-004 literally.
  * @requirement FR-05
  * @requirement FR-06
  * @requirement NFR-01
@@ -39,6 +38,7 @@ describe('AC29 a missing rule is UNKNOWN and an explicit NONE rule is PASS', () 
     'AC29',
     'reports UNKNOWN PREREQUISITE_RULE_MISSING, not a PASS, for a course with no rule row',
     async () => {
+      resetAcademicWorld(world, { requirements: [{ candidateCourseIds: [phys201.id] }] });
       world.rules = [buildPrerequisiteRule()];
 
       const response = await checkCourses(app, { courseIds: [phys201.id] });
@@ -72,6 +72,7 @@ describe('AC29 a missing rule is UNKNOWN and an explicit NONE rule is PASS', () 
     'AC29',
     'treats a rule that exists only in another ruleset version as a missing rule',
     async () => {
+      resetAcademicWorld(world, { requirements: [{ candidateCourseIds: [phys201.id] }] });
       world.rules = [
         buildPrerequisiteRule(),
         buildPrerequisiteRule({ courseId: phys201.id, rulesetVersion: 'demo-2025.1' }, 2),
