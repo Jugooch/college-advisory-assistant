@@ -83,6 +83,8 @@ _Decision note (2026-09-29, ADR-0010, #209):_ Until plan drafts (FR-11) need a s
 
 _Decision note (2026-10-06, ADR-0010 Amendment 6, #310):_ `GET /v1/students/:studentId/plannable-terms` lists the tenant's terms whose latest published section snapshot is unique and fresh, so the planner can offer a term picker. It is read-only, takes the tenant from the session, and carries no freshness marker. Schedule options still gates the chosen term.
 
+_Decision note (2026-10-07, ADR-0013, #400; change control per planning/04):_ Plan drafts and cases use student-scoped paths in place of `/v1/plans` and `/v1/cases`: `/v1/students/:studentId/plans` (save, list, read, revisions, `revalidate`) and `/v1/students/:studentId/cases`. An advisor works a case through `GET /v1/cases/:caseId`, `POST /v1/cases/:caseId/events` and `GET /v1/advisor/cases`. A save replays schedule options on the pinned inputs the client saw, and stores the server's result in place of a separate validation result ID. A changed replay is REVISION_CONFLICT. Request-and-poll stays deferred. A saved revision is returned as history with a read-time freshness marker (`CURRENT`, `STALE` or `UNKNOWN`, with reasons). Cases send no external message.
+
 ## Retention and deletion proposal
 
 Minimize imported fields. Do not ingest SSNs, medical detail, full financial-aid files, or immigration documents for V1. Proposed defaults for review: raw conversation 30 days; reproducibility snapshots and plan/case records for the agreed pilot plus 90 days; security access events 1 year; backups 35 days. These are placeholders pending institutional records schedules, legal holds, and contractual needs, not asserted legal requirements.
