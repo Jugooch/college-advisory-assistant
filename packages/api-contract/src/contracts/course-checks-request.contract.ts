@@ -8,7 +8,7 @@
  */
 import { z } from 'zod';
 
-import { CourseIdSchema } from '@caa/domain';
+import { CourseIdSchema, CreditSelectionSchema } from '@caa/domain';
 
 /** Most courses one course-checks request may name. */
 export const MAX_COURSE_CHECK_COURSES = 12;
@@ -23,14 +23,7 @@ function isDistinct(values: readonly string[]): boolean {
   return new Set(values).size === values.length;
 }
 
-/** The credit value chosen for one variable-credit course. */
-export const CreditSelectionSchema = z
-  .strictObject({
-    courseId: CourseIdSchema,
-    /** Chosen credits in hundredths of a credit (350 = 3.5 credits). Never a float. */
-    selectedCreditsHundredths: z.number().int().nonnegative(),
-  })
-  .readonly();
+export { CreditSelectionSchema } from '@caa/domain';
 
 /**
  * Request body for `POST /v1/students/:studentId/course-checks`.
