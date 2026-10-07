@@ -18,7 +18,11 @@ import {
   buildRecordSnapshot,
   RECORD_TIMES,
 } from '../../testing/academic-fixtures';
-import { getAcademicSummary, SummaryBodySchema } from '../../testing/academic-summary-harness';
+import {
+  getAcademicSummary,
+  SummaryBodySchema,
+  withCatalogNames,
+} from '../../testing/academic-summary-harness';
 import { readLogLines } from '../../testing/course-checks-harness';
 import { buildWorldApp, readError, STUDENTS, TOKENS } from '../../testing/fixtures';
 
@@ -47,7 +51,7 @@ beforeEach(() => {
   lines.length = 0;
   store.studentSnapshots = [snapshot];
   store.audits = [audit];
-  store.courses = Object.values(SYNTHETIC_COURSES);
+  Object.assign(store, withCatalogNames());
 });
 
 /**
@@ -74,7 +78,7 @@ describe('GET /v1/students/:studentId/academic-summary', () => {
           programId: syntheticId('program', 1),
           catalogYear: '2025-2026',
           sourceEffectiveAt: RECORD_TIMES.sourceEffectiveAt,
-          programName: null,
+          programName: 'Demo B.S. Physics',
         },
         audit: {
           auditSource: 'demo-audit',
@@ -83,7 +87,7 @@ describe('GET /v1/students/:studentId/academic-summary', () => {
           catalogYear: '2025-2026',
           generatedAt: RECORD_TIMES.auditGeneratedAt,
           studentRecordEffectiveAt: RECORD_TIMES.sourceEffectiveAt,
-          programName: null,
+          programName: 'Demo B.S. Physics',
         },
         auditReflectsRecord: { state: CheckState.Pass, reasonCode: null },
         programCatalogConsistency: { state: CheckState.Pass, reasonCode: null },
@@ -103,7 +107,7 @@ describe('GET /v1/students/:studentId/academic-summary', () => {
           {
             courseId: SYNTHETIC_COURSES.math102.id,
             code: SYNTHETIC_COURSES.math102.label,
-            title: null,
+            title: `Title ${SYNTHETIC_COURSES.math102.label}`,
             credits: { kind: 'FIXED', creditsHundredths: 300 },
           },
         ],

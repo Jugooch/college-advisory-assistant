@@ -9,6 +9,7 @@ import type {
   AuditSnapshotRepository,
   CourseCatalogRepository,
   PrerequisiteRuleRepository,
+  ProgramRepository,
   StudentSnapshotRepository,
   StudentSnapshotRevision,
   TermRepository,
@@ -21,6 +22,7 @@ import {
   createTermCalendar,
   type InstitutionId,
   type PrerequisiteRule,
+  type Program,
   type StudentId,
   type StudentSnapshot,
   type Term,
@@ -32,6 +34,7 @@ export interface InMemoryAcademicStore {
   studentSnapshots?: readonly StudentSnapshot[];
   audits?: readonly AuditSnapshot[];
   courses?: readonly Course[];
+  programs?: readonly Program[];
   rules?: readonly PrerequisiteRule[];
   policies?: readonly AcademicPolicy[];
   terms?: readonly Term[];
@@ -42,6 +45,7 @@ export interface InMemoryAcademicRepositories {
   readonly studentSnapshots: StudentSnapshotRepository;
   readonly auditSnapshots: AuditSnapshotRepository;
   readonly courseCatalog: CourseCatalogRepository;
+  readonly programs: ProgramRepository;
   readonly prerequisiteRules: PrerequisiteRuleRepository;
   readonly academicPolicies: AcademicPolicyRepository;
   readonly terms: TermRepository;
@@ -166,6 +170,14 @@ export function createInMemoryAcademicRepositories(
           (store.courses ?? [])
             .filter((course) => course.tenantId === tenantId)
             .toSorted((left, right) => left.sourceCourseId.localeCompare(right.sourceCourseId)),
+        ),
+    },
+    programs: {
+      findById: (tenantId, programId) =>
+        Promise.resolve(
+          (store.programs ?? []).find(
+            (program) => program.tenantId === tenantId && program.id === programId,
+          ) ?? null,
         ),
     },
     prerequisiteRules: {
