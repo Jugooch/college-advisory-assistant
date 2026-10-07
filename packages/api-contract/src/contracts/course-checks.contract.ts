@@ -54,8 +54,11 @@ export const CourseCheckResultSchema = z
   .object({
     courseId: CourseIdSchema,
     /**
-     * The PREREQUISITE check, or `null` when the course has no prerequisite rule. `null` means
-     * "no rule" and is not a PASS: the UI shows that no rule was checked, never a passed check.
+     * The PREREQUISITE check. A course whose pinned ruleset has no rule row is an UNKNOWN check
+     * with reason `PREREQUISITE_RULE_MISSING`, and only an explicit `NONE` rule means the course
+     * has no prerequisite (ADR-0012). `null` stays schema-valid only for a course that has no
+     * prerequisite check at all; it is never PASS, and a missing rule must not be reported as
+     * `null`. The UI shows no check as "not checked", never as a passed check.
      * A check that isn't UNKNOWN carries evidence, whose `rulesetVersion` is the pinned one.
      */
     prerequisite: checkOfKind(CheckKind.Prerequisite)
