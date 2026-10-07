@@ -71,6 +71,27 @@
       "when": 1791320734284,
       "tag": "0009_course_repeatable_for_credit",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791412456281,
+      "tag": "0010_snapshot_pin_keys",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791412456956,
+      "tag": "0011_plan_revisions",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791412457665,
+      "tag": "0012_plan_revision_immutable",
+      "breakpoints": true
     }
   ]
 }
