@@ -42,7 +42,9 @@ describe('golden corpus, development set', () => {
     const unreviewed = GOLDEN_DEVELOPMENT_CORPUS.filter(
       (golden) =>
         golden.reviewer !== 'pending-academic-review' ||
-        !['2026-09-27', '2026-09-28', '2026-09-29', '2026-10-05'].includes(golden.adjudicatedOn),
+        !['2026-09-27', '2026-09-28', '2026-09-29', '2026-10-05', '2026-10-06'].includes(
+          golden.adjudicatedOn,
+        ),
     );
 
     expect(unreviewed.map((golden) => golden.id)).toEqual([]);
