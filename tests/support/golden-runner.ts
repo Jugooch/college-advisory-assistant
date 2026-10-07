@@ -14,6 +14,7 @@ import {
   evaluateApplicability,
   evaluatePrerequisite,
   findMeetingConflicts,
+  missingPrerequisiteRuleCheck,
 } from '@caa/engine';
 import { type ExpectedCheck, type GoldenCase } from '@caa/test-kit';
 
@@ -33,6 +34,9 @@ export function runGoldenCase(golden: GoldenCase): readonly CheckResult[] {
   switch (golden.check) {
     case CheckKind.Prerequisite: {
       const { rule, attempts, courses, academicPolicy, termCalendar } = golden.inputs;
+      if (rule === null) {
+        return [missingPrerequisiteRuleCheck(academicPolicy.rulesetVersion)];
+      }
       return [evaluatePrerequisite(rule, { attempts, courses }, { academicPolicy, termCalendar })];
     }
     case CheckKind.RequirementApplicability: {

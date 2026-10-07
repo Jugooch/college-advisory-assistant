@@ -20,6 +20,7 @@ import {
   buildPrerequisiteRule,
   buildSection,
   course,
+  none,
   SYNTHETIC_COURSES,
 } from '@caa/test-kit';
 
@@ -165,6 +166,13 @@ describe('AC06 a lecture that fits with a required lab that conflicts blocks the
   );
 
   acceptanceIt('AC06', 'offers the lecture only with the lab that fits', async () => {
+    // NOTE: both courses state "no prerequisite" with explicit NONE rules, so neither is an
+    // unimported rule (ADR-0012 §1).
+    world.rules = [
+      ...(world.rules ?? []),
+      buildPrerequisiteRule({ courseId: phys201.id, expression: none() }, 2),
+      buildPrerequisiteRule({ courseId: includedLab.id, expression: none() }, 3),
+    ];
     publishSections(world, [LECTURE, LAB_L01, LAB_L02], {
       linkedSectionGroups: [lectureRequiresLab([LAB_L01.id, LAB_L02.id])],
     });

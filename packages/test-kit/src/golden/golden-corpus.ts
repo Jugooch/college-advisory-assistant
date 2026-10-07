@@ -25,6 +25,7 @@ import { LINKED_SECTION_CREDIT_CASES } from './cases/linked-section-credits.case
 import { MEETING_OVERLAP_CASES } from './cases/meeting-overlap.cases';
 import { MEETING_TIME_UNKNOWN_CASES } from './cases/meeting-time-unknown.cases';
 import { MINIMUM_GRADE_CASES } from './cases/minimum-grade.cases';
+import { NO_PREREQUISITE_CASES } from './cases/no-prerequisite.cases';
 import { PASSING_CUTOFF_CASES } from './cases/passing-cutoff.cases';
 import { PENDING_TRANSFER_REPEAT_CASES } from './cases/pending-transfer-repeats.cases';
 import { PINNED_RECORD_CASES } from './cases/pinned-record.cases';
@@ -62,6 +63,7 @@ export const GOLDEN_DEVELOPMENT_CORPUS: readonly GoldenCase[] = defineGoldenCorp
   ...RETAKE_AND_EQUIVALENCY_CASES,
   ...TERM_ORDER_CASES,
   ...EXPRESSION_CASES,
+  ...NO_PREREQUISITE_CASES,
   ...APPLICABILITY_CASES,
   ...REQUIREMENT_ANCESTOR_CASES,
   ...ALLOCATION_CASES,
