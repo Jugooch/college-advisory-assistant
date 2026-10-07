@@ -16,13 +16,13 @@ import {
   pendingTransferAttempt,
 } from '../../builders/course-attempt.builder';
 import { letter } from '../../builders/grade.builder';
+import type { GoldenCountingCase } from '../golden-counting-case.schema';
 import {
   counted,
   countingCase,
   countingInputs,
-  type GoldenCountingCase,
   NO_COUNTING_ATTEMPT,
-} from '../golden-counting-case.schema';
+} from '../golden-counting-factories';
 import {
   attemptOf,
   ENSEMBLE as ensemble,
