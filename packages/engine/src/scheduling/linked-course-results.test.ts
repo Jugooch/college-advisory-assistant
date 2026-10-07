@@ -1,5 +1,6 @@
 /**
- * @file Tests for selecting an option's unchecked linked courses (ADR-0010 Amendment 4).
+ * @file Tests for selecting an option's unchecked linked courses (ADR-0010 Amendment 4, ADR-0012
+ *   §1).
  */
 import { describe, expect, it } from 'vitest';
 
@@ -96,10 +97,33 @@ describe('linkedCourseResultsOf', () => {
     ]);
   });
 
-  it('lists nothing for a lab included in PHYS 201 with no prerequisite of its own', () => {
+  it('lists a lab included in PHYS 201 that has no rule row, with two UNKNOWN results', () => {
     const lab = labCourse(LAB_A_ID, PHYS_201_ID, 3);
 
-    expect(linkedCourseResultsOf(physWith([lab]))).toEqual([]);
+    expect(linkedCourseResultsOf(physWith([lab]))).toEqual([
+      { courseId: LAB_A_ID, ...NOT_CHECKED },
+    ]);
+  });
+
+  it('lists an included lab whose only rule is for another course', () => {
+    const lab = labCourse(LAB_A_ID, PHYS_201_ID, 3);
+    const rules = [{ courseId: OUTSIDE_ID, expression: NO_PREREQUISITE }];
+
+    expect(linkedCourseResultsOf(physWith([lab], { prerequisiteRules: rules }))).toEqual([
+      { courseId: LAB_A_ID, ...NOT_CHECKED },
+    ]);
+  });
+
+  it('lists an included lab that has both a NONE rule and a real rule', () => {
+    const lab = labCourse(LAB_A_ID, PHYS_201_ID, 3);
+    const rules = [
+      { courseId: LAB_A_ID, expression: NO_PREREQUISITE },
+      buildPrerequisiteRule({ courseId: LAB_A_ID }),
+    ];
+
+    expect(linkedCourseResultsOf(physWith([lab], { prerequisiteRules: rules }))).toEqual([
+      { courseId: LAB_A_ID, ...NOT_CHECKED },
+    ]);
   });
 
   it('lists an included lab that has its own prerequisite rule', () => {
@@ -129,7 +153,10 @@ describe('linkedCourseResultsOf', () => {
 
   it('ignores a rule for a course that is not in the option', () => {
     const lab = labCourse(LAB_A_ID, PHYS_201_ID, 3);
-    const rules = [buildPrerequisiteRule({ courseId: OUTSIDE_ID })];
+    const rules = [
+      { courseId: LAB_A_ID, expression: NO_PREREQUISITE },
+      buildPrerequisiteRule({ courseId: OUTSIDE_ID }),
+    ];
 
     expect(linkedCourseResultsOf(physWith([lab], { prerequisiteRules: rules }))).toEqual([]);
   });
