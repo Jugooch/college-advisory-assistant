@@ -60,6 +60,7 @@ describe('createRuntimeDependencies', () => {
       'courseChecks',
       'scheduleOptions',
       'planDrafts',
+      'planViews',
       'plannableTerms',
     ]);
   });

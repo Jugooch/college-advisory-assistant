@@ -6,17 +6,12 @@
  */
 import type { FastifyInstance } from 'fastify';
 
-import {
-  getPlanEndpoint,
-  getPlanRevisionEndpoint,
-  listPlansEndpoint,
-  savePlanEndpoint,
-} from '@caa/api-contract';
+import { savePlanEndpoint } from '@caa/api-contract';
 
 import type { PlanDraftsController } from './plan-drafts.controller';
 
 /**
- * Registers the save and read endpoints for plan drafts. Revalidation is a separate issue (#410).
+ * Registers the save endpoint for plan drafts. Revalidation is a separate issue (#410).
  * App-owned data only: no route writes to an institutional system.
  *
  * @param app - The authenticated route scope.
@@ -30,20 +25,5 @@ export function registerPlanDraftsRoutes(
     method: savePlanEndpoint.method,
     url: savePlanEndpoint.path,
     handler: controller.savePlan,
-  });
-  app.route({
-    method: listPlansEndpoint.method,
-    url: listPlansEndpoint.path,
-    handler: controller.listPlans,
-  });
-  app.route({
-    method: getPlanEndpoint.method,
-    url: getPlanEndpoint.path,
-    handler: controller.getPlan,
-  });
-  app.route({
-    method: getPlanRevisionEndpoint.method,
-    url: getPlanRevisionEndpoint.path,
-    handler: controller.getRevision,
   });
 }

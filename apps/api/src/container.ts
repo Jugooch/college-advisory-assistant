@@ -52,9 +52,16 @@ import { createHealthController, type HealthController } from './modules/health/
 import { createHealthService } from './modules/health/health.service';
 import { createPinnedRecordsService } from './modules/pinned-records/pinned-records.service';
 import { createPinnedSectionsService } from './modules/pinned-sections/pinned-sections.service';
-import { createPlanDraftsController } from './modules/plan-drafts/plan-drafts.controller';
+import {
+  createPlanDraftsController,
+  type PlanDraftsController,
+} from './modules/plan-drafts/plan-drafts.controller';
 import { createPlanDraftsService } from './modules/plan-drafts/plan-drafts.service';
 import { createPlanFreshnessService } from './modules/plan-freshness/plan-freshness.service';
+import {
+  createPlanViewsController,
+  type PlanViewsController,
+} from './modules/plan-views/plan-views.controller';
 import { createPlanViewsService } from './modules/plan-views/plan-views.service';
 import {
   createPlannableTermsController,
@@ -65,7 +72,10 @@ import {
   createScheduleOptionsController,
   type ScheduleOptionsController,
 } from './modules/schedule-options/schedule-options.controller';
-import { createScheduleOptionsService } from './modules/schedule-options/schedule-options.service';
+import {
+  createScheduleOptionsService,
+  type ScheduleOptionsService,
+} from './modules/schedule-options/schedule-options.service';
 import {
   createSessionController,
   type SessionController,
@@ -91,7 +101,8 @@ export interface Controllers {
   readonly courseChecks: CourseChecksController;
   readonly scheduleOptions: ScheduleOptionsController;
   readonly plannableTerms: PlannableTermsController;
-  readonly planDrafts: ReturnType<typeof createPlanDraftsController>;
+  readonly planDrafts: PlanDraftsController;
+  readonly planViews: PlanViewsController;
 }
 
 /** Every repository the API reads through. Tests pass in-memory fakes. */
@@ -143,7 +154,7 @@ function createSessionResolver(env: ApiEnv, identities: UserIdentityRepository):
 }
 
 /**
- * Builds the plan drafts controller: saves replay schedule options, and reads derive freshness.
+ * Builds the plan controllers: saves replay schedule options, and reads derive freshness.
  *
  * @param options - Configuration, repositories, and clock.
  * @param access - The access rule, including who may author a plan.
@@ -153,27 +164,21 @@ function createSessionResolver(env: ApiEnv, identities: UserIdentityRepository):
 function createPlanControllers(
   options: ContainerOptions,
   access: AccessService,
-  scheduleOptions: ReturnType<typeof createScheduleOptionsService>,
-): Controllers['planDrafts'] {
+  scheduleOptions: ScheduleOptionsService,
+): Pick<Controllers, 'planDrafts' | 'planViews'> {
   const { env, repositories, now } = options;
-  const planViews = createPlanViewsService({
-    access,
-    plans: repositories.plans,
-    freshness: createPlanFreshnessService({
-      ...repositories,
-      now,
-      maxSourceAgeMs: env.ACADEMIC_SOURCE_MAX_AGE_MS,
-      rulesetVersion: env.ACTIVE_RULESET_VERSION ?? null,
-    }),
-  });
-  const planDraftsService = createPlanDraftsService({
+  const freshness = createPlanFreshnessService({
     ...repositories,
-    access,
-    scheduleOptions,
-    views: planViews,
     now,
+    maxSourceAgeMs: env.ACADEMIC_SOURCE_MAX_AGE_MS,
+    rulesetVersion: env.ACTIVE_RULESET_VERSION ?? null,
   });
-  return createPlanDraftsController(planDraftsService, planViews);
+  const views = createPlanViewsService({ ...repositories, access, freshness });
+  const drafts = createPlanDraftsService({ ...repositories, access, scheduleOptions, views, now });
+  return {
+    planDrafts: createPlanDraftsController(drafts),
+    planViews: createPlanViewsController(views),
+  };
 }
 
 /**
@@ -181,18 +186,21 @@ function createPlanControllers(
  * schedule options, and saved plans.
  *
  * @param options - Configuration, repositories, and clock.
- * @param access - The access rule: students for reads, and the plan authoring rule.
+ * @param studentsService - Applies the access rule every academic read starts with.
+ * @param access - The access rule, including who may author a plan.
  * @returns The academic controllers.
  */
 function createAcademicControllers(
   options: ContainerOptions,
-  access: { readonly students: StudentsService; readonly service: AccessService },
-): Pick<Controllers, 'academicSummary' | 'courseChecks' | 'scheduleOptions' | 'planDrafts'> {
-  const studentsService = access.students;
+  studentsService: StudentsService,
+  access: AccessService,
+): Pick<
+  Controllers,
+  'academicSummary' | 'courseChecks' | 'scheduleOptions' | 'planDrafts' | 'planViews'
+> {
   const { env, repositories, now } = options;
   const pinnedRecords = createPinnedRecordsService({
-    studentSnapshots: repositories.studentSnapshots,
-    auditSnapshots: repositories.auditSnapshots,
+    ...repositories,
     now,
     maxSourceAgeMs: env.ACADEMIC_SOURCE_MAX_AGE_MS,
   });
@@ -204,17 +212,10 @@ function createAcademicControllers(
     programs: repositories.programs,
   });
   const courseSetInputs = createCourseSetInputsService({
-    courseCatalog: repositories.courseCatalog,
-    prerequisiteRules: repositories.prerequisiteRules,
-    academicPolicies: repositories.academicPolicies,
-    terms: repositories.terms,
+    ...repositories,
     students: studentsService,
     pinnedRecords,
-    pinnedSections: createPinnedSectionsService({
-      sectionSnapshots: repositories.sectionSnapshots,
-      campusTransitions: repositories.campusTransitions,
-      pinnedRecords,
-    }),
+    pinnedSections: createPinnedSectionsService({ ...repositories, pinnedRecords }),
     maxSkewMs: env.AUDIT_RECORD_MAX_SKEW_MS,
     rulesetVersion: env.ACTIVE_RULESET_VERSION ?? null,
   });
@@ -228,7 +229,7 @@ function createAcademicControllers(
     academicSummary: createAcademicSummaryController(academicSummaryService),
     courseChecks: createCourseChecksController(createCourseChecksService({ courseSetInputs })),
     scheduleOptions: createScheduleOptionsController(scheduleOptionsService),
-    planDrafts: createPlanControllers(options, access.service, scheduleOptionsService),
+    ...createPlanControllers(options, access, scheduleOptionsService),
   };
 }
 
@@ -261,7 +262,7 @@ export function createContainer(options: ContainerOptions): AppDependencies {
         createSessionService({ studentUserLinks: repositories.studentUserLinks }),
       ),
       students: createStudentsController(studentsService),
-      ...createAcademicControllers(options, { students: studentsService, service: accessService }),
+      ...createAcademicControllers(options, studentsService, accessService),
       plannableTerms: createPlannableTermsController(
         createPlannableTermsService({
           access: accessService,

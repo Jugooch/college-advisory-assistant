@@ -9,6 +9,7 @@ import { registerAcademicSummaryRoutes } from './modules/academic-summary/academ
 import { registerCourseChecksRoutes } from './modules/course-checks/course-checks.routes';
 import { registerHealthRoutes } from './modules/health/health.routes';
 import { registerPlanDraftsRoutes } from './modules/plan-drafts/plan-drafts.routes';
+import { registerPlanViewsRoutes } from './modules/plan-views/plan-views.routes';
 import { registerPlannableTermsRoutes } from './modules/plannable-terms/plannable-terms.routes';
 import { registerScheduleOptionsRoutes } from './modules/schedule-options/schedule-options.routes';
 import { registerSessionRoutes } from './modules/session/session.routes';
@@ -45,6 +46,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
       registerScheduleOptionsRoutes(scope, controllers.scheduleOptions);
       registerPlannableTermsRoutes(scope, controllers.plannableTerms);
       registerPlanDraftsRoutes(scope, controllers.planDrafts);
+      registerPlanViewsRoutes(scope, controllers.planViews);
     },
   });
   return app;

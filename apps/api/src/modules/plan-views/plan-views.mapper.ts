@@ -27,17 +27,12 @@ function parseView(
   revision: StoredPlanRevision['revision'],
   view: Pick<PlanRevisionView, 'result' | 'resultUnavailable' | 'freshness'>,
 ): PlanRevisionView | null {
-  const { createdBy, ...publicFields } = revision;
-  // SECURITY: a view shows no user ID (ADR-0013 §6). NOTE: until the contract drops `createdBy`
-  // from the view (#425), the full revision is the only shape it accepts; remove the second
-  // attempt when that lands.
-  for (const fields of [publicFields, { ...publicFields, createdBy }]) {
-    const parsed = PlanRevisionViewSchema.safeParse({ ...fields, ...view });
-    if (parsed.success) {
-      return parsed.data;
-    }
-  }
-  return null;
+  // SECURITY: a view shows no user ID (ADR-0013 §6), so the saver is dropped before parsing.
+  const publicFields = Object.fromEntries(
+    Object.entries(revision).filter(([key]) => key !== 'createdBy'),
+  );
+  const parsed = PlanRevisionViewSchema.safeParse({ ...publicFields, ...view });
+  return parsed.success ? parsed.data : null;
 }
 
 /**
