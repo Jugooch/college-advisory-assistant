@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
   InstitutionIdSchema,
+  SectionSnapshotIdSchema,
   StudentIdSchema,
   StudentSnapshotIdSchema,
   TermIdSchema,
@@ -18,7 +19,13 @@ import { openIsolatedTestDatabase } from '../testing/isolated-database';
 import { buildDevSeedPlan } from './dev-seed-plan';
 import { buildStudentRevision } from './dev-seed-revision-plan';
 import { buildWithdrawnSectionSnapshot } from './dev-seed-section-plan';
-import { ReviseNotNewerError, reviseSliceSources } from './revise-slice-sources';
+import {
+  ReviseNotNewerError,
+  ReviseNotSeededError,
+  reviseSliceSources,
+} from './revise-slice-sources';
+import { insertSectionSnapshot } from './section-snapshot-writer';
+import { insertSnapshot } from './seed-academic-data';
 import { seedDevData } from './seed-dev-data';
 
 const SEED_RUN = new Date('2026-10-01T12:00:00.000Z');
@@ -104,5 +111,60 @@ describe('reviseSliceSources', () => {
     await expect(
       reviseSliceSources(testDatabase.db, 'sections', new Date(SEED_RUN.getTime())),
     ).rejects.toBeInstanceOf(ReviseNotNewerError);
+  });
+});
+
+describe('reviseSliceSources edge cases', () => {
+  let testDatabase: TestDatabase;
+
+  beforeAll(async () => {
+    testDatabase = await openIsolatedTestDatabase();
+  });
+
+  afterAll(async () => {
+    await testDatabase.close();
+  });
+
+  it('asks for the seed first when nothing is seeded, for both targets', async () => {
+    await expect(reviseSliceSources(testDatabase.db, 'student', FIRST)).rejects.toBeInstanceOf(
+      ReviseNotSeededError,
+    );
+    await expect(reviseSliceSources(testDatabase.db, 'sections', FIRST)).rejects.toBeInstanceOf(
+      ReviseNotSeededError,
+    );
+  });
+
+  it('refuses when the latest revision is a tie, and writes nothing', async () => {
+    await seedDevData(testDatabase.db, PLAN);
+    const seededStudent = PLAN.academic.snapshots[0];
+    const seededSections = PLAN.sections.snapshot;
+    if (!seededStudent) {
+      throw new Error('the seed plan has no student snapshot');
+    }
+    // NOTE: same source time, different ID: the source doesn't say which is newer.
+    await insertSnapshot(
+      testDatabase.db,
+      {
+        ...seededStudent,
+        id: StudentSnapshotIdSchema.parse('99999999-0000-4000-8000-000000000001'),
+      },
+      seededStudent.studentId,
+    );
+    await insertSectionSnapshot(testDatabase.db, {
+      ...seededSections,
+      id: SectionSnapshotIdSchema.parse('99999999-0000-4000-8000-000000000002'),
+      sections: [],
+      linkedSectionGroups: [],
+    });
+
+    await expect(reviseSliceSources(testDatabase.db, 'student', SECOND)).rejects.toBeInstanceOf(
+      ReviseNotNewerError,
+    );
+    await expect(reviseSliceSources(testDatabase.db, 'sections', SECOND)).rejects.toBeInstanceOf(
+      ReviseNotNewerError,
+    );
+    expect(
+      await createStudentSnapshotRepository(testDatabase.db).findLatest(TENANT, STUDENT),
+    ).toEqual({ status: 'AMBIGUOUS' });
   });
 });

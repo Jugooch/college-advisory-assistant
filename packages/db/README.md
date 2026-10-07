@@ -33,10 +33,10 @@ run when `NODE_ENV=production`.
    (`synthetic-advisor-002`) who has no assignment and therefore sees no student.
 2. Sign in as the student and save a plan draft for 2027SP.
 3. Supersede one of its sources:
-   - `pnpm --filter @caa/db db:seed:revise` (or `-- --student`) publishes a newer student record in
+   - `pnpm --filter @caa/db db:seed:revise` (or `--student`) publishes a newer student record in
      which the in-progress DEMO-PHYS 201 attempt becomes completed with a posted grade. The draft is
      `STALE` with `STUDENT_RECORD_SUPERSEDED`.
-   - `pnpm --filter @caa/db db:seed:revise -- --sections` publishes a newer 2027SP section snapshot
+   - `pnpm --filter @caa/db db:seed:revise --sections` publishes a newer 2027SP section snapshot
      in which DEMO-MATH 102 section 002 is withdrawn. The draft is `STALE` with
      `SECTIONS_SUPERSEDED`.
 4. Sign in as the student and create an advisor case from the stale draft.

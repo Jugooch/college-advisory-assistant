@@ -76,19 +76,12 @@ export async function reviseSliceSources(
 /**
  * Decides whether a revision may be written.
  *
- * @param latest - Latest stored revision's ID and effective time, or null; ambiguous throws.
+ * @param latest - Latest stored revision's ID and effective time, or a tie, which throws.
  * @param nextId - ID of the revision about to be written.
  * @param now - The run time.
  * @returns False when this exact revision already exists, true when it is strictly newer.
  */
-function isNewer(
-  latest: { id: string; at: string } | 'AMBIGUOUS' | null,
-  nextId: string,
-  now: Date,
-) {
-  if (latest === null) {
-    return true;
-  }
+function isNewer(latest: { id: string; at: string } | 'AMBIGUOUS', nextId: string, now: Date) {
   // SAFETY: a late older batch must never become, or tie for, the newest truth.
   if (latest === 'AMBIGUOUS') {
     throw new ReviseNotNewerError();
@@ -116,12 +109,13 @@ async function reviseStudent(db: Database, now: Date): Promise<boolean> {
     tenantId,
     StudentIdSchema.parse(student.id),
   );
+  if (latest === null) {
+    throw new ReviseNotSeededError();
+  }
   const head =
-    latest === null
-      ? null
-      : latest.status === 'AMBIGUOUS'
-        ? 'AMBIGUOUS'
-        : { id: latest.revision.snapshot.id, at: latest.revision.snapshot.sourceEffectiveAt };
+    latest.status === 'AMBIGUOUS'
+      ? 'AMBIGUOUS'
+      : { id: latest.revision.snapshot.id, at: latest.revision.snapshot.sourceEffectiveAt };
   if (!isNewer(head, snapshot.id, now)) {
     return false;
   }

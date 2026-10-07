@@ -40,13 +40,15 @@ export interface DevReviseDependencies {
 /**
  * Reads the flag that picks the revision.
  *
- * @param argv - Arguments after the script name.
+ * @param argv - Arguments after the script name; a leading `--` is ignored.
  * @returns `sections` for `--sections`; `student` for `--student` or no flag.
  * @throws {ReviseUsageError} On any other argument, or both flags.
  */
 export function parseReviseTarget(argv: readonly string[]): ReviseTarget {
-  const flags = new Set(argv);
-  const isKnown = argv.every((arg) => arg === '--student' || arg === '--sections');
+  // NOTE: pnpm forwards the literal `--` of `pnpm run script -- --flag` to the script.
+  const args = argv[0] === '--' ? argv.slice(1) : argv;
+  const flags = new Set(args);
+  const isKnown = args.every((arg) => arg === '--student' || arg === '--sections');
   if (!isKnown || flags.size > 1) {
     throw new ReviseUsageError();
   }

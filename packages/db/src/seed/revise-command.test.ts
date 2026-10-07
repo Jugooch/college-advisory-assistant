@@ -79,6 +79,13 @@ describe('parseReviseTarget', () => {
     expect(parseReviseTarget(['--sections'])).toBe('sections');
   });
 
+  it('ignores the leading -- that pnpm forwards', () => {
+    expect(parseReviseTarget(['--', '--sections'])).toBe('sections');
+    expect(parseReviseTarget(['--', '--student'])).toBe('student');
+    expect(parseReviseTarget(['--'])).toBe('student');
+    expect(() => parseReviseTarget(['--', '--', '--sections'])).toThrow(ReviseUsageError);
+  });
+
   it('rejects both flags together and anything unknown', () => {
     expect(() => parseReviseTarget(['--student', '--sections'])).toThrow(ReviseUsageError);
     expect(() => parseReviseTarget(['sections'])).toThrow(ReviseUsageError);
