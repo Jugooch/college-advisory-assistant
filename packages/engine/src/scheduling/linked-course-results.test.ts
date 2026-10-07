@@ -3,7 +3,12 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { type Course, CourseIdSchema, type Section } from '@caa/domain';
+import {
+  type Course,
+  CourseIdSchema,
+  createPrerequisiteRootExpression,
+  type Section,
+} from '@caa/domain';
 import { buildCourse, buildPrerequisiteRule, buildSection } from '@caa/test-kit';
 
 import { type LinkedCourseInput, linkedCourseResultsOf } from './linked-course-results';
@@ -17,6 +22,9 @@ const OUTSIDE_ID = CourseIdSchema.parse('3c4d5e6f-0000-4000-8000-000000000999');
 
 const PHYS_201 = buildCourse({ id: PHYS_201_ID, label: 'DEMO-PHYS 201' }, 1);
 const CHEM_101 = buildCourse({ id: CHEM_101_ID, label: 'DEMO-CHEM 101' }, 2);
+
+/** An explicit "no prerequisite" rule expression (ADR-0012 §1). */
+const NO_PREREQUISITE = createPrerequisiteRootExpression({ type: 'NONE' });
 
 /** The results every selected course gets: both checks UNKNOWN, unverified. */
 const NOT_CHECKED = {
@@ -97,6 +105,22 @@ describe('linkedCourseResultsOf', () => {
   it('lists an included lab that has its own prerequisite rule', () => {
     const lab = labCourse(LAB_A_ID, PHYS_201_ID, 3);
     const rules = [buildPrerequisiteRule({ courseId: LAB_A_ID })];
+
+    expect(linkedCourseResultsOf(physWith([lab], { prerequisiteRules: rules }))).toEqual([
+      { courseId: LAB_A_ID, ...NOT_CHECKED },
+    ]);
+  });
+
+  it('lists nothing for a lab included in PHYS 201 whose rule states no prerequisite', () => {
+    const lab = labCourse(LAB_A_ID, PHYS_201_ID, 3);
+    const rules = [{ courseId: LAB_A_ID, expression: NO_PREREQUISITE }];
+
+    expect(linkedCourseResultsOf(physWith([lab], { prerequisiteRules: rules }))).toEqual([]);
+  });
+
+  it('still lists a lab with a NONE rule when its credits are not included', () => {
+    const lab = labCourse(LAB_A_ID, null, 3);
+    const rules = [{ courseId: LAB_A_ID, expression: NO_PREREQUISITE }];
 
     expect(linkedCourseResultsOf(physWith([lab], { prerequisiteRules: rules }))).toEqual([
       { courseId: LAB_A_ID, ...NOT_CHECKED },

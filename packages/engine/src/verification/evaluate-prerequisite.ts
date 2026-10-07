@@ -15,6 +15,7 @@ import {
   type DecisiveLeaf,
   type PrerequisiteExpression,
   PrerequisiteExpressionType,
+  type PrerequisiteRootExpression,
   type PrerequisiteRule,
   ReasonCode,
 } from '@caa/domain';
@@ -46,13 +47,22 @@ interface NodeEnvironment {
   readonly context: AttemptResolutionContext;
 }
 
+/**
+ * A prerequisite rule whose expression may be an explicit "no prerequisite" at the root
+ * (ADR-0012 §1). Every {@link PrerequisiteRule} is one.
+ */
+export type RootPrerequisiteRule = Omit<PrerequisiteRule, 'expression'> & {
+  readonly expression: PrerequisiteRootExpression;
+};
+
 const CATALOG_GAP: LeafOutcome = {
   state: CheckState.Unknown,
   reasonCode: ReasonCode.CourseNotInCatalog,
 };
 
 /**
- * Evaluates a prerequisite rule against a student's attempts with three-valued logic. `ALL`
+ * Evaluates a prerequisite rule against a student's attempts with three-valued logic. A `NONE`
+ * root passes with no decisive leaves, whatever the attempts and catalog hold. `ALL`
  * and `ANY` combine their children as documented in `combine-prerequisite-states.ts`; each
  * `COURSE` leaf is decided by `evaluateCoursePrerequisite` from the counting attempt of the
  * course's equivalency group; an `UNSUPPORTED` leaf is UNKNOWN with its own reason code.
@@ -70,7 +80,7 @@ const CATALOG_GAP: LeafOutcome = {
  *   the rule's.
  */
 export function evaluatePrerequisite(
-  rule: PrerequisiteRule,
+  rule: RootPrerequisiteRule,
   record: StudentCourseRecord,
   context: AttemptResolutionContext,
 ): CheckResult {
@@ -82,8 +92,20 @@ export function evaluatePrerequisite(
   if (rule.rulesetVersion !== context.academicPolicy.rulesetVersion) {
     throw new PrerequisiteInputMismatchError('rulesetVersion');
   }
+  const { expression } = rule;
+  if (expression.type === PrerequisiteExpressionType.None) {
+    // SAFETY: the institution states the course has no prerequisite, so nothing in the record
+    // can block it; the rule's source is the evidence (ADR-0012 §1; planning/08 §Eligibility
+    // semantics). A course with no rule at all is UNKNOWN instead (missing-prerequisite-rule.ts).
+    return createCheckResult({
+      kind: CheckKind.Prerequisite,
+      state: CheckState.Pass,
+      sourceRef: rule.sourceRef,
+      evidence: { rulesetVersion: rule.rulesetVersion, decisiveLeaves: [] },
+    });
+  }
   const findGroup = createGroupLookup(record, context);
-  const root = evaluateNode(rule.expression, [], { findGroup, context });
+  const root = evaluateNode(expression, [], { findGroup, context });
   const [first] = root.decisiveLeaves;
   // NOTE: an empty group is the only way a non-PASS state has no decisive leaf; the domain
   // rejects empty groups, so the fallback reason is defensive.
