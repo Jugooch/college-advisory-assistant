@@ -26,7 +26,11 @@ import {
   SYNTHETIC_COURSES,
 } from '@caa/test-kit';
 
-import { buildAcademicApp, createAcademicWorld } from '../support/academic-endpoints-harness';
+import {
+  buildAcademicApp,
+  createAcademicWorld,
+  stateNoPrerequisite,
+} from '../support/academic-endpoints-harness';
 import { acceptanceIt } from '../support/known-findings';
 import {
   findScheduleOptions,
@@ -134,6 +138,7 @@ describe('AC12 a dropped linked section stays unresolved while the search runs',
   beforeEach(() => {
     resetScheduleWorld(world);
     world.courses = [...Object.values(SYNTHETIC_COURSES), LAB];
+    stateNoPrerequisite(world, LAB.id);
     publishSections(world, [MATH_MWF, PHYS_DROPPED, PHYS_TTH], {
       linkedSectionGroups: [
         buildLinkedSectionGroup({
