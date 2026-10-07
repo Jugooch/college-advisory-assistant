@@ -12,6 +12,7 @@ import {
   type PlanRevisionInput,
   type SectionId,
   SectionIdSchema,
+  type SectionSnapshot,
   type SectionSnapshotId,
   type StudentId,
   type StudentSnapshotId,
@@ -24,7 +25,7 @@ import type { Database } from '../client';
 import type { NewPlanRevision } from '../repositories/plan.repository';
 import { insertCourse } from './catalog-fixtures';
 import { insertStudent, insertUser } from './integration-fixtures';
-import { insertSectionWorld, publishSectionSnapshot } from './section-fixtures';
+import { insertSectionWorld, publishSectionSnapshot, type SectionWorld } from './section-fixtures';
 import { insertAudit, insertSnapshot } from './snapshot-fixtures';
 
 /** The student record time the fixture snapshot describes. */
@@ -45,6 +46,27 @@ export interface PlanWorld {
   readonly sectionId: SectionId;
 }
 
+/** A tenant's term and published section snapshot, which several worlds in one tenant share. */
+export interface SharedSections {
+  readonly sections: SectionWorld;
+  readonly sectionSnapshot: SectionSnapshot;
+}
+
+/**
+ * Inserts a tenant's term, courses and published section snapshot, for worlds that share them.
+ *
+ * @param db - Database handle.
+ * @param tenantId - Owning tenant.
+ * @returns The shared term and snapshot.
+ */
+export async function insertSharedSections(
+  db: Database,
+  tenantId: InstitutionId,
+): Promise<SharedSections> {
+  const sections = await insertSectionWorld(db, tenantId);
+  return { sections, sectionSnapshot: await publishSectionSnapshot(db, sections) };
+}
+
 /**
  * Inserts a tenant's student, term, user, snapshots and audit for plan tests.
  *
@@ -58,10 +80,27 @@ export async function insertPlanWorld(
   tenantId: InstitutionId,
   label: string,
 ): Promise<PlanWorld> {
+  return insertPlanWorldIn(db, await insertSharedSections(db, tenantId), label);
+}
+
+/**
+ * Inserts a student, user, snapshots and audit in a tenant that already has its term and
+ * section snapshot. A tenant has one term, so a second world in it must use this.
+ *
+ * @param db - Database handle.
+ * @param shared - The tenant's shared term and section snapshot.
+ * @param label - Distinguishes worlds in one tenant.
+ * @returns The IDs a revision can pin.
+ */
+export async function insertPlanWorldIn(
+  db: Database,
+  shared: SharedSections,
+  label: string,
+): Promise<PlanWorld> {
+  const { sections, sectionSnapshot } = shared;
+  const tenantId = sections.tenantId;
   const studentId = await insertStudent(db, tenantId, `SYN-${label}`);
   const userId = await insertUser(db, tenantId, label);
-  const sections = await insertSectionWorld(db, tenantId);
-  const sectionSnapshot = await publishSectionSnapshot(db, sections);
   const studentSnapshotId = await insertSnapshot(db, tenantId, {
     studentId,
     sourceEffectiveAt: STUDENT_RECORD_AT,
