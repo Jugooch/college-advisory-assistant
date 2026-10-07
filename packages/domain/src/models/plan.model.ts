@@ -30,3 +30,17 @@ export const PlanSchema = z
 
 /** A validated, immutable plan. */
 export type Plan = z.infer<typeof PlanSchema>;
+
+/** Raw input accepted by {@link createPlan}. */
+export type PlanInput = z.input<typeof PlanSchema>;
+
+/**
+ * Creates a validated, immutable plan.
+ *
+ * @param input - Raw plan fields.
+ * @returns The parsed plan.
+ * @throws {z.ZodError} When a field is invalid or an unknown key is present.
+ */
+export function createPlan(input: PlanInput): Plan {
+  return PlanSchema.parse(input);
+}

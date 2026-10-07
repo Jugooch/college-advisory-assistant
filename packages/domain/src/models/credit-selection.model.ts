@@ -19,3 +19,17 @@ export const CreditSelectionSchema = z
 
 /** A validated credit selection. */
 export type CreditSelection = z.infer<typeof CreditSelectionSchema>;
+
+/** Raw input accepted by {@link createCreditSelection}. */
+export type CreditSelectionInput = z.input<typeof CreditSelectionSchema>;
+
+/**
+ * Creates a validated, immutable credit selection.
+ *
+ * @param input - Raw selection fields.
+ * @returns The parsed credit selection.
+ * @throws {z.ZodError} When a field is invalid or an unknown key is present.
+ */
+export function createCreditSelection(input: CreditSelectionInput): CreditSelection {
+  return CreditSelectionSchema.parse(input);
+}

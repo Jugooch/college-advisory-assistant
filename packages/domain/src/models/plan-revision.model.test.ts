@@ -1,11 +1,9 @@
 /**
- * @file Tests for the plan and plan revision data objects.
+ * @file Tests for the plan revision data object.
  */
 import { describe, expect, it } from 'vitest';
 
-import { PlanFreshness, PlanStaleReason } from '../enums/plan-freshness.enum';
-import { PlanSchema } from './plan.model';
-import { PlanRevisionSchema } from './plan-revision.model';
+import { createPlanRevision, PlanRevisionSchema } from './plan-revision.model';
 
 const SECTION_A = '5a000000-0000-4000-8000-000000000001';
 const SECTION_B = '5a000000-0000-4000-8000-000000000002';
@@ -92,35 +90,59 @@ describe('PlanRevisionSchema', () => {
   it('rejects a malformed constraint hash', () => {
     expect(accepts({ constraintHash: 'abc' })).toBe(false);
   });
-});
 
-describe('PlanSchema', () => {
-  const PLAN = {
-    id: '7b000000-0000-4000-8000-000000000001',
-    tenantId: '0b8f6a36-3f7e-4a53-9c1e-8f1b2c3d4e5f',
-    studentId: '2b3c4d5e-0000-4000-8000-000000000001',
-    termId: '3a000000-0000-4000-8000-000000000001',
-    createdAt: '2026-10-07T09:00:00.000-05:00',
-  };
+  it('rejects two credit values for one course', () => {
+    const courseId = 'c0000000-0000-4000-8000-000000000001';
+    expect(
+      accepts({
+        creditSelections: [
+          { courseId, selectedCreditsHundredths: 300 },
+          { courseId, selectedCreditsHundredths: 400 },
+        ],
+      }),
+    ).toBe(false);
+  });
 
-  it('accepts a plan and rejects unknown keys or a time without offset', () => {
-    expect(PlanSchema.safeParse(PLAN).success).toBe(true);
-    expect(PlanSchema.safeParse({ ...PLAN, extra: 1 }).success).toBe(false);
-    expect(PlanSchema.safeParse({ ...PLAN, createdAt: '2026-10-07T09:00:00' }).success).toBe(false);
+  it('rejects a credit value for a course not in the plan', () => {
+    expect(
+      accepts({
+        creditSelections: [
+          { courseId: 'c0000000-0000-4000-8000-000000000009', selectedCreditsHundredths: 300 },
+        ],
+      }),
+    ).toBe(false);
+  });
+
+  it('accepts exactly 8 courses and rejects 9', () => {
+    const courses = (count: number): string[] =>
+      Array.from(
+        { length: count },
+        (_, index) => `c0000000-0000-4000-8000-00000000010${String(index)}`,
+      );
+    expect(accepts({ courseIds: courses(8), creditSelections: [] })).toBe(true);
+    expect(accepts({ courseIds: courses(9), creditSelections: [] })).toBe(false);
+  });
+
+  it('accepts 64 sections and rejects 65', () => {
+    const sections = (count: number): string[] =>
+      Array.from(
+        { length: count },
+        (_, index) => `5a000000-0000-4000-8000-0000000001${String(index).padStart(2, '0')}`,
+      );
+    expect(accepts({ selectedSectionIds: sections(64) })).toBe(true);
+    expect(accepts({ selectedSectionIds: sections(65) })).toBe(false);
+  });
+
+  it('accepts a work cap of 3000000 and rejects 3000001 or 0', () => {
+    expect(accepts({ solverWorkCap: 3_000_000 })).toBe(true);
+    expect(accepts({ solverWorkCap: 3_000_001 })).toBe(false);
+    expect(accepts({ solverWorkCap: 0 })).toBe(false);
   });
 });
 
-describe('staleness vocabulary', () => {
-  it('lists the fixed freshness states and reasons', () => {
-    expect(Object.values(PlanFreshness)).toEqual(['CURRENT', 'STALE', 'UNKNOWN']);
-    expect(Object.values(PlanStaleReason)).toEqual([
-      'STUDENT_RECORD_SUPERSEDED',
-      'AUDIT_SUPERSEDED',
-      'SECTIONS_SUPERSEDED',
-      'RULESET_CHANGED',
-      'TRANSITION_TABLE_CHANGED',
-      'SOURCE_EXPIRED',
-      'SOURCE_UNAVAILABLE',
-    ]);
+describe('createPlanRevision', () => {
+  it('returns the parsed revision and throws on invalid input', () => {
+    expect(createPlanRevision(VALID as never).revision).toBe(1);
+    expect(() => createPlanRevision({ ...VALID, revision: 0 } as never)).toThrow();
   });
 });

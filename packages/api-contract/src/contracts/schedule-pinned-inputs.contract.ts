@@ -7,12 +7,12 @@
  */
 import { z } from 'zod';
 
-import { SectionSnapshotIdSchema } from '@caa/domain';
+import { MAX_PLAN_SOLVER_WORK_CAP, SectionSnapshotIdSchema } from '@caa/domain';
 
 import { PinnedInputsSchema } from './course-checks.contract';
 
 /** Most solver work units a request may use (ADR-0010 §1). */
-export const MAX_SOLVER_WORK_CAP = 3_000_000;
+export const MAX_SOLVER_WORK_CAP = MAX_PLAN_SOLVER_WORK_CAP;
 
 /**
  * The inputs every option was computed from, so the response can be reproduced: the course

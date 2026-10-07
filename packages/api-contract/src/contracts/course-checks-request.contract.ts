@@ -23,8 +23,6 @@ function isDistinct(values: readonly string[]): boolean {
   return new Set(values).size === values.length;
 }
 
-export { CreditSelectionSchema } from '@caa/domain';
-
 /**
  * Request body for `POST /v1/students/:studentId/course-checks`.
  *
