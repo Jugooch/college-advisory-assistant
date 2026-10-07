@@ -1,5 +1,5 @@
 /**
- * @file Acceptance AC34 (proposed, #225): schedule options follow the student access rule, never
+ * @file Acceptance AC40 (#225): schedule options follow the student access rule, never
  * relax a hard constraint, and carry no free-text academic claim or registration wording. Only
  * the student and an assigned advisor are served; everyone else gets the 404 a missing student
  * gets, and a body naming a tenant, role, or user is 400 (ADR-0010 §6). A section inside a hard
@@ -109,13 +109,13 @@ const world = createAcademicWorld();
 // against a case's timeout.
 const app = buildAcademicApp(world);
 
-describe('AC34 schedule options follow the access rule and never relax a hard constraint', () => {
+describe('AC40 schedule options follow the access rule and never relax a hard constraint', () => {
   beforeEach(() => {
     resetScheduleWorld(world);
     publishSections(world, [MATH_MWF, MATH_TTH]);
   });
 
-  acceptanceIt('AC34', 'serves the student and the assigned advisor', async () => {
+  acceptanceIt('AC40', 'serves the student and the assigned advisor', async () => {
     const student = await findScheduleOptions(app, MATH_ONLY, { actor: 'student' });
     const advisor = await findScheduleOptions(app, MATH_ONLY, { actor: 'advisor' });
 
@@ -130,7 +130,7 @@ describe('AC34 schedule options follow the access rule and never relax a hard co
   });
 
   acceptanceIt(
-    'AC34',
+    'AC40',
     'answers everyone else exactly as it answers a missing student',
     async () => {
       const served = await findScheduleOptions(app, MATH_ONLY);
@@ -153,7 +153,7 @@ describe('AC34 schedule options follow the access rule and never relax a hard co
   );
 
   acceptanceIt(
-    'AC34',
+    'AC40',
     'rejects a body that names a tenant, a role, or a user with 400',
     async () => {
       const extras = [
@@ -172,7 +172,7 @@ describe('AC34 schedule options follow the access rule and never relax a hard co
     },
   );
 
-  acceptanceIt('AC34', 'never offers a section inside a hard unavailable time', async () => {
+  acceptanceIt('AC40', 'never offers a section inside a hard unavailable time', async () => {
     const response = await findScheduleOptions(app, NO_MONDAY_MORNING);
 
     expect(response).toMatchObject({
@@ -189,7 +189,7 @@ describe('AC34 schedule options follow the access rule and never relax a hard co
   });
 
   acceptanceIt(
-    'AC34',
+    'AC40',
     'proves no plan, never a relaxed one, when every section is inside the hard unavailable time',
     async () => {
       publishSections(world, [MATH_MWF]);
@@ -225,7 +225,7 @@ describe('AC34 schedule options follow the access rule and never relax a hard co
   );
 
   acceptanceIt(
-    'AC34',
+    'AC40',
     'states seats and registration only as the fixed limitation codes',
     async () => {
       const response = await findScheduleOptions(app, MATH_ONLY);
