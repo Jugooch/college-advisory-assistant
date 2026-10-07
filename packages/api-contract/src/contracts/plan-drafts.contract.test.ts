@@ -107,6 +107,10 @@ describe('PlanViewSchema', () => {
     ).toBe(false);
   });
 
+  it('rejects a plan createdAt that differs from the first revision', () => {
+    expect(plan({ createdAt: '2026-10-06T09:00:00.000-05:00' })).toBe(false);
+  });
+
   it('rejects an extra field such as an approval status', () => {
     expect(plan({ approved: true })).toBe(false);
   });

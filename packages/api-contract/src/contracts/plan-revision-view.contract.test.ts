@@ -4,7 +4,13 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildRevisionView, CURRENT_FRESHNESS } from '../testing/plan-draft-fixtures';
-import { buildResponse, PINNED_INPUTS, sectionId } from '../testing/schedule-option-fixtures';
+import {
+  buildResponse,
+  PHYS_301L,
+  PINNED_INPUTS,
+  sectionId,
+  singleSectionOption,
+} from '../testing/schedule-option-fixtures';
 import { PlanRevisionViewSchema } from './plan-revision-view.contract';
 
 const accepts = (fields: Record<string, unknown>): boolean =>
@@ -60,6 +66,41 @@ describe('PlanRevisionViewSchema', () => {
         result: buildResponse({ pinnedInputs: { ...PINNED_INPUTS, rulesetVersion: 'other' } }),
       }),
     ).toBe(false);
+  });
+
+  it.each([
+    ['studentSnapshotId', '3c4d5e6f-0000-4000-8000-000000000002'],
+    ['studentRecordEffectiveAt', '2026-09-21T07:30:00.000-05:00'],
+    ['auditRecordEffectiveAt', '2026-09-21T07:15:00.000-05:00'],
+    ['auditSource', 'other-audit'],
+    ['auditVersion', 'audit_demo_r8'],
+    ['rulesetVersion', 'other'],
+    ['sectionSnapshotId', '5a7b0000-0000-4000-8000-000000000002'],
+    ['campusTransitionVersion', null],
+    ['solverWorkCap', 2_000_000],
+    ['constraintHash', `sha256:${'0b'.repeat(32)}`],
+  ])('rejects a result whose pinned %s differs', (key, value) => {
+    expect(
+      accepts({ result: buildResponse({ pinnedInputs: { ...PINNED_INPUTS, [key]: value } }) }),
+    ).toBe(false);
+  });
+
+  it('rejects a result for other courses than the revision', () => {
+    expect(accepts({ result: buildResponse({ courseIds: [PHYS_301L] }) })).toBe(false);
+  });
+
+  it('rejects a selection that is not one of the result options', () => {
+    expect(accepts({ selectedSectionIds: [sectionId(99)] })).toBe(false);
+    expect(accepts({ selectedSectionIds: [sectionId(2)] })).toBe(false);
+  });
+
+  it('accepts a selection equal to the second option', () => {
+    expect(
+      accepts({
+        selectedSectionIds: [sectionId(2)],
+        result: buildResponse({ options: [singleSectionOption(1, 1), singleSectionOption(2, 2)] }),
+      }),
+    ).toBe(true);
   });
 
   it('keeps the stored revision rules: a selection needs OPTIONS_FOUND', () => {

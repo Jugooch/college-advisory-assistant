@@ -12,6 +12,7 @@
 import { z } from 'zod';
 
 import {
+  CaseStatusSchema,
   PlanIdSchema,
   PlanRevisionCauseSchema,
   ScheduleOutcomeSchema,
@@ -33,7 +34,7 @@ export const PlanRevisionIndexEntrySchema = z
   .readonly();
 
 /** Status of an advisor case that is still open (ADR-0013 §6). */
-export const OpenCaseStatusSchema = z.enum(['OPEN', 'IN_REVIEW']);
+export const OpenCaseStatusSchema = CaseStatusSchema.extract(['Open', 'InReview']);
 
 /**
  * Response body for the save and revalidate endpoints and for `GET .../plans/:planId`: the
@@ -62,11 +63,15 @@ export const PlanViewSchema = z
   // (ADR-0013 §1: revisions are immutable).
   .refine(
     (plan) =>
+      plan.createdAt === plan.revisions[0]?.createdAt &&
       plan.latest.planId === plan.id &&
       plan.latest.termId === plan.termId &&
       plan.revisions.at(-1)?.cause === plan.latest.cause &&
       plan.revisions.at(-1)?.createdAt === plan.latest.createdAt,
-    { message: 'latest must be the last indexed revision of this plan', path: ['latest'] },
+    {
+      message: 'latest must be the last indexed revision of this plan, and createdAt the first',
+      path: ['latest'],
+    },
   )
   .readonly();
 
