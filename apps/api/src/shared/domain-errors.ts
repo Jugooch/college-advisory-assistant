@@ -74,6 +74,18 @@ export class InvalidRequestError extends DomainError {
   }
 }
 
+/** The request was built on inputs that are no longer the current ones. Nothing was written. */
+export class RevisionConflictError extends DomainError {
+  /** Creates a REVISION_CONFLICT error asking the caller to refresh and try again. */
+  constructor() {
+    super(
+      ErrorCode.RevisionConflict,
+      'Your options changed since you viewed them. Refresh your options and try again.',
+    );
+    this.name = 'RevisionConflictError';
+  }
+}
+
 /**
  * Loaded inputs contradict how they were queried, for example a prerequisite rule at another
  * ruleset than the policy it was loaded with. Not a `DomainError`: it is a defect, so the error

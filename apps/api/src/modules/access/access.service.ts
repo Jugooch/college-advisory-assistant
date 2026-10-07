@@ -35,6 +35,18 @@ export interface AccessService {
    *   all within the actor's tenant.
    */
   canViewStudent(actor: Actor, studentId: StudentId, context: RequestContext): Promise<boolean>;
+
+  /**
+   * Decides whether the actor may save or revalidate a plan for the student. Only the student's
+   * own record qualifies: an assigned advisor or an admin may read a plan, not author it
+   * (ADR-0013 §5).
+   *
+   * @param actor - Authenticated actor from the session.
+   * @param studentId - Internal student ID from the path.
+   * @param context - Request-scoped values; the decision is logged with opaque IDs only.
+   * @returns True only when the student is in the actor's tenant and linked to the actor's user.
+   */
+  canSavePlan(actor: Actor, studentId: StudentId, context: RequestContext): Promise<boolean>;
 }
 
 /**
@@ -79,6 +91,22 @@ export function createAccessService(dependencies: AccessServiceDependencies): Ac
       context.logger.info(
         { actorUserId: actor.userId, tenantId: actor.tenantId, studentId, isAllowed, reason },
         'student access decision',
+      );
+      return isAllowed;
+    },
+    async canSavePlan(actor, studentId, context) {
+      // SECURITY: the tenant comes from the session actor, never from the request.
+      const student = await dependencies.students.findById(actor.tenantId, studentId);
+      // SECURITY: authoring is limited to the student's own record, so an advisor or admin who
+      // can read the plan still can't save one for the student (ADR-0013 §5).
+      const isAllowed =
+        student !== null &&
+        student.tenantId === actor.tenantId &&
+        actor.roles.includes(Role.Student) &&
+        student.userId === actor.userId;
+      context.logger.info(
+        { actorUserId: actor.userId, tenantId: actor.tenantId, studentId, isAllowed },
+        'plan save access decision',
       );
       return isAllowed;
     },

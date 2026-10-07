@@ -12,7 +12,7 @@ import type { AccessService } from '../access/access.service';
 
 /** Dependencies of the students service. */
 export interface StudentsServiceDependencies {
-  readonly access: AccessService;
+  readonly access: Pick<AccessService, 'canViewStudent'>;
   readonly students: StudentRepository;
 }
 
