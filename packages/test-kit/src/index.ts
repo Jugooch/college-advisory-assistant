@@ -37,6 +37,8 @@ export * from './fixtures/synthetic-tenants';
 export * from './golden/golden-case.schema';
 export * from './golden/golden-case-factories';
 export * from './golden/golden-corpus';
+export * from './golden/golden-counting-case.schema';
+export * from './golden/golden-counting-fixtures';
 export * from './golden/golden-expectation.schema';
 export * from './golden/golden-expectations';
 export * from './golden/golden-inputs';
