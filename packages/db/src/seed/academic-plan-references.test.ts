@@ -8,15 +8,20 @@ import {
   createPrerequisiteExpression,
   createPrerequisiteRule,
   PrerequisiteExpressionType,
+  ReasonCode,
 } from '@caa/domain';
 
 import {
   AcademicSeedReferenceError,
   assertAcademicPlanReferences,
+  coursesIn,
 } from './academic-plan-references';
 import { buildDevSeedAcademicPlan, type DevSeedAcademicPlan } from './dev-seed-academic-plan';
 
 const PLAN = buildDevSeedAcademicPlan(new Date('2026-10-01T12:00:00.000Z'));
+
+const COURSE_A = '50000000-0000-4000-8000-00000000aaaa';
+const COURSE_B = '50000000-0000-4000-8000-00000000bbbb';
 
 /** A course ID that the seeded catalog doesn't contain. */
 const UNCATALOGUED = '50000000-0000-4000-8000-00000000ffff';
@@ -107,5 +112,38 @@ describe('assertAcademicPlanReferences', () => {
     expect(failureOf({ audits: [at(PLAN.audits, 0), audit] })).toContain(
       'not in its pinned snapshot',
     );
+  });
+});
+
+describe('coursesIn', () => {
+  it('references no course for a no-prerequisite root', () => {
+    expect(coursesIn({ type: PrerequisiteExpressionType.None })).toEqual([]);
+  });
+
+  it('references no course for an unsupported expression', () => {
+    const expression = createPrerequisiteExpression({
+      type: PrerequisiteExpressionType.Unsupported,
+      sourceText: 'instructor consent',
+      reasonCode: ReasonCode.UnsupportedRule,
+    });
+
+    expect(coursesIn(expression)).toEqual([]);
+  });
+
+  it('lists courses at any depth in tree order', () => {
+    const expression = createPrerequisiteExpression({
+      type: PrerequisiteExpressionType.All,
+      items: [
+        { type: PrerequisiteExpressionType.Course, courseId: COURSE_A, minimumGrade: null },
+        {
+          type: PrerequisiteExpressionType.Any,
+          items: [
+            { type: PrerequisiteExpressionType.Course, courseId: COURSE_B, minimumGrade: null },
+          ],
+        },
+      ],
+    });
+
+    expect(coursesIn(expression)).toEqual([COURSE_A, COURSE_B]);
   });
 });
