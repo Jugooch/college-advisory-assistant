@@ -4,7 +4,7 @@ Which rule families and interactions the golden corpus covers, and which gaps re
 
 Status as of 2026-10-06 (#226):
 
-- The development corpus has 164 cases: 113 check cases across 20 rule families (`GOLDEN_DEVELOPMENT_CORPUS` in `@caa/test-kit`), and 51 scheduling cases across 7 scheduling families. 24 of the scheduling cases are section pairs run through `findMeetingConflicts` (inside `GOLDEN_DEVELOPMENT_CORPUS`), and 27 are solver cases run through `buildSectionBundles` and `solveSchedule` (`GOLDEN_DEVELOPMENT_SCHEDULE_CORPUS`).
+- The development corpus has 184 cases: 116 check cases across 20 rule families (`GOLDEN_DEVELOPMENT_CORPUS` in `@caa/test-kit`), 20 repeat-for-credit counting cases (`GOLDEN_DEVELOPMENT_COUNTING_CORPUS`, GC-RCR-001–020, run through `resolveAttempts`; their expectation is earned credit, which no check carries), and 51 scheduling cases across 7 scheduling families. 24 of the scheduling cases are section pairs run through `findMeetingConflicts` (inside `GOLDEN_DEVELOPMENT_CORPUS`), and 27 are solver cases run through `buildSectionBundles` and `solveSchedule` (`GOLDEN_DEVELOPMENT_SCHEDULE_CORPUS`).
 - The holdout has 49 cases, version v0.5 (#226): 31 check cases, so every non-scheduling rule family has at least one, and 18 scheduling cases, which now run through the solver.
 - Every case is `pending-academic-review`.
 - No open findings. #183 was settled by tech-lead ruling GR-01 (planning/13 §Golden corpus design, Adjudication rulings), and GC-PF-004 was re-adjudicated from it.
@@ -27,28 +27,28 @@ States are the adjudicated `expected` states:
 
 "Boundary" lists cases that sit exactly on a limit or one step past it.
 
-| Family                | Development cases                | States  | Boundary cases                        | Holdout |
-| --------------------- | -------------------------------- | ------- | ------------------------------------- | ------- |
-| MINIMUM_GRADE         | GC-MIN-001–005                   | P F     | GC-MIN-002, GC-MIN-003                | 1       |
-| PASS_FAIL_EQUIVALENCE | GC-PF-001–006                    | P F U   | none                                  | 2       |
-| PASSING_CUTOFF        | GC-CUT-001–006                   | P F U   | GC-CUT-002, GC-CUT-006                | 2       |
-| UNRANKED_GRADE        | GC-UNR-001–002                   | U       | none                                  | 1       |
-| IN_PROGRESS           | GC-IP-001–002                    | C F     | none                                  | 1       |
-| PENDING_TRANSFER      | GC-PT-001–008                    | P U     | none                                  | 3       |
-| INCOMPLETE_ATTEMPT    | GC-INC-001                       | U       | none                                  | 1       |
-| REPEAT                | GC-REP-001–014                   | P F U C | GC-REP-005, GC-REP-006, GC-REP-014    | 1       |
-| EQUIVALENCY           | GC-EQV-001–003                   | P U     | none                                  | 2       |
-| AND_OR_EXPRESSION     | GC-EXP-001–006                   | P F U C | none                                  | 1       |
-| UNSUPPORTED_RULE      | GC-UNS-001                       | U       | none                                  | 1       |
-| CATALOG_GAP           | GC-CAT-001–002                   | U       | none                                  | 2       |
-| APPLICABILITY         | GC-APP-001–010                   | P F U C | none                                  | 2       |
-| AUDIT_STALE           | GC-STALE-001–007                 | P U     | GC-STALE-002, GC-STALE-005            | 1       |
-| AUDIT_RECORD_MISMATCH | GC-PIN-001–004                   | U       | none                                  | 2       |
-| PROGRAM_CATALOG       | GC-PROG-001–006                  | U       | none                                  | 2       |
-| ALLOCATION            | GC-ALLOC-001–006                 | P U     | none                                  | 1       |
-| CREDIT_BOUNDS         | GC-LOAD-001–009                  | P F U   | GC-LOAD-002, GC-LOAD-003, GC-LOAD-005 | 1       |
-| VARIABLE_CREDIT       | GC-VAR-001–003, GC-ALLOC-007–012 | P U     | GC-ALLOC-009, GC-ALLOC-010            | 2       |
-| TERM_ORDER            | GC-TERM-001–006                  | P F U   | GC-TERM-005                           | 2       |
+| Family                | Development cases                | States  | Boundary cases                                                         | Holdout |
+| --------------------- | -------------------------------- | ------- | ---------------------------------------------------------------------- | ------- |
+| MINIMUM_GRADE         | GC-MIN-001–005                   | P F     | GC-MIN-002, GC-MIN-003                                                 | 1       |
+| PASS_FAIL_EQUIVALENCE | GC-PF-001–006                    | P F U   | none                                                                   | 2       |
+| PASSING_CUTOFF        | GC-CUT-001–006                   | P F U   | GC-CUT-002, GC-CUT-006                                                 | 2       |
+| UNRANKED_GRADE        | GC-UNR-001–002                   | U       | none                                                                   | 1       |
+| IN_PROGRESS           | GC-IP-001–002                    | C F     | none                                                                   | 1       |
+| PENDING_TRANSFER      | GC-PT-001–008                    | P U     | none                                                                   | 3       |
+| INCOMPLETE_ATTEMPT    | GC-INC-001                       | U       | none                                                                   | 1       |
+| REPEAT                | GC-REP-001–017, GC-RCR-001–020   | P F U C | GC-REP-005, GC-REP-006, GC-REP-014, GC-RCR-002, GC-RCR-003, GC-RCR-006 | 1       |
+| EQUIVALENCY           | GC-EQV-001–003                   | P U     | none                                                                   | 2       |
+| AND_OR_EXPRESSION     | GC-EXP-001–006                   | P F U C | none                                                                   | 1       |
+| UNSUPPORTED_RULE      | GC-UNS-001                       | U       | none                                                                   | 1       |
+| CATALOG_GAP           | GC-CAT-001–002                   | U       | none                                                                   | 2       |
+| APPLICABILITY         | GC-APP-001–010                   | P F U C | none                                                                   | 2       |
+| AUDIT_STALE           | GC-STALE-001–007                 | P U     | GC-STALE-002, GC-STALE-005                                             | 1       |
+| AUDIT_RECORD_MISMATCH | GC-PIN-001–004                   | U       | none                                                                   | 2       |
+| PROGRAM_CATALOG       | GC-PROG-001–006                  | U       | none                                                                   | 2       |
+| ALLOCATION            | GC-ALLOC-001–006                 | P U     | none                                                                   | 1       |
+| CREDIT_BOUNDS         | GC-LOAD-001–009                  | P F U   | GC-LOAD-002, GC-LOAD-003, GC-LOAD-005                                  | 1       |
+| VARIABLE_CREDIT       | GC-VAR-001–003, GC-ALLOC-007–012 | P U     | GC-ALLOC-009, GC-ALLOC-010                                             | 2       |
+| TERM_ORDER            | GC-TERM-001–006                  | P F U   | GC-TERM-005                                                            | 2       |
 
 **Family gaps** (planning/13 release gate: every supported family needs positive, negative, boundary and unknown cases):
 

@@ -13,7 +13,11 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { GOLDEN_DEVELOPMENT_CORPUS, GOLDEN_DEVELOPMENT_SCHEDULE_CORPUS } from '@caa/test-kit';
+import {
+  GOLDEN_DEVELOPMENT_CORPUS,
+  GOLDEN_DEVELOPMENT_COUNTING_CORPUS,
+  GOLDEN_DEVELOPMENT_SCHEDULE_CORPUS,
+} from '@caa/test-kit';
 
 import {
   declaredAcceptanceKeys,
@@ -54,6 +58,7 @@ function knownKeys(): ReadonlySet<string> {
   return new Set([
     ...GOLDEN_DEVELOPMENT_CORPUS.map((golden) => golden.id),
     ...GOLDEN_DEVELOPMENT_SCHEDULE_CORPUS.map((golden) => golden.id),
+    ...GOLDEN_DEVELOPMENT_COUNTING_CORPUS.map((golden) => golden.id),
     ...GOLDEN_HOLDOUT_CORPUS.map((golden) => golden.id),
     ...GOLDEN_HOLDOUT_SCHEDULE_CORPUS.map((golden) => golden.id),
     ...testFiles(ACCEPTANCE_FOLDER).flatMap((path) =>
