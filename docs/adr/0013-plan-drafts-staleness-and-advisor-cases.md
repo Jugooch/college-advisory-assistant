@@ -93,7 +93,7 @@ Each plan or revision read returns `freshness: { state, reasons, checkedAt }`. A
 
 Each change is a `CaseEvent` with `sequence`, `action`, the actor, the time, the from and to status, and, on `RESOLVE` only, a `resolution` and a note of up to 1,000 characters.
 
-**States and transitions.** The state machine is a shared invariant in `@caa/domain`, `nextCaseStatus(status, action, actorRole)` (ADR-0005). It holds the whole table below. Whether the actor is the owner is checked in the api by user ID.
+**States and transitions.** The transition table is an api workflow rule, not an engine result, so it is not a shared invariant (ADR-0005, standard 01 §Shared invariants). It lives in a pure `apps/api/src/modules/cases/cases.logic.ts` (ADR-0008), `nextCaseStatus(status, action, actor)`, which the cases service calls (built in #411, used by #412). The service derives `actor` from the session and the case: the student, the owner, or an assigned advisor or admin. The logic file holds the whole table below and refuses every other pair. `@caa/domain` holds only the `CaseStatus`, `CaseAction`, `CaseReason`, `DiscrepancySubject` and `CaseResolution` enums and the case and event models; no domain or contract schema checks a transition. Each case view carries `allowedActions` for the session's actor, computed by the same logic file, so the web never re-derives the table.
 
 | From                | Action     | Actor                     | To                               |
 | ------------------- | ---------- | ------------------------- | -------------------------------- |
@@ -146,7 +146,7 @@ No new error code is needed: `REVISION_CONFLICT`, `STALE_SOURCE` and `SOURCE_UNA
 - Contract changes to `ScheduleOptionsResponse` can make old stored results unparseable. They then show as "result unavailable", never as a guess. A contract PR that would break stored results says so, and offers a migration if drafts must survive it.
 - Each plan read does a few "latest ID" lookups. That is acceptable at pilot scale (NFR-06); revisit if measured otherwise.
 - planning/09 gets a decision note for the endpoints, and planning/13 gets AC32–AC37 (both in this PR). planning/07 needs no edit, because its rule already covers this: saved results stay readable with their original timestamp.
-- The issues for this work, in merge order, are on #399. Tooling: no new file roles, so devops has nothing to add. The `.logic.ts` role and layer rules already cover `plan-freshness.logic.ts`.
+- The issues for this work, in merge order, are on #399. Tooling: no new file roles, so devops has nothing to add. The `.logic.ts` role and layer rules already cover `plan-freshness.logic.ts` and `cases.logic.ts`.
 - Retention of plans and cases follows planning/09's placeholder (pilot plus 90 days) until an institution approves a schedule. Deletion is not built in S5.
 
 ## Revisit when
