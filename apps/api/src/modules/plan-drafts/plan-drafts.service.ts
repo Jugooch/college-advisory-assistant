@@ -1,5 +1,5 @@
 /**
- * @file Saves a plan draft by replaying schedule options on the server, and reads saved plans.
+ * @file Saves a plan draft by replaying schedule options on the server.
  * The client's evidence is never stored: the stored result is the server's own replay (ADR-0013 §2).
  * @module @caa/api/modules/plan-drafts/plan-drafts.service
  * @requirement FR-01
