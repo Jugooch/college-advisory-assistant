@@ -16,6 +16,7 @@ import {
   createCampusTransitionRepository,
   createCourseCatalogRepository,
   createDatabase,
+  createPlanRepository,
   createPrerequisiteRuleRepository,
   createProgramRepository,
   createSectionSnapshotRepository,
@@ -23,6 +24,7 @@ import {
   createStudentSnapshotRepository,
   createTermRepository,
   createUserIdentityRepository,
+  type PlanRepository,
   type PrerequisiteRuleRepository,
   type ProgramRepository,
   type StudentRepository,
@@ -39,7 +41,7 @@ import {
   createAcademicSummaryController,
 } from './modules/academic-summary/academic-summary.controller';
 import { createAcademicSummaryService } from './modules/academic-summary/academic-summary.service';
-import { createAccessService } from './modules/access/access.service';
+import { type AccessService, createAccessService } from './modules/access/access.service';
 import {
   type CourseChecksController,
   createCourseChecksController,
@@ -51,6 +53,17 @@ import { createHealthService } from './modules/health/health.service';
 import { createPinnedRecordsService } from './modules/pinned-records/pinned-records.service';
 import { createPinnedSectionsService } from './modules/pinned-sections/pinned-sections.service';
 import {
+  createPlanDraftsController,
+  type PlanDraftsController,
+} from './modules/plan-drafts/plan-drafts.controller';
+import { createPlanDraftsService } from './modules/plan-drafts/plan-drafts.service';
+import { createPlanFreshnessService } from './modules/plan-freshness/plan-freshness.service';
+import {
+  createPlanViewsController,
+  type PlanViewsController,
+} from './modules/plan-views/plan-views.controller';
+import { createPlanViewsService } from './modules/plan-views/plan-views.service';
+import {
   createPlannableTermsController,
   type PlannableTermsController,
 } from './modules/plannable-terms/plannable-terms.controller';
@@ -59,7 +72,10 @@ import {
   createScheduleOptionsController,
   type ScheduleOptionsController,
 } from './modules/schedule-options/schedule-options.controller';
-import { createScheduleOptionsService } from './modules/schedule-options/schedule-options.service';
+import {
+  createScheduleOptionsService,
+  type ScheduleOptionsService,
+} from './modules/schedule-options/schedule-options.service';
 import {
   createSessionController,
   type SessionController,
@@ -85,6 +101,8 @@ export interface Controllers {
   readonly courseChecks: CourseChecksController;
   readonly scheduleOptions: ScheduleOptionsController;
   readonly plannableTerms: PlannableTermsController;
+  readonly planDrafts: PlanDraftsController;
+  readonly planViews: PlanViewsController;
 }
 
 /** Every repository the API reads through. Tests pass in-memory fakes. */
@@ -104,6 +122,7 @@ export interface Repositories {
   readonly sectionSnapshots: TermSectionSnapshotRepository;
   readonly campusTransitions: CampusTransitionRepository;
   readonly campuses: CampusRepository;
+  readonly plans: PlanRepository;
 }
 
 /** What {@link createContainer} needs. */
@@ -135,20 +154,53 @@ function createSessionResolver(env: ApiEnv, identities: UserIdentityRepository):
 }
 
 /**
- * Builds the controllers of the academic reads: summary, course checks, and schedule options.
+ * Builds the plan controllers: saves replay schedule options, and reads derive freshness.
+ *
+ * @param options - Configuration, repositories, and clock.
+ * @param access - The access rule, including who may author a plan.
+ * @param scheduleOptions - The existing schedule options service the save replays.
+ * @returns The plan drafts controller.
+ */
+function createPlanControllers(
+  options: ContainerOptions,
+  access: AccessService,
+  scheduleOptions: ScheduleOptionsService,
+): Pick<Controllers, 'planDrafts' | 'planViews'> {
+  const { env, repositories, now } = options;
+  const freshness = createPlanFreshnessService({
+    ...repositories,
+    now,
+    maxSourceAgeMs: env.ACADEMIC_SOURCE_MAX_AGE_MS,
+    rulesetVersion: env.ACTIVE_RULESET_VERSION ?? null,
+  });
+  const views = createPlanViewsService({ ...repositories, access, freshness });
+  const drafts = createPlanDraftsService({ ...repositories, access, scheduleOptions, views, now });
+  return {
+    planDrafts: createPlanDraftsController(drafts),
+    planViews: createPlanViewsController(views),
+  };
+}
+
+/**
+ * Builds the controllers of the academic reads and plan drafts: summary, course checks,
+ * schedule options, and saved plans.
  *
  * @param options - Configuration, repositories, and clock.
  * @param studentsService - Applies the access rule every academic read starts with.
+ * @param access - The access rule, including who may author a plan.
  * @returns The academic controllers.
  */
 function createAcademicControllers(
   options: ContainerOptions,
   studentsService: StudentsService,
-): Pick<Controllers, 'academicSummary' | 'courseChecks' | 'scheduleOptions'> {
+  access: AccessService,
+): Pick<
+  Controllers,
+  'academicSummary' | 'courseChecks' | 'scheduleOptions' | 'planDrafts' | 'planViews'
+> {
   const { env, repositories, now } = options;
   const pinnedRecords = createPinnedRecordsService({
-    studentSnapshots: repositories.studentSnapshots,
-    auditSnapshots: repositories.auditSnapshots,
+    ...repositories,
     now,
     maxSourceAgeMs: env.ACADEMIC_SOURCE_MAX_AGE_MS,
   });
@@ -160,17 +212,10 @@ function createAcademicControllers(
     programs: repositories.programs,
   });
   const courseSetInputs = createCourseSetInputsService({
-    courseCatalog: repositories.courseCatalog,
-    prerequisiteRules: repositories.prerequisiteRules,
-    academicPolicies: repositories.academicPolicies,
-    terms: repositories.terms,
+    ...repositories,
     students: studentsService,
     pinnedRecords,
-    pinnedSections: createPinnedSectionsService({
-      sectionSnapshots: repositories.sectionSnapshots,
-      campusTransitions: repositories.campusTransitions,
-      pinnedRecords,
-    }),
+    pinnedSections: createPinnedSectionsService({ ...repositories, pinnedRecords }),
     maxSkewMs: env.AUDIT_RECORD_MAX_SKEW_MS,
     rulesetVersion: env.ACTIVE_RULESET_VERSION ?? null,
   });
@@ -184,6 +229,7 @@ function createAcademicControllers(
     academicSummary: createAcademicSummaryController(academicSummaryService),
     courseChecks: createCourseChecksController(createCourseChecksService({ courseSetInputs })),
     scheduleOptions: createScheduleOptionsController(scheduleOptionsService),
+    ...createPlanControllers(options, access, scheduleOptionsService),
   };
 }
 
@@ -216,7 +262,7 @@ export function createContainer(options: ContainerOptions): AppDependencies {
         createSessionService({ studentUserLinks: repositories.studentUserLinks }),
       ),
       students: createStudentsController(studentsService),
-      ...createAcademicControllers(options, studentsService),
+      ...createAcademicControllers(options, studentsService, accessService),
       plannableTerms: createPlannableTermsController(
         createPlannableTermsService({
           access: accessService,
@@ -255,6 +301,7 @@ export function createRuntimeDependencies(env: ApiEnv): AppDependencies {
     sectionSnapshots: createSectionSnapshotRepository(db),
     campusTransitions: createCampusTransitionRepository(db),
     campuses: createCampusRepository(db),
+    plans: createPlanRepository(db),
   };
   return createContainer({ env, repositories, now: () => new Date() });
 }
