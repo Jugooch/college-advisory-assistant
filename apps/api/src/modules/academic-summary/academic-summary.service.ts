@@ -10,8 +10,15 @@
  * @see docs/standards/09-errors-logging-and-security.md
  */
 import type { CourseDisplay } from '@caa/api-contract';
-import type { CourseCatalogRepository } from '@caa/db';
-import type { Actor, AuditSnapshot, Student, StudentId, StudentSnapshot } from '@caa/domain';
+import type { CourseCatalogRepository, ProgramRepository } from '@caa/db';
+import type {
+  Actor,
+  AuditSnapshot,
+  ProgramId,
+  Student,
+  StudentId,
+  StudentSnapshot,
+} from '@caa/domain';
 import {
   type AuditProgramConsistency,
   type AuditRecordReflection,
@@ -37,6 +44,8 @@ export interface AcademicSummaryServiceDependencies {
   readonly maxSkewMs: number;
   /** Supplies the display entries of the audit's candidate courses. */
   readonly courseCatalog: CourseCatalogRepository;
+  /** Supplies the catalog names of the record's and the audit's programs. */
+  readonly programs: ProgramRepository;
 }
 
 /** The audit the summary shows, with the engine's verdicts on it. */
@@ -54,6 +63,11 @@ export interface AcademicSummary {
   readonly audit: SummarizedAudit | null;
   /** Code and credit rule of the audit's candidate courses in the catalog; empty without one. */
   readonly courses: readonly CourseDisplay[];
+  /** Catalog names of the record's program and the audit's program; `null` means unknown. */
+  readonly programNames: {
+    readonly record: string | null;
+    readonly audit: string | null;
+  };
 }
 
 /** Academic summary reads, each gated by the students service's access rule. */
@@ -123,6 +137,27 @@ async function candidateCourses(
 }
 
 /**
+ * Looks up a program's catalog name in the session tenant's catalog.
+ *
+ * @param programs - The program repository.
+ * @param actor - Supplies the tenant.
+ * @param programId - The program a record or audit states, or `null` when it states none.
+ * @returns The stored name; `null` when no program is stated, it isn't in the catalog, or the
+ *   catalog has no name for it. A name is never derived from the program's source ID.
+ */
+async function programNameOf(
+  programs: ProgramRepository,
+  actor: Actor,
+  programId: ProgramId | null,
+): Promise<string | null> {
+  if (programId === null) {
+    return null;
+  }
+  // SECURITY: the program is read for the session's tenant only.
+  return (await programs.findById(actor.tenantId, programId))?.name ?? null;
+}
+
+/**
  * Logs a built summary with opaque IDs and the verdicts' reason codes only.
  *
  * @param scope - The session's tenant and the path student.
@@ -161,7 +196,7 @@ function logRead(
 export function createAcademicSummaryService(
   dependencies: AcademicSummaryServiceDependencies,
 ): AcademicSummaryService {
-  const { students, pinnedRecords, maxSkewMs, courseCatalog } = dependencies;
+  const { students, pinnedRecords, maxSkewMs, courseCatalog, programs } = dependencies;
   return {
     async getAcademicSummary(actor, studentId, context) {
       // SECURITY: the same rule as GET /v1/students/:studentId (self, assigned advisor, or admin
@@ -175,8 +210,12 @@ export function createAcademicSummaryService(
       pinnedRecords.assertFresh(scope, { snapshot: studentSnapshot, audit });
       const summarized = summarizeAudit(audit, { studentSnapshot, maxSkewMs });
       const courses = await candidateCourses(courseCatalog, actor, audit);
+      const programNames = {
+        record: await programNameOf(programs, actor, studentSnapshot.programId),
+        audit: await programNameOf(programs, actor, audit?.programId ?? null),
+      };
       logRead(scope, studentSnapshot, summarized);
-      return { student, studentSnapshot, audit: summarized, courses };
+      return { student, studentSnapshot, audit: summarized, courses, programNames };
     },
   };
 }

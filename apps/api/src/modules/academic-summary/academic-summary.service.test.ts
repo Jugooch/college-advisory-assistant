@@ -86,6 +86,7 @@ function read(setup: Setup = {}) {
     }),
     maxSkewMs: MAX_SKEW_MS,
     courseCatalog: store.courseCatalog,
+    programs: store.programs,
   });
   return { result: service.getAcademicSummary(actor, student.id, { logger }), logger };
 }
@@ -102,6 +103,7 @@ describe('AcademicSummaryService.getAcademicSummary', () => {
         reflectsRecord: { state: CheckState.Pass, reasonCode: null },
         programCatalogConsistency: { state: CheckState.Pass, reasonCode: null },
       },
+      programNames: { record: null, audit: null },
       courses: [
         {
           courseId: SYNTHETIC_COURSES.math102.id,

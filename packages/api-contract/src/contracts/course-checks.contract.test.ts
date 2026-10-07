@@ -63,7 +63,7 @@ describe('CourseChecksResponseSchema', () => {
     ),
   });
 
-  it('accepts a validated set and keeps a null prerequisite as null', () => {
+  it('accepts a validated set and keeps a null prerequisite (no check) as null', () => {
     const parsed = CourseChecksResponseSchema.parse(VALID);
 
     expect(parsed.courseResults[1]?.prerequisite).toBeNull();

@@ -23,6 +23,11 @@ import type { AdvisorAssignment, Student, UserIdentity } from '@caa/domain';
 
 import { type AcademicWorld, createAcademicRepositories } from './academic-repositories';
 import {
+  createProgramRepositories,
+  type ProgramRepositories,
+  type ProgramWorld,
+} from './program-repositories';
+import {
   createScheduleRepositories,
   type ScheduleRepositories,
   type ScheduleWorld,
@@ -65,7 +70,7 @@ export type AcceptanceApp = ReturnType<typeof buildApp>;
  * (section snapshots, transition tables) are optional: a case seeds only what it reads, and an
  * omitted field means nothing of that kind is stored.
  */
-export interface AcceptanceWorld extends AcademicWorld, ScheduleWorld {
+export interface AcceptanceWorld extends AcademicWorld, ScheduleWorld, ProgramWorld {
   identities: readonly UserIdentity[];
   students: readonly Student[];
   assignments: readonly AdvisorAssignment[];
@@ -205,17 +210,19 @@ export function buildAcceptanceApp(
     SCHEDULE_SOLVER_WORK_CAP: String(options.solverWorkCap ?? ACCEPTANCE_SOLVER_WORK_CAP),
   });
   // NOTE: the intersection lets the harness provide repositories before the API adds them to
-  // `Repositories`: `studentUserLinks` (#151) and the schedule ones (#221). Once they're there,
+  // `Repositories`: `studentUserLinks` (#151), the schedule ones (#221), and `programs` (#187). Once they're there,
   // the intersection is redundant and can go.
   const repositories: Repositories & {
     studentUserLinks: StudentUserLinkRepository;
-  } & ScheduleRepositories = {
+  } & ScheduleRepositories &
+    ProgramRepositories = {
     userIdentities: createIdentities(world),
     students: createStudents(world),
     studentUserLinks: createStudentUserLinks(world),
     advisorAssignments: createAssignments(world),
     ...createAcademicRepositories(world),
     ...createScheduleRepositories(world),
+    ...createProgramRepositories(world),
   };
   return buildApp({
     dependencies: createContainer({ env, repositories, now: () => ACCEPTANCE_NOW }),

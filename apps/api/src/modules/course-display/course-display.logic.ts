@@ -36,7 +36,7 @@ function creditRuleOf(course: Course): CreditRule | null {
  *
  * @param courseIds - The courses the response names; repeats are allowed.
  * @param catalog - The session tenant's catalog.
- * @returns The entries. `title` is `null` because the catalog doesn't carry titles yet.
+ * @returns The entries. `title` is the catalog title as stored; `null` stays `null`.
  */
 export function selectCourseDisplays(
   courseIds: readonly CourseId[],
@@ -51,7 +51,6 @@ export function selectCourseDisplays(
     if (course === undefined || credits === null) {
       return [];
     }
-    // TODO(#187): send the catalog title once the catalog carries one.
-    return [{ courseId, code: course.label, title: null, credits }];
+    return [{ courseId, code: course.label, title: course.title, credits }];
   });
 }

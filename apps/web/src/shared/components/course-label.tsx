@@ -6,7 +6,12 @@
  */
 import type { ReactElement } from 'react';
 
-import { type CourseLookup, nameCourse, NO_CATALOG_DETAILS } from '@/shared/utils/course-display';
+import {
+  type CourseLookup,
+  nameCourse,
+  NO_CATALOG_DETAILS,
+  TITLE_NOT_AVAILABLE,
+} from '@/shared/utils/course-display';
 
 /** Props for {@link CourseLabel}. */
 export interface CourseLabelProps {
@@ -31,5 +36,5 @@ export function CourseLabel({ courseId, courses }: CourseLabelProps): ReactEleme
       </>
     );
   }
-  return <>{name.title === null ? name.code : `${name.code} (${name.title})`}</>;
+  return <>{`${name.code} (${name.title ?? TITLE_NOT_AVAILABLE})`}</>;
 }

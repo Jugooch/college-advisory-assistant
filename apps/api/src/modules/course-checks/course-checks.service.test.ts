@@ -85,7 +85,7 @@ describe('CourseChecksService.checkCourses', () => {
       {
         courseId: ind390.id,
         code: 'DEMO-IND 390',
-        title: null,
+        title: 'Demo Independent Study',
         credits: { kind: 'VARIABLE', minCreditsHundredths: 100, maxCreditsHundredths: 300 },
       },
     ]);

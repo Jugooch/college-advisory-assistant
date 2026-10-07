@@ -11,7 +11,10 @@ import { buildCourse } from '@caa/test-kit';
 
 import { selectCourseDisplays } from './course-display.logic';
 
-const fixed = buildCourse({ label: 'DEMO-MATH 101', creditsHundredths: 300 }, 1);
+const fixed = buildCourse(
+  { label: 'DEMO-MATH 101', title: 'Demo Calculus I', creditsHundredths: 300 },
+  1,
+);
 const variable = buildCourse(
   {
     label: 'DEMO-IND 390',
@@ -25,12 +28,12 @@ const unnamed = buildCourse({ label: 'DEMO-ENGL 101' }, 3);
 const catalog = [fixed, variable, unnamed];
 
 describe('selectCourseDisplays', () => {
-  it('states a fixed and a variable credit rule from the catalog, with no title yet', () => {
+  it('states a fixed and a variable credit rule from the catalog, and null for an unstated title', () => {
     expect(selectCourseDisplays([fixed.id, variable.id], catalog)).toEqual([
       {
         courseId: fixed.id,
         code: 'DEMO-MATH 101',
-        title: null,
+        title: 'Demo Calculus I',
         credits: { kind: CreditRuleKind.Fixed, creditsHundredths: 300 },
       },
       {

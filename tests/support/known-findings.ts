@@ -19,10 +19,7 @@ import { it } from 'vitest';
  *
  * The fixing PR removes its entry, and nothing else in `tests/`.
  */
-export const KNOWN_FINDINGS: ReadonlyMap<string, number> = new Map<string, number>([
-  // ADR-0012 §1: an included linked course with no rule row is UNKNOWN, not omitted (#361).
-  ['AC06: needs verification when an included lab has no rule row, never skipping its check', 361],
-]);
+export const KNOWN_FINDINGS: ReadonlyMap<string, number> = new Map<string, number>([]);
 
 /** A key of the register: a golden case ID, or an acceptance case and its exact test title. */
 export const FINDING_KEY = /^(G[CH]-[A-Z]+-\d{3}|AC\d{2}: \S.*)$/;
