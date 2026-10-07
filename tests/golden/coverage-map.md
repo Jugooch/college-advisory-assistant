@@ -7,7 +7,7 @@ Status as of 2026-10-06 (#226):
 - The development corpus has 184 cases: 116 check cases across 20 rule families (`GOLDEN_DEVELOPMENT_CORPUS` in `@caa/test-kit`), 20 repeat-for-credit counting cases (`GOLDEN_DEVELOPMENT_COUNTING_CORPUS`, GC-RCR-001–020, run through `resolveAttempts`; their expectation is earned credit, which no check carries), and 51 scheduling cases across 7 scheduling families. 24 of the scheduling cases are section pairs run through `findMeetingConflicts` (inside `GOLDEN_DEVELOPMENT_CORPUS`), and 27 are solver cases run through `buildSectionBundles` and `solveSchedule` (`GOLDEN_DEVELOPMENT_SCHEDULE_CORPUS`).
 - The holdout has 49 cases, version v0.5 (#226): 31 check cases, so every non-scheduling rule family has at least one, and 18 scheduling cases, which now run through the solver.
 - Every case is `pending-academic-review`.
-- Open findings against #365 (repeat-for-credit counting, ADR-0012 §2): GC-RCR-001–010, GC-RCR-014–020, GC-REP-015–017, and seven AC04 tests. #365 removes them. #183 was settled by tech-lead ruling GR-01 (planning/13 §Golden corpus design, Adjudication rulings), and GC-PF-004 was re-adjudicated from it.
+- No open findings. #183 was settled by tech-lead ruling GR-01 (planning/13 §Golden corpus design, Adjudication rulings), and GC-PF-004 was re-adjudicated from it.
 - GH-LINK-002 was re-adjudicated in v0.5 from ADR-0010 Amendment 5 (#287): a section dropped for a missing linked lab is shown in `unresolved` beside the options. The expectation schema allows `unresolved` on `OPTIONS_FOUND` and `SEARCH_TIMEOUT` for `LINKED_SECTION_UNAVAILABLE` only.
 
 Keep this file current in the same PR that adds, burns or re-adjudicates a case.
