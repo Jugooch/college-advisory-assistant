@@ -1,7 +1,7 @@
 /**
- * @file Golden cases: the prerequisite leaf on a course repeatable for credit (ADR-0012 §2). Credits are hundredths, and terms are ordered by the
- *   counting calendar's `sequence`.
- * @module @caa/test-kit/golden/cases/repeat-credit-prerequisite
+ * @file Golden cases: the prerequisite leaf on a course repeatable for credit (ADR-0012 §2).
+ *   Credits are hundredths, and terms are ordered by the counting calendar's `sequence`.
+ * @module @caa/test-kit/golden/cases/repeat-credit-prerequisite-leaf
  * @requirement FR-06
  * @requirement NFR-01
  * @see docs/adr/0012-explicit-no-prerequisite-rules-and-repeat-for-credit-counting.md
@@ -25,11 +25,13 @@ import { GoldenRuleFamily } from '../golden-rule-family';
 
 const ADR = 'docs/adr/0012 §2 (repeat-for-credit counting)';
 
-/** Prerequisite cases on a leaf whose course is repeatable for credit. */
+/** The rule under test: DEMO-MATH 102 needs the repeatable ensemble course with at least a C. */
 const REPEATABLE_LEAF = buildPrerequisiteRule({
   expression: courseLeaf(ensemble.id, letter('C')),
 });
+/** The golden catalog plus the repeatable course. */
 const LEAF_CATALOG = [...GOLDEN_CATALOG, ensemble];
+/** Why every case here ignores the repeat policy. */
 const LEAF_RATIONALE =
   'The repeat policy is not consulted for a repeatable course: attempts do not replace each other, so one attempt that meets the minimum is enough.';
 const NOT_BLOCKED = mustNot(CheckState.Fail, 'must not block a student with a counted B');

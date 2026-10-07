@@ -1,6 +1,7 @@
 /**
- * @file Golden cases: counting repeat-for-credit attempts within, exactly at, and over the caps (ADR-0012 §2). Credits are hundredths, and terms are ordered by the
- *   counting calendar's `sequence`.
+ * @file Golden cases: counting repeat-for-credit attempts within, exactly at, and over the caps
+ *   (ADR-0012 §2). Credits are hundredths, and terms are ordered by the counting calendar's
+ *   `sequence`.
  * @module @caa/test-kit/golden/cases/repeat-credit-caps
  * @requirement FR-06
  * @requirement NFR-01

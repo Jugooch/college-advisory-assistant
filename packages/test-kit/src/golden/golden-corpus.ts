@@ -30,7 +30,7 @@ import { PENDING_TRANSFER_REPEAT_CASES } from './cases/pending-transfer-repeats.
 import { PINNED_RECORD_CASES } from './cases/pinned-record.cases';
 import { PROGRAM_CATALOG_CASES } from './cases/program-catalog.cases';
 import { REPEAT_CREDIT_CAP_CASES } from './cases/repeat-credit-caps.cases';
-import { REPEAT_CREDIT_PREREQUISITE_CASES } from './cases/repeat-credit-prerequisite.cases';
+import { REPEAT_CREDIT_PREREQUISITE_CASES } from './cases/repeat-credit-prerequisite-leaf.cases';
 import { REPEAT_CREDIT_UNDETERMINED_CASES } from './cases/repeat-credit-undetermined.cases';
 import { REPEAT_CASES } from './cases/repeats.cases';
 import { REQUIREMENT_ANCESTOR_CASES } from './cases/requirement-ancestors.cases';

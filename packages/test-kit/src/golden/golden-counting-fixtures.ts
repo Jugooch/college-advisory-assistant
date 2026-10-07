@@ -10,6 +10,7 @@ import { buildCourse } from '../builders/course.builder';
 import { completedAttempt } from '../builders/course-attempt.builder';
 import { SYNTHETIC_REPEATABLE_COURSES } from '../fixtures/synthetic-courses';
 import { syntheticId } from '../fixtures/synthetic-id';
+import { COUNTING_TERM_CALENDAR } from './golden-counting-case.schema';
 
 /** DEMO-ENS 110: 1.00 per attempt, 4 attempts, 4.00 credits. */
 export const ENSEMBLE = SYNTHETIC_REPEATABLE_COURSES.ensemble110;
@@ -75,8 +76,9 @@ export function attemptOf(course: Course, seed: number, when: TermAndCredits): C
  * @returns The attempts, oldest first.
  */
 export function inTerms(course: Course, count: number, credits: number): CourseAttempt[] {
-  const terms = ['2025FA', '2026SP', '2026FA', '2027SP', '2027FA', '2028SP'];
-  return terms.slice(0, count).map((term, index) => attemptOf(course, index + 1, [term, credits]));
+  return COUNTING_TERM_CALENDAR.slice(0, count).map((term, index) =>
+    attemptOf(course, index + 1, [term.termCode, credits]),
+  );
 }
 
 /**

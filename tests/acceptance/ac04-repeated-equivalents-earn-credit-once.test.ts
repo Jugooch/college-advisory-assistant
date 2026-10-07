@@ -40,6 +40,34 @@ const MATH101_THEN_MATH111 = [
   completedAttempt({ courseId: SYNTHETIC_COURSES.math111.id, termCode: '2026SP' }, 2),
 ];
 
+/** The counting resolution of one attempt group. */
+type AttemptCounting = ReturnType<typeof resolveAttempts>[number]['counting'];
+
+/**
+ * Resolves a one-group set of attempts with the golden calendar and the given repeat policy.
+ *
+ * @param courses - The catalog.
+ * @param attempts - The attempts.
+ * @param repeatPolicy - The institution's repeat policy, `null` for none.
+ * @returns The one group's counting resolution.
+ */
+function countingOf(
+  courses: Parameters<typeof resolveAttempts>[1],
+  attempts: Parameters<typeof resolveAttempts>[0],
+  repeatPolicy: RepeatPolicy | null = null,
+): AttemptCounting {
+  const groups = resolveAttempts(attempts, courses, {
+    academicPolicy: buildAcademicPolicy({ repeatPolicy }),
+    termCalendar: COUNTING_TERM_CALENDAR,
+  });
+  const [group] = groups;
+  expect(groups).toHaveLength(1);
+  if (group === undefined) {
+    throw new Error('no attempt group');
+  }
+  return group.counting;
+}
+
 describe('AC04 equivalents and repeats earn credit once', () => {
   it('resolves two equivalents to one group with 3.00 credits, not 6.00', () => {
     const groups = resolveAttempts(MATH101_THEN_MATH111, GOLDEN_CATALOG, {
@@ -76,31 +104,6 @@ describe('AC04 equivalents and repeats earn credit once', () => {
 
 const { ensemble110: ensemble, topics280: topics } = SYNTHETIC_REPEATABLE_COURSES;
 const FIVE_TERMS = ['2025FA', '2026SP', '2026FA', '2027SP', '2027FA'] as const;
-
-/**
- * Resolves a one-group set of attempts with the golden calendar and the given repeat policy.
- *
- * @param courses - The catalog.
- * @param attempts - The attempts.
- * @param repeatPolicy - The institution's repeat policy, `null` for none.
- * @returns The one group's counting resolution.
- */
-function countingOf(
-  courses: Parameters<typeof resolveAttempts>[1],
-  attempts: Parameters<typeof resolveAttempts>[0],
-  repeatPolicy: RepeatPolicy | null = null,
-): NonNullable<ReturnType<typeof resolveAttempts>[number]>['counting'] {
-  const groups = resolveAttempts(attempts, courses, {
-    academicPolicy: buildAcademicPolicy({ repeatPolicy }),
-    termCalendar: COUNTING_TERM_CALENDAR,
-  });
-  const [group] = groups;
-  expect(groups).toHaveLength(1);
-  if (group === undefined) {
-    throw new Error('no attempt group');
-  }
-  return group.counting;
-}
 
 describe('AC04 courses repeatable for credit count each attempt within their caps', () => {
   acceptanceIt('AC04', 'counts the first four of five ensemble attempts: 4.00, not 5.00', () => {

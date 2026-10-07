@@ -1,6 +1,7 @@
 /**
- * @file Golden cases: repeat-for-credit groups that are not repeatable, conflict, or can't be ordered (ADR-0012 §2). Credits are hundredths, and terms are ordered by the
- *   counting calendar's `sequence`.
+ * @file Golden cases: repeat-for-credit groups that are not repeatable, conflict, or can't be
+ *   ordered (ADR-0012 §2). Credits are hundredths, and terms are ordered by the counting
+ *   calendar's `sequence`.
  * @module @caa/test-kit/golden/cases/repeat-credit-undetermined
  * @requirement FR-06
  * @requirement NFR-01
@@ -40,10 +41,8 @@ const MIXED_NOT_REPEATABLE = buildCourse(
 );
 const NOT_REPEATABLE = buildCourse({}, 38);
 
-export /**
- *
- */
-const REPEAT_CREDIT_UNDETERMINED_CASES: readonly GoldenCountingCase[] = [
+/** Counting cases for groups that aren't repeatable, conflict, or can't be ordered. */
+export const REPEAT_CREDIT_UNDETERMINED_CASES: readonly GoldenCountingCase[] = [
   countingCase({
     id: 'GC-RCR-012',
     title: 'A course not repeatable for credit counts one attempt: MOST_RECENT earns 3.00',
