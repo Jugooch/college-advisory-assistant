@@ -155,8 +155,12 @@ describe('CourseCheckResults', () => {
     expect(html).toContain(
       `<h3 id="result-course-${math102.id}">DEMO-MATH 102 (Demo Calculus II)</h3>`,
     );
-    expect(html).toContain(`<h3 id="result-course-${ind390.id}">DEMO-IND 390</h3>`);
-    expect(html).toContain('<dt>Courses involved</dt><dd><ul><li>DEMO-IND 390</li></ul></dd>');
+    expect(html).toContain(
+      `<h3 id="result-course-${ind390.id}">DEMO-IND 390 (title not available)</h3>`,
+    );
+    expect(html).toContain(
+      '<dt>Courses involved</dt><dd><ul><li>DEMO-IND 390 (title not available)</li></ul></dd>',
+    );
   });
 
   it('names a course with no catalog entry by its ID and says so', () => {

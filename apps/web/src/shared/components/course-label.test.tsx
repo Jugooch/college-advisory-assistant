@@ -32,4 +32,18 @@ describe('CourseLabel', () => {
       renderToStaticMarkup(<CourseLabel courseId={ind390.id} courses={indexCourses()} />),
     ).toBe(`Course <code>${ind390.id}</code> (no catalog details available)`);
   });
+
+  it('says the title is not available when it is null', () => {
+    const untitled = indexCourses([
+      {
+        courseId: ind390.id,
+        code: 'DEMO-IND 390',
+        title: null,
+        credits: { kind: 'FIXED', creditsHundredths: 100 },
+      },
+    ]);
+    expect(renderToStaticMarkup(<CourseLabel courseId={ind390.id} courses={untitled} />)).toBe(
+      'DEMO-IND 390 (title not available)',
+    );
+  });
 });

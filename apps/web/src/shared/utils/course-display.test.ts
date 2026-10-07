@@ -51,7 +51,7 @@ describe('nameCourse', () => {
 describe('describeCourse', () => {
   it.each([
     [MATH_101, 'DEMO-MATH 101 (Demo Calculus I)'],
-    [{ ...MATH_101, title: null }, 'DEMO-MATH 101'],
+    [{ ...MATH_101, title: null }, 'DEMO-MATH 101 (title not available)'],
   ])('describes %j', (entry, text) => {
     expect(describeCourse(math101.id, indexCourses([entry]))).toBe(text);
   });

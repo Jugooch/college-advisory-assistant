@@ -124,8 +124,8 @@ describe('ScheduleResults option card', () => {
   it('shows each dimension separately, with no single approval', () => {
     for (const heading of [
       'Schedule feasibility',
-      `Prerequisite for ${PHYS}`,
-      `Applicability of ${PHYS}`,
+      `Prerequisite for ${PHYS} (title not available)`,
+      `Applicability of ${PHYS} (title not available)`,
       'Requirement allocation',
       'Credit load',
     ]) {
@@ -157,7 +157,7 @@ describe('ScheduleResults option card', () => {
     });
     expect(out).toContain('Needs verification');
     expect(out).not.toContain('Validated for the listed checks only');
-    expect(out).toContain(`Prerequisite for ${LAB} (linked section)`);
+    expect(out).toContain(`Prerequisite for ${LAB} (title not available) (linked section)`);
     expect(out).toContain(describeReason(ReasonCode.LinkedCourseNotChecked).explanation);
   });
 
