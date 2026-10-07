@@ -9,6 +9,7 @@
  */
 import { sql } from 'drizzle-orm';
 import {
+  type AnyPgColumn,
   check,
   foreignKey,
   integer,
@@ -29,9 +30,80 @@ import { sectionSnapshotTable } from './section-snapshot.table';
 import { studentSnapshotTable } from './student-snapshot.table';
 import { userIdentityTable } from './user-identity.table';
 
+/** The revision columns the pinned-record keys use. */
+type PinnedColumns = Record<
+  | 'tenantId'
+  | 'studentId'
+  | 'termId'
+  | 'studentSnapshotId'
+  | 'studentRecordEffectiveAt'
+  | 'auditSnapshotId'
+  | 'auditSource'
+  | 'auditVersion'
+  | 'auditRecordEffectiveAt'
+  | 'sectionSnapshotId',
+  AnyPgColumn
+>;
+
+/**
+ * Foreign keys that tie each pinned record, with the versions and times copied beside it, to
+ * the record itself, so the staleness inputs can't disagree with the snapshots they name.
+ *
+ * @param table - The revision's columns.
+ * @returns The three foreign keys.
+ */
+function pinnedRecordKeys(table: PinnedColumns) {
+  return [
+    // SAFETY: pinned records, with their versions and times, must be this student's (sections: the plan term's).
+    foreignKey({
+      name: 'plan_revision_student_snapshot_fk',
+      columns: [
+        table.tenantId,
+        table.studentId,
+        table.studentSnapshotId,
+        table.studentRecordEffectiveAt,
+      ],
+      foreignColumns: [
+        studentSnapshotTable.tenantId,
+        studentSnapshotTable.studentId,
+        studentSnapshotTable.id,
+        studentSnapshotTable.sourceEffectiveAt,
+      ],
+    }),
+    foreignKey({
+      name: 'plan_revision_audit_snapshot_fk',
+      columns: [
+        table.tenantId,
+        table.studentId,
+        table.auditSnapshotId,
+        table.auditSource,
+        table.auditVersion,
+        table.auditRecordEffectiveAt,
+      ],
+      foreignColumns: [
+        auditSnapshotTable.tenantId,
+        auditSnapshotTable.studentId,
+        auditSnapshotTable.id,
+        auditSnapshotTable.auditSource,
+        auditSnapshotTable.auditVersion,
+        auditSnapshotTable.studentRecordEffectiveAt,
+      ],
+    }),
+    foreignKey({
+      name: 'plan_revision_section_snapshot_fk',
+      columns: [table.tenantId, table.sectionSnapshotId, table.termId],
+      foreignColumns: [
+        sectionSnapshotTable.tenantId,
+        sectionSnapshotTable.id,
+        sectionSnapshotTable.termId,
+      ],
+    }),
+  ];
+}
+
 /**
  * The `plan_revision` table. Append-only: a database trigger refuses UPDATE, DELETE and
- * TRUNCATE (migration 0011), so a saved revision is never rewritten.
+ * TRUNCATE (migration 0012), so a saved revision is never rewritten.
  */
 export const planRevisionTable = pgTable(
   'plan_revision',
@@ -85,34 +157,7 @@ export const planRevisionTable = pgTable(
       columns: [table.tenantId, table.planId, table.studentId, table.termId],
       foreignColumns: [planTable.tenantId, planTable.id, planTable.studentId, planTable.termId],
     }),
-    // SAFETY: pinned records must be this student's (sections: the plan term's).
-    foreignKey({
-      name: 'plan_revision_student_snapshot_fk',
-      columns: [table.tenantId, table.studentId, table.studentSnapshotId],
-      foreignColumns: [
-        studentSnapshotTable.tenantId,
-        studentSnapshotTable.studentId,
-        studentSnapshotTable.id,
-      ],
-    }),
-    foreignKey({
-      name: 'plan_revision_audit_snapshot_fk',
-      columns: [table.tenantId, table.studentId, table.auditSnapshotId],
-      foreignColumns: [
-        auditSnapshotTable.tenantId,
-        auditSnapshotTable.studentId,
-        auditSnapshotTable.id,
-      ],
-    }),
-    foreignKey({
-      name: 'plan_revision_section_snapshot_fk',
-      columns: [table.tenantId, table.sectionSnapshotId, table.termId],
-      foreignColumns: [
-        sectionSnapshotTable.tenantId,
-        sectionSnapshotTable.id,
-        sectionSnapshotTable.termId,
-      ],
-    }),
+    ...pinnedRecordKeys(table),
     foreignKey({
       name: 'plan_revision_created_by_fk',
       columns: [table.tenantId, table.createdBy],

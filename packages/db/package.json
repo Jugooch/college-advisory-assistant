@@ -21,6 +21,7 @@
     "pg": "^8.23.0"
   },
   "devDependencies": {
+    "@caa/test-kit": "workspace:*",
     "@types/pg": "^8.23.1",
     "drizzle-kit": "^0.31.11",
     "pino": "^10.3.1",

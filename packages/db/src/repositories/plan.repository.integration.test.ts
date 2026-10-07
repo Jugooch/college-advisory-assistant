@@ -215,14 +215,17 @@ describe('PlanRepository', () => {
     it('is refused by the database for a duplicate revision number', async () => {
       const world = await newWorld('unique');
       const { plan } = await createPlan(world);
-      const rows = await testDatabase.db
+      const [row] = await testDatabase.db
         .select()
         .from(planRevisionTable)
         .where(eq(planRevisionTable.planId, plan.id));
+      if (!row) {
+        throw new Error('expected the first revision to exist');
+      }
 
       const duplicate = testDatabase.db
         .insert(planRevisionTable)
-        .values({ ...rows[0], id: randomUUID() } as typeof planRevisionTable.$inferInsert);
+        .values({ ...row, id: randomUUID() });
 
       await expect(duplicate).rejects.toMatchObject(violationOf('plan_revision_plan_revision_key'));
     });

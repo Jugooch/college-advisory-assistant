@@ -1,18 +1,15 @@
 /**
  * @file Synthetic plan worlds and revisions for repository integration tests. Test code only;
- *   every value is fictional. The shared test-kit builders (`buildPlan`, `buildPlanRevision`)
- *   are not on main yet, so this file builds the db-shaped input itself.
+ *   every value is fictional. Revisions come from the shared test-kit `buildPlanRevision`,
+ *   pinned to the real rows inserted here.
  * @module @caa/db/testing/plan-fixtures
  * @see docs/standards/07-testing.md
  */
 import {
   type AuditSnapshotId,
-  ConstraintStrength,
   type CourseId,
   type InstitutionId,
-  PlanRevisionCause,
-  ScheduleConstraintKind,
-  ScheduleOutcome,
+  type PlanRevisionInput,
   type SectionId,
   SectionIdSchema,
   type SectionSnapshotId,
@@ -21,6 +18,7 @@ import {
   type TermId,
   type UserId,
 } from '@caa/domain';
+import { buildPlanRevision } from '@caa/test-kit';
 
 import type { Database } from '../client';
 import type { NewPlanRevision } from '../repositories/plan.repository';
@@ -28,6 +26,11 @@ import { insertCourse } from './catalog-fixtures';
 import { insertStudent, insertUser } from './integration-fixtures';
 import { insertSectionWorld, publishSectionSnapshot } from './section-fixtures';
 import { insertAudit, insertSnapshot } from './snapshot-fixtures';
+
+/** The student record time the fixture snapshot describes. */
+const STUDENT_RECORD_AT = '2026-09-10T06:00:00.000Z';
+/** The time the fixture audit was generated, which is also its record time. */
+const AUDIT_RECORD_AT = '2026-09-11T06:00:00.000Z';
 
 /** One tenant's student with every record a plan revision pins. */
 export interface PlanWorld {
@@ -61,12 +64,12 @@ export async function insertPlanWorld(
   const sectionSnapshot = await publishSectionSnapshot(db, sections);
   const studentSnapshotId = await insertSnapshot(db, tenantId, {
     studentId,
-    sourceEffectiveAt: '2026-09-10T06:00:00.000Z',
+    sourceEffectiveAt: STUDENT_RECORD_AT,
   });
   const auditSnapshotId = await insertAudit(db, tenantId, {
     studentId,
     studentSnapshotId,
-    generatedAt: '2026-09-11T06:00:00.000Z',
+    generatedAt: AUDIT_RECORD_AT,
     requirements: [{ sourceRequirementId: 'REQ-ROOT' }],
   });
   const courseId = await insertCourse(db, tenantId, { sourceCourseId: `DEMO-PLAN-${label}` });
@@ -84,8 +87,12 @@ export async function insertPlanWorld(
   };
 }
 
+/** Fields a test may change on the revision built for a {@link PlanWorld}. */
+type RevisionOverrides = Partial<PlanRevisionInput> & { readonly result?: unknown };
+
 /**
- * Builds a valid revision for the world, with an `OPTIONS_FOUND` result.
+ * Builds a valid revision for the world from the shared test-kit builder, pinned to the
+ * world's real rows, with an `OPTIONS_FOUND` result.
  *
  * @param world - The records to pin.
  * @param overrides - Fields to change.
@@ -93,38 +100,42 @@ export async function insertPlanWorld(
  */
 export function buildNewRevision(
   world: PlanWorld,
-  overrides: Partial<NewPlanRevision> = {},
+  overrides: RevisionOverrides = {},
 ): NewPlanRevision {
-  return {
-    cause: PlanRevisionCause.Saved,
+  const { result, ...revisionOverrides } = overrides;
+  const built = buildPlanRevision({
     createdBy: world.userId,
-    createdAt: '2026-10-01T15:00:00.000Z',
     termId: world.termId,
     courseIds: [world.courseId],
-    creditSelections: [],
-    constraints: [
-      {
-        kind: ScheduleConstraintKind.CreditRange,
-        strength: ConstraintStrength.Hard,
-        priorityRank: null,
-        minCreditsHundredths: 900,
-        maxCreditsHundredths: 1500,
-      },
-    ],
     studentSnapshotId: world.studentSnapshotId,
-    studentRecordEffectiveAt: '2026-09-10T06:00:00.000Z',
-    auditRecordEffectiveAt: '2026-09-11T06:00:00.000Z',
+    studentRecordEffectiveAt: STUDENT_RECORD_AT,
     auditSnapshotId: world.auditSnapshotId,
-    auditSource: 'demo-audit',
-    auditVersion: 'audit_demo_r1',
-    rulesetVersion: 'demo-ruleset-1',
+    auditRecordEffectiveAt: AUDIT_RECORD_AT,
     sectionSnapshotId: world.sectionSnapshotId,
-    campusTransitionVersion: null,
-    solverWorkCap: 3_000_000,
-    constraintHash: `sha256:${'a'.repeat(64)}`,
-    outcome: ScheduleOutcome.OptionsFound,
     selectedSectionIds: [world.sectionId],
-    result: { outcome: 'OPTIONS_FOUND', options: [{ note: 'opaque to the db' }] },
-    ...overrides,
+    ...revisionOverrides,
+  });
+  return {
+    cause: built.cause,
+    createdBy: built.createdBy,
+    createdAt: built.createdAt,
+    termId: built.termId,
+    courseIds: built.courseIds,
+    creditSelections: built.creditSelections,
+    constraints: built.constraints,
+    studentSnapshotId: built.studentSnapshotId,
+    studentRecordEffectiveAt: built.studentRecordEffectiveAt,
+    auditRecordEffectiveAt: built.auditRecordEffectiveAt,
+    auditSnapshotId: built.auditSnapshotId,
+    auditSource: built.auditSource,
+    auditVersion: built.auditVersion,
+    rulesetVersion: built.rulesetVersion,
+    sectionSnapshotId: built.sectionSnapshotId,
+    campusTransitionVersion: built.campusTransitionVersion,
+    solverWorkCap: built.solverWorkCap,
+    constraintHash: built.constraintHash,
+    outcome: built.outcome,
+    selectedSectionIds: built.selectedSectionIds,
+    result: result ?? { outcome: built.outcome, options: [{ note: 'opaque to the db' }] },
   };
 }
