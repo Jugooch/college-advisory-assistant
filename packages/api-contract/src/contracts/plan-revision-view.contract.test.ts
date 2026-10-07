@@ -17,6 +17,11 @@ const accepts = (fields: Record<string, unknown>): boolean =>
   PlanRevisionViewSchema.safeParse(buildRevisionView(fields)).success;
 
 describe('PlanRevisionViewSchema', () => {
+  it('rejects createdBy so the view never carries a user ID', () => {
+    expect(accepts({ createdBy: '1a2b3c4d-0000-4000-8000-000000000002' })).toBe(false);
+    expect(PlanRevisionViewSchema.parse(buildRevisionView())).not.toHaveProperty('createdBy');
+  });
+
   it('accepts a revision with a result and current freshness', () => {
     expect(PlanRevisionViewSchema.safeParse(buildRevisionView()).success).toBe(true);
   });
@@ -35,6 +40,22 @@ describe('PlanRevisionViewSchema', () => {
 
     expect(accepts({ freshness: stale })).toBe(true);
     expect(accepts({ freshness: unknown })).toBe(true);
+  });
+
+  it('still enforces the stored revision rules of the domain schema', () => {
+    const noResult = { result: null, resultUnavailable: true };
+
+    expect(accepts({ ...noResult, courseIds: [PHYS_301L, PHYS_301L] })).toBe(false);
+  });
+
+  it('reports a domain-rule failure at the field that broke it', () => {
+    const noResult = { result: null, resultUnavailable: true };
+    const selection = { courseId: PHYS_301L, selectedCreditsHundredths: 200 };
+    const parsed = PlanRevisionViewSchema.safeParse(
+      buildRevisionView({ ...noResult, creditSelections: [selection] }),
+    );
+
+    expect(parsed.error?.issues.map((issue) => issue.path)).toContainEqual(['creditSelections']);
   });
 
   it('accepts a null result flagged unavailable and rejects either one alone', () => {

@@ -1,6 +1,6 @@
 /**
  * @file Shared world, sections, and requests for the schedule-options acceptance cases (AC06 to
- * AC08, AC12, AC32 to AC34):`POST /v1/students/:studentId/schedule-options`. The default world is
+ * AC08, AC12, AC38 to AC40):`POST /v1/students/:studentId/schedule-options`. The default world is
  * the academic one (a fresh record and audit) with DEMO-MATH 101 passed with a B, an audit that
  * lists DEMO-MATH 102 and DEMO-PHYS 201, and no published sections, so each case states only the
  * sections and transitions it is about.
