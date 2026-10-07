@@ -108,6 +108,17 @@ describe('PlanRevisionViewSchema', () => {
     expect(accepts({ selectedSectionIds: [sectionId(2), sectionId(1)] })).toBe(false);
   });
 
+  it('rejects a selection on an outcome with no options even when the result is unavailable', () => {
+    expect(
+      accepts({
+        outcome: 'NEEDS_VERIFICATION',
+        result: null,
+        resultUnavailable: true,
+        selectedSectionIds: [sectionId(1)],
+      }),
+    ).toBe(false);
+  });
+
   it('rejects an invalid freshness and a missing freshness', () => {
     expect(accepts({ freshness: { ...CURRENT_FRESHNESS, reasons: ['SOURCE_EXPIRED'] } })).toBe(
       false,

@@ -23,7 +23,7 @@ const PINNED_INPUT_KEYS = SchedulePinnedInputsSchema.unwrap().keyof().options;
  * and state in it is "as of" `createdAt`; `freshness` says whether that still holds.
  */
 export const PlanRevisionViewSchema = PlanRevisionSchema.unwrap()
-  .extend({
+  .safeExtend({
     /**
      * The stored result, or `null` when it no longer parses. It is never repaired or partly
      * shown (ADR-0013 §2).
