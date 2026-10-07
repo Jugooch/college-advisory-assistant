@@ -1,5 +1,5 @@
 /**
- * @file Acceptance AC33 (proposed, #225): schedule options pin every input they were computed from
+ * @file Acceptance AC39 (#225): schedule options pin every input they were computed from
  * and replay deep-equal, and missing or unreliable section data is referred, never guessed
  * (ADR-0010 §6 and §7). The pinned inputs include the section snapshot, the transition table
  * version, the work cap, and a hash of the normalized request. A requested course with no
@@ -54,7 +54,7 @@ const world = createAcademicWorld();
 // against a case's timeout.
 const app = buildAcademicApp(world);
 
-describe('AC33 schedule options are pinned and refer missing section data', () => {
+describe('AC39 schedule options are pinned and refer missing section data', () => {
   beforeEach(() => {
     resetScheduleWorld(world);
     publishSections(world, [MATH_MWF, PHYS_TTH]);
@@ -62,7 +62,7 @@ describe('AC33 schedule options are pinned and refer missing section data', () =
   });
 
   acceptanceIt(
-    'AC33',
+    'AC39',
     'pins the section snapshot, transition version, work cap, and request hash',
     async () => {
       const response = await findScheduleOptions(app, BOTH);
@@ -86,7 +86,7 @@ describe('AC33 schedule options are pinned and refer missing section data', () =
     },
   );
 
-  acceptanceIt('AC33', 'replays the same request on unchanged inputs deep-equal', async () => {
+  acceptanceIt('AC39', 'replays the same request on unchanged inputs deep-equal', async () => {
     const first = await findScheduleOptions(app, BOTH);
     const second = await findScheduleOptions(app, BOTH);
 
@@ -95,7 +95,7 @@ describe('AC33 schedule options are pinned and refer missing section data', () =
   });
 
   acceptanceIt(
-    'AC33',
+    'AC39',
     'hashes the same request with its courses in another order the same',
     async () => {
       const forward = await findScheduleOptions(app, BOTH);
@@ -106,7 +106,7 @@ describe('AC33 schedule options are pinned and refer missing section data', () =
     },
   );
 
-  acceptanceIt('AC33', 'needs verification when a requested course has no section', async () => {
+  acceptanceIt('AC39', 'needs verification when a requested course has no section', async () => {
     publishSections(world, [MATH_MWF]);
 
     const response = await findScheduleOptions(app, BOTH);
@@ -128,7 +128,7 @@ describe('AC33 schedule options are pinned and refer missing section data', () =
   });
 
   acceptanceIt(
-    'AC33',
+    'AC39',
     'is 503 SOURCE_UNAVAILABLE when the term has no published snapshot',
     async () => {
       world.sectionSnapshots = [];
@@ -143,7 +143,7 @@ describe('AC33 schedule options are pinned and refer missing section data', () =
     },
   );
 
-  acceptanceIt('AC33', 'refers a tie for the latest snapshot with 409 STALE_SOURCE', async () => {
+  acceptanceIt('AC39', 'refers a tie for the latest snapshot with 409 STALE_SOURCE', async () => {
     world.sectionSnapshots = [
       buildSectionSnapshot({ sections: [MATH_MWF, PHYS_TTH], sourceEffectiveAt: SECTIONS_AT }, 1),
       buildSectionSnapshot({ sections: [MATH_MWF], sourceEffectiveAt: SECTIONS_AT }, 2),
@@ -158,7 +158,7 @@ describe('AC33 schedule options are pinned and refer missing section data', () =
     });
   });
 
-  acceptanceIt('AC33', 'still serves a snapshot exactly 24 hours old', async () => {
+  acceptanceIt('AC39', 'still serves a snapshot exactly 24 hours old', async () => {
     publishSections(world, [MATH_MWF, PHYS_TTH], { sourceEffectiveAt: '2026-08-31T12:00:00.000Z' });
 
     const response = await findScheduleOptions(app, BOTH);
