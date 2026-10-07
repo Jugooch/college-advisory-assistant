@@ -1,0 +1,2 @@
+ALTER TABLE "audit_snapshot" ADD CONSTRAINT "audit_snapshot_pin_key" UNIQUE("tenant_id","student_id","id","audit_source","audit_version","student_record_effective_at");--> statement-breakpoint
+ALTER TABLE "student_snapshot" ADD CONSTRAINT "student_snapshot_pin_key" UNIQUE("tenant_id","student_id","id","source_effective_at");

@@ -58,6 +58,16 @@ export const auditSnapshotTable = pgTable(
   (table) => [
     // SECURITY: target of composite foreign keys, so references can't cross tenants.
     unique('audit_snapshot_tenant_id_id_key').on(table.tenantId, table.id),
+    // SAFETY: target of the plan revision key, so a revision's pinned audit source, version and
+    // record time are the audit's own and it can't pin another student's audit.
+    unique('audit_snapshot_pin_key').on(
+      table.tenantId,
+      table.studentId,
+      table.id,
+      table.auditSource,
+      table.auditVersion,
+      table.studentRecordEffectiveAt,
+    ),
     // SAFETY: target of the allocation key, so an allocated attempt is checked against the
     // snapshot this audit is pinned to.
     unique('audit_snapshot_tenant_id_id_student_snapshot_id_key').on(
