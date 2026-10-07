@@ -10,14 +10,13 @@ import { z } from 'zod';
 
 import {
   CASE_EVENT_NOTE_MAX_LENGTH,
+  CaseAction,
   CaseActionSchema,
+  CaseReason,
   CaseReasonSchema,
   CaseResolutionSchema,
   CaseStatusSchema,
   DiscrepancySubjectSchema,
-  hasMatchingDiscrepancySubject,
-  hasRequiredPlanRevision,
-  isCaseResolutionPlacementValid,
   PlanRevisionIdSchema,
   STUDENT_NOTE_MAX_LENGTH,
 } from '@caa/domain';
@@ -44,16 +43,19 @@ export const CreateCaseRequestSchema = z
     studentNote: z.string().trim().min(1).max(STUDENT_NOTE_MAX_LENGTH),
   })
   // SAFETY: a plan review without a plan is unreviewable (ADR-0013 §6 Objects, FR-12).
-  .refine((body) => hasRequiredPlanRevision(body.reason, body.planRevisionId), {
+  .refine((body) => body.reason === CaseReason.SourceDiscrepancy || body.planRevisionId !== null, {
     message: 'planRevisionId is required unless the reason is SOURCE_DISCREPANCY',
     path: ['planRevisionId'],
   })
   // SAFETY: a subject on another reason, or none on a discrepancy, would misroute the report
   // (ADR-0013 §6 Objects, FR-17).
-  .refine((body) => hasMatchingDiscrepancySubject(body.reason, body.discrepancySubject), {
-    message: 'discrepancySubject is present exactly when the reason is SOURCE_DISCREPANCY',
-    path: ['discrepancySubject'],
-  })
+  .refine(
+    (body) => (body.reason === CaseReason.SourceDiscrepancy) === (body.discrepancySubject !== null),
+    {
+      message: 'discrepancySubject is present exactly when the reason is SOURCE_DISCREPANCY',
+      path: ['discrepancySubject'],
+    },
+  )
   .readonly();
 
 /** Request body for `POST /v1/students/:studentId/cases`. */
@@ -86,11 +88,8 @@ export const CaseEventRequestSchema = z
   // another action can never read as a waiver (ADR-0013 §6 What a resolution is, planning/08).
   .refine(
     (body) =>
-      isCaseResolutionPlacementValid({
-        action: body.action,
-        resolution: body.resolution ?? null,
-        note: body.note ?? null,
-      }),
+      (body.action === CaseAction.Resolve) === (body.resolution !== undefined) &&
+      (body.action === CaseAction.Resolve || body.note === undefined),
     {
       message: 'resolution is required on RESOLVE, and resolution and note are rejected otherwise',
       path: ['resolution'],

@@ -15,21 +15,19 @@ import {
   CaseActionSchema,
   CaseEventIdSchema,
   CaseIdSchema,
+  CaseReason,
   CaseReasonSchema,
   CaseResolutionSchema,
   CaseStatus,
   CaseStatusSchema,
   DiscrepancySubjectSchema,
-  hasMatchingDiscrepancySubject,
-  hasRequiredPlanRevision,
-  isCaseEventOriginValid,
-  isCaseOwnerConsistent,
-  isCaseResolutionPlacementValid,
   PlanRevisionIdSchema,
   RoleSchema,
   STUDENT_NOTE_MAX_LENGTH,
   StudentIdSchema,
 } from '@caa/domain';
+
+import { PlanRevisionViewSchema } from './plan-revision-view.contract';
 
 /**
  * One case event as the session may see it.
@@ -57,16 +55,26 @@ export const CaseEventViewSchema = z
   })
   // SAFETY: only CREATE has no prior status, and only the first event is CREATE
   // (ADR-0013 §6 Objects).
-  .refine((event) => isCaseEventOriginValid(event), {
-    message: 'fromStatus is null and sequence is 1 exactly for CREATE',
-    path: ['fromStatus'],
-  })
+  .refine(
+    (event) =>
+      (event.action === CaseAction.Create) === (event.fromStatus === null) &&
+      (event.action === CaseAction.Create) === (event.sequence === 1),
+    {
+      message: 'fromStatus is null and sequence is 1 exactly for CREATE',
+      path: ['fromStatus'],
+    },
+  )
   // SAFETY: a resolution and its note appear only on RESOLVE, so they are never read as a waiver
   // (ADR-0013 §6 What a resolution is, planning/08 §Rule lifecycle).
-  .refine((event) => isCaseResolutionPlacementValid(event), {
-    message: 'resolution is present exactly on RESOLVE, and a note only on RESOLVE',
-    path: ['resolution'],
-  })
+  .refine(
+    (event) =>
+      (event.action === CaseAction.Resolve) === (event.resolution !== null) &&
+      (event.action === CaseAction.Resolve || event.note === null),
+    {
+      message: 'resolution is present exactly on RESOLVE, and a note only on RESOLVE',
+      path: ['resolution'],
+    },
+  )
   .readonly();
 
 /** One case event as the session may see it. */
@@ -110,26 +118,48 @@ export const CaseViewSchema = z
     lastSequence: z.number().int().min(1),
     /** The history, oldest first, starting with CREATE. */
     events: z.array(CaseEventViewSchema).min(1).readonly(),
-    /** Actions the session's actor may take now. Empty once the case is final. */
+    /**
+     * The referenced plan revision exactly as stored, with its freshness at read time (ADR-0013
+     * §6 Frozen context). `null` exactly when `planRevisionId` is `null`. Never a newer revision.
+     */
+    context: PlanRevisionViewSchema.nullable(),
+    /** Actions the session's actor may take now. Computed by the api's case logic. */
     allowedActions: z.array(CaseActionSchema).readonly(),
   })
   // SAFETY: a plan review without a plan, or a discrepancy without a subject, is unreviewable
   // (ADR-0013 §6 Objects, FR-17).
   .refine(
     (view) =>
-      hasRequiredPlanRevision(view.reason, view.planRevisionId) &&
-      hasMatchingDiscrepancySubject(view.reason, view.discrepancySubject),
+      (view.reason === CaseReason.SourceDiscrepancy || view.planRevisionId !== null) &&
+      (view.reason === CaseReason.SourceDiscrepancy) === (view.discrepancySubject !== null),
     {
       message: 'reason, planRevisionId and discrepancySubject do not fit together',
       path: ['reason'],
     },
   )
+  // SAFETY: the frozen context must be the revision the case names, present exactly when one is
+  // named, so an advisor never reviews a different or newer plan (ADR-0013 §6 Frozen context).
+  .refine(
+    (view) =>
+      view.context === null
+        ? view.planRevisionId === null
+        : view.context.id === view.planRevisionId,
+    {
+      message: 'context is the referenced revision, and null exactly when planRevisionId is null',
+      path: ['context'],
+    },
+  )
   // SAFETY: ownership must match status so no case is unowned in review or unattributed once
   // resolved (ADR-0013 §6 States and transitions).
-  .refine((view) => isCaseOwnerConsistent(view.status, view.owner !== null), {
-    message: 'owner is set exactly when the status is IN_REVIEW or RESOLVED',
-    path: ['owner'],
-  })
+  .refine(
+    (view) =>
+      (view.status === CaseStatus.InReview || view.status === CaseStatus.Resolved) ===
+      (view.owner !== null),
+    {
+      message: 'owner is set exactly when the status is IN_REVIEW or RESOLVED',
+      path: ['owner'],
+    },
+  )
   // SAFETY: the history must be the append-only chain that produced the status: sequences 1..n,
   // each event starting from the previous event's status, and the last event ending at `status`
   // with `lastSequence` (ADR-0013 §6 Concurrency).
@@ -147,19 +177,12 @@ export const CaseViewSchema = z
       path: ['events'],
     },
   )
-  // SAFETY: CREATE is never an action the actor can take on an existing case, nothing is allowed
-  // on a final case, and an action is listed once (ADR-0013 §6 States and transitions).
-  .refine(
-    (view) =>
-      hasNoRepeats(view.allowedActions) &&
-      !view.allowedActions.includes(CaseAction.Create) &&
-      (view.allowedActions.length === 0 ||
-        (view.status !== CaseStatus.Resolved && view.status !== CaseStatus.Withdrawn)),
-    {
-      message: 'allowedActions must be distinct, exclude CREATE, and be empty when final',
-      path: ['allowedActions'],
-    },
-  )
+  // SAFETY: an action is listed once. Which actions are allowed is the api's case logic
+  // (ADR-0013 §6); the contract only bounds the list.
+  .refine((view) => hasNoRepeats(view.allowedActions), {
+    message: 'allowedActions must not repeat an action',
+    path: ['allowedActions'],
+  })
   .readonly();
 
 /** Response body for `GET /v1/cases/:caseId` and `POST /v1/cases/:caseId/events`. */

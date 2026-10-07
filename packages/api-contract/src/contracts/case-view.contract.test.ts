@@ -3,6 +3,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import { buildRevisionView, REVISION_ID } from '../testing/plan-draft-fixtures';
 import { CaseEventViewSchema, CaseViewSchema } from './case-view.contract';
 
 const CREATE = {
@@ -41,7 +42,8 @@ const OPEN_VIEW = {
   id: '4d5e6f70-0000-4000-8000-000000000001',
   studentId: '2b3c4d5e-0000-4000-8000-000000000001',
   reason: 'PLAN_REVIEW',
-  planRevisionId: '5e6f7081-0000-4000-8000-000000000001',
+  planRevisionId: REVISION_ID,
+  context: buildRevisionView(),
   discrepancySubject: null,
   studentNote: 'Please check my spring plan.',
   status: 'OPEN',
@@ -120,6 +122,7 @@ describe('CaseViewSchema', () => {
         ...OPEN_VIEW,
         reason: 'SOURCE_DISCREPANCY',
         planRevisionId: null,
+        context: null,
         discrepancySubject: 'SECTION',
       }),
     ).toBe(true);
@@ -136,7 +139,7 @@ describe('CaseViewSchema', () => {
   });
 
   it('rejects a reason that does not fit the revision or subject', () => {
-    expect(accepts({ ...OPEN_VIEW, planRevisionId: null })).toBe(false);
+    expect(accepts({ ...OPEN_VIEW, planRevisionId: null, context: null })).toBe(false);
     expect(accepts({ ...OPEN_VIEW, discrepancySubject: 'SECTION' })).toBe(false);
     expect(accepts({ ...OPEN_VIEW, reason: 'SOURCE_DISCREPANCY', planRevisionId: null })).toBe(
       false,
@@ -176,10 +179,36 @@ describe('CaseViewSchema', () => {
     ).toBe(false);
   });
 
-  it('rejects CREATE, repeats, and any action on a final case in allowedActions', () => {
-    expect(accepts({ ...OPEN_VIEW, allowedActions: ['CREATE'] })).toBe(false);
+  it('rejects a repeated action in allowedActions and accepts none', () => {
     expect(accepts({ ...OPEN_VIEW, allowedActions: ['CLAIM', 'CLAIM'] })).toBe(false);
-    expect(accepts({ ...RESOLVED_VIEW, allowedActions: ['WITHDRAW'] })).toBe(false);
     expect(accepts({ ...OPEN_VIEW, allowedActions: [] })).toBe(true);
+  });
+
+  it('shows the referenced revision as stored, with its freshness', () => {
+    const stale = {
+      state: 'STALE',
+      reasons: ['AUDIT_SUPERSEDED'],
+      checkedAt: '2026-10-08T09:00:00.000-05:00',
+    };
+
+    expect(accepts({ ...OPEN_VIEW, context: buildRevisionView({ freshness: stale }) })).toBe(true);
+  });
+
+  it('rejects a context that is not the named revision, or null while one is named', () => {
+    const other = buildRevisionView({ id: '7a000000-0000-4000-8000-000000000002' });
+
+    expect(accepts({ ...OPEN_VIEW, context: other })).toBe(false);
+    expect(accepts({ ...OPEN_VIEW, context: null })).toBe(false);
+  });
+
+  it('rejects a context when no revision is named', () => {
+    expect(
+      accepts({
+        ...OPEN_VIEW,
+        reason: 'SOURCE_DISCREPANCY',
+        planRevisionId: null,
+        discrepancySubject: 'SECTION',
+      }),
+    ).toBe(false);
   });
 });
