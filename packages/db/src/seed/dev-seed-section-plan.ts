@@ -128,13 +128,13 @@ const SECTION_SPECS: readonly SectionSpec[] = [
  * Builds one section from its spec.
  *
  * @param spec - The compact section.
- * @param now - The time the seed run started.
+ * @param run - The time the seed run started, and the offset added to section ID slots.
  * @param term - The planning term's ID and dates.
  * @returns The section input.
  */
 function toSection(
   spec: SectionSpec,
-  now: Date,
+  run: { readonly now: Date; readonly slotOffset: number },
   term: { readonly id: string; readonly startsOn: string; readonly endsOn: string },
 ): SectionInput {
   const [startsOn, endsOn] = spec.dates ?? [term.startsOn, term.endsOn];
@@ -151,7 +151,7 @@ function toSection(
           location: { kind: MeetingLocationKind.OnCampus, campusId: spec.campus.id, room: null },
         };
   return {
-    id: seedRevisionId('d0000000', spec.slot, now),
+    id: seedRevisionId('d0000000', spec.slot + run.slotOffset, run.now),
     tenantId: SEED_TENANT_ID,
     termId: term.id,
     courseId: spec.courseId,
@@ -163,6 +163,55 @@ function toSection(
     endsOn,
     meetings: [meeting],
   };
+}
+
+/** Slot of the section the revision withdraws: MATH 102 002 (TuTh). */
+export const WITHDRAWN_SECTION_SLOT = 2;
+/** Added to a revision's section slots, so its IDs never collide with a seed run's. */
+const REVISION_SLOT_OFFSET = 100;
+
+/**
+ * Builds a newer 2027SP section snapshot in which one section is withdrawn (MATH 102 002). A
+ * draft pinned to an earlier snapshot is then superseded. Every other section is unchanged.
+ *
+ * @param now - The time the revision run started; the snapshot takes effect at this instant.
+ * @returns The new snapshot, a fresh revision with its own IDs.
+ * @throws {Error} When the seeded calendar has no 2027SP term.
+ * @throws {z.ZodError} When a built record violates its domain schema.
+ */
+export function buildWithdrawnSectionSnapshot(now: Date): SectionSnapshot {
+  if (!PLANNING_TERM) {
+    throw new Error('The seeded calendar has no 2027SP term');
+  }
+  const offset = REVISION_SLOT_OFFSET;
+  return createSectionSnapshot({
+    id: seedRevisionId('c0000000', 2, now),
+    tenantId: SEED_TENANT_ID,
+    termId: PLANNING_TERM.id,
+    termStartsOn: PLANNING_TERM.startsOn,
+    termEndsOn: PLANNING_TERM.endsOn,
+    timezone: 'America/Chicago',
+    sourceEffectiveAt: now.toISOString(),
+    sections: SECTION_SPECS.filter((spec) => spec.slot !== WITHDRAWN_SECTION_SLOT).map((spec) =>
+      toSection(spec, { now, slotOffset: offset }, PLANNING_TERM),
+    ),
+    linkedSectionGroups: [
+      {
+        id: seedRevisionId('e0000000', 2, now),
+        tenantId: SEED_TENANT_ID,
+        primarySectionId: seedRevisionId('d0000000', 5 + offset, now),
+        components: [
+          {
+            name: 'Lab',
+            courseId: phys301Lab.id,
+            permittedSectionIds: [6, 7].map((slot) =>
+              seedRevisionId('d0000000', slot + offset, now),
+            ),
+          },
+        ],
+      },
+    ],
+  });
 }
 
 /**
@@ -192,7 +241,7 @@ export function buildDevSeedSectionPlan(now: Date): DevSeedSectionPlan {
     // SAFETY: published at the current record's time, 3 hours before the run, so it is fresh
     // under the 24-hour limit for published section structure (planning/09).
     sourceEffectiveAt: seedRecordTimes(now).currentRecordEffectiveAt,
-    sections: SECTION_SPECS.map((spec) => toSection(spec, now, PLANNING_TERM)),
+    sections: SECTION_SPECS.map((spec) => toSection(spec, { now, slotOffset: 0 }, PLANNING_TERM)),
     linkedSectionGroups: [
       {
         id: seedRevisionId('e0000000', 1, now),

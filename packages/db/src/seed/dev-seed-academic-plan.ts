@@ -50,23 +50,26 @@ export interface DevSeedAcademicPlan {
 }
 
 /** SYN-000001: the signed-in student, with a current audit. */
-const CURRENT_STUDENT = '30000000-0000-4000-8000-000000000001';
+export const SEED_SLICE_STUDENT_ID = '30000000-0000-4000-8000-000000000001';
 /** SYN-000002: deliberately shows a stale audit (UNKNOWN), for advisors. */
 const STALE_STUDENT = '30000000-0000-4000-8000-000000000002';
-const PROGRAM = seedId('80000000', 1);
+/** ID of the seeded program. */
+export const SEED_PROGRAM_ID = seedId('80000000', 1);
 
 /** The seeded program, named as a catalog would. The ID is the one the snapshots and audits cite. */
 const SEED_PROGRAMS: readonly Program[] = [
   createProgram({
-    id: PROGRAM,
+    id: SEED_PROGRAM_ID,
     tenantId: SEED_TENANT_ID,
     sourceProgramId: 'DEMO-BS-PHYS',
     name: 'Demo B.S. Physics',
   }),
 ];
-const CATALOG_YEAR = '2025-2026';
+/** Catalog year of the seeded snapshots and audits. */
+export const SEED_CATALOG_YEAR = '2025-2026';
 
-const ATTEMPT = {
+/** IDs of the seeded attempts. */
+export const SEED_ATTEMPT_IDS = {
   math101First: seedId('60000000', 1),
   math101Repeat: seedId('60000000', 2),
   phys201InProgress: seedId('60000000', 3),
@@ -104,23 +107,23 @@ function completed(fields: {
 const ATTEMPTS: readonly CourseAttempt[] = [
   // NOTE: DEMO-MATH 101 repeated: D in 2025FA, then B in 2026SP (golden case GC-REP-001).
   completed({
-    id: ATTEMPT.math101First,
-    studentId: CURRENT_STUDENT,
+    id: SEED_ATTEMPT_IDS.math101First,
+    studentId: SEED_SLICE_STUDENT_ID,
     course: SEED_CATALOG.math101,
     termCode: '2025FA',
     grade: LetterGrade.D,
   }),
   completed({
-    id: ATTEMPT.math101Repeat,
-    studentId: CURRENT_STUDENT,
+    id: SEED_ATTEMPT_IDS.math101Repeat,
+    studentId: SEED_SLICE_STUDENT_ID,
     course: SEED_CATALOG.math101,
     termCode: '2026SP',
     grade: LetterGrade.B,
   }),
   createCourseAttempt({
-    id: ATTEMPT.phys201InProgress,
+    id: SEED_ATTEMPT_IDS.phys201InProgress,
     tenantId: SEED_TENANT_ID,
-    studentId: CURRENT_STUDENT,
+    studentId: SEED_SLICE_STUDENT_ID,
     courseId: SEED_CATALOG.phys201.id,
     sourceAttemptId: 'SYN-ATT-0003',
     termCode: '2026FA',
@@ -129,7 +132,7 @@ const ATTEMPTS: readonly CourseAttempt[] = [
     creditsEarnedHundredths: null,
   }),
   completed({
-    id: ATTEMPT.staleStudentMath101,
+    id: SEED_ATTEMPT_IDS.staleStudentMath101,
     studentId: STALE_STUDENT,
     course: SEED_CATALOG.math101,
     termCode: '2026SP',
@@ -154,15 +157,23 @@ interface RunSnapshotIds {
  */
 function buildSnapshots(now: Date, ids: RunSnapshotIds): readonly StudentSnapshot[] {
   const times = seedRecordTimes(now);
-  const onProgram = { tenantId: SEED_TENANT_ID, programId: PROGRAM, catalogYear: CATALOG_YEAR };
+  const onProgram = {
+    tenantId: SEED_TENANT_ID,
+    programId: SEED_PROGRAM_ID,
+    catalogYear: SEED_CATALOG_YEAR,
+  };
   return [
     createStudentSnapshot({
       ...onProgram,
       id: ids.current,
-      studentId: CURRENT_STUDENT,
+      studentId: SEED_SLICE_STUDENT_ID,
       sourceEffectiveAt: times.currentRecordEffectiveAt,
       ingestedAt: times.currentRecordIngestedAt,
-      attemptIds: [ATTEMPT.math101First, ATTEMPT.math101Repeat, ATTEMPT.phys201InProgress],
+      attemptIds: [
+        SEED_ATTEMPT_IDS.math101First,
+        SEED_ATTEMPT_IDS.math101Repeat,
+        SEED_ATTEMPT_IDS.phys201InProgress,
+      ],
     }),
     createStudentSnapshot({
       ...onProgram,
@@ -178,7 +189,7 @@ function buildSnapshots(now: Date, ids: RunSnapshotIds): readonly StudentSnapsho
       studentId: STALE_STUDENT,
       sourceEffectiveAt: times.currentRecordEffectiveAt,
       ingestedAt: times.currentRecordIngestedAt,
-      attemptIds: [ATTEMPT.staleStudentMath101],
+      attemptIds: [SEED_ATTEMPT_IDS.staleStudentMath101],
     }),
   ];
 }
@@ -220,7 +231,7 @@ function requirementTree(withChildren: boolean): RequirementResultInput[] {
       sourceRequirementId: 'REQ-MATH-CORE',
       label: 'Mathematics core',
       state: RequirementState.Complete,
-      allocatedAttemptIds: [ATTEMPT.math101Repeat],
+      allocatedAttemptIds: [SEED_ATTEMPT_IDS.math101Repeat],
       remainingCreditsHundredths: 0,
       candidateCourseIds: [math101.id],
     }),
@@ -228,7 +239,7 @@ function requirementTree(withChildren: boolean): RequirementResultInput[] {
       sourceRequirementId: 'REQ-PHYS-SEQ',
       label: 'Physics sequence',
       state: RequirementState.InProgress,
-      allocatedAttemptIds: [ATTEMPT.phys201InProgress],
+      allocatedAttemptIds: [SEED_ATTEMPT_IDS.phys201InProgress],
       remainingCourseCount: 1,
       candidateCourseIds: [phys201.id, phys301.id],
     }),
@@ -254,15 +265,15 @@ function buildAudits(now: Date, snapshots: RunSnapshotIds): readonly AuditSnapsh
   const run = String(seedInstantMs(now));
   const base = {
     tenantId: SEED_TENANT_ID,
-    programId: PROGRAM,
+    programId: SEED_PROGRAM_ID,
     auditSource: 'demo-audit',
-    catalogYear: CATALOG_YEAR,
+    catalogYear: SEED_CATALOG_YEAR,
   };
   return [
     createAuditSnapshot({
       ...base,
       id: seedRevisionId('70000000', 1, now),
-      studentId: CURRENT_STUDENT,
+      studentId: SEED_SLICE_STUDENT_ID,
       // SAFETY: pinned to this run's snapshot of the same student, program, and catalog, at the
       // same record time, so the happy path shows neither AUDIT_STALE nor AUDIT_PROGRAM_MISMATCH.
       studentSnapshotId: snapshots.current,

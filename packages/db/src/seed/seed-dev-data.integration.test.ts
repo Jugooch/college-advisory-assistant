@@ -117,7 +117,7 @@ describe('seedDevData', () => {
     expect(await countSeededRows()).toEqual(before);
     expect(before).toEqual({
       institutions: 2,
-      identities: 3,
+      identities: 4,
       students: 4,
       assignments: 2,
       programs: 1,

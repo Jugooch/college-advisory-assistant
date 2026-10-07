@@ -4,10 +4,12 @@
  */
 export * from './builders/academic-policy.builder';
 export * from './builders/actor.builder';
+export * from './builders/advising-case.builder';
 export * from './builders/advisor-assignment.builder';
 export * from './builders/audit-snapshot.builder';
 export * from './builders/campus.builder';
 export * from './builders/campus-transition-policy.builder';
+export * from './builders/case-event.builder';
 export * from './builders/check-result.builder';
 export * from './builders/course.builder';
 export * from './builders/course-attempt.builder';
@@ -15,6 +17,8 @@ export * from './builders/grade.builder';
 export * from './builders/import-batch.builder';
 export * from './builders/linked-section-group.builder';
 export * from './builders/meeting-pattern.builder';
+export * from './builders/plan.builder';
+export * from './builders/plan-revision.builder';
 export * from './builders/prerequisite-rule.builder';
 export * from './builders/requirement-result.builder';
 export * from './builders/roster-batch.builder';
