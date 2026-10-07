@@ -42,6 +42,33 @@ describe('createPrerequisiteRule', () => {
     ).toThrow();
   });
 
+  it('accepts a rule that states no prerequisite', () => {
+    expect(createPrerequisiteRule({ ...VALID, expression: { type: 'NONE' } }).expression).toEqual({
+      type: 'NONE',
+    });
+  });
+
+  it.each(['ALL', 'ANY'] as const)('rejects NONE inside %s', (type) => {
+    expect(() =>
+      createPrerequisiteRule({
+        ...VALID,
+        expression: {
+          type,
+          items: [{ type: 'NONE' }],
+        } as unknown as PrerequisiteRuleInput['expression'],
+      }),
+    ).toThrow();
+  });
+
+  it('rejects NONE carrying items', () => {
+    expect(() =>
+      createPrerequisiteRule({
+        ...VALID,
+        expression: { type: 'NONE', items: [] } as unknown as PrerequisiteRuleInput['expression'],
+      }),
+    ).toThrow();
+  });
+
   it('rejects an empty sourceRef', () => {
     expect(() => createPrerequisiteRule({ ...VALID, sourceRef: '' })).toThrow();
   });

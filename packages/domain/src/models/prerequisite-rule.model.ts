@@ -8,7 +8,7 @@ import { z } from 'zod';
 
 import { CourseIdSchema } from './course.model';
 import { InstitutionIdSchema } from './institution.model';
-import { PrerequisiteExpressionSchema } from './prerequisite-expression.model';
+import { PrerequisiteRootExpressionSchema } from './prerequisite-expression.model';
 
 /**
  * Schema for a prerequisite rule. Published rules are immutable; a change is a new
@@ -19,7 +19,11 @@ export const PrerequisiteRuleSchema = z
     tenantId: InstitutionIdSchema,
     /** Course whose prerequisites this rule states. */
     courseId: CourseIdSchema,
-    expression: PrerequisiteExpressionSchema,
+    /**
+     * What the institution states about prerequisites. `NONE` means the institution states the
+     * course has none. A course with no rule row has not been imported, which is UNKNOWN.
+     */
+    expression: PrerequisiteRootExpressionSchema,
     /** Reference to the source rule, for example a catalog rule ID. Shown as evidence. */
     sourceRef: z.string().min(1),
     /** Published ruleset version this rule belongs to, for example `demo-2026.1`. */
