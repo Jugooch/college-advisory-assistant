@@ -12,13 +12,8 @@ import { CountingState, ReasonCode, RepeatPolicy } from '@caa/domain';
 
 import { buildCourse } from '../../builders/course.builder';
 import { syntheticId } from '../../fixtures/synthetic-id';
-import {
-  counted,
-  countingCase,
-  countingInputs,
-  type GoldenCountingCase,
-  undetermined,
-} from '../golden-counting-case.schema';
+import type { GoldenCountingCase } from '../golden-counting-case.schema';
+import { counted, countingCase, countingInputs, undetermined } from '../golden-counting-factories';
 import {
   attemptOf,
   ENSEMBLE as ensemble,
