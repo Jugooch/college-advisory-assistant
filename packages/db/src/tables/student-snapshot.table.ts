@@ -56,6 +56,14 @@ export const studentSnapshotTable = pgTable(
     unique('student_snapshot_tenant_id_id_key').on(table.tenantId, table.id),
     // SAFETY: target for links that must also match the student, so a snapshot can't list
     // another student's attempt and an audit can't pin another student's record.
+    // SAFETY: target of the plan revision key, so a revision's pinned record time is the
+    // snapshot's own.
+    unique('student_snapshot_pin_key').on(
+      table.tenantId,
+      table.studentId,
+      table.id,
+      table.sourceEffectiveAt,
+    ),
     unique('student_snapshot_tenant_id_student_id_id_key').on(
       table.tenantId,
       table.studentId,

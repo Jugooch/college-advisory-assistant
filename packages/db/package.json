@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:seed": "tsx src/seed/run-seed.ts"
+    "db:seed": "tsx src/seed/run-seed.ts",
+    "db:seed:revise": "tsx src/seed/run-revise.ts"
   },
   "dependencies": {
     "@caa/domain": "workspace:*",
@@ -20,6 +21,7 @@
     "pg": "^8.23.0"
   },
   "devDependencies": {
+    "@caa/test-kit": "workspace:*",
     "@types/pg": "^8.23.1",
     "drizzle-kit": "^0.31.11",
     "pino": "^10.3.1",
