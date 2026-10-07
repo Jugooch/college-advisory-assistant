@@ -19,6 +19,9 @@ export type CourseName =
 /** Said after a course ID when there is no catalog entry to name it by. */
 export const NO_CATALOG_DETAILS = 'no catalog details available';
 
+/** Said after a course code whose title is unknown (`null`). */
+export const TITLE_NOT_AVAILABLE = 'title not available';
+
 /**
  * Indexes display entries by course ID. Earlier lists win, so a response's own entries can be
  * listed before another response's.
@@ -57,7 +60,7 @@ export function nameCourse(courseId: string, lookup: CourseLookup): CourseName {
  *
  * @param courseId - The course's ID.
  * @param lookup - Display entries by course ID.
- * @returns For example `DEMO-MATH 101 (Calculus I)`, `DEMO-MATH 101`, or
+ * @returns For example `DEMO-MATH 101 (Calculus I)`, `DEMO-MATH 101 (title not available)`, or
  *   `course <id> (no catalog details available)`.
  */
 export function describeCourse(courseId: string, lookup: CourseLookup): string {
@@ -65,7 +68,7 @@ export function describeCourse(courseId: string, lookup: CourseLookup): string {
   if (name.kind === 'id-only') {
     return `course ${name.courseId} (${NO_CATALOG_DETAILS})`;
   }
-  return name.title === null ? name.code : `${name.code} (${name.title})`;
+  return `${name.code} (${name.title ?? TITLE_NOT_AVAILABLE})`;
 }
 
 /**
