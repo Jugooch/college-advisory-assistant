@@ -24,6 +24,7 @@ import {
   readLogLines,
   recordAndAuditAt,
   rulesAtRuleset,
+  withoutRuleOf,
 } from '../../testing/course-checks-harness';
 import { readError, STUDENTS, TOKENS } from '../../testing/fixtures';
 import {
@@ -217,6 +218,18 @@ describe('POST /v1/students/:studentId/course-checks record states', () => {
 
     expect(checks.courseResults[0]?.applicability).toMatchObject(stale);
     expect(checks.setResults.allocation).toEqual([expect.objectContaining(stale)]);
+  });
+
+  it('returns UNKNOWN PREREQUISITE_RULE_MISSING, never null, for a course with no rule row', async () => {
+    Object.assign(store, withoutRuleOf(math102.id)(store));
+
+    const response = await postChecks(STUDENTS.own.id, TOKENS.student, MATH_102);
+
+    expect(readChecks(response.json())).toMatchObject({
+      courseResults: [
+        { prerequisite: { state: 'UNKNOWN', reasonCode: 'PREREQUISITE_RULE_MISSING' } },
+      ],
+    });
   });
 
   it('shows an in-progress prerequisite as CONDITIONAL in the 200 body, never eligible', async () => {

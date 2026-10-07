@@ -144,9 +144,10 @@ function toOption(solved: SolvedScheduleOption, checks: CourseChecks): ScheduleO
   };
   const states: CheckResult[] = [
     solved.scheduleFeasibility,
-    ...checks.courseResults.flatMap(({ prerequisite, applicability }) =>
-      prerequisite === null ? [applicability] : [prerequisite, applicability],
-    ),
+    ...checks.courseResults.flatMap(({ prerequisite, applicability }) => [
+      prerequisite,
+      applicability,
+    ]),
     ...solved.linkedCourseResults.flatMap(({ prerequisite, applicability }) => [
       prerequisite,
       applicability,

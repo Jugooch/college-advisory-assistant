@@ -20,13 +20,6 @@ import { it } from 'vitest';
  * The fixing PR removes its entry, and nothing else in `tests/`.
  */
 export const KNOWN_FINDINGS: ReadonlyMap<string, number> = new Map<string, number>([
-  // ADR-0012 §1: a course with no rule row is UNKNOWN, never `prerequisite: null` or PASS (#362).
-  [
-    'AC29: reports UNKNOWN PREREQUISITE_RULE_MISSING, not a PASS, for a course with no rule row',
-    362,
-  ],
-  ['AC29: treats a rule that exists only in another ruleset version as a missing rule', 362],
-  ['AC29: keeps a course with a rule PASS while a sibling with no rule row is UNKNOWN', 362],
   // ADR-0012 §1: an included linked course with no rule row is UNKNOWN, not omitted (#361).
   ['AC06: needs verification when an included lab has no rule row, never skipping its check', 361],
 ]);

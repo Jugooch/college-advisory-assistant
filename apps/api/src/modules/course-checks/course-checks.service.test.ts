@@ -23,6 +23,7 @@ import {
   CHECK_ACTOR as actor,
   CHECK_STUDENT as student,
   runCourseChecks as check,
+  withoutRuleOf,
 } from '../../testing/course-checks-harness';
 import type { InMemoryAcademicStore } from '../../testing/in-memory-academic-repositories';
 import { SEED_AUDITS, SEED_COURSES, SEED_SNAPSHOTS } from '../../testing/seed-scenario-fixtures';
@@ -36,7 +37,7 @@ describe('CourseChecksService.checkCourses', () => {
     const checks = await check({ courseIds: [math102.id, engl101.id] }).result;
 
     expect(checks.courseResults.map((result) => result.courseId)).toEqual([math102.id, engl101.id]);
-    expect(checks.courseResults[0]?.prerequisite?.kind).toBe('PREREQUISITE');
+    expect(checks.courseResults[0]?.prerequisite.kind).toBe('PREREQUISITE');
     expect(checks.courseResults.map((result) => result.applicability.kind)).toEqual([
       'REQUIREMENT_APPLICABILITY',
       'REQUIREMENT_APPLICABILITY',
@@ -45,6 +46,28 @@ describe('CourseChecksService.checkCourses', () => {
       'REQUIREMENT_ALLOCATION',
     ]);
     expect(checks.setResults.creditLoad.kind).toBe('CREDIT_LOAD');
+  });
+
+  it('reports a course with no rule row as UNKNOWN, a NONE-rule sibling as PASS', async () => {
+    const change = withoutRuleOf(math102.id);
+    const checks = await check({ courseIds: [engl101.id, math102.id] }, { change }).result;
+
+    const [none, missing] = checks.courseResults.map((r) => r.prerequisite);
+    expect([none?.state, missing?.state]).toEqual([CheckState.Pass, CheckState.Unknown]);
+    expect(missing?.reasonCode).toBe(ReasonCode.PrerequisiteRuleMissing);
+    expect(checks.aggregate).not.toBe('VALIDATED');
+  });
+
+  it('never lets a rule of another ruleset version stand in for the pinned one', async () => {
+    const change = (s: InMemoryAcademicStore) => ({
+      ...s,
+      rules: (s.rules ?? []).map((r) => ({ ...r, rulesetVersion: 'demo-2025.9' })),
+    });
+    const checks = await check({ courseIds: [engl101.id] }, { change }).result;
+
+    expect(checks.courseResults[0]?.prerequisite.reasonCode).toBe(
+      ReasonCode.PrerequisiteRuleMissing,
+    );
   });
 
   it('looks rules up for the session tenant at the policy ruleset version', async () => {

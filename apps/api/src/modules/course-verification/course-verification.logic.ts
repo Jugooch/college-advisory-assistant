@@ -29,6 +29,7 @@ import {
   type CourseSelection,
   evaluateApplicability,
   evaluatePrerequisite,
+  missingPrerequisiteRuleCheck,
 } from '@caa/engine';
 
 /** One requested course, from the tenant's catalog, and its rule at the active ruleset. */
@@ -59,10 +60,10 @@ export interface CourseSetInputs {
   readonly maxSkewMs: number;
 }
 
-/** The results of one course: `prerequisite` is `null` when the course has no rule. */
+/** The results of one course. A course with no rule row has an UNKNOWN prerequisite, never `null`. */
 export interface CourseCheck {
   readonly courseId: CourseId;
-  readonly prerequisite: CheckResult | null;
+  readonly prerequisite: CheckResult;
   readonly applicability: CheckResult;
 }
 
@@ -132,8 +133,8 @@ function toSelections(inputs: CourseSetInputs): readonly CourseSelection[] {
 }
 
 /**
- * Runs every check on the candidate set: per course, the prerequisite (when there is a rule)
- * and the requirement applicability; for the set, allocation and credit load. The aggregate
+ * Runs every check on the candidate set: per course, the prerequisite (UNKNOWN when
+ * there is no rule row) and the requirement applicability; for the set, allocation and credit load. The aggregate
  * comes from the engine. The same inputs always give a deep-equal result: no clock is read.
  *
  * @param inputs - Every pinned input.
@@ -149,18 +150,19 @@ export function verifyCourseSet(inputs: CourseSetInputs): CourseChecks {
   const resolution = { academicPolicy, termCalendar };
   const courseResults = inputs.courses.map(({ course, rule }) => ({
     courseId: course.id,
-    // SAFETY: no rule is `null`, shown as "no rule checked", never as a PASS (course-checks
-    // contract).
-    prerequisite: rule === null ? null : evaluatePrerequisite(rule, record, resolution),
+    // SAFETY: a missing rule row is UNKNOWN, never a PASS or "no rule" (ADR-0012 §1). A course
+    // with no prerequisite has an explicit NONE rule, which the engine passes.
+    prerequisite:
+      rule === null
+        ? missingPrerequisiteRuleCheck(academicPolicy.rulesetVersion)
+        : evaluatePrerequisite(rule, record, resolution),
     applicability: evaluateApplicability(course.id, audit, pinned),
   }));
   const selections = toSelections(inputs);
   const allocation = checkAllocation(selections, audit, pinned);
   const creditLoad = checkCreditLoad(selections, academicPolicy);
   const states = [
-    ...courseResults.flatMap(({ prerequisite, applicability }) =>
-      prerequisite === null ? [applicability] : [prerequisite, applicability],
-    ),
+    ...courseResults.flatMap(({ prerequisite, applicability }) => [prerequisite, applicability]),
     ...allocation,
     creditLoad,
   ].map((check) => check.state);
