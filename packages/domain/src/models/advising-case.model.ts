@@ -10,6 +10,7 @@ import { CaseReason, CaseReasonSchema } from '../enums/case-reason.enum';
 import { CaseStatus, CaseStatusSchema } from '../enums/case-status.enum';
 import { DiscrepancySubjectSchema } from '../enums/discrepancy-subject.enum';
 import { InstitutionIdSchema } from './institution.model';
+import { PlanRevisionIdSchema } from './plan-revision.model';
 import { StudentIdSchema } from './student.model';
 import { UserIdSchema } from './user-identity.model';
 
@@ -30,7 +31,7 @@ export const AdvisingCaseSchema = z
     studentId: StudentIdSchema,
     reason: CaseReasonSchema,
     /** The frozen plan revision under review. Optional only for a source discrepancy. */
-    planRevisionId: z.uuid().brand<'PlanRevisionId'>().nullable(),
+    planRevisionId: PlanRevisionIdSchema.nullable(),
     /** What is disputed. Present exactly when the reason is a source discrepancy. */
     discrepancySubject: DiscrepancySubjectSchema.nullable(),
     /** The student's note for the advisor. Never logged or sent to a model. */
