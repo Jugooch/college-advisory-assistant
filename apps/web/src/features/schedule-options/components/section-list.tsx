@@ -9,6 +9,7 @@ import type { ReactElement } from 'react';
 import type { ScheduleOption } from '@caa/api-contract';
 
 import { CourseLabel } from '@/shared/components/course-label';
+import { type CampusLookup, describeCampus } from '@/shared/utils/campus-display';
 import type { CourseLookup } from '@/shared/utils/course-display';
 import { formatCredits } from '@/shared/utils/format-display';
 import { describeModality } from '@/shared/utils/section-wording';
@@ -19,15 +20,16 @@ import { describeDateRange, describeMeeting } from '../utils/meeting-wording';
 export interface SectionListProps {
   readonly bundles: ScheduleOption['bundles'];
   readonly courses: CourseLookup;
+  readonly campuses: CampusLookup;
 }
 
 /**
  * Lists each requested course with its sections, meetings, dates, and credits counted.
  *
- * @param props - The option's bundles and the course names.
+ * @param props - The option's bundles, the course names, and the campus names.
  * @returns A list, one item per course.
  */
-export function SectionList({ bundles, courses }: SectionListProps): ReactElement {
+export function SectionList({ bundles, courses, campuses }: SectionListProps): ReactElement {
   return (
     <ul className="section-list">
       {bundles.map((bundle) => (
@@ -56,13 +58,16 @@ export function SectionList({ bundles, courses }: SectionListProps): ReactElemen
                   : {describeModality(section.modality)}, runs{' '}
                   {describeDateRange(section.startsOn, section.endsOn)}.
                 </span>
+                {section.campusId === null ? null : (
+                  <p>Campus: {describeCampus(section.campusId, campuses)}</p>
+                )}
                 {section.meetings.length === 0 ? (
                   <p>No meeting times.</p>
                 ) : (
                   <ul>
                     {section.meetings.map((meeting, index) => (
                       <li key={`${String(index)}-${meeting.startsOn}`}>
-                        Meeting {index + 1}: {describeMeeting(meeting)}
+                        Meeting {index + 1}: {describeMeeting(meeting, campuses)}
                       </li>
                     ))}
                   </ul>
