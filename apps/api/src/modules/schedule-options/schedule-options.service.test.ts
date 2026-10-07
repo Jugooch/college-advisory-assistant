@@ -120,13 +120,17 @@ describe('ScheduleOptionsService.findOptions', () => {
       rulesetVersion: 'demo-2026.1',
     });
 
+    // Replace, not append: a seeded NONE rule for the lab must not sit beside labRule.
+    const isOther = (r: typeof labRule) =>
+      r.courseId !== labRule.courseId || r.rulesetVersion !== labRule.rulesetVersion;
+
     const response = await find(scheduleRequest(), {
       schedule: {
         sectionSnapshots: [snapshot],
         transitionPolicies: [],
         campuses: SCHEDULE_CAMPUSES,
       },
-      change: (store) => ({ ...store, rules: [...(store.rules ?? []), labRule] }),
+      change: (store) => ({ ...store, rules: [...(store.rules ?? []).filter(isOther), labRule] }),
     }).result;
 
     expect(ScheduleOptionsResponseSchema.safeParse(response).success).toBe(true);
