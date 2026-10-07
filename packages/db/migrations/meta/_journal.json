@@ -71,6 +71,20 @@
       "when": 1791320734284,
       "tag": "0009_course_repeatable_for_credit",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791411801927,
+      "tag": "0010_plan_revisions",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791411802499,
+      "tag": "0011_plan_revision_immutable",
+      "breakpoints": true
     }
   ]
 }
