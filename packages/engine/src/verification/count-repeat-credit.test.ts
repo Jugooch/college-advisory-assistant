@@ -6,15 +6,17 @@ import { describe, expect, it } from 'vitest';
 import type { CourseAttempt, RepeatableForCredit } from '@caa/domain';
 import {
   buildAcademicPolicy,
+  buildCourse,
   buildTermCalendar,
   completedAttempt,
   fail,
   letter,
+  SYNTHETIC_COURSES,
   SYNTHETIC_REPEATABLE_COURSES,
   transferAwardedAttempt,
 } from '@caa/test-kit';
 
-import { countRepeatCredit } from './count-repeat-credit';
+import { countRepeatCredit, type RepeatCreditRules } from './count-repeat-credit';
 import type { AttemptResolutionContext } from './select-counting-attempt';
 
 const ENSEMBLE = SYNTHETIC_REPEATABLE_COURSES.ensemble110;
@@ -22,6 +24,19 @@ const ENSEMBLE = SYNTHETIC_REPEATABLE_COURSES.ensemble110;
 const ENSEMBLE_CAPS: RepeatableForCredit = { maxAttempts: 4, maxCreditsHundredths: 400 };
 const UNCAPPED: RepeatableForCredit = { maxAttempts: null, maxCreditsHundredths: null };
 const TWO_ATTEMPTS: RepeatableForCredit = { maxAttempts: 2, maxCreditsHundredths: null };
+/** A 0-credit recital: passing it earns 0 credits. */
+const RECITAL = buildCourse({ creditsHundredths: 0, repeatableForCredit: TWO_ATTEMPTS }, 0x700);
+const CATALOG = [SYNTHETIC_COURSES.math101, ENSEMBLE, RECITAL];
+
+/**
+ * Pairs a statement with the test catalog.
+ *
+ * @param statement - The group's statement.
+ * @returns The counting rules.
+ */
+function rules(statement: RepeatableForCredit): RepeatCreditRules {
+  return { statement, courseById: new Map(CATALOG.map((entry) => [entry.id, entry])) };
+}
 
 // NOTE: no repeat policy, to show that repeatable counting never consults it.
 const CONTEXT: AttemptResolutionContext = {
@@ -72,7 +87,7 @@ describe('countRepeatCredit', () => {
   it('counts the first four of five ensemble attempts, earning 4.00 credits', () => {
     const [first, second, third, fourth] = FIVE_TERMS;
 
-    expect(countRepeatCredit(FIVE_TERMS, ENSEMBLE_CAPS, CONTEXT)).toEqual({
+    expect(countRepeatCredit(FIVE_TERMS, rules(ENSEMBLE_CAPS), CONTEXT)).toEqual({
       state: 'COUNTED',
       attempts: [first, second, third, fourth],
       earnedCreditsHundredths: 400,
@@ -82,15 +97,15 @@ describe('countRepeatCredit', () => {
   it('gives the same result whatever the input order', () => {
     const reversed = [...FIVE_TERMS].reverse();
 
-    expect(countRepeatCredit(reversed, ENSEMBLE_CAPS, CONTEXT)).toEqual(
-      countRepeatCredit(FIVE_TERMS, ENSEMBLE_CAPS, CONTEXT),
+    expect(countRepeatCredit(reversed, rules(ENSEMBLE_CAPS), CONTEXT)).toEqual(
+      countRepeatCredit(FIVE_TERMS, rules(ENSEMBLE_CAPS), CONTEXT),
     );
   });
 
   it('counts every attempt when there are exactly as many as the attempt cap', () => {
     const four = FIVE_TERMS.slice(0, 4);
 
-    expect(countRepeatCredit(four, ENSEMBLE_CAPS, CONTEXT)).toEqual({
+    expect(countRepeatCredit(four, rules(ENSEMBLE_CAPS), CONTEXT)).toEqual({
       state: 'COUNTED',
       attempts: four,
       earnedCreditsHundredths: 400,
@@ -101,7 +116,7 @@ describe('countRepeatCredit', () => {
     const first = completedAttempt({ termCode: '2025SP' }, 1);
     const second = transferAwardedAttempt({ termCode: '2025FA' }, 2);
 
-    expect(countRepeatCredit([second, first], UNCAPPED, CONTEXT)).toEqual({
+    expect(countRepeatCredit([second, first], rules(UNCAPPED), CONTEXT)).toEqual({
       state: 'COUNTED',
       attempts: [first, second],
       earnedCreditsHundredths: 600,
@@ -115,7 +130,7 @@ describe('countRepeatCredit', () => {
     ];
     const caps = { maxAttempts: null, maxCreditsHundredths: 400 };
 
-    expect(countRepeatCredit(attempts, caps, CONTEXT)).toEqual({
+    expect(countRepeatCredit(attempts, rules(caps), CONTEXT)).toEqual({
       state: 'COUNTED',
       attempts,
       earnedCreditsHundredths: 400,
@@ -129,7 +144,7 @@ describe('countRepeatCredit', () => {
     ];
     const caps = { maxAttempts: null, maxCreditsHundredths: 600 };
 
-    expect(countRepeatCredit(attempts, caps, CONTEXT)).toMatchObject({
+    expect(countRepeatCredit(attempts, rules(caps), CONTEXT)).toMatchObject({
       earnedCreditsHundredths: 600,
     });
   });
@@ -142,7 +157,7 @@ describe('countRepeatCredit', () => {
     );
     const third = completedAttempt({ termCode: '2025SP' }, 3);
 
-    expect(countRepeatCredit([third, failed, first], TWO_ATTEMPTS, CONTEXT)).toEqual({
+    expect(countRepeatCredit([third, failed, first], rules(TWO_ATTEMPTS), CONTEXT)).toEqual({
       state: 'COUNTED',
       attempts: [first, third],
       earnedCreditsHundredths: 600,
@@ -153,15 +168,15 @@ describe('countRepeatCredit', () => {
     const failed = completedAttempt({ grade: fail(), creditsEarnedHundredths: 0 }, 1);
     const none = { state: 'NONE', earnedCreditsHundredths: 0 };
 
-    expect(countRepeatCredit([failed], UNCAPPED, CONTEXT)).toEqual(none);
-    expect(countRepeatCredit([], UNCAPPED, CONTEXT)).toEqual(none);
+    expect(countRepeatCredit([failed], rules(UNCAPPED), CONTEXT)).toEqual(none);
+    expect(countRepeatCredit([], rules(UNCAPPED), CONTEXT)).toEqual(none);
   });
 
   it('leaves earned credit unknown when a counted attempt has no recorded award', () => {
     const first = completedAttempt({ termCode: '2025SP' }, 1);
     const unknown = completedAttempt({ termCode: '2025FA', creditsEarnedHundredths: null }, 2);
 
-    expect(countRepeatCredit([first, unknown], UNCAPPED, CONTEXT)).toEqual({
+    expect(countRepeatCredit([first, unknown], rules(UNCAPPED), CONTEXT)).toEqual({
       state: 'COUNTED',
       attempts: [first, unknown],
       earnedCreditsHundredths: null,
@@ -175,7 +190,7 @@ describe('countRepeatCredit', () => {
       completedAttempt({ termCode: '2025SP' }, 3),
     ];
 
-    expect(countRepeatCredit(attempts, TWO_ATTEMPTS, CONTEXT)).toEqual(ORDER_UNDETERMINED);
+    expect(countRepeatCredit(attempts, rules(TWO_ATTEMPTS), CONTEXT)).toEqual(ORDER_UNDETERMINED);
   });
 
   it('ignores an unknown award that the attempt cap leaves out', () => {
@@ -183,7 +198,7 @@ describe('countRepeatCredit', () => {
     const second = completedAttempt({ termCode: '2024FA' }, 2);
     const late = completedAttempt({ termCode: '2025SP', creditsEarnedHundredths: null }, 3);
 
-    expect(countRepeatCredit([late, second, first], TWO_ATTEMPTS, CONTEXT)).toEqual({
+    expect(countRepeatCredit([late, second, first], rules(TWO_ATTEMPTS), CONTEXT)).toEqual({
       state: 'COUNTED',
       attempts: [first, second],
       earnedCreditsHundredths: 600,
@@ -197,7 +212,7 @@ describe('countRepeatCredit', () => {
       completedAttempt({ termCode: '2024FA', creditsEarnedHundredths: 150 }, 3),
     ];
 
-    expect(countRepeatCredit(attempts, TWO_ATTEMPTS, CONTEXT)).toEqual(ORDER_UNDETERMINED);
+    expect(countRepeatCredit(attempts, rules(TWO_ATTEMPTS), CONTEXT)).toEqual(ORDER_UNDETERMINED);
   });
 
   it('is undetermined when the cut falls in one term between attempts of different grades', () => {
@@ -207,7 +222,7 @@ describe('countRepeatCredit', () => {
       completedAttempt({ termCode: '2024FA' }, 3),
     ];
 
-    expect(countRepeatCredit(attempts, TWO_ATTEMPTS, CONTEXT)).toEqual(ORDER_UNDETERMINED);
+    expect(countRepeatCredit(attempts, rules(TWO_ATTEMPTS), CONTEXT)).toEqual(ORDER_UNDETERMINED);
   });
 
   it('breaks a same-term tie of equal credits and grades at the cut by attempt id', () => {
@@ -215,7 +230,7 @@ describe('countRepeatCredit', () => {
     const lowerId = completedAttempt({ termCode: '2024FA' }, 2);
     const higherId = completedAttempt({ termCode: '2024FA' }, 3);
 
-    expect(countRepeatCredit([higherId, lowerId, first], TWO_ATTEMPTS, CONTEXT)).toEqual({
+    expect(countRepeatCredit([higherId, lowerId, first], rules(TWO_ATTEMPTS), CONTEXT)).toEqual({
       state: 'COUNTED',
       attempts: [first, lowerId],
       earnedCreditsHundredths: 600,
@@ -228,7 +243,7 @@ describe('countRepeatCredit', () => {
     const later = completedAttempt({ termCode: '2024FA' }, 3);
     const caps = { maxAttempts: 2, maxCreditsHundredths: 400 };
 
-    expect(countRepeatCredit([later, higherId, lowerId], caps, CONTEXT)).toEqual({
+    expect(countRepeatCredit([later, higherId, lowerId], rules(caps), CONTEXT)).toEqual({
       state: 'COUNTED',
       attempts: [lowerId, higherId],
       earnedCreditsHundredths: 400,
@@ -242,14 +257,14 @@ describe('countRepeatCredit', () => {
       completedAttempt({ termCode: '1999XX' }, 3),
     ];
 
-    expect(countRepeatCredit(attempts, TWO_ATTEMPTS, CONTEXT)).toEqual(ORDER_UNDETERMINED);
+    expect(countRepeatCredit(attempts, rules(TWO_ATTEMPTS), CONTEXT)).toEqual(ORDER_UNDETERMINED);
   });
 
   it('counts an attempt in a term missing from the calendar when no attempt cap binds', () => {
     const unplaced = completedAttempt({ termCode: '1999XX' }, 1);
     const placed = completedAttempt({ termCode: '2024SP' }, 2);
 
-    expect(countRepeatCredit([unplaced, placed], UNCAPPED, CONTEXT)).toEqual({
+    expect(countRepeatCredit([unplaced, placed], rules(UNCAPPED), CONTEXT)).toEqual({
       state: 'COUNTED',
       attempts: [placed, unplaced],
       earnedCreditsHundredths: 600,

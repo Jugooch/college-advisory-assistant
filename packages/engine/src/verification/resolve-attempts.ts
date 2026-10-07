@@ -141,7 +141,7 @@ export function resolveAttempts(
   // §Candidate formation: never count two aliases of the same course as separate credits).
   const isCatalogComplete = attempts.every((attempt) => courseById.has(attempt.courseId));
   const selectCounting: CountingSelector = isCatalogComplete
-    ? (completed, statement) => resolveCounting(completed, statement, context)
+    ? (completed, statement) => resolveCounting(completed, statement, { context, courseById })
     : () => CATALOG_INCOMPLETE;
   // NOTE: keys are compared by UTF-16 code unit, not localeCompare, so the order is the same
   // on every machine.
@@ -165,14 +165,20 @@ export function resolveAttempts(
  *
  * @param completed - The group's COMPLETED and TRANSFER_AWARDED attempts.
  * @param statement - The statement shared by the group's catalog courses.
- * @param context - The academic policy and the term order.
+ * @param inputs - The academic policy and term order, and the catalog by course ID.
+ * @param inputs.context - The academic policy and the term order.
+ * @param inputs.courseById - The catalog by course ID.
  * @returns The group's statement and counting resolution.
  */
 function resolveCounting(
   completed: readonly CourseAttempt[],
   statement: GroupRepeatStatement,
-  context: AttemptResolutionContext,
+  inputs: {
+    readonly context: AttemptResolutionContext;
+    readonly courseById: ReadonlyMap<CourseId, Course>;
+  },
 ): GroupCounting {
+  const { context, courseById } = inputs;
   // SAFETY: when the catalog disagrees on whether a repeat earns credit again, the engine can't
   // tell how many attempts count. A single attempt is unaffected (ADR-0012 §2: when it
   // applies; AC04).
@@ -186,7 +192,7 @@ function resolveCounting(
   }
   return {
     repeatableForCredit: statement.statement,
-    counting: countRepeatCredit(completed, statement.statement, context),
+    counting: countRepeatCredit(completed, { statement: statement.statement, courseById }, context),
   };
 }
 

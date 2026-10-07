@@ -15,15 +15,13 @@ import {
   ReasonCode,
 } from '@caa/domain';
 
+import { compareAttemptToMinimum } from './compare-attempt-to-minimum';
 import {
   evaluateInProgressPrerequisite,
   evaluateRetakeOfPassingAttempt,
   type InProgressAttempts,
 } from './evaluate-in-progress-prerequisite';
-import {
-  compareAttemptToMinimum,
-  evaluateRepeatablePrerequisite,
-} from './evaluate-repeatable-prerequisite';
+import { evaluateRepeatablePrerequisite } from './evaluate-repeatable-prerequisite';
 import type { AttemptGroup } from './resolve-attempts';
 import type { AttemptResolutionContext, CountingResolution } from './select-counting-attempt';
 

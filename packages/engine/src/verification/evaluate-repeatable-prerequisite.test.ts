@@ -36,7 +36,15 @@ const CONFLICTING = [
     0x602,
   ),
 ];
-const COURSES = [ENSEMBLE, TOPICS, ...CONFLICTING];
+/** A 0-credit repeatable recital: passing it earns 0 credits. */
+const RECITAL = buildCourse(
+  {
+    creditsHundredths: 0,
+    repeatableForCredit: { maxAttempts: null, maxCreditsHundredths: null },
+  },
+  0x700,
+);
+const COURSES = [ENSEMBLE, TOPICS, RECITAL, ...CONFLICTING];
 const TERMS = ['2024SP', '2024FA', '2025SP', '2025FA', '2026SP', '2026FA'];
 
 /**
@@ -227,5 +235,26 @@ describe('evaluatePrerequisite for a course repeatable for credit', () => {
     const attempts = [topics('B', '2024SP', 1), incompleteAttempt({ courseId: TOPICS.id }, 2)];
 
     expect(checkOf(attempts)).toEqual({ state: 'UNKNOWN', reasonCode: 'INCOMPLETE_ATTEMPT' });
+  });
+
+  it('passes on a 0-credit course whose attempt meets the minimum', () => {
+    const passed = completedAttempt(
+      { courseId: RECITAL.id, grade: letter('A'), creditsEarnedHundredths: 0 },
+      1,
+    );
+
+    expect(checkOf([passed], {}, RECITAL.id)).toEqual({ state: 'PASS', reasonCode: undefined });
+  });
+
+  it('fails on a 0-credit course whose only attempt was failed', () => {
+    const failed = completedAttempt(
+      { courseId: RECITAL.id, grade: letter('F'), creditsEarnedHundredths: 0 },
+      1,
+    );
+
+    expect(checkOf([failed], {}, RECITAL.id)).toEqual({
+      state: 'FAIL',
+      reasonCode: 'NO_QUALIFYING_ATTEMPT',
+    });
   });
 });

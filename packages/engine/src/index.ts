@@ -18,6 +18,7 @@ export * from './verification/check-audit-program-and-catalog';
 export * from './verification/check-audit-reflects-record';
 export * from './verification/check-credit-load';
 export * from './verification/combine-prerequisite-states';
+export * from './verification/compare-attempt-to-minimum';
 export * from './verification/compare-to-minimum-grade';
 export * from './verification/count-repeat-credit';
 export * from './verification/evaluate-applicability';
