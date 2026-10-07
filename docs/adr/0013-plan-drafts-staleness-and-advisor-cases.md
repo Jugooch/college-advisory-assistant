@@ -1,6 +1,6 @@
 # ADR-0013: Plan drafts, their staleness, and advisor cases
 
-- **Status:** Proposed. It becomes Accepted when the repo owner answers the product decisions on #399. Any override is recorded here first.
+- **Status:** Accepted 2026-10-07. The repo owner accepted all seven product defaults on #399, with no overrides.
 - **Date:** 2026-10-07
 - **Deciders:** Tech lead; repo owner (product decisions 1–7 on #399)
 - **Related:** FR-02, FR-11, FR-12, FR-14, FR-15, FR-17, NFR-01, NFR-04, NFR-05, AC14, AC15, AC16, new AC32–AC37, T07, planning ADR-02, ADR-06, ADR-08, planning/07 §Request lifecycle and §Consistency model, planning/09 §Canonical entities and §Logical app interfaces, planning/11 §Core screens, ADR-0008 Amendment 1, ADR-0010, ADR-0011, issues #399–#418
