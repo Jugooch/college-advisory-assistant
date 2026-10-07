@@ -75,6 +75,10 @@ export const PlanRevisionSchema = z
     creditSelections: z.array(CreditSelectionSchema).max(MAX_PLAN_COURSES).readonly(),
     constraints: ScheduleConstraintSetSchema,
     studentSnapshotId: StudentSnapshotIdSchema,
+    /** The point in time the pinned student record describes. ISO 8601 with offset. */
+    studentRecordEffectiveAt: z.iso.datetime({ offset: true }),
+    /** The point in time of the student record the pinned audit ran against. ISO 8601 with offset. */
+    auditRecordEffectiveAt: z.iso.datetime({ offset: true }),
     auditSnapshotId: AuditSnapshotIdSchema,
     /** Audit system of the pinned audit. */
     auditSource: z.string().min(1),

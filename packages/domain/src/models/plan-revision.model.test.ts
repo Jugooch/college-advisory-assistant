@@ -24,6 +24,8 @@ const VALID = {
   ],
   constraints: [],
   studentSnapshotId: '4a000000-0000-4000-8000-000000000001',
+  studentRecordEffectiveAt: '2026-10-06T08:00:00.000-05:00',
+  auditRecordEffectiveAt: '2026-10-06T08:00:00.000-05:00',
   auditSnapshotId: '4b000000-0000-4000-8000-000000000001',
   auditSource: 'demo-audit',
   auditVersion: 'audit_demo_r7',
@@ -69,6 +71,12 @@ describe('PlanRevisionSchema', () => {
 
   it('rejects a time without an offset', () => {
     expect(accepts({ createdAt: '2026-10-07T09:00:00' })).toBe(false);
+  });
+
+  it('rejects pinned record times without an offset or missing', () => {
+    expect(accepts({ studentRecordEffectiveAt: '2026-10-06T08:00:00' })).toBe(false);
+    expect(accepts({ auditRecordEffectiveAt: '2026-10-06T08:00:00' })).toBe(false);
+    expect(accepts({ studentRecordEffectiveAt: undefined })).toBe(false);
   });
 
   it('rejects repeated courses and an out-of-range course count', () => {
