@@ -16,6 +16,7 @@ const WITHOUT_TITLE: Omit<CourseInput, 'title'> = {
   maxCreditsHundredths: null,
   equivalencyGroupId: null,
   creditsIncludedInCourseId: null,
+  repeatableForCredit: null,
 };
 
 describe('createCourse title', () => {

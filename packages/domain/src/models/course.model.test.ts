@@ -16,6 +16,7 @@ const FIXED: CourseInput = {
   maxCreditsHundredths: null,
   equivalencyGroupId: '4d5e6f70-0000-4000-8000-000000000001',
   creditsIncludedInCourseId: null,
+  repeatableForCredit: null,
 };
 
 const VARIABLE: CourseInput = {
@@ -29,6 +30,7 @@ describe('createCourse', () => {
   it('accepts a fixed-credit course', () => {
     expect(createCourse(FIXED)).toEqual({
       creditsIncludedInCourseId: null,
+      repeatableForCredit: null,
       id: '3c4d5e6f-0000-4000-8000-000000000001',
       tenantId: '0b8f6a36-3f7e-4a53-9c1e-8f1b2c3d4e5f',
       sourceCourseId: 'DEMO-C-MATH101',
