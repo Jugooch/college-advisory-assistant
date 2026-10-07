@@ -9,12 +9,16 @@
  */
 import { z } from 'zod';
 
-import { CourseIdSchema, ScheduleConstraintSetSchema, TermIdSchema } from '@caa/domain';
-
-import { CreditSelectionSchema } from './course-checks-request.contract';
+import {
+  CourseIdSchema,
+  CreditSelectionSchema,
+  MAX_PLAN_COURSES,
+  ScheduleConstraintSetSchema,
+  TermIdSchema,
+} from '@caa/domain';
 
 /** Most courses one schedule-options request may name (ADR-0010 §2). */
-export const MAX_SCHEDULE_OPTION_COURSES = 8;
+export const MAX_SCHEDULE_OPTION_COURSES = MAX_PLAN_COURSES;
 
 /**
  * Returns whether a list has no repeated values.
