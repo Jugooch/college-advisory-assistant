@@ -10,7 +10,7 @@ import {
   buildNewCase,
   type CaseWorld,
   insertAssignment,
-  insertCaseWorld,
+  insertCaseWorldIn,
 } from '../testing/case-fixtures';
 import {
   insertTenant,
@@ -18,6 +18,7 @@ import {
   openTestDatabase,
   type TestDatabase,
 } from '../testing/integration-fixtures';
+import { insertSharedSections, type SharedSections } from '../testing/plan-fixtures';
 import {
   type AdvisingCaseRepository,
   createAdvisingCaseRepository,
@@ -31,6 +32,7 @@ describe('AdvisingCaseRepository queue', () => {
   let testDatabase: TestDatabase;
   let cases: AdvisingCaseRepository;
   let tenantId: InstitutionId;
+  let shared: SharedSections;
   let advisor: UserId;
   let otherAdvisor: UserId;
   let approver: UserId;
@@ -52,13 +54,14 @@ describe('AdvisingCaseRepository queue', () => {
     const { db } = testDatabase;
     cases = createAdvisingCaseRepository(db);
     tenantId = await insertTenant(db);
+    shared = await insertSharedSections(db, tenantId);
     advisor = await insertUser(db, tenantId, 'advisor');
     otherAdvisor = await insertUser(db, tenantId, 'other-advisor');
     approver = await insertUser(db, tenantId, 'approver');
-    assigned = await insertCaseWorld(db, tenantId, 'assigned');
-    ended = await insertCaseWorld(db, tenantId, 'ended');
-    unassigned = await insertCaseWorld(db, tenantId, 'unassigned');
-    theirs = await insertCaseWorld(db, tenantId, 'theirs');
+    assigned = await insertCaseWorldIn(db, shared, 'assigned');
+    ended = await insertCaseWorldIn(db, shared, 'ended');
+    unassigned = await insertCaseWorldIn(db, shared, 'unassigned');
+    theirs = await insertCaseWorldIn(db, shared, 'theirs');
     const base = { tenantId, approvedBy: approver, effectiveFrom: FROM };
     await insertAssignment(db, {
       ...base,
@@ -114,7 +117,7 @@ describe('AdvisingCaseRepository queue', () => {
   });
 
   it('filters by status', async () => {
-    const claimable = await insertCaseWorld(testDatabase.db, tenantId, 'status');
+    const claimable = await insertCaseWorldIn(testDatabase.db, shared, 'status');
     await insertAssignment(testDatabase.db, {
       tenantId,
       advisorUserId: advisor,
@@ -143,7 +146,7 @@ describe('AdvisingCaseRepository queue', () => {
   });
 
   it('lists a case once even when the student has overlapping assignments', async () => {
-    const twice = await insertCaseWorld(testDatabase.db, tenantId, 'twice');
+    const twice = await insertCaseWorldIn(testDatabase.db, shared, 'twice');
     const base = {
       tenantId,
       advisorUserId: advisor,
@@ -171,8 +174,8 @@ describe('AdvisingCaseRepository queue', () => {
   });
 
   it('lists open cases of students with no active assignment as unrouted', async () => {
-    const lone = await open(await insertCaseWorld(testDatabase.db, tenantId, 'unrouted'));
-    const routed = await open(await insertCaseWorld(testDatabase.db, tenantId, 'routed'));
+    const lone = await open(await insertCaseWorldIn(testDatabase.db, shared, 'unrouted'));
+    const routed = await open(await insertCaseWorldIn(testDatabase.db, shared, 'routed'));
     await insertAssignment(testDatabase.db, {
       tenantId,
       advisorUserId: advisor,
@@ -189,7 +192,7 @@ describe('AdvisingCaseRepository queue', () => {
   });
 
   it('moves a case to unrouted once its only assignment has ended', async () => {
-    const lapsing = await insertCaseWorld(testDatabase.db, tenantId, 'lapsing');
+    const lapsing = await insertCaseWorldIn(testDatabase.db, shared, 'lapsing');
     await insertAssignment(testDatabase.db, {
       tenantId,
       advisorUserId: advisor,
@@ -208,7 +211,7 @@ describe('AdvisingCaseRepository queue', () => {
   });
 
   it('leaves a claimed case out of the unrouted list', async () => {
-    const world = await insertCaseWorld(testDatabase.db, tenantId, 'claimed');
+    const world = await insertCaseWorldIn(testDatabase.db, shared, 'claimed');
     const created = await open(world);
     await cases.appendEvent(tenantId, created.id, {
       expectedSequence: 1,

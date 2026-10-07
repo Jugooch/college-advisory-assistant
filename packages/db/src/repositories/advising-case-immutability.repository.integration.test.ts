@@ -54,10 +54,18 @@ describe('advising case immutability', () => {
     const { created } = await createCase('truncate');
     const { db } = testDatabase;
 
-    await expect(db.execute(sql`TRUNCATE "case_event"`)).rejects.toMatchObject(
-      immutableRowRejectionOf('case_event'),
-    );
-    await expect(db.execute(sql`TRUNCATE "advising_case" CASCADE`)).rejects.toBeDefined();
+    // NOTE: rolled back either way, so a missing trigger can't empty the tables for other tests.
+    const truncateEvents = db.transaction(async (tx) => {
+      await tx.execute(sql`TRUNCATE "case_event"`);
+      throw new Error('rollback');
+    });
+    const truncateCases = db.transaction(async (tx) => {
+      await tx.execute(sql`TRUNCATE "advising_case", "case_event"`);
+      throw new Error('rollback');
+    });
+
+    await expect(truncateEvents).rejects.toMatchObject(immutableRowRejectionOf('case_event'));
+    await expect(truncateCases).rejects.toMatchObject(immutableRowRejectionOf('advising_case'));
     await expect(
       db.delete(advisingCaseTable).where(eq(advisingCaseTable.id, created.case.id)),
     ).rejects.toMatchObject(immutableRowRejectionOf('advising_case'));

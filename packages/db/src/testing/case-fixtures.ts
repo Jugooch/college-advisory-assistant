@@ -20,7 +20,13 @@ import type { Database } from '../client';
 import type { NewAdvisingCase, NewCaseEvent } from '../repositories/advising-case.repository';
 import { createPlanRepository } from '../repositories/plan.repository';
 import { advisorAssignmentTable } from '../tables/advisor-assignment.table';
-import { buildNewRevision, insertPlanWorld, type PlanWorld } from './plan-fixtures';
+import {
+  buildNewRevision,
+  insertPlanWorldIn,
+  insertSharedSections,
+  type PlanWorld,
+  type SharedSections,
+} from './plan-fixtures';
 
 /** A plan world with a saved plan, so a case can review its revision. */
 export interface CaseWorld extends PlanWorld {
@@ -40,7 +46,24 @@ export async function insertCaseWorld(
   tenantId: InstitutionId,
   label: string,
 ): Promise<CaseWorld> {
-  const world = await insertPlanWorld(db, tenantId, label);
+  return insertCaseWorldIn(db, await insertSharedSections(db, tenantId), label);
+}
+
+/**
+ * Like {@link insertCaseWorld}, for a tenant that already has its term and section snapshot.
+ *
+ * @param db - Database handle.
+ * @param shared - The tenant's shared term and section snapshot.
+ * @param label - Distinguishes worlds in one tenant.
+ * @returns The world and the saved revision's ID.
+ */
+export async function insertCaseWorldIn(
+  db: Database,
+  shared: SharedSections,
+  label: string,
+): Promise<CaseWorld> {
+  const world = await insertPlanWorldIn(db, shared, label);
+  const tenantId = world.tenantId;
   const created = await createPlanRepository(db).createWithFirstRevision(
     tenantId,
     { studentId: world.studentId, termId: world.termId, createdAt: '2026-10-01T15:00:00.000Z' },
