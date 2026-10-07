@@ -28,7 +28,7 @@ export interface CheckResultItemProps {
   /** Catalog display entries by course ID, to name the courses in the evidence. */
   readonly courses: CourseLookup;
   /** Campus names by ID, to name the campuses in schedule issues. */
-  readonly campuses?: CampusLookup | undefined;
+  readonly campuses: CampusLookup;
   /** Short lowercase name of the rule for the "no rule" message; defaults to the dimension. */
   readonly ruleName?: string;
 }

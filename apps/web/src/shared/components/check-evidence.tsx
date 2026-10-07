@@ -23,10 +23,8 @@ export interface CheckEvidenceProps {
   /** Catalog display entries by course ID, to name the courses in the evidence. */
   readonly courses: CourseLookup;
   /** Campus names by ID, to name the campuses in schedule issues. */
-  readonly campuses?: CampusLookup | undefined;
+  readonly campuses: CampusLookup;
 }
-
-const NO_CAMPUSES: CampusLookup = new Map();
 
 /** One term and its detail in the evidence list. */
 interface Fact {
@@ -52,6 +50,43 @@ function provenanceFacts(check: CheckResult): readonly Fact[] {
   return facts;
 }
 
+type ScheduleIssues = NonNullable<NonNullable<CheckResult['evidence']>['scheduleIssues']>;
+
+/**
+ * Lists the schedule issues of a check's evidence, with courses and campuses named.
+ *
+ * @param issues - The check's schedule issues.
+ * @param courses - Catalog display entries by course ID.
+ * @param campuses - Campus names by ID.
+ * @returns One fact, or none when there are no issues.
+ */
+function scheduleIssueFacts(
+  issues: ScheduleIssues,
+  courses: CourseLookup,
+  campuses: CampusLookup,
+): readonly Fact[] {
+  if (issues.length === 0) {
+    return [];
+  }
+  // SAFETY: schedule issues are shown only through the fixed reason-code wording.
+  const items = issues.map((issue, index) => (
+    <li key={`${String(index)}-${issue.reasonCode}`}>
+      {'courseId' in issue ? <CourseLabel courseId={issue.courseId} courses={courses} /> : null}
+      {'courseId' in issue ? ': ' : null}
+      {describeReason(issue.reasonCode).explanation}
+      {'fromCampusId' in issue ? (
+        <>
+          {' '}
+          Between campus {describeCampus(issue.fromCampusId, campuses)} and campus{' '}
+          {describeCampus(issue.toCampusId, campuses)}.
+        </>
+      ) : null}
+      {'campusId' in issue ? <> Campus: {describeCampus(issue.campusId, campuses)}.</> : null}
+    </li>
+  ));
+  return [{ term: 'Schedule issues', detail: <ul>{items}</ul> }];
+}
+
 /**
  * Lists the rule leaves, courses, and credit arithmetic of a check's evidence.
  *
@@ -75,26 +110,7 @@ function detailFacts(
     ));
     facts.push({ term: 'Rule parts that decided it', detail: <ul>{leaves}</ul> });
   }
-  const issues = evidence.scheduleIssues ?? [];
-  if (issues.length > 0) {
-    // SAFETY: schedule issues are shown only through the fixed reason-code wording.
-    const items = issues.map((issue, index) => (
-      <li key={`${String(index)}-${issue.reasonCode}`}>
-        {'courseId' in issue ? <CourseLabel courseId={issue.courseId} courses={courses} /> : null}
-        {'courseId' in issue ? ': ' : null}
-        {describeReason(issue.reasonCode).explanation}
-        {'fromCampusId' in issue ? (
-          <>
-            {' '}
-            Between campus {describeCampus(issue.fromCampusId, campuses)} and campus{' '}
-            {describeCampus(issue.toCampusId, campuses)}.
-          </>
-        ) : null}
-        {'campusId' in issue ? <> Campus: {describeCampus(issue.campusId, campuses)}.</> : null}
-      </li>
-    ));
-    facts.push({ term: 'Schedule issues', detail: <ul>{items}</ul> });
-  }
+  facts.push(...scheduleIssueFacts(evidence.scheduleIssues ?? [], courses, campuses));
   const courseIds = evidence.courseIds ?? [];
   if (courseIds.length > 0) {
     const names = courseIds.map((courseId) => (
@@ -120,7 +136,7 @@ export function CheckEvidence({
   dimension,
   check,
   courses,
-  campuses = NO_CAMPUSES,
+  campuses,
 }: CheckEvidenceProps): ReactElement {
   const facts = [
     ...provenanceFacts(check),

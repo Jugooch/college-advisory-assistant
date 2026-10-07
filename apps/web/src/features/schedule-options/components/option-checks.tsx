@@ -31,6 +31,7 @@ export interface OptionChecksProps {
  */
 export function OptionChecks({ option, asOf, courses, campuses }: OptionChecksProps): ReactElement {
   const { setResults } = option;
+  const shared = { asOf, courses, campuses };
   const perCourse = [
     ...option.courseResults.map((result) => ({ result, suffix: '' })),
     ...option.linkedCourseResults.map((result) => ({ result, suffix: ' (linked section)' })),
@@ -40,9 +41,7 @@ export function OptionChecks({ option, asOf, courses, campuses }: OptionChecksPr
       <CheckResultItem
         dimension="Schedule feasibility"
         check={option.scheduleFeasibility}
-        asOf={asOf}
-        courses={courses}
-        campuses={campuses}
+        {...shared}
       />
       {perCourse.flatMap(({ result, suffix }) => {
         const name = `${describeCourse(result.courseId, courses)}${suffix}`;
@@ -52,15 +51,13 @@ export function OptionChecks({ option, asOf, courses, campuses }: OptionChecksPr
             dimension={`Prerequisite for ${name}`}
             check={result.prerequisite}
             ruleName="prerequisite"
-            asOf={asOf}
-            courses={courses}
+            {...shared}
           />,
           <CheckResultItem
             key={`${result.courseId}-applicability`}
             dimension={`Applicability of ${name}`}
             check={result.applicability}
-            asOf={asOf}
-            courses={courses}
+            {...shared}
           />,
         ];
       })}
@@ -73,16 +70,10 @@ export function OptionChecks({ option, asOf, courses, campuses }: OptionChecksPr
               : `Requirement allocation ${String(index + 1)}`
           }
           check={check}
-          asOf={asOf}
-          courses={courses}
+          {...shared}
         />
       ))}
-      <CheckResultItem
-        dimension="Credit load"
-        check={setResults.creditLoad}
-        asOf={asOf}
-        courses={courses}
-      />
+      <CheckResultItem dimension="Credit load" check={setResults.creditLoad} {...shared} />
     </ul>
   );
 }

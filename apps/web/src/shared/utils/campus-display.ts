@@ -11,6 +11,9 @@ import type { CampusDisplay } from '@caa/api-contract';
 /** Display entries by campus ID. */
 export type CampusLookup = ReadonlyMap<string, CampusDisplay>;
 
+/** A lookup with no entries, for screens whose response names no campuses. */
+export const NO_CAMPUSES: CampusLookup = new Map();
+
 /** Said after a campus ID when the response has no name for it. */
 export const CAMPUS_NAME_UNAVAILABLE = 'name unavailable';
 

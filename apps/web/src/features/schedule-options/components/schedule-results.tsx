@@ -51,7 +51,12 @@ export function ScheduleResults({ result, courses }: ScheduleResultsProps): Reac
       </p>
       <OutcomeNotice outcome={result.outcome} searchComplete={result.searchComplete} />
       <LimitationsList limitations={result.limitations} />
-      <UnresolvedList unresolved={result.unresolved} asOf={asOf} courses={names} />
+      <UnresolvedList
+        unresolved={result.unresolved}
+        asOf={asOf}
+        courses={names}
+        campuses={campuses}
+      />
       {result.conflictSet === null ? null : (
         <ConflictList
           conflictSet={result.conflictSet}
