@@ -35,6 +35,13 @@ describe('syntheticId', () => {
     expect(syntheticId('campus', 1)).toBe('d0000000-0000-4000-8000-000000000001');
   });
 
+  it('gives the plan, plan revision, advising case and case event kinds their own prefixes', () => {
+    expect(syntheticId('plan', 1)).toBe('e0000000-0000-4000-8000-000000000001');
+    expect(syntheticId('planRevision', 1)).toBe('e1000000-0000-4000-8000-000000000001');
+    expect(syntheticId('advisingCase', 1)).toBe('f0000000-0000-4000-8000-000000000001');
+    expect(syntheticId('caseEvent', 1)).toBe('f1000000-0000-4000-8000-000000000001');
+  });
+
   it('rejects a seed that is negative, fractional, or too large for the final group', () => {
     expect(() => syntheticId('user', -1)).toThrow(RangeError);
     expect(() => syntheticId('user', 1.5)).toThrow(RangeError);
