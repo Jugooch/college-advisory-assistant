@@ -19,7 +19,42 @@ import { it } from 'vitest';
  *
  * The fixing PR removes its entry, and nothing else in `tests/`.
  */
-export const KNOWN_FINDINGS: ReadonlyMap<string, number> = new Map<string, number>([]);
+export const KNOWN_FINDINGS: ReadonlyMap<string, number> = new Map<string, number>([
+  // Repeat-for-credit counting is not built yet; #365 removes these entries (ADR-0012 §2).
+  ['GC-RCR-001', 365],
+  ['GC-RCR-002', 365],
+  ['GC-RCR-003', 365],
+  ['GC-RCR-004', 365],
+  ['GC-RCR-005', 365],
+  ['GC-RCR-006', 365],
+  ['GC-RCR-007', 365],
+  ['GC-RCR-008', 365],
+  ['GC-RCR-009', 365],
+  ['GC-RCR-010', 365],
+  ['GC-RCR-014', 365],
+  ['GC-RCR-015', 365],
+  ['GC-RCR-016', 365],
+  ['GC-RCR-017', 365],
+  ['GC-RCR-018', 365],
+  ['GC-RCR-019', 365],
+  ['GC-RCR-020', 365],
+  ['GC-REP-015', 365],
+  ['GC-REP-016', 365],
+  ['GC-REP-017', 365],
+  ['AC04: counts the first four of five ensemble attempts: 4.00, not 5.00', 365],
+  ['AC04: counts both attempts of an uncapped topics course: 6.00', 365],
+  ['AC04: caps two 3.00 attempts at a 4.00 credit cap', 365],
+  ['AC04: does not spend an attempt on a failed attempt that earned nothing', 365],
+  ['AC04: leaves equivalents with different repeat caps undetermined, never counted', 365],
+  [
+    'AC04: leaves the total undetermined when a cap binds between same-term attempts of different credit',
+    365,
+  ],
+  [
+    'AC04: passes a repeatable prerequisite leaf on one attempt meeting the minimum, with no repeat policy',
+    365,
+  ],
+]);
 
 /** A key of the register: a golden case ID, or an acceptance case and its exact test title. */
 export const FINDING_KEY = /^(G[CH]-[A-Z]+-\d{3}|AC\d{2}: \S.*)$/;

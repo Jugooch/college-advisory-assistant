@@ -29,6 +29,9 @@ import { PASSING_CUTOFF_CASES } from './cases/passing-cutoff.cases';
 import { PENDING_TRANSFER_REPEAT_CASES } from './cases/pending-transfer-repeats.cases';
 import { PINNED_RECORD_CASES } from './cases/pinned-record.cases';
 import { PROGRAM_CATALOG_CASES } from './cases/program-catalog.cases';
+import { REPEAT_CREDIT_CAP_CASES } from './cases/repeat-credit-caps.cases';
+import { REPEAT_CREDIT_PREREQUISITE_CASES } from './cases/repeat-credit-prerequisite.cases';
+import { REPEAT_CREDIT_UNDETERMINED_CASES } from './cases/repeat-credit-undetermined.cases';
 import { REPEAT_CASES } from './cases/repeats.cases';
 import { REQUIREMENT_ANCESTOR_CASES } from './cases/requirement-ancestors.cases';
 import { RETAKE_AND_EQUIVALENCY_CASES } from './cases/retakes-and-equivalency.cases';
@@ -40,6 +43,7 @@ import { TERM_ORDER_CASES } from './cases/term-order.cases';
 import { TRANSITION_TIME_CASES } from './cases/transition-time.cases';
 import { VARIABLE_CREDIT_ALLOCATION_CASES } from './cases/variable-credit-allocation.cases';
 import { defineGoldenCorpus, type GoldenCase } from './golden-case.schema';
+import type { GoldenCountingCase } from './golden-counting-case.schema';
 import type { GoldenScheduleCase } from './golden-schedule-case.schema';
 
 /**
@@ -54,6 +58,7 @@ export const GOLDEN_DEVELOPMENT_CORPUS: readonly GoldenCase[] = defineGoldenCorp
   ...ATTEMPT_STATUS_CASES,
   ...PENDING_TRANSFER_REPEAT_CASES,
   ...REPEAT_CASES,
+  ...REPEAT_CREDIT_PREREQUISITE_CASES,
   ...RETAKE_AND_EQUIVALENCY_CASES,
   ...TERM_ORDER_CASES,
   ...EXPRESSION_CASES,
@@ -86,4 +91,12 @@ export const GOLDEN_DEVELOPMENT_SCHEDULE_CORPUS: readonly GoldenScheduleCase[] =
     ...SOLVER_CAP_AND_MISSING_DATA_CASES,
     ...SOLVER_TRAVEL_AND_TBA_CASES,
   ],
+);
+
+/**
+ * Development attempt-counting cases, resolved by `resolveAttempts` (#366). Their expectation is
+ * earned credit, which no check result carries, so they are a corpus of their own.
+ */
+export const GOLDEN_DEVELOPMENT_COUNTING_CORPUS: readonly GoldenCountingCase[] = defineGoldenCorpus(
+  [...REPEAT_CREDIT_CAP_CASES, ...REPEAT_CREDIT_UNDETERMINED_CASES],
 );
