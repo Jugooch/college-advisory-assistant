@@ -5,7 +5,7 @@
  * @requirement FR-01
  * @see docs/planning/09-data-model-and-integration-contracts.md
  */
-import { type PrerequisiteExpression, PrerequisiteExpressionType } from '@caa/domain';
+import { PrerequisiteExpressionType, type PrerequisiteRootExpression } from '@caa/domain';
 
 import type { DevSeedAcademicPlan } from './dev-seed-academic-plan';
 
@@ -28,7 +28,7 @@ export class AcademicSeedReferenceError extends Error {
  * @param expression - The expression tree.
  * @returns Course IDs in tree order, possibly repeated.
  */
-function coursesIn(expression: PrerequisiteExpression): readonly string[] {
+export function coursesIn(expression: PrerequisiteRootExpression): readonly string[] {
   switch (expression.type) {
     case PrerequisiteExpressionType.All:
     case PrerequisiteExpressionType.Any:
@@ -36,6 +36,7 @@ function coursesIn(expression: PrerequisiteExpression): readonly string[] {
     case PrerequisiteExpressionType.Course:
       return [expression.courseId];
     case PrerequisiteExpressionType.Unsupported:
+    case PrerequisiteExpressionType.None:
       return [];
   }
 }
