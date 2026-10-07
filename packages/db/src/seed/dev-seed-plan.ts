@@ -110,6 +110,15 @@ const DEV_SEED_ACCESS_PLAN: Omit<DevSeedPlan, 'academic' | 'sections'> = {
       roles: [Role.Admin],
       status: IdentityStatus.Active,
     },
+    // NOTE: assigned to no student, for the "unassigned advisor sees nothing" demo.
+    {
+      id: '20000000-0000-4000-8000-000000000004',
+      tenantId: TENANT_A,
+      issuer: DEV_SEED_ISSUER,
+      subject: 'synthetic-advisor-002',
+      roles: [Role.Advisor],
+      status: IdentityStatus.Active,
+    },
   ],
   students: [
     {
