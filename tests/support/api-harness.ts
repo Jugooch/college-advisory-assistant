@@ -22,6 +22,7 @@ import type { StudentUserLinkRepository } from '@caa/db';
 import type { AdvisorAssignment, Student, UserIdentity } from '@caa/domain';
 
 import { type AcademicWorld, createAcademicRepositories } from './academic-repositories';
+import { type CaseRepositories, createCaseRepositories } from './case-repositories';
 import { createPlanRepositories, type PlanRepositories, type PlanWorld } from './plan-repositories';
 import {
   createProgramRepositories,
@@ -211,13 +212,14 @@ export function buildAcceptanceApp(
     SCHEDULE_SOLVER_WORK_CAP: String(options.solverWorkCap ?? ACCEPTANCE_SOLVER_WORK_CAP),
   });
   // NOTE: the intersection lets the harness provide repositories before the API adds them to
-  // `Repositories`: `studentUserLinks` (#151), the schedule ones (#221), and `programs` (#187), and `plans` (#409). Once they're there,
+  // `Repositories`: `studentUserLinks` (#151), the schedule ones (#221), and `programs` (#187), and `plans` (#409), and `cases` (#411). Once they're there,
   // the intersection is redundant and can go.
   const repositories: Repositories & {
     studentUserLinks: StudentUserLinkRepository;
   } & ScheduleRepositories &
     ProgramRepositories &
-    PlanRepositories = {
+    PlanRepositories &
+    CaseRepositories = {
     userIdentities: createIdentities(world),
     students: createStudents(world),
     studentUserLinks: createStudentUserLinks(world),
@@ -226,6 +228,7 @@ export function buildAcceptanceApp(
     ...createScheduleRepositories(world),
     ...createProgramRepositories(world),
     ...createPlanRepositories(world),
+    ...createCaseRepositories(world),
   };
   return buildApp({
     dependencies: createContainer({ env, repositories, now: () => ACCEPTANCE_NOW }),
