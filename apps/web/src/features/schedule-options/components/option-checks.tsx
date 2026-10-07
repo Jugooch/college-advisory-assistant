@@ -10,6 +10,7 @@ import type { ReactElement } from 'react';
 import type { ScheduleOption } from '@caa/api-contract';
 
 import { CheckResultItem } from '@/shared/components/check-result-item';
+import type { CampusLookup } from '@/shared/utils/campus-display';
 import { type CourseLookup, describeCourse } from '@/shared/utils/course-display';
 
 /** Props for {@link OptionChecks}. */
@@ -18,6 +19,7 @@ export interface OptionChecksProps {
   /** What passed checks hold for, for example the record and audit times. */
   readonly asOf: string;
   readonly courses: CourseLookup;
+  readonly campuses: CampusLookup;
 }
 
 /**
@@ -27,8 +29,9 @@ export interface OptionChecksProps {
  * @param props - The option, the as-of text, and the course names.
  * @returns A list with one item per check.
  */
-export function OptionChecks({ option, asOf, courses }: OptionChecksProps): ReactElement {
+export function OptionChecks({ option, asOf, courses, campuses }: OptionChecksProps): ReactElement {
   const { setResults } = option;
+  const shared = { asOf, courses, campuses };
   const perCourse = [
     ...option.courseResults.map((result) => ({ result, suffix: '' })),
     ...option.linkedCourseResults.map((result) => ({ result, suffix: ' (linked section)' })),
@@ -38,8 +41,7 @@ export function OptionChecks({ option, asOf, courses }: OptionChecksProps): Reac
       <CheckResultItem
         dimension="Schedule feasibility"
         check={option.scheduleFeasibility}
-        asOf={asOf}
-        courses={courses}
+        {...shared}
       />
       {perCourse.flatMap(({ result, suffix }) => {
         const name = `${describeCourse(result.courseId, courses)}${suffix}`;
@@ -49,15 +51,13 @@ export function OptionChecks({ option, asOf, courses }: OptionChecksProps): Reac
             dimension={`Prerequisite for ${name}`}
             check={result.prerequisite}
             ruleName="prerequisite"
-            asOf={asOf}
-            courses={courses}
+            {...shared}
           />,
           <CheckResultItem
             key={`${result.courseId}-applicability`}
             dimension={`Applicability of ${name}`}
             check={result.applicability}
-            asOf={asOf}
-            courses={courses}
+            {...shared}
           />,
         ];
       })}
@@ -70,16 +70,10 @@ export function OptionChecks({ option, asOf, courses }: OptionChecksProps): Reac
               : `Requirement allocation ${String(index + 1)}`
           }
           check={check}
-          asOf={asOf}
-          courses={courses}
+          {...shared}
         />
       ))}
-      <CheckResultItem
-        dimension="Credit load"
-        check={setResults.creditLoad}
-        asOf={asOf}
-        courses={courses}
-      />
+      <CheckResultItem dimension="Credit load" check={setResults.creditLoad} {...shared} />
     </ul>
   );
 }

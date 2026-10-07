@@ -7,7 +7,6 @@
  * @see docs/planning/08-academic-verification-and-planning.md
  */
 import {
-  type AcademicPolicy,
   AttemptStatus,
   CheckState,
   CountingState,
@@ -16,14 +15,15 @@ import {
   ReasonCode,
 } from '@caa/domain';
 
-import { compareToMinimumGrade } from './compare-to-minimum-grade';
+import { compareAttemptToMinimum } from './compare-attempt-to-minimum';
 import {
   evaluateInProgressPrerequisite,
   evaluateRetakeOfPassingAttempt,
   type InProgressAttempts,
 } from './evaluate-in-progress-prerequisite';
+import { evaluateRepeatablePrerequisite } from './evaluate-repeatable-prerequisite';
 import type { AttemptGroup } from './resolve-attempts';
-import type { AttemptResolutionContext } from './select-counting-attempt';
+import type { AttemptResolutionContext, CountingResolution } from './select-counting-attempt';
 
 /** State of one prerequisite leaf. Anything short of PASS says why. */
 export type LeafOutcome =
@@ -46,10 +46,6 @@ const NO_QUALIFYING_ATTEMPT: LeafOutcome = {
   state: CheckState.Fail,
   reasonCode: ReasonCode.NoQualifyingAttempt,
 };
-const GRADE_NOT_RECORDED: LeafOutcome = {
-  state: CheckState.Unknown,
-  reasonCode: ReasonCode.GradeNotRecorded,
-};
 const INCOMPLETE_ATTEMPT: LeafOutcome = {
   state: CheckState.Unknown,
   reasonCode: ReasonCode.IncompleteAttempt,
@@ -68,6 +64,8 @@ const PENDING_TRANSFER: LeafOutcome = {
  * Decisions, in order:
  * 1. Any attempt in the group is INCOMPLETE: UNKNOWN (`INCOMPLETE_ATTEMPT`).
  * 2. The group's counting attempt is UNDETERMINED: UNKNOWN with the group's reason code.
+ *    A group repeatable for credit is then decided by `evaluateRepeatablePrerequisite`, which
+ *    doesn't consult the repeat policy; the steps below apply to every other group.
  * 3. The group holds both in-progress work and a pending transfer: UNKNOWN
  *    (`REPEAT_POLICY_UNDEFINED` when there is no repeat policy, otherwise `PENDING_TRANSFER`),
  *    whatever the counting attempt shows.
@@ -106,13 +104,30 @@ export function evaluateCoursePrerequisite(
   if (group.attempts.some((attempt) => attempt.status === AttemptStatus.Incomplete)) {
     return INCOMPLETE_ATTEMPT;
   }
-  const { counting } = group;
   // SAFETY: when the engine can't tell which attempt counts, it can't tell whether the course is
   // satisfied, and an in-progress retake or pending transfer can't settle that either
   // (planning/08 §Eligibility semantics: repeated attempts use approved source semantics).
-  if (counting.state === CountingState.Undetermined) {
-    return { state: CheckState.Unknown, reasonCode: counting.reasonCode };
+  if (group.counting.state === CountingState.Undetermined) {
+    return { state: CheckState.Unknown, reasonCode: group.counting.reasonCode };
   }
+  // SAFETY: attempts of a course repeatable for credit don't replace one another, so the
+  // repeat policy isn't consulted (ADR-0012 §2: prerequisite leaves).
+  if (group.repeatableForCredit !== null) {
+    return evaluateRepeatablePrerequisite(leaf, group, context.academicPolicy);
+  }
+  return evaluateCountingAttempt({ leaf, group, context }, group.counting);
+}
+
+/**
+ * Evaluates a group whose repeat policy picks at most one counting attempt (steps 3 to 6 of
+ * `evaluateCoursePrerequisite`).
+ *
+ * @param inputs - The leaf, its group, and the academic policy and term order.
+ * @param counting - The group's counting attempt, which is COUNTED or NONE.
+ * @returns The leaf's state and reason code.
+ */
+function evaluateCountingAttempt(inputs: LeafInputs, counting: CountingResolution): LeafOutcome {
+  const { leaf, group, context } = inputs;
   // SAFETY: a pending transfer's eventual grade, scheme, and term are unknown. Once awarded, it
   // can become the counting attempt under MOST_RECENT or HIGHEST_GRADE, or leave the repeat
   // undecidable with no repeat policy, so no condition on the in-progress work alone is
@@ -124,15 +139,15 @@ export function evaluateCoursePrerequisite(
       ? REPEAT_POLICY_UNDEFINED
       : PENDING_TRANSFER;
   }
-  if (counting.state === CountingState.None) {
-    return evaluateProspects(NO_QUALIFYING_ATTEMPT, { leaf, group, context });
+  if (counting.state !== CountingState.Counted) {
+    return evaluateProspects(NO_QUALIFYING_ATTEMPT, inputs, null);
   }
-  const current = compareCountingAttempt(counting.attempt, leaf, context.academicPolicy);
+  const current = compareAttemptToMinimum(counting.attempt, leaf, context.academicPolicy);
   // SAFETY: a pending transfer never replaces an institutional grade, so it can't take a PASS
   // away; only an in-progress retake can, depending on the repeat policy (planning/08
   // §Eligibility semantics: pending transfers never become earned credit automatically).
   if (current.state === CheckState.Pass) {
-    return evaluatePassingRecord(counting.attempt, { leaf, group, context });
+    return evaluatePassingRecord(counting.attempt, inputs);
   }
   // SAFETY: an UNKNOWN comparison stays UNKNOWN: whether a retake would replace a grade the
   // engine can't compare is itself undetermined, so no CONDITIONAL is offered (planning/08
@@ -140,31 +155,7 @@ export function evaluateCoursePrerequisite(
   if (current.state !== CheckState.Fail) {
     return current;
   }
-  return evaluateProspects(current, { leaf, group, context });
-}
-
-/**
- * Compares the counting attempt's grade with the leaf's minimum.
- *
- * @param attempt - The counting attempt.
- * @param leaf - Supplies the minimum grade.
- * @param policy - Supplies the grade policy.
- * @returns PASS, FAIL, or UNKNOWN for the current record.
- */
-function compareCountingAttempt(
-  attempt: CourseAttempt,
-  leaf: CoursePrerequisite,
-  policy: AcademicPolicy,
-): LeafOutcome {
-  const { grade } = attempt;
-  // SAFETY: a counting attempt with no recorded grade, such as transfer credit awarded without
-  // one, can't show that it meets a minimum or is a passing completion, so it is UNKNOWN,
-  // never PASS (planning/08 §Authority and result semantics: missing data is UNKNOWN).
-  if (grade === null) {
-    return GRADE_NOT_RECORDED;
-  }
-  const comparison = compareToMinimumGrade(grade, leaf.minimumGrade, policy);
-  return comparison.state === CheckState.Pass ? PASS : comparison;
+  return evaluateProspects(current, inputs, counting.attempt);
 }
 
 /**
@@ -193,16 +184,20 @@ function evaluatePassingRecord(counted: CourseAttempt, inputs: LeafInputs): Leaf
  * FAIL), and on a tie its reason names the remediation, so it replaces the current outcome.
  *
  * @param current - The failing outcome of the current record.
- * @param inputs - The leaf, its group (for the counting, in-progress, and pending-transfer
- *   attempts), and the academic policy and term order.
+ * @param inputs - The leaf, its group (for the in-progress and pending-transfer attempts),
+ *   and the academic policy and term order.
+ * @param counted - The failing counting attempt, or `null` when nothing counts.
  * @returns The in-progress outcome, `PENDING_TRANSFER`, or the current outcome when neither
  *   applies.
  */
-function evaluateProspects(current: LeafOutcome, inputs: LeafInputs): LeafOutcome {
+function evaluateProspects(
+  current: LeafOutcome,
+  inputs: LeafInputs,
+  counted: CourseAttempt | null,
+): LeafOutcome {
   const { leaf, group, context } = inputs;
   const [retake, ...otherRetakes] = group.inProgress;
   if (retake !== undefined) {
-    const counted = group.counting.state === CountingState.Counted ? group.counting.attempt : null;
     const inProgress: InProgressAttempts = [retake, ...otherRetakes];
     return evaluateInProgressPrerequisite(
       { counted, inProgress, minimumGrade: leaf.minimumGrade },

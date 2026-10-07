@@ -15,6 +15,7 @@ import type { CourseChecksResponse } from '@caa/api-contract';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { CheckResultItem } from '@/shared/components/check-result-item';
 import { CourseLabel } from '@/shared/components/course-label';
+import { NO_CAMPUSES } from '@/shared/utils/campus-display';
 import { describeAggregate } from '@/shared/utils/check-state-wording';
 import type { CourseLookup } from '@/shared/utils/course-display';
 import { describeAsOf } from '@/shared/utils/decisive-leaf-wording';
@@ -48,12 +49,14 @@ function CourseResult({ course, asOf, courses }: CourseResultProps): ReactElemen
       </h3>
       <ul className="check-list">
         <CheckResultItem
+          campuses={NO_CAMPUSES}
           dimension="Prerequisite"
           check={course.prerequisite}
           asOf={asOf}
           courses={courses}
         />
         <CheckResultItem
+          campuses={NO_CAMPUSES}
           dimension="Requirement applicability"
           check={course.applicability}
           asOf={asOf}
@@ -97,6 +100,7 @@ export function CourseCheckResults({ result, courses }: CourseCheckResultsProps)
         <ul className="check-list">
           {setResults.allocation.map((check, index) => (
             <CheckResultItem
+              campuses={NO_CAMPUSES}
               key={`allocation-${String(index)}`}
               dimension={
                 setResults.allocation.length === 1
@@ -109,6 +113,7 @@ export function CourseCheckResults({ result, courses }: CourseCheckResultsProps)
             />
           ))}
           <CheckResultItem
+            campuses={NO_CAMPUSES}
             dimension="Credit load"
             check={setResults.creditLoad}
             asOf={asOf}

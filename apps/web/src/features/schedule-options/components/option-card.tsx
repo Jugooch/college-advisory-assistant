@@ -11,6 +11,7 @@ import type { ReactElement } from 'react';
 import type { ScheduleOption } from '@caa/api-contract';
 
 import { StatusBadge } from '@/components/ui/status-badge';
+import type { CampusLookup } from '@/shared/utils/campus-display';
 import { describeAggregate } from '@/shared/utils/check-state-wording';
 import type { CourseLookup } from '@/shared/utils/course-display';
 import { formatCredits } from '@/shared/utils/format-display';
@@ -24,6 +25,7 @@ export interface OptionCardProps {
   readonly option: ScheduleOption;
   readonly asOf: string;
   readonly courses: CourseLookup;
+  readonly campuses: CampusLookup;
 }
 
 /**
@@ -32,7 +34,7 @@ export interface OptionCardProps {
  * @param props - The option, the as-of text, and the course names.
  * @returns The option card.
  */
-export function OptionCard({ option, asOf, courses }: OptionCardProps): ReactElement {
+export function OptionCard({ option, asOf, courses, campuses }: OptionCardProps): ReactElement {
   const aggregate = describeAggregate(option.aggregate);
   const total = option.setResults.creditLoad.evidence?.creditLoad?.totalCreditsHundredths;
   const headingId = `option-${String(option.rank)}-heading`;
@@ -43,7 +45,7 @@ export function OptionCard({ option, asOf, courses }: OptionCardProps): ReactEle
         <StatusBadge label={aggregate.label} tone={aggregate.tone} /> {aggregate.explanation}
       </p>
       <h4>Courses and sections</h4>
-      <SectionList bundles={option.bundles} courses={courses} />
+      <SectionList bundles={option.bundles} courses={courses} campuses={campuses} />
       <h4>Credits</h4>
       <p>
         Total credits: {total === undefined ? 'not determined' : `${formatCredits(total)} credits`}
@@ -63,7 +65,7 @@ export function OptionCard({ option, asOf, courses }: OptionCardProps): ReactEle
         </ul>
       )}
       <h4>Checks, shown separately</h4>
-      <OptionChecks option={option} asOf={asOf} courses={courses} />
+      <OptionChecks option={option} asOf={asOf} courses={courses} campuses={campuses} />
     </article>
   );
 }
