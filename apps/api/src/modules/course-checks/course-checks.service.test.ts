@@ -37,7 +37,6 @@ describe('CourseChecksService.checkCourses', () => {
 
     expect(checks.courseResults.map((result) => result.courseId)).toEqual([math102.id, engl101.id]);
     expect(checks.courseResults[0]?.prerequisite?.kind).toBe('PREREQUISITE');
-    expect(checks.courseResults[1]?.prerequisite).toBeNull();
     expect(checks.courseResults.map((result) => result.applicability.kind)).toEqual([
       'REQUIREMENT_APPLICABILITY',
       'REQUIREMENT_APPLICABILITY',

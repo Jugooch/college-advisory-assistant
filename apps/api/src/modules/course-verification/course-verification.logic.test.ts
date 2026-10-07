@@ -242,7 +242,13 @@ describe('verifyCourseSet credits included in a linked course (#222)', () => {
 
 describe('verifyCourseSet', () => {
   it('reports a course with no prerequisite rule as null, not a PASS', () => {
-    expect(checkOne(CURRENT, engl101)?.prerequisite).toBeNull();
+    const inputs = inputsFor(CURRENT, [engl101]);
+    const withoutRule = {
+      ...inputs,
+      courses: inputs.courses.map((entry) => ({ ...entry, rule: null })),
+    };
+
+    expect(verifyCourseSet(withoutRule).courseResults[0]?.prerequisite).toBeNull();
   });
 
   it('pins the snapshot, audit, and ruleset versions, and the record times they describe', () => {
