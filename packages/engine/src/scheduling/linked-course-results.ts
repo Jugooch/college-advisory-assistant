@@ -15,13 +15,21 @@ import {
   type Course,
   type CourseId,
   createCheckResult,
-  type PrerequisiteRule,
+  PrerequisiteExpressionType,
+  type PrerequisiteRootExpression,
   ReasonCode,
   type Section,
 } from '@caa/domain';
 
 import { countsOwnCredits, coursesOfBundle } from './section-bundle-credits';
 import { compareText } from './tie-break-key';
+
+/** The part of a prerequisite rule that selecting linked courses reads. */
+export interface LinkedCourseRule {
+  readonly courseId: CourseId;
+  /** `NONE` states the course has no prerequisite of its own (ADR-0012 §1). */
+  readonly expression: PrerequisiteRootExpression;
+}
 
 /** What selecting an option's linked courses reads. */
 export interface LinkedCourseInput {
@@ -32,7 +40,7 @@ export interface LinkedCourseInput {
   /** Catalog courses of every section of the bundles. */
   readonly courses: readonly Course[];
   /** Every prerequisite rule of the pinned ruleset for a course of the bundles. */
-  readonly prerequisiteRules: readonly Pick<PrerequisiteRule, 'courseId'>[];
+  readonly prerequisiteRules: readonly LinkedCourseRule[];
 }
 
 /** One linked course's results, in the per-course shape of the course-set checks. */
@@ -49,7 +57,8 @@ export interface LinkedCourseResult {
  * with UNKNOWN prerequisite and applicability results.
  *
  * A course is listed when a bundle has a section of it, it isn't requested, and either it
- * counts its own credits in the plan or it has its own prerequisite rule.
+ * counts its own credits in the plan or it has its own prerequisite rule. A `NONE` rule is no
+ * prerequisite of its own, so it selects nothing.
  *
  * @param input - The option's bundles, the requested courses, the catalog and the rules.
  * @returns One result per listed course, ascending by course ID (UTF-16 code units), no repeats.
@@ -62,7 +71,14 @@ export function linkedCourseResultsOf(input: LinkedCourseInput): LinkedCourseRes
   );
   const planCourseIds = new Set(planCourses.map((course) => course.id));
   const requested = new Set(input.requestedCourseIds);
-  const withRule = new Set(input.prerequisiteRules.map((rule) => rule.courseId));
+  // SAFETY: a `NONE` rule states the course has no prerequisite, so an included component with
+  // one is covered by its planned course, as a course with no rule row is until #361
+  // (ADR-0012 §1, amending ADR-0010 Amendment 4).
+  const withRule = new Set(
+    input.prerequisiteRules
+      .filter((rule) => rule.expression.type !== PrerequisiteExpressionType.None)
+      .map((rule) => rule.courseId),
+  );
   // SAFETY: a linked course outside the requested set that adds its own credits, or carries a
   // prerequisite of its own, was never checked, so it is shown as UNKNOWN and never left out. A
   // linked course whose credits are included in a planned course and has no rule of its own is

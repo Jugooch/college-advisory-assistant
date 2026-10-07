@@ -3,7 +3,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { type Course, CourseIdSchema, type PrerequisiteRule } from '@caa/domain';
+import { type Course, CourseIdSchema, createPrerequisiteRootExpression } from '@caa/domain';
 import {
   buildAcademicPolicy,
   buildCourse,
@@ -15,6 +15,7 @@ import {
 } from '@caa/test-kit';
 
 import { buildSectionBundles } from './build-section-bundles';
+import type { LinkedCourseRule } from './linked-course-results';
 import type { ScheduleSolution } from './schedule-solution';
 import { solveSchedule } from './solve-schedule';
 
@@ -34,7 +35,7 @@ const POLICY = buildAcademicPolicy({
  */
 function solveWithLab(
   lab: Course,
-  prerequisiteRules: readonly PrerequisiteRule[] = [],
+  prerequisiteRules: readonly LinkedCourseRule[] = [],
 ): ScheduleSolution {
   const lecture = buildSection(
     { courseId: PHYS_201_ID, meetings: [buildMeetingPattern({ startTime: '09:00' })] },
@@ -100,6 +101,21 @@ describe('solveSchedule linked course results (ADR-0010 Amendment 4)', () => {
     );
 
     expect(solveWithLab(lab).options.map((option) => option.linkedCourseResults)).toEqual([[]]);
+  });
+
+  it('adds none for a lab included in PHYS 201 whose rule states no prerequisite', () => {
+    const lab = buildCourse(
+      { id: LAB_ID, creditsHundredths: 100, creditsIncludedInCourseId: PHYS_201_ID },
+      2,
+    );
+    const noneRule = {
+      courseId: lab.id,
+      expression: createPrerequisiteRootExpression({ type: 'NONE' }),
+    };
+
+    expect(
+      solveWithLab(lab, [noneRule]).options.map((option) => option.linkedCourseResults),
+    ).toEqual([[]]);
   });
 
   it('adds UNKNOWN results for an included lab with its own prerequisite rule', () => {

@@ -12,14 +12,13 @@ import type {
   CampusTransitionPolicy,
   CheckResult,
   CourseId,
-  PrerequisiteRule,
   ScheduleConstraint,
   ScheduleOutcome,
   UnmetPreference,
 } from '@caa/domain';
 
 import type { SectionBundle, SectionBundles } from './build-section-bundles';
-import type { LinkedCourseResult } from './linked-course-results';
+import type { LinkedCourseResult, LinkedCourseRule } from './linked-course-results';
 
 /**
  * Default work cap (ADR-0010 §1). The unit is one attempt to add one bundle to a partial
@@ -61,9 +60,10 @@ export interface SolveScheduleInput {
   readonly transitionPolicy: CampusTransitionPolicy | null;
   /**
    * Every prerequisite rule of the pinned ruleset for a course of the bundles, linked courses
-   * included; only `courseId` is read, to find the linked courses with a rule of their own.
+   * included; only `courseId` and the expression's type are read, to find the linked courses
+   * with a prerequisite of their own (a `NONE` rule states none).
    */
-  readonly prerequisiteRules: readonly Pick<PrerequisiteRule, 'courseId'>[];
+  readonly prerequisiteRules: readonly LinkedCourseRule[];
   /** Most attempts the search may make, a whole number from 1 to the default. */
   readonly workCap: number;
 }

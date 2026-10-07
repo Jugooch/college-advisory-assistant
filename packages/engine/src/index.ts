@@ -29,6 +29,7 @@ export * from './verification/evaluate-repeatable-prerequisite';
 export * from './verification/find-allocation-contests';
 export * from './verification/find-deciding-requirement';
 export * from './verification/group-repeat-statement';
+export * from './verification/missing-prerequisite-rule';
 export * from './verification/prerequisite-evaluation';
 export * from './verification/resolve-attempts';
 export * from './verification/select-counting-attempt';
