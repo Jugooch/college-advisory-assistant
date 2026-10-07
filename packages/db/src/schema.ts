@@ -3,6 +3,7 @@
  * @module @caa/db/schema
  */
 export { academicPolicyTable } from './tables/academic-policy.table';
+export { advisingCaseTable } from './tables/advising-case.table';
 export { advisorAssignmentTable } from './tables/advisor-assignment.table';
 export { auditSnapshotTable } from './tables/audit-snapshot.table';
 export { campusTable } from './tables/campus.table';
@@ -10,6 +11,7 @@ export {
   campusTransitionTable,
   campusTransitionVersionTable,
 } from './tables/campus-transition.table';
+export { caseEventTable } from './tables/case-event.table';
 export { courseTable } from './tables/course.table';
 export { courseAttemptTable } from './tables/course-attempt.table';
 export { equivalencyGroupTable } from './tables/equivalency-group.table';

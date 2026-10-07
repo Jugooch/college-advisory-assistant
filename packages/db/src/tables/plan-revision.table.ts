@@ -151,6 +151,13 @@ export const planRevisionTable = pgTable(
     // SAFETY: turns a lost append race into a conflict (ADR-0011); the next key is the case FK target.
     unique('plan_revision_plan_revision_key').on(table.planId, table.revision),
     unique('plan_revision_tenant_id_id_key').on(table.tenantId, table.id),
+    // SAFETY: target of the case key, so a case's plan and student are its revision's own.
+    unique('plan_revision_tenant_id_id_plan_id_student_id_key').on(
+      table.tenantId,
+      table.id,
+      table.planId,
+      table.studentId,
+    ),
     // SECURITY: the plan must be this tenant's, and the revision's student and term the plan's.
     foreignKey({
       name: 'plan_revision_plan_fk',
