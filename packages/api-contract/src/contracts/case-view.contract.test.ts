@@ -184,6 +184,13 @@ describe('CaseViewSchema', () => {
     expect(accepts({ ...OPEN_VIEW, allowedActions: [] })).toBe(true);
   });
 
+  it('rejects a user ID in the context revision', () => {
+    const context = buildRevisionView({ createdBy: '1a2b3c4d-0000-4000-8000-000000000002' });
+
+    expect(accepts({ ...OPEN_VIEW, context })).toBe(false);
+    expect(JSON.stringify(CaseViewSchema.parse(OPEN_VIEW))).not.toMatch(/createdBy|UserId/);
+  });
+
   it('shows the referenced revision as stored, with its freshness', () => {
     const stale = {
       state: 'STALE',

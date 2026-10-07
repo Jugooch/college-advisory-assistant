@@ -18,12 +18,22 @@ import { SchedulePinnedInputsSchema } from './schedule-pinned-inputs.contract';
 /** Every pinned input a result and a revision both carry. */
 const PINNED_INPUT_KEYS = SchedulePinnedInputsSchema.unwrap().keyof().options;
 
+/** Keys of the stored revision fields, so the view's own fields aren't re-checked. */
+const STORED_KEYS = Object.keys(PlanRevisionSchema.unwrap().shape);
+
+/** Stands in for the dropped `createdBy` when the domain rules are re-run. Never returned. */
+const PLACEHOLDER_USER_ID = '00000000-0000-4000-8000-000000000000';
+
 /**
  * The revision's stored fields plus its schedule-options result and its freshness. Every time
  * and state in it is "as of" `createdAt`; `freshness` says whether that still holds.
  */
-export const PlanRevisionViewSchema = PlanRevisionSchema.unwrap()
-  .safeExtend({
+export const PlanRevisionViewSchema = z
+  .strictObject(PlanRevisionSchema.unwrap().shape)
+  // SECURITY: `createdBy` is the student's user ID. Views show actors as a role plus `isYou`,
+  // never a user ID (ADR-0013 §6), so the field is dropped and any value is rejected.
+  .omit({ createdBy: true })
+  .extend({
     /**
      * The stored result, or `null` when it no longer parses. It is never repaired or partly
      * shown (ADR-0013 §2).
@@ -33,6 +43,20 @@ export const PlanRevisionViewSchema = PlanRevisionSchema.unwrap()
     resultUnavailable: z.boolean(),
     freshness: PlanFreshnessViewSchema,
   })
+  // SAFETY: the stored fields still obey every rule of PlanRevisionSchema (distinct courses,
+  // credit selections, selection vs outcome). The domain schema is re-run with a fixed
+  // placeholder for the dropped `createdBy`, so those rules have one definition (ADR-0013 §2).
+  .refine(
+    (revision) =>
+      PlanRevisionSchema.safeParse({
+        ...Object.fromEntries(STORED_KEYS.map((key) => [key, Reflect.get(revision, key)])),
+        createdBy: PLACEHOLDER_USER_ID,
+      }).success,
+    {
+      message: 'stored revision fields must satisfy the plan revision rules',
+      path: ['courseIds'],
+    },
+  )
   // SAFETY: an unreadable result is always flagged and a readable one never is, so the UI
   // can't render a missing result as a pass (ADR-0013 §2).
   .refine((revision) => revision.resultUnavailable === (revision.result === null), {
