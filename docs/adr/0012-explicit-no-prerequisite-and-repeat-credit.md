@@ -1,9 +1,9 @@
 # ADR-0012: Explicit "no prerequisite" rules and repeat-for-credit counting
 
-- **Status:** Accepted
+- **Status:** Accepted; amended 2026-10-07 (Amendment 1)
 - **Date:** 2026-10-06
 - **Deciders:** Tech lead
-- **Related:** FR-05, FR-06, FR-09, FR-10, AC04, NFR-01, planning/08 §Eligibility semantics and §Candidate formation, planning/09 §Source authority matrix, planning/13 AC04, ADR-0010 Amendment 4, standard 08 §Required-field ripple, issues #141, #66, #267, PRs #138, #262, #268
+- **Related:** FR-05, FR-06, FR-09, FR-10, AC04, NFR-01, planning/08 §Eligibility semantics and §Candidate formation, planning/09 §Source authority matrix, planning/13 AC04, ADR-0010 Amendment 4, standard 08 §Required-field ripple, issues #141, #66, #267, #365, PRs #138, #262, #268, #379
 
 ## Context
 
@@ -25,6 +25,8 @@ Both decisions are about the same rule: the absence of a statement from the inst
 - **Contract.** `CourseCheckResult.prerequisite` stays nullable for now. The API stops sending `null`. Making it non-nullable is a later domain and web change.
 
 ### 2. Repeat-for-credit counting
+
+**Amended by Amendment 1:** a passed 0-credit attempt counts, a same-term tie at the cut needs equal credits and grades, and in-progress work is CONDITIONAL only when the attempt cap can't leave it out.
 
 `repeatableForCredit: null` keeps today's rule: the repeat policy picks one counting attempt per equivalency group. A non-null statement changes the group's counting as follows.
 
@@ -67,3 +69,30 @@ This interprets planning/08 and AC04; it doesn't change them, so it needs no cha
 - A real rule importer is built: confirm it writes `NONE` and `UNSUPPORTED` as above.
 - An institution's repeat rules depend on more than attempt and credit caps (for example a different topic per attempt), which this model can't express.
 - Progress or degree-credit totals start reading earned credit, and a capped repeat needs to show which attempts were excluded.
+
+## Amendment 1 (2026-10-07, issue #365): stricter repeat-for-credit rules from PR #379
+
+**Related:** #365, PR #379 (engine, merged), #66. Section 2. planning/08 §Authority and result semantics, §Eligibility semantics and §Candidate formation, AC04.
+
+**Context.** PR #379 implemented section 2 and made three rules stricter than the text above. No reviewer objected, and the repo owner approved adopting them. This amendment states what `count-repeat-credit.ts` and `evaluate-repeatable-prerequisite.ts` on `main` do, so the ADR and the engine agree. Every change only turns a settled answer into UNDETERMINED or UNKNOWN, or counts an attempt the original text missed. None of them can produce a PASS the original text wouldn't.
+
+**Decision.** Section 2 is amended as follows. Where this amendment and section 2 differ, this amendment wins.
+
+1. **Which attempts count, and use up `maxAttempts`.** Replaces "earned more than 0 credits". An attempt earns something, so it counts and uses a slot, when its `creditsEarnedHundredths` is above 0, or when it is at a course that can award 0 credits (0-credit, a variable-credit course whose minimum is 0, or not in the catalog) and its grade is a passing completion under the academic policy. It earns nothing, and uses no slot, when it earned 0 from a course that awards credit, or failed a course that can award 0. When that can't be told, it is unsettled: an unknown award (`creditsEarnedHundredths: null`), or a 0-credit attempt with no grade or a grade the policy doesn't settle as passing or failing.
+2. **Unsettled attempts.** An unsettled attempt is counted when the attempt cap doesn't bind. When the cap binds and an unsettled attempt sits before the cut, the group is UNDETERMINED `REPEAT_ORDER_UNDETERMINED`, because it may free a slot for a later attempt. One after the cut is left out and changes nothing. This confirms that a 0-credit attempt with an unsettled grade before a binding cut stays UNDETERMINED.
+3. **Same-term tie at the cut.** Replaces "Ties of equal credit are broken by attempt ID". When the attempt cap binds and the last counted attempt and the first left-out attempt share a term, the cut is broken by attempt ID (UTF-16 code-unit order) only when every attempt in that term has the same `creditsEarnedHundredths` and the same grade scheme and value. Otherwise the group is UNDETERMINED `REPEAT_ORDER_UNDETERMINED`. A different grade can change a minimum-grade prerequisite, so an ID tie-break would make an academic decision. A tie that falls entirely before or after the cut needs no tie-break.
+4. **Only the attempt cap orders attempts.** "If a cap binds" means `maxAttempts`. The credit cap applies to the sum, so it never needs an order. When the attempt cap binds, a term missing from the calendar anywhere in the group makes it UNDETERMINED `REPEAT_ORDER_UNDETERMINED`.
+5. **In-progress work on a repeatable course.** Added to "Prerequisite leaves". It matters only when no counted attempt meets the minimum and no counted attempt's comparison is UNKNOWN. If the policy doesn't allow in-progress prerequisites, it is FAIL `PROGRESSION_NOT_PERMITTED`, as for other courses. Otherwise it is CONDITIONAL `IN_PROGRESS_MIN_GRADE` only when exactly one attempt is in progress and the attempt cap can't leave it out: `maxAttempts` is `null`, or the counted, pending-transfer and in-progress attempts together are at most `maxAttempts`. Otherwise the leaf is UNKNOWN `REPEAT_ORDER_UNDETERMINED`, because meeting the minimum wouldn't promise that the attempt counts. The `ANY` precedence then picks the strongest of the failing record, a pending transfer (UNKNOWN `PENDING_TRANSFER`) and this result.
+6. **Conflicting statements.** "Two or more countable attempts" means two or more COMPLETED or TRANSFER_AWARDED attempts, whatever they earned. With 1 or 0, the group keeps the single-counting-attempt rule.
+
+This interprets planning/08 and AC04 more strictly; it doesn't change them, so it needs no change-control record.
+
+**Where the engine differs from the original text.** Items 1, 3 and 5 change behavior the original text stated: a passed 0-credit attempt now counts, a tie needs equal grades as well as credits, and in-progress work can be UNKNOWN instead of CONDITIONAL. Items 2, 4 and 6 settle cases the original text left open. The leaf result in item 5 is UNKNOWN with the reason code `REPEAT_ORDER_UNDETERMINED`; UNDETERMINED is the counting state, which a leaf doesn't have.
+
+**Consequences.**
+
+- No code change: the engine already behaves this way on `main` (PR #379), and its `// SAFETY:` comments cite section 2.
+- More repeatable groups can be UNDETERMINED or UNKNOWN, so they show as NEEDS_VERIFICATION, never VALIDATED.
+- QA golden cases and AC04 cases (#366) should expect these results.
+
+**Revisit when** an institution states an order for attempts in the same term, or how in-progress attempts count against the attempt cap. Then the tie and in-progress rules can settle more cases.
