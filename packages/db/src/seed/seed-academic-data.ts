@@ -131,7 +131,7 @@ async function insertRecords(
  * @param snapshot - The snapshot.
  * @param studentId - Stored ID of its student.
  */
-async function insertSnapshot(
+export async function insertSnapshot(
   tx: SeedWriter,
   snapshot: StudentSnapshot,
   studentId: string,

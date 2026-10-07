@@ -41,7 +41,7 @@ describe('buildDevSeedPlan', () => {
     expect(names).toEqual(['Demo State University', 'Sample Community College']);
   });
 
-  it('seeds one active student, advisor, and admin identity, each a valid identity', () => {
+  it('seeds an active student, two advisors, and an admin identity, each a valid identity', () => {
     const identities = DEV_SEED_PLAN.identities.map((identity) =>
       UserIdentitySchema.parse(identity),
     );
@@ -50,6 +50,7 @@ describe('buildDevSeedPlan', () => {
       [Role.Student],
       [Role.Advisor],
       [Role.Admin],
+      [Role.Advisor],
     ]);
     expect(identities.every((identity) => identity.status === IdentityStatus.Active)).toBe(true);
   });
@@ -88,6 +89,18 @@ describe('buildDevSeedPlan', () => {
       });
 
     expect(DEV_SEED_PLAN.assignments).toEqual([assigned('SYN-000001'), assigned('SYN-000002')]);
+  });
+
+  it('seeds a second advisor in the slice tenant with no assignment', () => {
+    const second = DEV_SEED_PLAN.identities.find(
+      (identity) => identity.subject === 'synthetic-advisor-002',
+    );
+
+    expect(second?.roles).toEqual([Role.Advisor]);
+    expect(second?.tenantId).toBe(DEV_SEED_PLAN.assignments[0]?.tenantId);
+    expect(
+      DEV_SEED_PLAN.assignments.some((row) => row.advisorSubject === 'synthetic-advisor-002'),
+    ).toBe(false);
   });
 
   it('keeps every academic student in the seeded students', () => {
