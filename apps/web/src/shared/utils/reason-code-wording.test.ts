@@ -43,6 +43,7 @@ describe('REASON_CODE_WORDING', () => {
     ReasonCode.LinkedSectionUnavailable,
     ReasonCode.LinkedCourseNotChecked,
     ReasonCode.SectionDataMissing,
+    ReasonCode.PrerequisiteRuleMissing,
   ])('says %s needs verification and names a human route', (code) => {
     const { nextStep } = describeReason(code);
 
@@ -60,6 +61,12 @@ describe('REASON_CODE_WORDING', () => {
   it('never assumes an undefined travel time is enough', () => {
     expect(describeReason(ReasonCode.TransitionTimeUndefined).explanation).toContain(
       'It isn’t assumed to be enough.',
+    );
+  });
+
+  it('says it is not known whether the course has prerequisites for PREREQUISITE_RULE_MISSING', () => {
+    expect(describeReason(ReasonCode.PrerequisiteRuleMissing).explanation).toContain(
+      'isn’t known whether the course has prerequisites',
     );
   });
 });

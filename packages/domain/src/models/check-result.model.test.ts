@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import { CheckKind } from '../enums/check-kind.enum';
 import { CheckState } from '../enums/check-state.enum';
-import { ReasonCode } from '../enums/reason-code.enum';
+import { ReasonCode, ReasonCodeSchema } from '../enums/reason-code.enum';
 import { CheckResultSchema, createCheckResult } from './check-result.model';
 
 describe('createCheckResult', () => {
@@ -51,11 +51,16 @@ describe('CheckResultSchema', () => {
           .reasonCode,
     );
 
-    expect(codes).toHaveLength(37);
+    expect(codes).toHaveLength(38);
     expect(codes).toContain('TRANSITION_TIME_UNDEFINED');
     expect(codes).toContain('VARIABLE_CREDIT_UNSELECTED');
     expect(codes).toContain('CREDIT_BOUNDS_UNDEFINED');
     expect(codes).toContain('AUDIT_PROGRAM_MISMATCH');
+    expect(codes).toContain('PREREQUISITE_RULE_MISSING');
+  });
+
+  it('parses PREREQUISITE_RULE_MISSING as a reason code', () => {
+    expect(ReasonCodeSchema.parse('PREREQUISITE_RULE_MISSING')).toBe('PREREQUISITE_RULE_MISSING');
   });
 
   it('accepts PASSING_GRADE_UNDEFINED on an UNKNOWN check', () => {

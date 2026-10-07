@@ -38,6 +38,8 @@ import { z } from 'zod';
  *
  * Rules and audit:
  * - `UNSUPPORTED_RULE`: the source rule has semantics the app can't represent.
+ * - `PREREQUISITE_RULE_MISSING` (UNKNOWN only): the pinned ruleset holds no prerequisite rule
+ *   for the course, not even an explicit `NONE`, so whether it has prerequisites is unknown.
  * - `AUDIT_STALE`: the degree audit is older than the student record it must reflect.
  * - `AUDIT_AMBIGUOUS`: the audit doesn't settle the requirement, or the audit wasn't run against
  *   the pinned student record: it is for another tenant or student, it ran against another
@@ -102,6 +104,7 @@ export const ReasonCode = {
   RepeatOrderUndetermined: 'REPEAT_ORDER_UNDETERMINED',
   CourseNotInCatalog: 'COURSE_NOT_IN_CATALOG',
   UnsupportedRule: 'UNSUPPORTED_RULE',
+  PrerequisiteRuleMissing: 'PREREQUISITE_RULE_MISSING',
   AuditStale: 'AUDIT_STALE',
   AuditAmbiguous: 'AUDIT_AMBIGUOUS',
   AuditProgramMismatch: 'AUDIT_PROGRAM_MISMATCH',
