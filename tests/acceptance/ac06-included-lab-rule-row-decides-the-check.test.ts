@@ -84,7 +84,12 @@ describe('AC06 the rule row of an included lab decides whether it is checked', (
     'AC06',
     'needs verification when an included lab has no rule row, never skipping its check',
     async () => {
-      world.rules = [...(world.rules ?? []), LECTURE_NONE];
+      // NOTE: the lab's rule row is removed explicitly, so a default `NONE` can't mask it.
+      world.rules = [
+        ...(world.rules ?? []).filter((rule) => rule.courseId !== includedLab.id),
+        LECTURE_NONE,
+      ];
+      expect(world.rules.some((rule) => rule.courseId === includedLab.id)).toBe(false);
 
       const response = await findScheduleOptions(app, scheduleRequest([phys201.id]));
 

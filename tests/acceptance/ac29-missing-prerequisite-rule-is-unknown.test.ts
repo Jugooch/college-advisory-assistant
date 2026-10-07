@@ -29,6 +29,23 @@ const world = createAcademicWorld();
 // against a case's timeout.
 const app = buildAcademicApp(world);
 
+const PINNED_RULESET = 'demo-2026.1';
+
+/**
+ * Removes every rule row of a course from the world and asserts none is left in the pinned
+ * ruleset, so a default world that states `NONE` for the course can't mask a missing rule.
+ *
+ * @param courseId - The course whose rule row must be absent.
+ */
+function removeRuleRows(courseId: string): void {
+  world.rules = (world.rules ?? []).filter((rule) => rule.courseId !== courseId);
+  expect(
+    (world.rules ?? []).some(
+      (rule) => rule.courseId === courseId && rule.rulesetVersion === PINNED_RULESET,
+    ),
+  ).toBe(false);
+}
+
 describe('AC29 a missing rule is UNKNOWN and an explicit NONE rule is PASS', () => {
   beforeEach(() => {
     resetAcademicWorld(world);
@@ -39,7 +56,7 @@ describe('AC29 a missing rule is UNKNOWN and an explicit NONE rule is PASS', () 
     'reports UNKNOWN PREREQUISITE_RULE_MISSING, not a PASS, for a course with no rule row',
     async () => {
       resetAcademicWorld(world, { requirements: [{ candidateCourseIds: [phys201.id] }] });
-      world.rules = [buildPrerequisiteRule()];
+      removeRuleRows(phys201.id);
 
       const response = await checkCourses(app, { courseIds: [phys201.id] });
 
@@ -77,6 +94,11 @@ describe('AC29 a missing rule is UNKNOWN and an explicit NONE rule is PASS', () 
         buildPrerequisiteRule(),
         buildPrerequisiteRule({ courseId: phys201.id, rulesetVersion: 'demo-2025.1' }, 2),
       ];
+      expect(
+        world.rules.some(
+          (rule) => rule.courseId === phys201.id && rule.rulesetVersion === PINNED_RULESET,
+        ),
+      ).toBe(false);
 
       const response = await checkCourses(app, { courseIds: [phys201.id] });
 
@@ -108,6 +130,7 @@ describe('AC29 a missing rule is UNKNOWN and an explicit NONE rule is PASS', () 
         attempts: [completedAttempt()],
         requirements: [{ candidateCourseIds: [math102.id, phys201.id], remainingCourseCount: 2 }],
       });
+      removeRuleRows(phys201.id);
 
       const response = await checkCourses(app, { courseIds: [math102.id, phys201.id] });
 
