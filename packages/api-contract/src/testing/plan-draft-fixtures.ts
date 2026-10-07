@@ -37,7 +37,6 @@ export function buildRevisionView(fields: Payload = {}): Payload {
     planId: PLAN_ID,
     revision: 1,
     cause: 'SAVED',
-    createdBy: '1a2b3c4d-0000-4000-8000-000000000002',
     createdAt: '2026-10-07T09:00:00.000-05:00',
     termId: TERM_ID,
     courseIds: [PHYS_301],

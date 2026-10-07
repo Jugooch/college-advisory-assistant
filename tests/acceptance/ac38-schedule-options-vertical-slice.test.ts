@@ -1,5 +1,5 @@
 /**
- * @file Acceptance AC32 (proposed, #225): the scheduling steps of the first vertical slice
+ * @file Acceptance AC38 (#225): the scheduling steps of the first vertical slice
  * (planning/14 §First vertical slice), through `POST /v1/students/:studentId/schedule-options`.
  * Four published sections including a conflict give exactly two options with evidence; a failing
  * prerequisite grade blocks the prerequisite dimension of every option without changing the
@@ -77,13 +77,13 @@ const world = createAcademicWorld();
 // against a case's timeout.
 const app = buildAcademicApp(world);
 
-describe('AC32 the scheduling steps of the first vertical slice', () => {
+describe('AC38 the scheduling steps of the first vertical slice', () => {
   beforeEach(() => {
     resetScheduleWorld(world);
     publishSections(world, [A1, A2, B1, B2]);
   });
 
-  acceptanceIt('AC32', 'gives exactly two options from four sections with conflicts', async () => {
+  acceptanceIt('AC38', 'gives exactly two options from four sections with conflicts', async () => {
     const response = await findScheduleOptions(app, BOTH);
 
     expect(response).toMatchObject({
@@ -111,7 +111,7 @@ describe('AC32 the scheduling steps of the first vertical slice', () => {
   });
 
   acceptanceIt(
-    'AC32',
+    'AC38',
     'blocks the prerequisite on every option after the grade changes to a D',
     async () => {
       resetScheduleWorld(world, { attempts: [completedAttempt({ grade: letter('D') })] });
@@ -140,7 +140,7 @@ describe('AC32 the scheduling steps of the first vertical slice', () => {
   );
 
   acceptanceIt(
-    'AC32',
+    'AC38',
     'shows UNKNOWN, never PASS, where a removed meeting time could conflict',
     async () => {
       publishSections(world, [A1, A2, B1, B2_TIME_REMOVED]);
@@ -175,7 +175,7 @@ describe('AC32 the scheduling steps of the first vertical slice', () => {
     },
   );
 
-  acceptanceIt('AC32', 'refers a stale section snapshot with 409 STALE_SOURCE', async () => {
+  acceptanceIt('AC38', 'refers a stale section snapshot with 409 STALE_SOURCE', async () => {
     publishSections(world, [A1, A2, B1, B2], { sourceEffectiveAt: '2026-08-31T11:59:59.999Z' });
 
     const response = await findScheduleOptions(app, BOTH);
