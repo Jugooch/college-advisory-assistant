@@ -10,7 +10,7 @@ import { buildCourse } from '../builders/course.builder';
 import { completedAttempt } from '../builders/course-attempt.builder';
 import { SYNTHETIC_REPEATABLE_COURSES } from '../fixtures/synthetic-courses';
 import { syntheticId } from '../fixtures/synthetic-id';
-import { COUNTING_TERM_CALENDAR } from './golden-counting-case.schema';
+import { COUNTING_TERM_CALENDAR } from './golden-counting-factories';
 
 /** DEMO-ENS 110: 1.00 per attempt, 4 attempts, 4.00 credits. */
 export const ENSEMBLE = SYNTHETIC_REPEATABLE_COURSES.ensemble110;

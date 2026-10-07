@@ -17,7 +17,7 @@ import {
 } from '../../builders/prerequisite-rule.builder';
 import { type GoldenCase } from '../golden-case.schema';
 import { prerequisiteCase } from '../golden-case-factories';
-import { COUNTING_REVIEW } from '../golden-counting-case.schema';
+import { COUNTING_REVIEW } from '../golden-counting-factories';
 import { ENSEMBLE as ensemble } from '../golden-counting-fixtures';
 import { mustNot, NEVER_PASS_WHEN_UNKNOWN, prerequisiteCheck } from '../golden-expectations';
 import { GOLDEN_CATALOG, prerequisiteInputs } from '../golden-inputs';

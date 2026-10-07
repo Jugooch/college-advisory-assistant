@@ -9,14 +9,14 @@ import { CountingState, ReasonCode } from '@caa/domain';
 import { buildCourse } from '../builders/course.builder';
 import { completedAttempt } from '../builders/course-attempt.builder';
 import { GOLDEN_DEVELOPMENT_COUNTING_CORPUS } from './golden-corpus';
+import { ExpectedCountingSchema } from './golden-counting-case.schema';
 import {
   counted,
   countingCase,
   countingInputs,
-  ExpectedCountingSchema,
   NO_COUNTING_ATTEMPT,
   undetermined,
-} from './golden-counting-case.schema';
+} from './golden-counting-factories';
 
 const COURSE = buildCourse();
 const INPUTS = countingInputs({
