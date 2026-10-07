@@ -27,8 +27,6 @@ export const KNOWN_FINDINGS: ReadonlyMap<string, number> = new Map<string, numbe
   ],
   ['AC29: treats a rule that exists only in another ruleset version as a missing rule', 362],
   ['AC29: keeps a course with a rule PASS while a sibling with no rule row is UNKNOWN', 362],
-  // ADR-0012 §1: an included linked course with no rule row is UNKNOWN, not omitted (#361).
-  ['AC06: needs verification when an included lab has no rule row, never skipping its check', 361],
 ]);
 
 /** A key of the register: a golden case ID, or an acceptance case and its exact test title. */

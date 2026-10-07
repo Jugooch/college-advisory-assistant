@@ -1,12 +1,14 @@
 /**
  * @file Selects an option's linked courses that its course checks don't cover, as UNKNOWN results.
  * @module @caa/engine/scheduling/linked-course-results
+ * @requirement FR-06
  * @requirement FR-07
  * @requirement FR-09
  * @requirement FR-18
  * @requirement NFR-01
  * @see docs/planning/08-academic-verification-and-planning.md
  * @see docs/adr/0010-deterministic-bounded-schedule-solver.md
+ * @see docs/adr/0012-explicit-no-prerequisite-and-repeat-credit.md
  */
 import {
   CheckKind,
@@ -56,9 +58,9 @@ export interface LinkedCourseResult {
  * Lists the linked courses of an option that its requested courses' checks don't cover, each
  * with UNKNOWN prerequisite and applicability results.
  *
- * A course is listed when a bundle has a section of it, it isn't requested, and either it
- * counts its own credits in the plan or it has its own prerequisite rule. A `NONE` rule is no
- * prerequisite of its own, so it selects nothing.
+ * A course is listed when a bundle has a section of it and it isn't requested, unless its
+ * credits are included in a planned course and its only rule is `NONE`. A course with no rule
+ * row is listed: missing semantics are UNKNOWN, never "no prerequisite" (ADR-0012 §1).
  *
  * @param input - The option's bundles, the requested courses, the catalog and the rules.
  * @returns One result per listed course, ascending by course ID (UTF-16 code units), no repeats.
@@ -71,23 +73,30 @@ export function linkedCourseResultsOf(input: LinkedCourseInput): LinkedCourseRes
   );
   const planCourseIds = new Set(planCourses.map((course) => course.id));
   const requested = new Set(input.requestedCourseIds);
-  // SAFETY: a `NONE` rule states the course has no prerequisite, so an included component with
-  // one is covered by its planned course, as a course with no rule row is until #361
-  // (ADR-0012 §1, amending ADR-0010 Amendment 4).
-  const withRule = new Set(
+  // SAFETY: only a `NONE` rule states a course has no prerequisite of its own. A course with no
+  // rule row has unknown semantics, not none, so it is never treated as covered; a course with
+  // any other rule carries a prerequisite of its own (ADR-0012 §1, amending ADR-0010
+  // Amendment 4).
+  const statedNone = new Set(
+    input.prerequisiteRules
+      .filter((rule) => rule.expression.type === PrerequisiteExpressionType.None)
+      .map((rule) => rule.courseId),
+  );
+  const withOwnRule = new Set(
     input.prerequisiteRules
       .filter((rule) => rule.expression.type !== PrerequisiteExpressionType.None)
       .map((rule) => rule.courseId),
   );
-  // SAFETY: a linked course outside the requested set that adds its own credits, or carries a
-  // prerequisite of its own, was never checked, so it is shown as UNKNOWN and never left out. A
-  // linked course whose credits are included in a planned course and has no rule of its own is
-  // a component of that course, which its checks cover (ADR-0010 Amendment 4; planning/08
-  // §Candidate formation and §Constraint formulation).
+  // SAFETY: a linked course outside the requested set was never checked, so it is shown as
+  // UNKNOWN and never left out, unless its credits are included in a planned course and its rule
+  // states no prerequisite: then it is a component of that course, which its checks cover
+  // (ADR-0012 §1; ADR-0010 Amendment 4; planning/08 §Candidate formation).
   const selected = planCourses.filter(
     (course) =>
       !requested.has(course.id) &&
-      (countsOwnCredits(course, planCourseIds) || withRule.has(course.id)),
+      (countsOwnCredits(course, planCourseIds) ||
+        !statedNone.has(course.id) ||
+        withOwnRule.has(course.id)),
   );
   return [...new Set(selected.map((course) => course.id))].sort(compareText).map((courseId) => ({
     courseId,

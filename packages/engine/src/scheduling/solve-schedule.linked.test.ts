@@ -94,13 +94,21 @@ describe('solveSchedule linked course results (ADR-0010 Amendment 4)', () => {
     ]);
   });
 
-  it('adds none for a lab included in PHYS 201 with no prerequisite of its own', () => {
+  it('adds UNKNOWN results for a lab included in PHYS 201 that has no rule row', () => {
     const lab = buildCourse(
       { id: LAB_ID, creditsHundredths: 100, creditsIncludedInCourseId: PHYS_201_ID },
       2,
     );
 
-    expect(solveWithLab(lab).options.map((option) => option.linkedCourseResults)).toEqual([[]]);
+    expect(solveWithLab(lab).options.map((option) => option.linkedCourseResults)).toEqual([
+      [
+        {
+          courseId: LAB_ID,
+          prerequisite: NOT_CHECKED,
+          applicability: { ...NOT_CHECKED, kind: 'REQUIREMENT_APPLICABILITY' },
+        },
+      ],
+    ]);
   });
 
   it('adds none for a lab included in PHYS 201 whose rule states no prerequisite', () => {
