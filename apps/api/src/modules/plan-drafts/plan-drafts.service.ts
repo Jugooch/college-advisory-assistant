@@ -67,10 +67,12 @@ export interface PlanDraftsService {
    * @returns The plan with its new latest revision.
    * @throws {NotFoundError} When the actor isn't the student, or the student is missing.
    * @throws {RevisionConflictError} When the replay's pinned inputs differ from the client's, or
-   *   another save raced this one. Nothing is written.
+   *   another save raced this one, or the replay's audit check conflicts. Nothing is written.
    * @throws {InvalidRequestError} When the chosen sections aren't one of the replayed options.
    * @throws {StaleSourceError} When the replay's sources are stale or tied. Nothing is written.
    * @throws {SourceUnavailableError} When a source is missing. Nothing is written.
+   * @throws {Error} When the saved plan's revision history has a gap, or a stored revision
+   *   breaks the revision view contract.
    */
   savePlan(actor: Actor, query: SavePlanQuery, context: RequestContext): Promise<PlanView>;
 }

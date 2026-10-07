@@ -46,6 +46,8 @@ function parseView(
  * @param freshness - The freshness derived at read time.
  * @param context - Request-scoped values.
  * @returns The revision view; the historical revision is always returned.
+ * @throws {Error} When the stored revision fields break the view contract even with the result
+ *   withheld.
  */
 export function toRevisionView(
   stored: StoredPlanRevision,

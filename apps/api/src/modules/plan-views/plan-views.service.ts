@@ -57,6 +57,8 @@ export interface PlanViewsService {
    * @param context - Request-scoped values.
    * @returns The plan view.
    * @throws {NotFoundError} When the student or plan is missing or the actor may not see it.
+   * @throws {Error} When the plan's revision history has a gap, or a stored revision breaks the
+   *   revision view contract.
    */
   getPlan(actor: Actor, query: PlanQuery, context: RequestContext): Promise<PlanView>;
 
@@ -83,6 +85,8 @@ export interface PlanViewsService {
    * @param context - Request-scoped values.
    * @returns The plan view.
    * @throws {NotFoundError} When the plan has no revision.
+   * @throws {Error} When the plan's revision history has a gap, or a stored revision breaks the
+   *   revision view contract.
    */
   viewOf(actor: Actor, plan: Plan, context: RequestContext): Promise<PlanView>;
 }
