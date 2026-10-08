@@ -154,10 +154,10 @@ export default tseslint.config(
 
   // ---- Temporary exceptions ----
   {
-    // TODO(#443): remove when the composition root is split.
+    // TODO(#443): temporary exception recorded in standard 01 §Size; remove when the composition root is split.
     files: ['apps/api/src/container.ts'],
     rules: {
-      'max-lines': ['error', { max: 300, skipBlankLines: true, skipComments: true }],
+      'max-lines': ['error', { max: 260, skipBlankLines: true, skipComments: true }],
     },
   },
 
