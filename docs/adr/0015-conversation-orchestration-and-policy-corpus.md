@@ -1,6 +1,6 @@
 # ADR-0015: Conversation orchestration, the model boundary, the approved policy corpus, and chat history
 
-- **Status:** Accepted 2026-10-08; amended 2026-10-08 (Amendment 1: template-only intros, two-tier crisis detection). The repo owner chose decisions 1–4 (model, tools, history, UI) and confirmed the tech lead's choices listed on #495 on 2026-10-08. The orchestrator defaults are adopted, except where evaluations live (§9).
+- **Status:** Accepted 2026-10-08; amended 2026-10-08 (Amendment 1: template-only intros, two-tier crisis detection; Amendment 2: retracting an approved policy revision). The repo owner chose decisions 1–4 (model, tools, history, UI) and confirmed the tech lead's choices listed on #495 on 2026-10-08. The orchestrator defaults are adopted, except where evaluations live (§9).
 - **Date:** 2026-10-08
 - **Deciders:** Tech lead; repo owner (product decisions 1–4 on #495)
 - **Related:** FR-01, FR-02, FR-08, FR-10, FR-14, FR-16, NFR-02, NFR-05, NFR-08, new AC42–AC47, T06, planning/07 §Modules, §Request lifecycle and §Failure containment, planning/09 §Canonical entities, §Logical app interfaces and §Retention, planning/10 (all), planning/11 §Interaction details, planning/04 §Change control (model vendor), ADR-0005, ADR-0008, ADR-0009, ADR-0010, ADR-0013, ADR-0014, issues #495–#520
@@ -224,3 +224,26 @@ This narrows planning/10, which allows free-form model text to introduce the UI.
 - Standards 01, 07 and 09 drop the output guard wording, in this PR. No tooling changes: the `.guard.ts` role and every lint rule stay as they are.
 
 **Revisit when** the `GUARDED` rate in `eval:live` makes chat unhelpful (then consider provider structured output for the id, a port change needing its own amendment); or the tier-2 card shows on most turns in the pilot (then tune tier 2, never tier 1).
+
+## Amendment 2 (2026-10-08, issue #527): retracting an approved policy revision
+
+**Related:** §6; PR #526 (#506, migration 0019) academic-safety review MINOR #2; FR-16; planning/09 §Source authority.
+
+**Context.** §6 makes an approved revision immutable and lists `WITHDRAWN`, but gives no path from `APPROVED` to `WITHDRAWN`. Migration 0019 rejects every change to an approved row, so wrong approved text can't be pulled. `listApplicable` picks the highest revision among rows that are approved and effective now, so when the newest revision is withdrawn or expires, an older one silently applies again.
+
+**Options.** (a) Allow only the `APPROVED → WITHDRAWN` change in the trigger, and pick the current revision before filtering. (b) Append a key-level retirement revision. (b) needs a new status or column in `@caa/domain`, a placeholder body to pass the non-empty checks, and every reader taught to skip it. (a) uses the existing `WITHDRAWN` status, changes only `@caa/db`, and keeps the retracted row as the audit record.
+
+**Decision: (a).**
+
+- **One allowed change.** A row that is `APPROVED` may change only `approval_status` to `WITHDRAWN` and set a new nullable `withdrawn_at` (an instant). Every other column, including `approved_at`, `body` and `content_hash`, must be unchanged. Any other UPDATE, any DELETE, and every change to a `WITHDRAWN` row are refused with the same error as `reject_published_row_change()`. `WITHDRAWN` is terminal. Drafts stay editable.
+- **Checks.** `DRAFT` has neither time. `APPROVED` has `approved_at` and no `withdrawn_at`. `WITHDRAWN` has `withdrawn_at`. `approved_at` is kept on a retracted row and is null on a draft that was withdrawn. Existing `WITHDRAWN` rows get `withdrawn_at = created_at` in the migration.
+- **Current revision first, then filters.** For each `documentKey`, the current revision is the highest one that was ever approved (`approved_at IS NOT NULL`) with `effectiveFrom ≤ asOf`. It's returned only when it's `APPROVED`, `asOf < effectiveTo` (or `effectiveTo` is null), and its audience matches. A withdrawn or expired current revision returns nothing for that key; an older revision never applies again. A not-yet-effective newer revision isn't current yet, so the older one still applies until it starts. A withdrawn draft was never published, so it never counts.
+- **Withdrawal applies at every instant.** The repository answers "what applies now"; it ignores `withdrawn_at` when choosing. To bring text back, approve a new revision.
+- **`@caa/domain` doesn't change.** The repository never returns a withdrawn row, so the domain rule (`approvedAt` only when `APPROVED`) still holds for every object it maps.
+
+**Consequences.**
+
+- **data-engineer:** a new migration (column, checks, backfill, a policy-specific trigger function replacing the 0019 row trigger; truncate stays refused) and the `listApplicable` change, with integration tests (#546).
+- No contract, api, engine or web change. §6 "Applicability" now reads as above; "an approved revision is immutable" now means "immutable except its one-way retraction".
+
+**Revisit when** retraction needs an actor or reason (add columns then, when policy authoring gets a user flow), or a reader needs historical answers ("what applied on date X"), which would make `withdrawn_at` part of selection.

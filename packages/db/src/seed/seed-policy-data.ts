@@ -32,6 +32,10 @@ export async function insertPolicyDocuments(
         effectiveFrom: new Date(document.effectiveFrom),
         effectiveTo: document.effectiveTo === null ? null : new Date(document.effectiveTo),
         approvedAt: document.approvedAt === null ? null : new Date(document.approvedAt),
+        // NOTE: the domain object has no withdrawal time; a seeded withdrawn revision is
+        // treated as withdrawn from its start, which keeps the seed deterministic.
+        withdrawnAt:
+          document.approvalStatus === 'WITHDRAWN' ? new Date(document.effectiveFrom) : null,
       })
       // NOTE: nothing is updated; a changed document is a new revision.
       .onConflictDoNothing();
