@@ -73,7 +73,8 @@ const UNSTORED_STATUSES: readonly ModelStatus[] = [ModelStatus.RateLimited, Mode
 /**
  * The assistant's answer to one turn: an intro and verified blocks.
  *
- * `intro` is guarded model text or a template, at most 600 characters. `sequence` is the
+ * `intro` is a server-written template, empty for a tier-1 crisis turn, at most 600
+ * characters. It is not guarded model text. `sequence` is the
  * stored turn's position, or `null` when the status stored nothing.
  */
 export const AssistantTurnViewSchema = z
