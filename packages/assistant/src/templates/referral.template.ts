@@ -24,7 +24,7 @@ export const REFERRAL_TEMPLATES: Record<SpecialistTopic, string> = {
  * Renders the fixed text for a referral.
  *
  * @param topic - The specialist topic.
- * @returns The versioned template text.
+ * @returns The fixed template text.
  */
 export function renderReferral(topic: SpecialistTopic): string {
   return REFERRAL_TEMPLATES[topic];

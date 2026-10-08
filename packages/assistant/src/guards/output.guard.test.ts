@@ -39,6 +39,31 @@ const REJECTED: readonly (readonly [GuardReason, string])[] = [
   [GuardReason.Url, 'Visit www.example.com now.'],
   [GuardReason.Url, 'Open registrar.example.edu'],
   [GuardReason.Url, 'Click [here](x).'],
+  [GuardReason.CreditOrGrade, 'You got an A in Calculus I.'],
+  [GuardReason.CreditOrGrade, 'You earned a C in CHEM 101.'],
+  [GuardReason.CreditOrGrade, 'You got a B in Biology.'],
+  [GuardReason.CreditOrGrade, 'You earned an A in CHEM 101.'],
+  [GuardReason.CreditOrGrade, 'You have 45 hours toward your degree.'],
+  [GuardReason.CreditOrGrade, 'That is 120 semester hours.'],
+  [GuardReason.CreditOrGrade, 'Your result was F.'],
+  [GuardReason.Readiness, "You've completed every course in your major."],
+  [GuardReason.Readiness, "You're done with your math requirement."],
+  [GuardReason.Readiness, 'You finished it.'],
+  [GuardReason.Readiness, "You're all set."],
+  [GuardReason.DateOrDeadline, 'The add/drop window closes next week.'],
+  [GuardReason.DateOrDeadline, 'Withdrawal closes in 3 days.'],
+  [GuardReason.DateOrDeadline, 'Registration opens soon.'],
+  [GuardReason.DateOrDeadline, 'Classes end in May.'],
+  [GuardReason.DateOrDeadline, 'The add window closes in May.'],
+  [GuardReason.DateOrDeadline, 'May is busy.'],
+  [GuardReason.DateOrDeadline, 'It ends this semester.'],
+  [GuardReason.EnrollmentStatus, "You're all set, your classes are booked for spring."],
+  [GuardReason.EnrollmentStatus, 'Your seat is reserved.'],
+  [GuardReason.EnrollmentStatus, "You're locked in."],
+  [GuardReason.EnrollmentStatus, 'You secured a seat.'],
+  [GuardReason.EnrollmentStatus, 'It was added to your schedule.'],
+  [GuardReason.Digit, 'I found 2 options.'],
+  [GuardReason.Digit, 'Take it in year 3.'],
 ];
 
 const ACCEPTED: readonly string[] = [
@@ -46,6 +71,8 @@ const ACCEPTED: readonly string[] = [
   'I found a few options that match your choices.',
   'Let me know if you want to change anything.',
   'The cards below come from your saved plan.',
+  'Here is your plan and the checks that were run.',
+  'I found a few options that fit what you said.',
 ];
 
 describe('guardIntro', () => {

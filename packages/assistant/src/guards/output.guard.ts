@@ -25,6 +25,7 @@ export const GuardReason = {
   Confidence: 'CONFIDENCE',
   AdvisorPromise: 'ADVISOR_PROMISE',
   Url: 'URL',
+  Digit: 'DIGIT',
 } as const;
 
 /** A reason code from {@link GuardReason}. */
@@ -43,7 +44,12 @@ const WEEKDAYS = 'monday|tuesday|wednesday|thursday|friday|saturday|sunday';
 const PATTERNS: readonly (readonly [GuardReason, RegExp])[] = [
   [
     GuardReason.CreditOrGrade,
-    /\bcredits?\b|\bcredit[- ]hours?\b|\bunits?\b|\bgrades?\b|\bgraded\b|\bgpa\b|\b[a-df][+-](?![\w-])|\bgrade point/i,
+    /\bcredits?\b|\bcredit[- ]hours?\b|\bunits?\b|\bgrades?\b|\bgraded\b|\bgpa\b|\b[a-df][+-](?![\w-])|\bgrade point|\b(hours?|semester hours|quarter hours)\b|\b(an?|got|get|earned?|received?|made|scored?|with|have|had|at)\s+(an?\s+)?[a-fp]\b(?![\w'-])/i,
+  ],
+  [
+    GuardReason.CreditOrGrade,
+    // SAFETY: a standalone capital grade token is rejected even with no grade verb nearby.
+    /\b[A-DFP]\b(?![\w'-])/,
   ],
   [
     GuardReason.Eligibility,
@@ -58,18 +64,18 @@ const PATTERNS: readonly (readonly [GuardReason, RegExp])[] = [
   [GuardReason.StatusLabel, /\bunknown\b|\bconditional(ly)?\b/i],
   [
     GuardReason.Readiness,
-    /\breadiness\b|\bready\b|\bon[- ]?track\b|\bgood standing\b|\bgraduat|\bdegree[- ]complete|\bat risk\b/i,
+    /\breadiness\b|\bready\b|\bon[- ]?track\b|\bgood standing\b|\bgraduat|\bdegree[- ]complete|\bat risk\b|\bcomplet(e|ed|es|ing|ion)\b|\bdone\b|\bfinish(ed|es|ing)?\b|\ball set\b|\bgood to go\b/i,
   ],
   [
     GuardReason.DateOrDeadline,
     new RegExp(
-      `\\bdeadlines?\\b|\\bdue\\b|\\blast day\\b|\\bcutoff\\b|\\b(${MONTHS})\\b|\\b(${MONTH_ABBR})\\b\\.?\\s*\\d|\\b(${WEEKDAYS})\\b|\\b\\d{1,2}[/.-]\\d{1,2}([/.-]\\d{2,4})?\\b|\\b(19|20)\\d{2}\\b|\\b\\d{1,2}(st|nd|rd|th)\\b|\\b(today|tomorrow|tonight)\\b`,
+      `\\bdeadlines?\\b|\\bdue\\b|\\blast day\\b|\\bcutoff\\b|\\b(${MONTHS})\\b|\\b(${MONTH_ABBR})\\b\\.?\\s*\\d|\\b(${WEEKDAYS})\\b|\\b\\d{1,2}[/.-]\\d{1,2}([/.-]\\d{2,4})?\\b|\\b(19|20)\\d{2}\\b|\\b\\d{1,2}(st|nd|rd|th)\\b|\\b(today|tomorrow|tonight|soon|yesterday)\\b|\\b(next|this|last|coming|end of|start of|beginning of)\\s+(week|weekend|month|term|semester|quarter|year|fall|spring|summer|winter)\\b|\\bin\\s+(\\d+|a|an|one|two|three|four|five|six|seven|ten|few|couple)\\s+(days?|weeks?|months?|hours?|minutes?)\\b|\\b(close[sd]?|open(s|ed)?|ends?|ended|expires?|expired|begins?|starts?|starting)\\b|\\b(in|by|until|before|after|since|early|mid|late|end of)\\s+may\\b`,
       'i',
     ),
   ],
   [
     GuardReason.EnrollmentStatus,
-    /\bregist(er|ered|ers|ering|ration)\b|\benroll(ed|s|ing|ment)?\b|\bapprov(e|ed|es|al|als)\b|\bsigned up\b|\bwaitlist/i,
+    /\bregist(er|ered|ers|ering|ration)\b|\benroll(ed|s|ing|ment)?\b|\bapprov(e|ed|es|al|als)\b|\bsigned up\b|\bwaitlist|\bbook(ed|ing|s)?\b|\breserv(e|ed|es|ation|ations)\b|\blocked in\b|\bsecur(e|ed|es|ing)\b|\b(your|a|the) (seat|spot)\b|\badd(ed)? to (your )?schedule\b/i,
   ],
   [
     GuardReason.Confidence,
@@ -78,6 +84,16 @@ const PATTERNS: readonly (readonly [GuardReason, RegExp])[] = [
   [
     GuardReason.AdvisorPromise,
     /\b(advisor|adviser|staff|someone|counsel+or|office|team)\b[^.!?]*\b(notif|contact|reach|repl|respond|follow|review|alert|be in touch|get back)|\bnotified\b|\b(will|would|'ll) (reply|respond|contact|reach out|get back|be in touch)\b/i,
+  ],
+  [
+    // SAFETY: the fallback templates need no digit, so any digit (hours, dates, counts) is rejected.
+    GuardReason.Digit,
+    /\d/,
+  ],
+  [
+    // SAFETY: capitalized May is a month; lowercase may after a preposition is handled above.
+    GuardReason.DateOrDeadline,
+    /\bMay\b/,
   ],
   [
     GuardReason.Url,

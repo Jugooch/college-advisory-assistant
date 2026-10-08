@@ -11,9 +11,13 @@ import { SpecialistTopic } from '@caa/domain';
 export interface FixedResponseMatches {
   /** Non-crisis topics in a fixed order. */
   readonly specialistTopics: readonly SpecialistTopic[];
+  /** Crisis language: the model must not be called. */
   readonly crisis: boolean;
+  /** A what-if about grades or outcomes. */
   readonly hypothetical: boolean;
+  /** A request to skip or waive a requirement. */
   readonly override: boolean;
+  /** A claim that a recorded grade is wrong. */
   readonly gradeDispute: boolean;
 }
 
@@ -38,7 +42,7 @@ const TOPIC_PATTERNS: readonly (readonly [SpecialistTopic, RegExp])[] = [
 ];
 
 const CRISIS_PATTERN =
-  /suicid|kill (myself|me)|end (my|it all|my life)|want to die|wanna die|better off dead|self[- ]?harm|hurt(ing)? myself|harm(ing)? myself|cut(ting)? myself|(don'?t|do not|doesn'?t) want to (live|be alive|be here)|no reason to live|can'?t go on|overdose|being abused|abusing me|in danger|not safe|unsafe|emergency|\b911\b/;
+  /suicid|\bkill(ing)? (myself|me)\b|\bend(ing)? (my life|it all|my own life)\b|\bend(ing)? it\b|\bnot wake up\b|want to die|wanna die|better off dead|self[- ]?harm|hurt(ing)? myself|harm(ing)? myself|cut(ting)? myself|(don'?t|do not|doesn'?t) want to (live|be alive|be here)|no reason to live|\bcan'?t go on (anymore|like this|living)|\bcan'?t keep going\b|overdose|being abused|abusing me|in danger|not safe|unsafe|emergency|\b911\b/;
 
 const HYPOTHETICAL_PATTERN =
   /assum(e|ing) (that )?i|what if i|if i (pass|passed|fail|failed|get|got|finish|complete|retake|drop|withdraw|took|take|had)|suppose i|pretend i|let'?s say i|imagine i|hypothetical/;

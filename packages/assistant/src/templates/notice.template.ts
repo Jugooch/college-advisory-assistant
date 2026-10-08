@@ -6,7 +6,7 @@
  */
 import { NoticeCode } from '@caa/domain';
 
-/** Version recorded on every rendered text block; bump it when any template text changes. */
+/** Version consumers record with each rendered text block; bump it when any template text changes. */
 export const TEMPLATE_VERSION = '2026-10-08.1';
 
 /** Fixed text for each notice. No template states eligibility, credits, grades or dates. */
@@ -36,7 +36,7 @@ export const NOTICE_TEMPLATES: Record<NoticeCode, string> = {
  * Renders the fixed text for a notice.
  *
  * @param code - The notice to render.
- * @returns The versioned template text.
+ * @returns The fixed template text.
  */
 export function renderNotice(code: NoticeCode): string {
   return NOTICE_TEMPLATES[code];

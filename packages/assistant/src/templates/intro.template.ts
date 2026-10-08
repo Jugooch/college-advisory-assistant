@@ -13,8 +13,7 @@ const POLICY_INTRO = 'Here are the policy documents that match your question.';
 const CONSTRAINT_INTRO =
   'Here are the planning choices I understood. Please review them before continuing.';
 const CASE_INTRO = 'Here is a preview of the case. Nothing is sent until you confirm it.';
-const NOTICE_INTRO = 'Please see the note below.';
-const EMPTY_INTRO = 'Please see the note below.';
+const DEFAULT_INTRO = 'Please see the note below.';
 
 /** Precedence when a turn has several block kinds: the first match supplies the intro. */
 const INTRO_BY_KIND: readonly (readonly [AssistantBlockKind, string])[] = [
@@ -24,8 +23,8 @@ const INTRO_BY_KIND: readonly (readonly [AssistantBlockKind, string])[] = [
   [AssistantBlockKind.PolicyResults, POLICY_INTRO],
   [AssistantBlockKind.ConstraintProposal, CONSTRAINT_INTRO],
   [AssistantBlockKind.CasePreview, CASE_INTRO],
-  [AssistantBlockKind.Referral, NOTICE_INTRO],
-  [AssistantBlockKind.Notice, NOTICE_INTRO],
+  [AssistantBlockKind.Referral, DEFAULT_INTRO],
+  [AssistantBlockKind.Notice, DEFAULT_INTRO],
 ];
 
 /**
@@ -36,5 +35,5 @@ const INTRO_BY_KIND: readonly (readonly [AssistantBlockKind, string])[] = [
  */
 export function fallbackIntro(kinds: readonly AssistantBlockKind[]): string {
   const match = INTRO_BY_KIND.find(([kind]) => kinds.includes(kind));
-  return match ? match[1] : EMPTY_INTRO;
+  return match ? match[1] : DEFAULT_INTRO;
 }

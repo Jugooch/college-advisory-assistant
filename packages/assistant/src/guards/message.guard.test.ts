@@ -45,8 +45,21 @@ describe('detectFixedResponses', () => {
     'I think I might hurt myself',
     'This is an EMERGENCY',
     'I feel unsafe at home',
+    'I keep thinking about killing myself',
+    "I'm thinking of ending it all",
+    "I can't go on anymore",
   ])('flags crisis: %s', (message) => {
     expect(detectFixedResponses(message).crisis).toBe(true);
+  });
+
+  it.each([
+    'Can I attend my lab on Tuesday?',
+    'I want to spend my mornings free',
+    "I can't go on Fridays",
+    "I can't go on campus Mondays",
+    'Can I extend my plan?',
+  ])('does not flag crisis: %s', (message) => {
+    expect(detectFixedResponses(message).crisis).toBe(false);
   });
 
   it('handles curly apostrophes in crisis language', () => {
