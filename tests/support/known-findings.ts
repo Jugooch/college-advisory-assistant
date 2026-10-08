@@ -19,7 +19,11 @@ import { it } from 'vitest';
  *
  * The fixing PR removes its entry, and nothing else in `tests/`.
  */
-export const KNOWN_FINDINGS: ReadonlyMap<string, number> = new Map<string, number>([]);
+export const KNOWN_FINDINGS: ReadonlyMap<string, number> = new Map<string, number>([
+  // The save returns 200; the contract (plan-drafts.contract.ts) says 201 (#443).
+  ['AC32: returns 201 when an offered option is saved', 443],
+  ['AC32: returns 201 when a result with no options is saved', 443],
+]);
 
 /** A key of the register: a golden case ID, or an acceptance case and its exact test title. */
 export const FINDING_KEY = /^(G[CH]-[A-Z]+-\d{3}|AC\d{2}: \S.*)$/;

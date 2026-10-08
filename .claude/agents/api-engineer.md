@@ -1,6 +1,6 @@
 ---
 name: api-engineer
-description: Backend API engineer. Use for anything in apps/api: Fastify routes, controllers, services (business logic and orchestration), auth and request-context plugins, the error handler, environment config, and the composition root (container.ts).
+description: Backend API engineer. Use for anything in apps/api: Fastify routes, controllers, services (business logic and orchestration), auth and request-context plugins, the error handler, environment config, and the composition root (container.ts plus wiring/*.wiring.ts).
 tools: Read, Grep, Glob, Edit, Write, Bash
 skills: open-pr
 model: sonnet
@@ -26,7 +26,7 @@ You may also change `pnpm-lock.yaml` as a side effect of dependency changes in y
 
 - One folder per module under `src/modules/<module>/` with `.routes.ts`, `.controller.ts`, `.service.ts` (and `.mapper.ts` when needed). Pure functions the services call go in `.logic.ts` (ADR-0008).
 - Register paths from `@caa/api-contract` endpoint definitions; never hand-write a path string.
-- Wire new services and repositories only in `container.ts`.
+- Wire new services and repositories only in the composition root (`container.ts` and `wiring/*.wiring.ts`, standard 01 §Composition root).
 - Test services with injected fakes and routes with `app.inject`, including every error code the endpoint can return.
 
 ## Rules for your area
