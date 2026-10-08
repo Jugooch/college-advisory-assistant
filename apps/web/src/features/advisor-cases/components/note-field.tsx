@@ -26,12 +26,17 @@ export interface NoteFieldProps {
   readonly hasError: boolean;
   /** Lets the form move focus to the field when it rejects a submit. */
   readonly fieldRef: Ref<HTMLTextAreaElement>;
+  /** The limit in characters. Defaults to the student's note limit. */
+  readonly maxLength?: number;
+  /** The form field name, when the note is submitted as a native form field. */
+  readonly name?: string;
 }
 
 /**
  * Renders the labelled textarea, its counter, and its error.
  *
- * @param props - The label, hint, value, change handler, error flag, and focus ref.
+ * @param props - The label, hint, value, change handler, error flag, focus ref, and optional
+ *   limit and field name.
  * @returns The field group.
  */
 export function NoteField({
@@ -41,6 +46,8 @@ export function NoteField({
   onChange,
   hasError,
   fieldRef,
+  maxLength = NOTE_MAX_LENGTH,
+  name,
 }: NoteFieldProps): ReactElement {
   const id = useId();
   const hintId = `${id}-hint`;
@@ -55,7 +62,8 @@ export function NoteField({
         id={id}
         ref={fieldRef}
         rows={5}
-        maxLength={NOTE_MAX_LENGTH}
+        name={name}
+        maxLength={maxLength}
         value={value}
         aria-invalid={hasError}
         aria-describedby={describedBy}
@@ -63,9 +71,9 @@ export function NoteField({
           onChange(event.target.value);
         }}
       />
-      <p id={countId}>{describeNoteCount(value)}</p>
+      <p id={countId}>{describeNoteCount(value, maxLength)}</p>
       <p role="status" aria-live="polite" aria-label="Note length">
-        {describeNoteWarning(value)}
+        {describeNoteWarning(value, maxLength)}
       </p>
       {hasError ? (
         <p id={errorId} className="field-error">

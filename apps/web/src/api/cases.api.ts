@@ -1,5 +1,5 @@
 /**
- * @file API calls for advisor cases: create, list, read, and withdraw.
+ * @file API calls for advisor cases: create, list, read, act on, and the advisor review queue.
  * @module @caa/web/api/cases
  * @requirement FR-12
  * @requirement FR-17
@@ -10,10 +10,13 @@ import {
   addCaseEventEndpoint,
   type CaseEventRequest,
   type CaseListResponse,
+  type CaseQueueQuery,
+  type CaseQueueResponse,
   type CaseView,
   createCaseEndpoint,
   type CreateCaseRequest,
   getCaseEndpoint,
+  listAdvisorCasesEndpoint,
   listStudentCasesEndpoint,
 } from '@caa/api-contract';
 
@@ -69,4 +72,27 @@ export async function getCase(caseId: string): Promise<CaseView> {
  */
 export async function addCaseEvent(caseId: string, request: CaseEventRequest): Promise<CaseView> {
   return apiClient.call(addCaseEventEndpoint, { params: { caseId }, body: request });
+}
+
+/**
+ * Lists the advisor or admin review queue, oldest first.
+ *
+ * @param query - Optional filters. `unrouted` is admin-only: the API answers 404 to an advisor.
+ *   Tenant and the advisor's assignments come from the session, never from this query.
+ * @returns One row per case, without note text.
+ * @throws {ApiError} When the API responds with an error envelope, for example `NOT_FOUND` for a
+ *   student.
+ */
+export async function listAdvisorCases(query: CaseQueueQuery = {}): Promise<CaseQueueResponse> {
+  const search = new URLSearchParams();
+  if (query.status !== undefined) {
+    search.set('status', query.status);
+  }
+  if (query.unrouted !== undefined) {
+    search.set('unrouted', String(query.unrouted));
+  }
+  const suffix = search.size === 0 ? '' : `?${search.toString()}`;
+  // NOTE: the shared client has no query option yet, so the query rides on the endpoint's path.
+  // Only enum values and booleans reach it, so nothing a user typed becomes part of the URL.
+  return apiClient.call({ ...listAdvisorCasesEndpoint, path: `/v1/advisor/cases${suffix}` });
 }

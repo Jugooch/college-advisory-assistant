@@ -4,9 +4,18 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
-import { ErrorCode } from '@caa/domain';
+import { MeResponseSchema } from '@caa/api-contract';
+import { ErrorCode, Role } from '@caa/domain';
+import { SYNTHETIC_TENANTS, syntheticId } from '@caa/test-kit';
 
 import { SessionStatus } from './session-status';
+
+const ME = MeResponseSchema.parse({
+  userId: syntheticId('user', 1),
+  tenantId: SYNTHETIC_TENANTS.a.id,
+  roles: [Role.Student],
+  studentId: null,
+});
 
 describe('SessionStatus', () => {
   it('says the user is not signed in on UNAUTHORIZED and links to dev sign-in when offered', () => {
@@ -50,5 +59,28 @@ describe('SessionStatus', () => {
 
     expect(html).toContain('A source system is unavailable');
     expect(html).toContain('<p>Identity service is down.</p>');
+  });
+
+  it.each([[Role.Advisor], [Role.Admin]])('links a %s to the review queue', (role) => {
+    const html = renderToStaticMarkup(
+      <SessionStatus
+        session={{ kind: 'signed-in', me: { ...ME, roles: [role] } }}
+        devSignInHref={null}
+      />,
+    );
+
+    expect(html).toContain('href="/advisor/queue"');
+    expect(html).toContain('Open the review queue');
+  });
+
+  it('does not show the review queue link to a student', () => {
+    const html = renderToStaticMarkup(
+      <SessionStatus
+        session={{ kind: 'signed-in', me: { ...ME, roles: [Role.Student] } }}
+        devSignInHref={null}
+      />,
+    );
+
+    expect(html).not.toContain('/advisor/queue');
   });
 });
