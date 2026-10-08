@@ -36,7 +36,7 @@ import {
 } from '../../shared/domain-errors';
 import { createInMemoryCaseRepository } from '../../testing/in-memory-case-repositories';
 import { createRecordingLogger } from '../../testing/in-memory-repositories';
-import { createCaseViewer } from '../case-viewer/case-viewer.service';
+import { createCaseViewerService } from '../case-viewer/case-viewer.service';
 import { nextCaseStatus } from '../cases/cases.logic';
 import { createCaseActionsService } from './case-actions.service';
 
@@ -66,7 +66,7 @@ function setup(stored: AdvisingCase, canView: (userId: string) => boolean = () =
     access: { canViewStudent: (actor) => Promise.resolve(canView(actor.userId)) },
     cases: createInMemoryCaseRepository(store),
     students: { findById: () => Promise.resolve(student) },
-    viewCase: createCaseViewer({
+    caseViewer: createCaseViewerService({
       students: { findById: () => Promise.resolve(student) },
       caseContext: {
         hasRevision: () => Promise.resolve(true),
@@ -254,7 +254,7 @@ describe('CaseActionsService.addCaseEvent refusals', () => {
         appendEvent: () => Promise.resolve({ status }),
       },
       students: { findById: () => Promise.resolve(student) },
-      viewCase: () => Promise.reject(new Error('unused')),
+      caseViewer: { viewCase: () => Promise.reject(new Error('unused')) },
       now: () => NOW,
     });
 

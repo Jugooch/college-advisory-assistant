@@ -17,7 +17,7 @@ import {
   createCaseQueueController,
 } from '../modules/case-queue/case-queue.controller';
 import { createCaseQueueService } from '../modules/case-queue/case-queue.service';
-import { createCaseViewer } from '../modules/case-viewer/case-viewer.service';
+import { createCaseViewerService } from '../modules/case-viewer/case-viewer.service';
 import { type CasesController, createCasesController } from '../modules/cases/cases.controller';
 import { createCasesService } from '../modules/cases/cases.service';
 import type { PlanViewsService } from '../modules/plan-views/plan-views.service';
@@ -45,12 +45,14 @@ export function wireCases(
   const { repositories, now } = options;
   const { cases, students } = repositories;
   const caseContext = createCaseContextService({ plans: repositories.plans, views });
-  const viewCase = createCaseViewer({ students, caseContext });
+  const caseViewer = createCaseViewerService({ students, caseContext });
   return {
-    cases: createCasesController(createCasesService({ access, cases, viewCase, caseContext, now })),
+    cases: createCasesController(
+      createCasesService({ access, cases, caseViewer, caseContext, now }),
+    ),
     caseQueue: createCaseQueueController(createCaseQueueService({ cases, now })),
     caseActions: createCaseActionsController(
-      createCaseActionsService({ access, cases, students, viewCase, now }),
+      createCaseActionsService({ access, cases, students, caseViewer, now }),
     ),
   };
 }

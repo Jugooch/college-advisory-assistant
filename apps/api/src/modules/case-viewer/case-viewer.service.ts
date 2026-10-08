@@ -23,11 +23,20 @@ export interface StoredCase {
 }
 
 /** Shows a stored case to an actor. */
-export type CaseViewer = (
-  actor: Actor,
-  stored: StoredCase,
-  context: RequestContext,
-) => Promise<CaseView>;
+export interface CaseViewerService {
+  /**
+   * Shows a stored case to the signed-in actor: their relationship to it, the frozen plan
+   * revision, and the actions allowed now.
+   *
+   * @param actor - Authenticated actor from the session.
+   * @param stored - The case and its events.
+   * @param context - Request-scoped values.
+   * @returns The case view, with no user ID.
+   * @throws {NotFoundError} When the frozen revision is missing.
+   * @throws {z.ZodError} When a stored row breaks a contract.
+   */
+  viewCase(actor: Actor, stored: StoredCase, context: RequestContext): Promise<CaseView>;
+}
 
 /** Dependencies of the case viewer. */
 export interface CaseViewerDependencies {
@@ -36,16 +45,14 @@ export interface CaseViewerDependencies {
 }
 
 /**
- * Creates the function that shows a stored case to the signed-in actor.
+ * Creates the case viewer service.
  *
  * @param dependencies - Student repository and context reader.
- * @returns A function from the actor and a stored case to the case view. It throws
- *   `NotFoundError` when the frozen revision is missing, and `Error` when a stored row breaks a
- *   contract.
+ * @returns A {@link CaseViewerService}.
  */
-export function createCaseViewer(dependencies: CaseViewerDependencies): CaseViewer {
+export function createCaseViewerService(dependencies: CaseViewerDependencies): CaseViewerService {
   const { students, caseContext } = dependencies;
-  return async (actor, stored, context) => {
+  const viewCase: CaseViewerService['viewCase'] = async (actor, stored, context) => {
     const { advisingCase } = stored;
     const student = await students.findById(actor.tenantId, advisingCase.studentId);
     const studentUserId = student?.userId ?? null;
@@ -66,4 +73,5 @@ export function createCaseViewer(dependencies: CaseViewerDependencies): CaseView
       allowedActions: allowedCaseActions(advisingCase.status, kind),
     });
   };
+  return { viewCase };
 }

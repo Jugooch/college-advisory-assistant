@@ -19,14 +19,14 @@ import { NotFoundError, OpenCaseExistsError } from '../../shared/domain-errors';
 import type { RequestContext } from '../../shared/request-context';
 import type { AccessService } from '../access/access.service';
 import type { CaseContextService } from '../case-context/case-context.service';
-import type { CaseViewer } from '../case-viewer/case-viewer.service';
+import type { CaseViewerService } from '../case-viewer/case-viewer.service';
 import { toCaseSummary } from './cases.mapper';
 
 /** Dependencies of the cases service. */
 export interface CasesServiceDependencies {
   readonly access: Pick<AccessService, 'canOpenCase' | 'canViewStudent'>;
   readonly cases: AdvisingCaseRepository;
-  readonly viewCase: CaseViewer;
+  readonly caseViewer: Pick<CaseViewerService, 'viewCase'>;
   readonly caseContext: CaseContextService;
   /** Returns the current time; the only clock a case time comes from. */
   readonly now: () => Date;
@@ -113,7 +113,7 @@ function logCreated(actor: Actor, created: AdvisingCase, context: RequestContext
  */
 export function createCasesService(dependencies: CasesServiceDependencies): CasesService {
   const { access, cases, caseContext } = dependencies;
-  const viewOf = dependencies.viewCase;
+  const viewOf = dependencies.caseViewer.viewCase;
 
   return {
     async createCase(actor, command, context) {

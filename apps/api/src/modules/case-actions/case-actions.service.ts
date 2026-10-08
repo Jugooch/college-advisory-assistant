@@ -26,7 +26,7 @@ import {
 } from '../../shared/domain-errors';
 import type { RequestContext } from '../../shared/request-context';
 import type { AccessService } from '../access/access.service';
-import type { CaseViewer } from '../case-viewer/case-viewer.service';
+import type { CaseViewerService } from '../case-viewer/case-viewer.service';
 import { caseActorOf, mayAttemptCaseAction, nextCaseStatus } from '../cases/cases.logic';
 
 /** Dependencies of the case actions service. */
@@ -34,7 +34,7 @@ export interface CaseActionsServiceDependencies {
   readonly access: Pick<AccessService, 'canViewStudent'>;
   readonly cases: Pick<AdvisingCaseRepository, 'findById' | 'appendEvent' | 'listEvents'>;
   readonly students: Pick<StudentRepository, 'findById'>;
-  readonly viewCase: CaseViewer;
+  readonly caseViewer: Pick<CaseViewerService, 'viewCase'>;
   /** Returns the current time; the only clock an event time comes from. */
   readonly now: () => Date;
 }
@@ -157,7 +157,7 @@ async function decideMove(
 export function createCaseActionsService(
   dependencies: CaseActionsServiceDependencies,
 ): CaseActionsService {
-  const { cases, viewCase } = dependencies;
+  const { cases, caseViewer } = dependencies;
   return {
     async addCaseEvent(actor, command, context) {
       const { caseId, body } = command;
@@ -191,7 +191,7 @@ export function createCaseActionsService(
         context,
       );
       const events = await cases.listEvents(actor.tenantId, caseId);
-      return viewCase(actor, { advisingCase: result.case, events }, context);
+      return caseViewer.viewCase(actor, { advisingCase: result.case, events }, context);
     },
   };
 }
