@@ -1,7 +1,7 @@
 /**
  * @file Shared world, requests, and source-supersession helpers for the plan draft acceptance
- * cases (AC14, AC16, AC32, AC33; AC34 is pending #410): `POST /v1/students/:studentId/plans`
- * and the plan reads. The
+ * cases (AC14, AC16, AC32, AC33, AC34): `POST /v1/students/:studentId/plans`, the plan reads and
+ * the revalidate request. The
  * default world is the schedule one with two compatible published sections, so exactly one option
  * is offered and every case states only what it varies.
  * @module @caa/tests/support/plan-drafts-harness
@@ -53,6 +53,15 @@ export const PHYS_TTH = buildSection(
     meetings: [buildMeetingPattern({ weekdays: [Weekday.Tuesday, Weekday.Thursday] })],
   },
   62,
+);
+
+/** DEMO-MATH 102, MWF 11:00-11:50: an alternative to {@link MATH_MWF}, compatible with both. */
+export const MATH_ALT = buildSection(
+  {
+    courseId: math102.id,
+    meetings: [buildMeetingPattern({ startTime: '11:00', endTime: '11:50' })],
+  },
+  63,
 );
 
 /** The request the cases view and save: both courses, no credit selections or constraints. */
@@ -159,6 +168,28 @@ export function savePlan(
 export async function saveDefaultOption(app: AcceptanceApp): Promise<AcceptanceResponse> {
   const shown = await viewDefaultOptions(app);
   return savePlan(app, saveBody(shown, DEFAULT_OPTION_SECTIONS));
+}
+
+/**
+ * Asks the server to revalidate a plan.
+ *
+ * @param app - App under test.
+ * @param target - The plan and the latest revision number the caller saw.
+ * @param target.planId - The plan.
+ * @param target.expectedRevision - The latest revision number the caller saw.
+ * @param as - Actor and student; the student revalidating their own plan by default.
+ * @returns The response.
+ */
+export function revalidatePlan(
+  app: AcceptanceApp,
+  { planId, expectedRevision }: { readonly planId: string; readonly expectedRevision: number },
+  { actor = 'student', studentId = ACADEMIC_STUDENT_ID }: AcademicRequestAs = {},
+): Promise<AcceptanceResponse> {
+  return postAs(app, {
+    url: `/v1/students/${studentId}/plans/${planId}/revalidate`,
+    authorization: `Bearer academic-${actor}`,
+    payload: { expectedRevision },
+  });
 }
 
 /**
