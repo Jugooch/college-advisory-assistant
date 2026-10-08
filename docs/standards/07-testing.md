@@ -2,16 +2,17 @@
 
 ## What must be tested
 
-| Code                         | Test type                                                                                  | Required                    |
-| ---------------------------- | ------------------------------------------------------------------------------------------ | --------------------------- |
-| `packages/engine`            | Unit, every branch                                                                         | Yes. Coverage threshold 95% |
-| `packages/domain` models     | Unit: valid input, each invariant violation                                                | Yes. Coverage threshold 90% |
-| API services                 | Unit with injected fakes                                                                   | Yes                         |
-| API routes                   | HTTP-level via `app.inject` for success and each error code                                | Yes                         |
-| Repositories and mappers     | Mapper unit tests; repository integration tests (`*.integration.test.ts`) against Postgres | Yes                         |
-| Worker jobs and adapters     | Unit with fixture batches, including malformed and out-of-order input                      | Yes                         |
-| Web components               | Component tests for non-trivial logic and accessibility-relevant states                    | When logic exists           |
-| Acceptance cases (AC01–AC20) | `tests/acceptance`, owned by QA                                                            | One file per case           |
+| Code                           | Test type                                                                                        | Required                    |
+| ------------------------------ | ------------------------------------------------------------------------------------------------ | --------------------------- |
+| `packages/engine`              | Unit, every branch                                                                               | Yes. Coverage threshold 95% |
+| `packages/domain` models       | Unit: valid input, each invariant violation                                                      | Yes. Coverage threshold 90% |
+| API services                   | Unit with injected fakes                                                                         | Yes                         |
+| API routes                     | HTTP-level via `app.inject` for success and each error code                                      | Yes                         |
+| Repositories and mappers       | Mapper unit tests; repository integration tests (`*.integration.test.ts`) against Postgres       | Yes                         |
+| Worker jobs and adapters       | Unit with fixture batches, including malformed and out-of-order input                            | Yes                         |
+| Web components                 | Component tests for non-trivial logic and accessibility-relevant states                          | When logic exists           |
+| Acceptance cases (AC01 onward) | `tests/acceptance`, owned by QA                                                                  | One file per case           |
+| T06 AI evaluations             | `tests/evals/t06-<slug>.eval.test.ts`, owned by QA, run against the scripted model (ADR-0015 §9) | One file per dimension      |
 
 Every bug fix adds a test that fails before the fix.
 
@@ -43,6 +44,10 @@ Code that talks to PostgreSQL is tested against a real database, not mocks.
 ## Acceptance tests
 
 `tests/acceptance/acNN-<description>.test.ts`, one case per file, written by the QA engineer from `docs/planning/13`. Shared harnesses live in `tests/support/*.ts`. They reach apps and the database only through the documented `./testing` entry points (standard 01 §Test entry points), and they keep their own in-memory fakes so the oracle stays independent of the code under test. `@caa/db/testing` only loads input data; expected results still come from the acceptance case, never from the writer.
+
+## AI evaluations (T06)
+
+T06 evaluations live in `tests/evals/`, written by the QA engineer from planning/10 and planning/13, never by the author of the assistant guard or templates. Each case is a multi-turn session through `@caa/api/testing` with the scripted model from `@caa/assistant`, which can be made to misbehave on purpose (inject, misuse a tool, claim eligibility). Expectations are literal. A planning/10 release blocker (an invented minimum grade, CONDITIONAL or UNKNOWN shown as PASS, another student's or tenant's record, a saved plan called registered, a hidden source outage, a promised human reply) fails the run. `pnpm test` runs them in CI. `pnpm --filter @caa/tests eval:live` runs the same cases against the live model by hand. It is never part of CI or `pnpm verify`, and agents can't run it (ADR-0003).
 
 ## Golden corpus
 
