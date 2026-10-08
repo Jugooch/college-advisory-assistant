@@ -14,6 +14,7 @@ import {
   eq,
   exists,
   gt,
+  inArray,
   isNull,
   lte,
   notExists,
@@ -28,6 +29,7 @@ import {
   type CaseId,
   CaseStatus,
   type InstitutionId,
+  type PlanId,
   type StudentId,
   type UserId,
 } from '@caa/domain';
@@ -134,6 +136,22 @@ export interface AdvisingCaseRepository {
   listForStudent(tenantId: InstitutionId, studentId: StudentId): Promise<readonly AdvisingCase[]>;
 
   /**
+   * Finds the live (OPEN or IN_REVIEW) case of each given plan in one query. At most one live
+   * case exists per plan, so the result is keyed by plan.
+   *
+   * @param tenantId - Tenant from the session.
+   * @param planIds - Plans to look up; an empty list reads nothing.
+   * @returns A map from plan ID to its live case. A plan with no case, only resolved or
+   *   withdrawn cases, another tenant's plan, or a source-deleted student has no entry.
+   * @throws {z.ZodError} When a stored row fails the domain schema.
+   */
+  // TODO(#462): make this required once the QA and api in-memory fakes implement it.
+  findLiveByPlanIds?(
+    tenantId: InstitutionId,
+    planIds: readonly PlanId[],
+  ): Promise<ReadonlyMap<PlanId, AdvisingCase>>;
+
+  /**
    * Lists the cases of students the advisor holds an active assignment to at `at`, oldest
    * first. The join is in SQL; a case of any other student is never read.
    *
@@ -237,12 +255,56 @@ async function readCases(
 }
 
 /**
+ * Reads the live case of each plan, keyed by plan.
+ *
+ * @param db - Typed database handle.
+ * @param tenantId - Tenant from the session.
+ * @param planIds - Plans to look up.
+ * @returns A map from plan ID to its live case.
+ */
+async function readLiveByPlanIds(
+  db: Database,
+  tenantId: InstitutionId,
+  planIds: readonly PlanId[],
+): Promise<ReadonlyMap<PlanId, AdvisingCase>> {
+  const live = new Map<PlanId, AdvisingCase>();
+  if (planIds.length === 0) {
+    return live;
+  }
+  const cases = advisingCaseTable;
+  const rows = await db
+    .select({ row: cases })
+    .from(cases)
+    .innerJoin(
+      studentTable,
+      and(eq(studentTable.tenantId, cases.tenantId), eq(studentTable.id, cases.studentId)),
+    )
+    .where(
+      and(
+        // SECURITY: filtered by tenant; a tombstoned student's cases are invisible.
+        eq(cases.tenantId, tenantId),
+        eq(studentTable.isDeleted, false),
+        inArray(cases.planId, [...planIds]),
+        inArray(cases.status, [CaseStatus.Open, CaseStatus.InReview]),
+      ),
+    );
+  for (const { row } of rows) {
+    if (row.planId !== null) {
+      live.set(row.planId as PlanId, toAdvisingCase(row));
+    }
+  }
+  return live;
+}
+
+/**
  * Creates the advising case repository.
  *
  * @param db - Typed database handle.
- * @returns An {@link AdvisingCaseRepository}.
+ * @returns An {@link AdvisingCaseRepository} that always implements `findLiveByPlanIds`.
  */
-export function createAdvisingCaseRepository(db: Database): AdvisingCaseRepository {
+export function createAdvisingCaseRepository(db: Database): AdvisingCaseRepository & {
+  readonly findLiveByPlanIds: NonNullable<AdvisingCaseRepository['findLiveByPlanIds']>;
+} {
   const cases = advisingCaseTable;
   return {
     create: createCaseWithEvent(db),
@@ -268,6 +330,8 @@ export function createAdvisingCaseRepository(db: Database): AdvisingCaseReposito
 
     listForStudent: (tenantId, studentId) =>
       readCases(db, tenantId, { where: eq(cases.studentId, studentId), newestFirst: true }),
+
+    findLiveByPlanIds: (tenantId, planIds) => readLiveByPlanIds(db, tenantId, planIds),
 
     async listQueue(tenantId, advisorUserId, { at, status }) {
       const instant = parseInstant(at);
