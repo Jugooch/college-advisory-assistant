@@ -1,0 +1,52 @@
+/**
+ * @file A plan revision's freshness as text: the state label, why, and when it was checked.
+ * @module @caa/web/features/plan-drafts/components/plan-freshness
+ * @requirement FR-11
+ * @requirement NFR-02
+ * @see docs/adr/0013-plan-drafts-staleness-and-advisor-cases.md
+ */
+import type { ReactElement } from 'react';
+
+import type { PlanFreshnessView } from '@caa/api-contract';
+
+import { StatusBadge } from '@/components/ui/status-badge';
+import { Timestamp } from '@/shared/components/timestamp';
+
+import { describeFreshness, describeStaleReason } from '../utils/plan-wording';
+
+/** Props for {@link PlanFreshness}. */
+export interface PlanFreshnessProps {
+  readonly freshness: PlanFreshnessView;
+  /** Show the explanation sentence as well as the label and reasons. */
+  readonly isExplained?: boolean;
+}
+
+/**
+ * Renders the freshness exactly as the API returned it. The label carries the meaning, so
+ * nothing depends on color.
+ *
+ * @param props - The freshness view.
+ * @returns The freshness text.
+ */
+export function PlanFreshness({
+  freshness,
+  isExplained = false,
+}: PlanFreshnessProps): ReactElement {
+  const display = describeFreshness(freshness.state);
+  return (
+    <>
+      <StatusBadge label={display.label} tone={display.tone} />
+      {isExplained ? <p>{display.explanation}</p> : null}
+      {freshness.reasons.length === 0 ? null : (
+        <ul>
+          {freshness.reasons.map((reason) => (
+            <li key={reason}>{describeStaleReason(reason)}</li>
+          ))}
+        </ul>
+      )}
+      <p>
+        Checked <Timestamp iso={freshness.checkedAt} />
+      </p>
+    </>
+  );
+}

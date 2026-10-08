@@ -24,5 +24,6 @@ describe('StudentNav', () => {
     expect(html).toContain(
       `<a href="/next-term-planner?studentId=${STUDENT_ID}">Plan next term</a>`,
     );
+    expect(html).toContain(`<a href="/my-plans?studentId=${STUDENT_ID}">My plans</a>`);
   });
 });
