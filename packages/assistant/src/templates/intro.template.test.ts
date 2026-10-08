@@ -39,7 +39,8 @@ const WITH_BLOCK: readonly (readonly [IntroId, AssistantBlockKind, string])[] = 
 ];
 
 const ASK = 'Could you tell me a little more about what you would like to plan or look up?';
-const CANNOT = 'I cannot help with that here. You can use the planning form or ask your advisor.';
+const CANNOT =
+  'I cannot help with that here. You can use the planning form, open My plans, or go to Help and cases.';
 
 describe('intro sentences', () => {
   it('are the exact fixed sentences', () => {
@@ -111,7 +112,7 @@ describe('resolveIntro', () => {
   it('rejects ASK_FOR_DETAIL and CANNOT_HELP when a data block exists', () => {
     for (const id of ['ASK_FOR_DETAIL', 'CANNOT_HELP']) {
       expect(resolveIntro(id, [AssistantBlockKind.PlanEvidence])).toEqual({
-        text: fallbackIntro([AssistantBlockKind.PlanEvidence]),
+        text: 'Here is your plan. The card shows its own checks and when they were run.',
         introId: null,
         reasons: [GuardReason.IntroBlockMissing],
       });

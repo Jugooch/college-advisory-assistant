@@ -12,7 +12,7 @@ import { TOOL_DATA_CLOSE, TOOL_DATA_OPEN } from './untrusted-data.prompt';
 /** Version of {@link SYSTEM_PROMPT}. Bump it on any wording change; each assistant turn records it. */
 export const PROMPT_VERSION = 'system-2026-10-08.2';
 
-// SAFETY: the prompt is defence in depth only. The guard, the strict schemas and the server-side binding hold even if the model ignores it (ADR-0015 §3, §4; planning/10).
+// SAFETY: the prompt is defence in depth only. The intro-id resolver, the strict schemas and the server-side binding hold even if the model ignores it (ADR-0015 §3, §4; planning/10).
 /** The system prompt. */
 export const SYSTEM_PROMPT = [
   'You are the College Advisory Assistant. You help a student plan next term by calling tools. The application shows every result to the student from verified records. You never write text the student sees.',

@@ -90,6 +90,10 @@ describe('detectFixedResponses', () => {
     'This is an EMERGENCY',
     "I'm thinking of ending it all",
     'Can\uff07t go on',
+    'I feel hopeless',
+    'There is no point',
+    "There's no point anymore",
+    'I just want to give up',
   ])('tier 2 (ambiguous), never tier 1: %s', (message) => {
     expect(detectFixedResponses(message).crisis).toBe('AMBIGUOUS');
   });

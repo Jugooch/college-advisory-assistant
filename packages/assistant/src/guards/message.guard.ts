@@ -17,7 +17,7 @@ export const CrisisTier = {
 /** Union of every {@link CrisisTier} value. */
 export type CrisisTier = (typeof CrisisTier)[keyof typeof CrisisTier];
 
-/** What the student's message matched. Crisis means the model must not be called. */
+/** What the student's message matched. An UNAMBIGUOUS crisis means the model must not be called. */
 export interface FixedResponseMatches {
   /** Non-crisis topics in a fixed order. */
   readonly specialistTopics: readonly SpecialistTopic[];
@@ -74,16 +74,16 @@ const TIER2_PATTERN = new RegExp(
     '\\bkys\\b',
     '\\bend(ing)? (my life|my own life|it all|it)\\b',
     '\\b(take|taking|took) (my|my own) (own )?life\\b',
-    '\\btake my own life\\b',
     '\\bnot wake up\\b',
     '\\b(want|wanna|wish|wished|going|planning|plan|ready|trying|thinking of|thinking about)( to| i was| i were)? ?(be )?(die|dying|dead|disappear|vanish)',
     '\\bwant to (die|disappear|vanish|be dead|not exist)',
     'better off (dead|without me)',
-    '\\bno (point|reason|purpose) (in |to )?(living|live|going on|go on|being alive|continuing|existing|life)',
+    '\\bno point\\b',
+    '\\bno (reason|purpose) (in |to )?(living|live|going on|go on|being alive|continuing|existing|life)',
     "\\bcan'?t go on\\b",
     '\\bwant (it|this|everything) to (stop|end|be over)',
     "\\bcan'?t (keep going|do this anymore|take it anymore|take this anymore|take it any ?more)\\b",
-    '\\bgive up on (life|living)\\b',
+    '\\bgive up\\b|\\bgiving up\\b|\\bhopeless',
     'self[- ]?(harm|injur|mutilat)',
     '\\b(hurt|hurting|harm|harming|cut|cutting|injure|injuring|burn|burning) (myself|my ?self)\\b',
     "(don'?t|do not|doesn'?t|no longer) want to (live|be alive|be here|exist|wake)",
@@ -131,6 +131,12 @@ function normalize(message: string): string {
     .replace(/\s+/g, ' ');
 }
 
+/**
+ * Classifies how strongly a normalized message signals crisis; tier 1 wins when both tiers match.
+ *
+ * @param text - The normalized message.
+ * @returns The crisis tier.
+ */
 function crisisTier(text: string): CrisisTier {
   if (TIER1_PATTERN.test(text)) {
     return CrisisTier.Unambiguous;

@@ -52,7 +52,7 @@ export const INTRO_TEXTS: Record<IntroId, string> = {
   [IntroId.AskForDetail]:
     'Could you tell me a little more about what you would like to plan or look up?',
   [IntroId.CannotHelp]:
-    'I cannot help with that here. You can use the planning form or ask your advisor.',
+    'I cannot help with that here. You can use the planning form, open My plans, or go to Help and cases.',
 };
 
 const DEFAULT_INTRO = 'Please see the note below.';
