@@ -28,6 +28,7 @@ import { auditSnapshotTable } from '../tables/audit-snapshot.table';
 import { courseTable } from '../tables/course.table';
 import { courseAttemptTable } from '../tables/course-attempt.table';
 import { institutionTable } from '../tables/institution.table';
+import { policyDocumentTable } from '../tables/policy-document.table';
 import { prerequisiteRuleTable } from '../tables/prerequisite-rule.table';
 import { programTable } from '../tables/program.table';
 import { requirementResultTable } from '../tables/requirement-result.table';
@@ -90,6 +91,7 @@ describe('seedDevData', () => {
     auditSnapshots: auditSnapshotTable,
     snapshotAttemptLinks: studentSnapshotAttemptTable,
     requirementResults: requirementResultTable,
+    policyDocuments: policyDocumentTable,
   } as const;
 
   async function countSeededRows(): Promise<Record<string, number | undefined>> {
@@ -130,6 +132,7 @@ describe('seedDevData', () => {
       auditSnapshots: 2,
       snapshotAttemptLinks: 4,
       requirementResults: 5,
+      policyDocuments: 17,
     });
     expect(before).toMatchObject(counts);
   });

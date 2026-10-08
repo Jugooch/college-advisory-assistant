@@ -5,9 +5,10 @@
  * @requirement FR-01
  * @see docs/planning/09-data-model-and-integration-contracts.md
  */
-import { IdentityStatus, Role } from '@caa/domain';
+import { IdentityStatus, type PolicyDocument, Role } from '@caa/domain';
 
 import { buildDevSeedAcademicPlan, type DevSeedAcademicPlan } from './dev-seed-academic-plan';
+import { SEED_POLICY_DOCUMENTS } from './dev-seed-policy-plan';
 import { buildDevSeedSectionPlan, type DevSeedSectionPlan } from './dev-seed-section-plan';
 
 /** A synthetic institution (tenant). Upserted by `id`. */
@@ -64,6 +65,8 @@ export interface DevSeedPlan {
   readonly academic: DevSeedAcademicPlan;
   /** Campuses, the transition table, and the 2027SP section snapshot; written last. */
   readonly sections: DevSeedSectionPlan;
+  /** The approved policy corpus; written last. */
+  readonly policyDocuments: readonly PolicyDocument[];
 }
 
 /** Issuer of every seeded identity; matches `DEV_AUTH_TOKENS` in `infra/env.example`. */
@@ -80,7 +83,7 @@ const SOURCE_EFFECTIVE_AT = '2026-08-15T00:00:00.000Z';
  * fictional; nothing here is real data. The advisor and student subjects match the example
  * `DEV_AUTH_TOKENS`.
  */
-const DEV_SEED_ACCESS_PLAN: Omit<DevSeedPlan, 'academic' | 'sections'> = {
+const DEV_SEED_ACCESS_PLAN: Omit<DevSeedPlan, 'academic' | 'sections' | 'policyDocuments'> = {
   institutions: [
     { id: TENANT_A, name: 'Demo State University', timezone: 'America/Chicago' },
     { id: TENANT_B, name: 'Sample Community College', timezone: 'America/Denver' },
@@ -186,5 +189,6 @@ export function buildDevSeedPlan(now: Date): DevSeedPlan {
     ...DEV_SEED_ACCESS_PLAN,
     academic: buildDevSeedAcademicPlan(now),
     sections: buildDevSeedSectionPlan(now),
+    policyDocuments: SEED_POLICY_DOCUMENTS,
   };
 }
