@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { CaseAction, CaseActionSchema } from '../enums/case-action.enum';
 import { CaseResolutionSchema } from '../enums/case-resolution.enum';
 import { CaseStatusSchema } from '../enums/case-status.enum';
+import { RoleSchema } from '../enums/role.enum';
 import { CaseIdSchema } from './advising-case.model';
 import { UserIdSchema } from './user-identity.model';
 
@@ -30,6 +31,9 @@ export const CaseEventSchema = z
     sequence: z.number().int().min(1),
     action: CaseActionSchema,
     actorUserId: UserIdSchema,
+    /** Role the actor held when acting (ADR-0013 Amendment 1). */
+    // TODO(#449): make required once all writers set it.
+    actorRole: RoleSchema.optional(),
     /** ISO 8601 with offset. */
     at: z.iso.datetime({ offset: true }),
     /** Status before the action. `null` only for CREATE. */
