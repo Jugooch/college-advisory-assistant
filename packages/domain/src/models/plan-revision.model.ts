@@ -9,7 +9,7 @@
  */
 import { z } from 'zod';
 
-import { PlanRevisionCauseSchema } from '../enums/plan-revision-cause.enum';
+import { PlanRevisionCause, PlanRevisionCauseSchema } from '../enums/plan-revision-cause.enum';
 import { ScheduleOutcome, ScheduleOutcomeSchema } from '../enums/schedule-outcome.enum';
 import { AuditSnapshotIdSchema } from './audit-snapshot.model';
 import { CourseIdSchema } from './course.model';
@@ -99,7 +99,7 @@ export const PlanRevisionSchema = z
     /** `sha256:` and the lowercase hex SHA-256 of the normalized request's canonical JSON. */
     constraintHash: z.string().regex(/^sha256:[0-9a-f]{64}$/),
     outcome: ScheduleOutcomeSchema,
-    /** The chosen sections, sorted and distinct; `null` unless the outcome is `OPTIONS_FOUND`. */
+    /** The chosen sections, sorted and distinct; `null` unless the outcome is `OPTIONS_FOUND`; a revalidated one may also be `null`. */
     selectedSectionIds: z
       .array(SectionIdSchema)
       .min(1)
@@ -130,15 +130,19 @@ export const PlanRevisionSchema = z
       ),
     { message: 'Each creditSelections course must be in courseIds', path: ['creditSelections'] },
   )
-  // SAFETY: a selection on a result with no options, or none on a result with options,
-  // would present a schedule the engine never produced (or hide the one it did)
-  // (ADR-0013 §2: the chosen section set, or `null` when the outcome has no options).
+  // SAFETY: a selection on a result with no options, or none on a saved result with options,
+  // would present a schedule the engine never produced (or hide the one it did). A revalidated
+  // result with options may carry no selection, because the saved choice may no longer be one
+  // of the new options (ADR-0013 §2: the chosen section set, or `null` when the outcome has no
+  // options; §4: revalidation carries the selection over only when it is still an option).
   .refine(
     (revision) =>
-      (revision.outcome === ScheduleOutcome.OptionsFound) ===
-      (revision.selectedSectionIds !== null),
+      revision.outcome === ScheduleOutcome.OptionsFound
+        ? revision.selectedSectionIds !== null || revision.cause === PlanRevisionCause.Revalidated
+        : revision.selectedSectionIds === null,
     {
-      message: 'selectedSectionIds is set exactly when the outcome is OPTIONS_FOUND',
+      message:
+        'selectedSectionIds is set when the outcome is OPTIONS_FOUND (optional on REVALIDATED) and null otherwise',
       path: ['selectedSectionIds'],
     },
   )
