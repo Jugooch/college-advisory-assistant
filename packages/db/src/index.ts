@@ -14,6 +14,7 @@ export * from './repositories/course-catalog.repository';
 export * from './repositories/import-batch.repository';
 export * from './repositories/institution.repository';
 export * from './repositories/plan.repository';
+export * from './repositories/policy-document.repository';
 export * from './repositories/prerequisite-rule.repository';
 export * from './repositories/program.repository';
 export * from './repositories/roster.repository';
