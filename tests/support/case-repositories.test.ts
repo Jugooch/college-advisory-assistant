@@ -13,6 +13,7 @@ import {
   CaseReason,
   CaseResolution,
   CaseStatus,
+  PlanIdSchema,
   PlanRevisionIdSchema,
   StudentIdSchema,
   UserIdSchema,
@@ -179,6 +180,62 @@ describe('case repository fake', () => {
     const unassigned = createCaseRepositories({ ...world(), assignments: [] });
     await unassigned.cases.create(TENANT_A, NEW_CASE);
     expect(await unassigned.cases.listUnrouted(TENANT_A, AT)).toHaveLength(1);
+  });
+
+  it('finds the live case of each plan, ignoring resolved cases, other tenants, and unknown plans', async () => {
+    const { cases } = createCaseRepositories(world());
+    const created = await cases.create(TENANT_A, NEW_CASE);
+    if (created.status !== 'CREATED') {
+      throw new Error('expected CREATED');
+    }
+    const planId = buildPlan().id;
+    const other = PlanIdSchema.parse(syntheticId('plan', 9));
+    const found = await cases.findLiveByPlanIds?.(TENANT_A, [planId, other]);
+    expect([...(found ?? [])].map(([key, value]) => [key, value.id])).toEqual([
+      [planId, created.case.id],
+    ]);
+    expect(await cases.findLiveByPlanIds?.(TENANT_B, [planId])).toEqual(new Map());
+    expect(await cases.findLiveByPlanIds?.(TENANT_A, [])).toEqual(new Map());
+  });
+
+  it('stops finding a case by plan once it is resolved', async () => {
+    const { cases } = createCaseRepositories(world());
+    const created = await cases.create(TENANT_A, NEW_CASE);
+    if (created.status !== 'CREATED') {
+      throw new Error('expected CREATED');
+    }
+    const planId = buildPlan().id;
+    await cases.appendEvent(TENANT_A, created.case.id, {
+      expectedSequence: 1,
+      event: {
+        action: CaseAction.Resolve,
+        actorUserId: ADVISOR,
+        at: AT,
+        toStatus: CaseStatus.Resolved,
+        resolution: CaseResolution.PlanReviewed,
+        note: 'Done.',
+      },
+    });
+    expect(await cases.findLiveByPlanIds?.(TENANT_A, [planId])).toEqual(new Map());
+  });
+
+  it('lists every tenant case oldest first, flagged routed, filtered by status', async () => {
+    const routed = createCaseRepositories(world());
+    await routed.cases.create(TENANT_A, NEW_CASE);
+    expect(await routed.cases.listTenantQueue?.(TENANT_A, { at: AT })).toEqual([
+      expect.objectContaining({ studentId: STUDENT, routed: true }),
+    ]);
+    expect(await routed.cases.listTenantQueue?.(TENANT_B, { at: AT })).toEqual([]);
+    expect(
+      await routed.cases.listTenantQueue?.(TENANT_A, { at: AT, status: CaseStatus.Resolved }),
+    ).toEqual([]);
+
+    const unrouted = createCaseRepositories({ ...world(), assignments: [] });
+    await unrouted.cases.create(TENANT_A, NEW_CASE);
+    expect((await unrouted.cases.listTenantQueue?.(TENANT_A, { at: AT }))?.[0]?.routed).toBe(false);
+    expect(() => unrouted.cases.listTenantQueue?.(TENANT_A, { at: 'not a date' })).toThrow(
+      RangeError,
+    );
   });
 
   it('refuses an invalid instant', () => {
