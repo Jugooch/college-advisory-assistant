@@ -52,18 +52,18 @@ describe('createRuntimeDependencies', () => {
 
     const dependencies = createRuntimeDependencies(env);
 
-    expect(Object.keys(dependencies.controllers)).toEqual([
-      'health',
-      'session',
-      'students',
+    expect(Object.keys(dependencies.controllers).sort()).toEqual([
       'academicSummary',
+      'cases',
       'courseChecks',
-      'scheduleOptions',
+      'health',
       'planDrafts',
       'planRevalidation',
       'planViews',
-      'cases',
       'plannableTerms',
+      'scheduleOptions',
+      'session',
+      'students',
     ]);
   });
 });

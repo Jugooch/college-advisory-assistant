@@ -51,7 +51,7 @@ beforeEach(() => {
 async function savePlan() {
   const body = saveBodyFor(await viewOptions(app));
   const response = await postSave(app, { studentId: STUDENTS.own.id, token: TOKENS.student, body });
-  expect(response.statusCode).toBe(200);
+  expect(response.statusCode).toBe(201);
   return readPlan(response);
 }
 

@@ -1,5 +1,7 @@
 /**
- * @file Composition root. The only file that constructs repositories, services, and controllers.
+ * @file Composition root entry point: builds the dependency graph from the per-area
+ * `wiring/*.wiring.ts` files. Together they are the only code that constructs repositories,
+ * services, and controllers (ADR-0014).
  * @module @caa/api/container
  */
 import {
@@ -37,71 +39,24 @@ import {
   type UserIdentityRepository,
 } from '@caa/db';
 
-import { type ApiEnv, AuthMode } from './config/env';
-import {
-  type AcademicSummaryController,
-  createAcademicSummaryController,
-} from './modules/academic-summary/academic-summary.controller';
-import { createAcademicSummaryService } from './modules/academic-summary/academic-summary.service';
-import { type AccessService, createAccessService } from './modules/access/access.service';
-import { createCaseContextService } from './modules/case-context/case-context.service';
-import { type CasesController, createCasesController } from './modules/cases/cases.controller';
-import { createCasesService } from './modules/cases/cases.service';
-import {
-  type CourseChecksController,
-  createCourseChecksController,
-} from './modules/course-checks/course-checks.controller';
-import { createCourseChecksService } from './modules/course-checks/course-checks.service';
-import { createCourseSetInputsService } from './modules/course-set-inputs/course-set-inputs.service';
+import type { ApiEnv } from './config/env';
+import type { AcademicSummaryController } from './modules/academic-summary/academic-summary.controller';
+import type { CasesController } from './modules/cases/cases.controller';
+import type { CourseChecksController } from './modules/course-checks/course-checks.controller';
 import { createHealthController, type HealthController } from './modules/health/health.controller';
 import { createHealthService } from './modules/health/health.service';
-import { createPinnedRecordsService } from './modules/pinned-records/pinned-records.service';
-import { createPinnedSectionsService } from './modules/pinned-sections/pinned-sections.service';
-import {
-  createPlanDraftsController,
-  type PlanDraftsController,
-} from './modules/plan-drafts/plan-drafts.controller';
-import { createPlanDraftsService } from './modules/plan-drafts/plan-drafts.service';
-import { createPlanFreshnessService } from './modules/plan-freshness/plan-freshness.service';
-import {
-  createPlanRevalidationController,
-  type PlanRevalidationController,
-} from './modules/plan-revalidation/plan-revalidation.controller';
-import { createPlanRevalidationService } from './modules/plan-revalidation/plan-revalidation.service';
-import { createPlanRevisionsService } from './modules/plan-revisions/plan-revisions.service';
-import {
-  createPlanViewsController,
-  type PlanViewsController,
-} from './modules/plan-views/plan-views.controller';
-import { createPlanViewsService } from './modules/plan-views/plan-views.service';
-import {
-  createPlannableTermsController,
-  type PlannableTermsController,
-} from './modules/plannable-terms/plannable-terms.controller';
-import { createPlannableTermsService } from './modules/plannable-terms/plannable-terms.service';
-import {
-  createScheduleOptionsController,
-  type ScheduleOptionsController,
-} from './modules/schedule-options/schedule-options.controller';
-import {
-  createScheduleOptionsService,
-  type ScheduleOptionsService,
-} from './modules/schedule-options/schedule-options.service';
-import {
-  createSessionController,
-  type SessionController,
-} from './modules/session/session.controller';
-import {
-  createDenyAllSessionResolver,
-  createDevSessionResolver,
-  createSessionService,
-  type SessionResolver,
-} from './modules/session/session.service';
-import {
-  createStudentsController,
-  type StudentsController,
-} from './modules/students/students.controller';
-import { createStudentsService, type StudentsService } from './modules/students/students.service';
+import type { PlanDraftsController } from './modules/plan-drafts/plan-drafts.controller';
+import type { PlanRevalidationController } from './modules/plan-revalidation/plan-revalidation.controller';
+import type { PlanViewsController } from './modules/plan-views/plan-views.controller';
+import type { PlannableTermsController } from './modules/plannable-terms/plannable-terms.controller';
+import type { ScheduleOptionsController } from './modules/schedule-options/schedule-options.controller';
+import type { SessionController } from './modules/session/session.controller';
+import type { SessionResolver } from './modules/session/session.service';
+import type { StudentsController } from './modules/students/students.controller';
+import { wireAcademic } from './wiring/academic.wiring';
+import { wireAccess } from './wiring/access.wiring';
+import { wireCases } from './wiring/cases.wiring';
+import { wirePlans } from './wiring/plans.wiring';
 
 /** Every controller the app registers. */
 export interface Controllers {
@@ -154,131 +109,33 @@ export interface AppDependencies {
 }
 
 /**
- * Picks the session resolver for the configured auth mode.
- *
- * @param env - Validated configuration.
- * @param identities - User identity repository.
- * @returns The dev resolver when `AUTH_MODE=dev`, otherwise one that denies every token.
- */
-function createSessionResolver(env: ApiEnv, identities: UserIdentityRepository): SessionResolver {
-  // SECURITY: env validation already refuses AUTH_MODE=dev in production.
-  return env.AUTH_MODE === AuthMode.Dev
-    ? createDevSessionResolver({ tokens: env.DEV_AUTH_TOKENS, identities })
-    : createDenyAllSessionResolver();
-}
-
-/**
- * Builds the plan and case controllers: saves replay schedule options, reads derive freshness,
- * and a case freezes a saved revision, shown with its freshness.
- *
- * @param options - Configuration, repositories, and clock.
- * @param access - The access rule, including who may author a plan.
- * @param scheduleOptions - The existing schedule options service the save replays.
- * @returns The plan drafts, plan views, and cases controllers.
- */
-function createPlanControllers(
-  options: ContainerOptions,
-  access: AccessService,
-  scheduleOptions: ScheduleOptionsService,
-): Pick<Controllers, 'planDrafts' | 'planRevalidation' | 'planViews' | 'cases'> {
-  const { env, repositories, now } = options;
-  const freshness = createPlanFreshnessService({
-    ...repositories,
-    now,
-    maxSourceAgeMs: env.ACADEMIC_SOURCE_MAX_AGE_MS,
-    rulesetVersion: env.ACTIVE_RULESET_VERSION ?? null,
-  });
-  const views = createPlanViewsService({ ...repositories, access, freshness });
-  const revisions = createPlanRevisionsService({ ...repositories, scheduleOptions, views, now });
-  const revalidation = createPlanRevalidationService({ ...repositories, access, revisions });
-  const caseContext = createCaseContextService({ plans: repositories.plans, views });
-  return {
-    planDrafts: createPlanDraftsController(createPlanDraftsService({ access, revisions })),
-    planRevalidation: createPlanRevalidationController(revalidation),
-    planViews: createPlanViewsController(views),
-    cases: createCasesController(createCasesService({ ...repositories, access, caseContext, now })),
-  };
-}
-
-/**
- * Builds the controllers of the academic reads and plan drafts: summary, course checks,
- * schedule options, and saved plans.
- *
- * @param options - Configuration, repositories, and clock.
- * @param studentsService - Applies the access rule every academic read starts with.
- * @param access - The access rule, including who may author a plan.
- * @returns The academic controllers.
- */
-function createAcademicControllers(
-  options: ContainerOptions,
-  studentsService: StudentsService,
-  access: AccessService,
-): Omit<Controllers, 'health' | 'session' | 'students' | 'plannableTerms'> {
-  const { env, repositories, now } = options;
-  const pinnedRecords = createPinnedRecordsService({
-    ...repositories,
-    now,
-    maxSourceAgeMs: env.ACADEMIC_SOURCE_MAX_AGE_MS,
-  });
-  const academicSummaryService = createAcademicSummaryService({
-    ...repositories,
-    students: studentsService,
-    pinnedRecords,
-    maxSkewMs: env.AUDIT_RECORD_MAX_SKEW_MS,
-  });
-  const courseSetInputs = createCourseSetInputsService({
-    ...repositories,
-    students: studentsService,
-    pinnedRecords,
-    pinnedSections: createPinnedSectionsService({ ...repositories, pinnedRecords }),
-    maxSkewMs: env.AUDIT_RECORD_MAX_SKEW_MS,
-    rulesetVersion: env.ACTIVE_RULESET_VERSION ?? null,
-  });
-  const scheduleOptionsService = createScheduleOptionsService({
-    courseSetInputs,
-    campuses: repositories.campuses,
-    now,
-    workCap: env.SCHEDULE_SOLVER_WORK_CAP,
-  });
-  return {
-    academicSummary: createAcademicSummaryController(academicSummaryService),
-    courseChecks: createCourseChecksController(createCourseChecksService({ courseSetInputs })),
-    scheduleOptions: createScheduleOptionsController(scheduleOptionsService),
-    ...createPlanControllers(options, access, scheduleOptionsService),
-  };
-}
-
-/**
  * Builds the dependency graph from the given repositories and clock.
  *
  * @param options - Configuration, repositories, and clock.
  * @returns The controllers and the session resolver.
  */
 export function createContainer(options: ContainerOptions): AppDependencies {
-  const { env, repositories, now } = options;
-  const healthService = createHealthService({
-    version: env.APP_VERSION,
-    now,
-    authMode: env.AUTH_MODE,
-  });
-  const accessService = createAccessService({ ...repositories, now });
-  const studentsService = createStudentsService({ ...repositories, access: accessService });
+  const { env, now } = options;
+  const access = wireAccess(options);
+  const academic = wireAcademic(options, access.studentsService, access.access);
+  const plans = wirePlans(options, access.access, academic.scheduleOptionsService);
   return {
     controllers: {
-      health: createHealthController(healthService),
-      session: createSessionController(createSessionService(repositories)),
-      students: createStudentsController(studentsService),
-      ...createAcademicControllers(options, studentsService, accessService),
-      plannableTerms: createPlannableTermsController(
-        createPlannableTermsService({
-          ...repositories,
-          access: accessService,
-          now,
-          maxSourceAgeMs: env.ACADEMIC_SOURCE_MAX_AGE_MS,
-        }),
+      health: createHealthController(
+        createHealthService({ version: env.APP_VERSION, now, authMode: env.AUTH_MODE }),
       ),
+      session: access.session,
+      students: access.students,
+      academicSummary: academic.academicSummary,
+      courseChecks: academic.courseChecks,
+      scheduleOptions: academic.scheduleOptions,
+      plannableTerms: academic.plannableTerms,
+      planDrafts: plans.planDrafts,
+      planRevalidation: plans.planRevalidation,
+      planViews: plans.planViews,
+      cases: wireCases(options, access.access, plans.views),
     },
-    sessionResolver: createSessionResolver(env, repositories.userIdentities),
+    sessionResolver: access.sessionResolver,
   };
 }
 
