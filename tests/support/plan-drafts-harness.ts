@@ -1,6 +1,7 @@
 /**
  * @file Shared world, requests, and source-supersession helpers for the plan draft acceptance
- * cases (AC14, AC16, AC32 to AC34): `POST /v1/students/:studentId/plans` and the plan reads. The
+ * cases (AC14, AC16, AC32, AC33; AC34 is pending #410): `POST /v1/students/:studentId/plans`
+ * and the plan reads. The
  * default world is the schedule one with two compatible published sections, so exactly one option
  * is offered and every case states only what it varies.
  * @module @caa/tests/support/plan-drafts-harness
@@ -54,7 +55,7 @@ export const PHYS_TTH = buildSection(
   62,
 );
 
-/** The request both cases save: both courses, no credit selections or constraints. */
+/** The request the cases view and save: both courses, no credit selections or constraints. */
 export const BOTH_COURSES = scheduleRequest([math102.id, phys201.id]);
 
 /** A source time later than every default one and earlier than the harness clock. */
@@ -77,8 +78,10 @@ export function resetPlanWorld(world: AcceptanceWorld): void {
 }
 
 /**
- * Asserts that a save succeeded. The planning docs and ADR-0013 name no success status for the
- * save (only 201 for a revalidation or a claim), so any 2xx counts.
+ * Asserts that a save succeeded with a 2xx status. The contract specifies 201
+ * (`plan-drafts.contract.ts`), but the api returns 200 until #443 lands, so the exact 201 check
+ * lives in AC32's dedicated known-finding tests and this one lets the replay and safety checks
+ * run meanwhile.
  *
  * @param response - The save response.
  */

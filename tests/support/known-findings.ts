@@ -21,11 +21,8 @@ import { it } from 'vitest';
  */
 export const KNOWN_FINDINGS: ReadonlyMap<string, number> = new Map<string, number>([
   // The save returns 200; the contract (plan-drafts.contract.ts) says 201 (#443).
-  [
-    'AC32: saves an offered option as revision 1, cause SAVED, equal to what the student was shown',
-    443,
-  ],
-  ['AC32: saves a result with no options and a null chosen section set as revision 1', 443],
+  ['AC32: returns 201 when an offered option is saved', 443],
+  ['AC32: returns 201 when a result with no options is saved', 443],
 ]);
 
 /** A key of the register: a golden case ID, or an acceptance case and its exact test title. */

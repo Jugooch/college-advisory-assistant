@@ -20,6 +20,7 @@ import { acceptanceIt } from '../support/known-findings';
 import {
   dataOf,
   DEFAULT_OPTION_SECTIONS,
+  expectSaved,
   MATH_MWF,
   resetPlanWorld,
   saveBody,
@@ -54,7 +55,7 @@ describe('AC32 plan draft save replays the pinned inputs', () => {
 
       const saved = await savePlan(app, saveBody(shown, DEFAULT_OPTION_SECTIONS));
 
-      expect(saved.statusCode).toBe(201);
+      expectSaved(saved);
       expect(dataOf(saved)).toMatchObject({
         revisions: [{ revision: 1, cause: 'SAVED' }],
         latest: {
@@ -70,6 +71,15 @@ describe('AC32 plan draft save replays the pinned inputs', () => {
     },
   );
 
+  acceptanceIt('AC32', 'returns 201 when an offered option is saved', async () => {
+    const saved = await savePlan(
+      app,
+      saveBody(await viewDefaultOptions(app), DEFAULT_OPTION_SECTIONS),
+    );
+
+    expect(saved.statusCode).toBe(201);
+  });
+
   acceptanceIt(
     'AC32',
     'saves a result with no options and a null chosen section set as revision 1',
@@ -80,7 +90,7 @@ describe('AC32 plan draft save replays the pinned inputs', () => {
 
       const saved = await savePlan(app, saveBody(shown, null));
 
-      expect(saved.statusCode).toBe(201);
+      expectSaved(saved);
       expect(dataOf(saved)).toMatchObject({
         latest: {
           revision: 1,
@@ -91,6 +101,14 @@ describe('AC32 plan draft save replays the pinned inputs', () => {
       });
     },
   );
+
+  acceptanceIt('AC32', 'returns 201 when a result with no options is saved', async () => {
+    publishSections(world, [MATH_MWF]);
+
+    const saved = await savePlan(app, saveBody(await viewDefaultOptions(app), null));
+
+    expect(saved.statusCode).toBe(201);
+  });
 
   acceptanceIt(
     'AC32',
