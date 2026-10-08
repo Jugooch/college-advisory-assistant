@@ -12,6 +12,7 @@ export {
   campusTransitionVersionTable,
 } from './tables/campus-transition.table';
 export { caseEventTable } from './tables/case-event.table';
+export { conversationTable, conversationTurnTable } from './tables/conversation.table';
 export { courseTable } from './tables/course.table';
 export { courseAttemptTable } from './tables/course-attempt.table';
 export { equivalencyGroupTable } from './tables/equivalency-group.table';
