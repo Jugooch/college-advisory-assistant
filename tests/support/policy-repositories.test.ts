@@ -105,8 +105,17 @@ describe('policy repository fake', () => {
   it('returns nothing without audiences and reads changed data', async () => {
     const world: PolicyDocumentWorld = { policyDocuments: [buildPolicyDocument()] };
     expect(await list(world, [])).toEqual([]);
+  });
+
+  it('reads changed data through one repository instance', async () => {
+    const world: PolicyDocumentWorld = { policyDocuments: [buildPolicyDocument()] };
+    const { policyDocuments } = createPolicyRepositories(world);
+    const request = { tenantId: TENANT_A, audiences: BOTH, asOf: AS_OF };
+    expect((await policyDocuments.listApplicable(request)).map((doc) => doc.documentKey)).toEqual([
+      'late-registration',
+    ]);
     world.policyDocuments = [];
-    expect(await list(world)).toEqual([]);
+    expect(await policyDocuments.listApplicable(request)).toEqual([]);
   });
 
   it('refuses an invalid instant', async () => {

@@ -70,6 +70,21 @@ function ownedConversation(
 }
 
 /**
+ * Finds the newest sequence ever assigned in a conversation: the recorded one, or the highest
+ * stored turn when a case seeded turns without a matching record.
+ *
+ * @param world - Backing data.
+ * @param conversationId - The conversation.
+ * @returns The newest sequence, or 0 when nothing was ever assigned.
+ */
+function lastSequenceOf(world: ConversationWorld, conversationId: string): number {
+  const stored = (world.conversationTurns ?? [])
+    .filter((turn) => turn.conversationId === conversationId)
+    .map((turn) => turn.sequence);
+  return Math.max(world.conversationLastSequences?.[conversationId] ?? 0, ...stored);
+}
+
+/**
  * Applies retention to one conversation's turns: a turn older than `retainSince` goes, and only
  * the newest `retainCount` of the rest stay. A turn created exactly at `retainSince` is kept.
  *
@@ -104,13 +119,17 @@ function store(
   request: AppendTurnsRequest,
   lastSequence: number,
 ): readonly StoredConversationTurn[] {
-  const issued = Object.values(world.conversationLastSequences ?? {}).reduce(
-    (sum, value) => sum + value,
-    0,
+  const used = new Set<string>((world.conversationTurns ?? []).map((turn) => turn.id));
+  let seed = Math.max(
+    Object.values(world.conversationLastSequences ?? {}).reduce((sum, value) => sum + value, 0),
+    used.size,
   );
   const stored = request.turns.map((turn, index): StoredConversationTurn => {
+    do {
+      seed += 1;
+    } while (used.has(syntheticId('conversationTurn', seed)));
     const base = {
-      id: ConversationTurnIdSchema.parse(syntheticId('conversationTurn', issued + index + 1)),
+      id: ConversationTurnIdSchema.parse(syntheticId('conversationTurn', seed)),
       conversationId: request.conversationId,
       sequence: lastSequence + index + 1,
       role: turn.role,
@@ -164,8 +183,13 @@ function findOrCreate(
   if (existing) {
     return existing;
   }
+  const taken = new Set<string>((world.conversations ?? []).map((entry) => entry.id));
+  let seed = taken.size + 1;
+  while (taken.has(syntheticId('conversation', seed))) {
+    seed += 1;
+  }
   const created = createConversation({
-    id: syntheticId('conversation', (world.conversations ?? []).length + 1),
+    id: syntheticId('conversation', seed),
     tenantId,
     studentId,
     termId,
@@ -202,7 +226,7 @@ export function createConversationRepositories(world: ConversationWorld): Conver
         if (!owned) {
           return Promise.resolve({ status: 'CONVERSATION_NOT_FOUND' });
         }
-        const lastSequence = world.conversationLastSequences?.[owned.id] ?? 0;
+        const lastSequence = lastSequenceOf(world, owned.id);
         // SAFETY: only the next number after the one the caller saw is accepted.
         if (lastSequence !== request.expectedSequence) {
           return Promise.resolve({ status: 'SEQUENCE_CONFLICT' });
