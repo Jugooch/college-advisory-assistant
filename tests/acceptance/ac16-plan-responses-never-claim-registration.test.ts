@@ -7,7 +7,7 @@
  * @requirement NFR-04
  * @see docs/adr/0013-plan-drafts-staleness-and-advisor-cases.md
  */
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect } from 'vitest';
 
 import {
   ACADEMIC_STUDENT_ID,
@@ -23,7 +23,9 @@ import {
   listPlans,
   readPlanAt,
   resetPlanWorld,
+  revalidatePlan,
   saveDefaultOption,
+  supersedeSections,
 } from '../support/plan-drafts-harness';
 
 const world = createAcademicWorld();
@@ -82,7 +84,22 @@ describe('AC16 plan responses never claim registration', () => {
     expect(attempts.map(({ statusCode }) => statusCode)).toEqual([404, 404, 404]);
   });
 
-  it.todo(
-    'the revalidate response carries no registered, enrolled or approved field or value (#410)',
+  acceptanceIt(
+    'AC16',
+    'says registered, enrolled or approved in no field or value of a revalidate response',
+    async () => {
+      const saved = await saveDefaultOption(app);
+      const planId = String(dataOf(saved).id);
+      supersedeSections(world);
+
+      const revalidated = await revalidatePlan(app, { planId, expectedRevision: 1 });
+
+      expect(revalidated.statusCode).toBe(201);
+      const { keys, strings } = keysAndStrings(revalidated.body);
+      const found = [...keys, ...strings].filter(
+        (text) => CLAIM.test(text) && !DISCLAIMERS.has(text),
+      );
+      expect(found).toEqual([]);
+    },
   );
 });
