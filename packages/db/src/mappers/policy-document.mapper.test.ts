@@ -20,6 +20,7 @@ const ROW: PolicyDocumentRow = {
   effectiveTo: new Date('2026-12-20T06:00:00.000Z'),
   approvalStatus: 'APPROVED',
   approvedAt: new Date('2026-07-15T12:00:00.000Z'),
+  withdrawnAt: null,
   sourceLabel: 'Fictional handbook',
   contentHash: `sha256:${'a'.repeat(64)}`,
   createdAt: new Date('2026-07-16T12:00:00.000Z'),

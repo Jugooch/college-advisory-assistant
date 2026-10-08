@@ -155,6 +155,13 @@
       "when": 1791489827596,
       "tag": "0021_conversation_turn_immutable",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1791498122576,
+      "tag": "0022_policy_document_withdrawal",
+      "breakpoints": true
     }
   ]
 }

@@ -210,6 +210,36 @@ describe('loadApiEnv conversation model', () => {
   });
 });
 
+describe('loadApiEnv conversation limits', () => {
+  it('defaults to 8 history turns and 20 turns per window', () => {
+    expect(loadApiEnv(BASE)).toMatchObject({
+      CONVERSATION_HISTORY_TURNS: 8,
+      CONVERSATION_RATE_LIMIT: 20,
+    });
+  });
+
+  it.each([
+    ['CONVERSATION_HISTORY_TURNS', '0', 0],
+    ['CONVERSATION_HISTORY_TURNS', '20', 20],
+    ['CONVERSATION_RATE_LIMIT', '1', 1],
+    ['CONVERSATION_RATE_LIMIT', '1000', 1000],
+  ])('accepts %s=%s', (name, value, expected) => {
+    expect(loadApiEnv({ ...BASE, [name]: value })).toMatchObject({ [name]: expected });
+  });
+
+  it.each([
+    ['CONVERSATION_HISTORY_TURNS', '21'],
+    ['CONVERSATION_HISTORY_TURNS', '-1'],
+    ['CONVERSATION_HISTORY_TURNS', '1.5'],
+    ['CONVERSATION_HISTORY_TURNS', ''],
+    ['CONVERSATION_RATE_LIMIT', '0'],
+    ['CONVERSATION_RATE_LIMIT', '1001'],
+    ['CONVERSATION_RATE_LIMIT', 'many'],
+  ])('refuses %s=%s', (name, value) => {
+    expect(() => loadApiEnv({ ...BASE, [name]: value })).toThrow(ZodError);
+  });
+});
+
 describe('loadClaudeModelEnv', () => {
   it('reads the key and model id without needing a database', () => {
     expect(
