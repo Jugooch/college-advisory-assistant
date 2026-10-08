@@ -21,8 +21,9 @@ import { PlanList } from './plan-list';
 const STUDENT_ID = syntheticId('student', 1);
 const FALL = TermIdSchema.parse(syntheticId('term', 1));
 const SPRING = TermIdSchema.parse(syntheticId('term', 2));
+const FALL_CODE = 'FA-SYN';
 const TERMS: readonly PlannableTerm[] = [
-  { id: FALL, termCode: 'FA-SYN', startsOn: '2027-01-11', endsOn: '2027-05-07' },
+  { id: FALL, termCode: FALL_CODE, startsOn: '2027-01-11', endsOn: '2027-05-07' },
 ];
 
 /**
@@ -55,9 +56,9 @@ function summary(seed: number, fields: Partial<PlanSummary> = {}): PlanSummary {
 function renderList(plans: readonly PlanSummary[], terms: readonly PlannableTerm[] | null = TERMS) {
   return render(
     <PlanList
+      studentId={STUDENT_ID}
       plans={plans}
       terms={terms}
-      studentId={STUDENT_ID}
       plannerHref={`/next-term-planner?studentId=${STUDENT_ID}`}
     />,
   ).container;
@@ -123,6 +124,37 @@ describe('PlanList', () => {
     expect(container.textContent).toContain('ask your advisor to review this draft');
     expect(container.textContent).toContain('Something this draft was built on has changed');
     expect(container.textContent).toContain('Plan next term again');
+  });
+
+  it('offers Ask an advisor for a plan with no open case, linking to that plan', () => {
+    const container = renderList([summary(1)]);
+
+    const link = container.querySelector('tbody td a');
+    expect(link?.textContent).toBe(`Ask an advisor about the ${FALL_CODE} draft`);
+    const url = new URL(link?.getAttribute('href') ?? '', 'http://x');
+    expect(url.pathname).toBe('/ask-an-advisor');
+    expect(url.searchParams.get('studentId')).toBe(STUDENT_ID);
+    expect(url.searchParams.get('planId')).toBe(syntheticId('plan', 1));
+  });
+
+  it('links to the open case instead of offering a second one', () => {
+    const container = renderList([summary(1, { openCaseStatus: 'OPEN' })]);
+
+    const link = container.querySelector('tbody td a');
+    expect(link?.textContent).toBe(`See your case about the ${FALL_CODE} draft`);
+    expect(link?.getAttribute('href')).toBe(`/help-and-cases?studentId=${STUDENT_ID}`);
+  });
+
+  it('gives each row’s case link a different accessible name', () => {
+    const container = renderList([
+      summary(1, { openCaseStatus: 'OPEN' }),
+      summary(2, { termId: SPRING, openCaseStatus: 'OPEN' }),
+      summary(3),
+      summary(4, { termId: SPRING }),
+    ]);
+
+    const names = [...container.querySelectorAll('tbody td a')].map((a) => a.textContent);
+    expect(new Set(names).size).toBe(4);
   });
 
   it('labels the table and its headers for screen readers', () => {
