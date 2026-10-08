@@ -18,6 +18,7 @@ export * from './contracts/plan-drafts-request.contract';
 export * from './contracts/plan-freshness.contract';
 export * from './contracts/plan-revision-view.contract';
 export * from './contracts/plannable-terms.contract';
+export * from './contracts/policies.contract';
 export * from './contracts/schedule-conflict-set.contract';
 export * from './contracts/schedule-display.contract';
 export * from './contracts/schedule-option.contract';
