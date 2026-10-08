@@ -2,17 +2,17 @@
 
 ## What must be tested
 
-| Code                         | Test type                                                                                        | Required                    |
-| ---------------------------- | ------------------------------------------------------------------------------------------------ | --------------------------- |
-| `packages/engine`            | Unit, every branch                                                                               | Yes. Coverage threshold 95% |
-| `packages/domain` models     | Unit: valid input, each invariant violation                                                      | Yes. Coverage threshold 90% |
-| API services                 | Unit with injected fakes                                                                         | Yes                         |
-| API routes                   | HTTP-level via `app.inject` for success and each error code                                      | Yes                         |
-| Repositories and mappers     | Mapper unit tests; repository integration tests (`*.integration.test.ts`) against Postgres       | Yes                         |
-| Worker jobs and adapters     | Unit with fixture batches, including malformed and out-of-order input                            | Yes                         |
-| Web components               | Component tests for non-trivial logic and accessibility-relevant states                          | When logic exists           |
-| Acceptance cases (AC01–AC20) | `tests/acceptance`, owned by QA                                                                  | One file per case           |
-| T06 AI evaluations           | `tests/evals/t06-<slug>.eval.test.ts`, owned by QA, run against the scripted model (ADR-0015 §9) | One file per dimension      |
+| Code                           | Test type                                                                                        | Required                    |
+| ------------------------------ | ------------------------------------------------------------------------------------------------ | --------------------------- |
+| `packages/engine`              | Unit, every branch                                                                               | Yes. Coverage threshold 95% |
+| `packages/domain` models       | Unit: valid input, each invariant violation                                                      | Yes. Coverage threshold 90% |
+| API services                   | Unit with injected fakes                                                                         | Yes                         |
+| API routes                     | HTTP-level via `app.inject` for success and each error code                                      | Yes                         |
+| Repositories and mappers       | Mapper unit tests; repository integration tests (`*.integration.test.ts`) against Postgres       | Yes                         |
+| Worker jobs and adapters       | Unit with fixture batches, including malformed and out-of-order input                            | Yes                         |
+| Web components                 | Component tests for non-trivial logic and accessibility-relevant states                          | When logic exists           |
+| Acceptance cases (AC01 onward) | `tests/acceptance`, owned by QA                                                                  | One file per case           |
+| T06 AI evaluations             | `tests/evals/t06-<slug>.eval.test.ts`, owned by QA, run against the scripted model (ADR-0015 §9) | One file per dimension      |
 
 Every bug fix adds a test that fails before the fix.
 
