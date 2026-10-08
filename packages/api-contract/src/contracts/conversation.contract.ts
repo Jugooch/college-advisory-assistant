@@ -109,6 +109,15 @@ export const ConversationTurnResponseSchema = z
     turn: AssistantTurnViewSchema,
     lastSequence: LastSequenceSchema,
   })
+  // SAFETY: the next `expectedSequence` can't be behind the turn just stored, or every later
+  // turn would fail with 409 REVISION_CONFLICT (ADR-0015 §2).
+  .refine(
+    (body) =>
+      body.lastSequence === undefined ||
+      body.turn.sequence === null ||
+      body.lastSequence >= body.turn.sequence,
+    { message: 'lastSequence must be at least the turn sequence', path: ['lastSequence'] },
+  )
   .readonly();
 
 /** Response body for `POST /v1/students/:studentId/conversation/turns`. */
@@ -169,6 +178,16 @@ export const ConversationResponseSchema = z
     message: 'unavailableReason is null exactly when available',
     path: ['unavailableReason'],
   })
+  // SAFETY: the next `expectedSequence` can't be behind the newest visible turn, or every later
+  // turn would fail with 409 REVISION_CONFLICT (ADR-0015 §2).
+  .refine(
+    (body) =>
+      body.lastSequence === undefined ||
+      body.turns.every(
+        (turn) => body.lastSequence !== undefined && body.lastSequence >= turn.sequence,
+      ),
+    { message: 'lastSequence must be at least the newest turn sequence', path: ['lastSequence'] },
+  )
   // SAFETY: the transcript is append-only and ordered, so a repeated or reversed sequence means
   // the history is wrong (ADR-0015 §7).
   .refine(
