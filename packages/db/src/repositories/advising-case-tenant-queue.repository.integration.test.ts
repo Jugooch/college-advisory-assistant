@@ -1,10 +1,12 @@
 /**
  * @file Integration tests for the tenant-wide case queue against PostgreSQL.
  */
+import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { CaseStatus, type InstitutionId, type UserId } from '@caa/domain';
 
+import { studentTable } from '../tables/student.table';
 import {
   buildClaim,
   buildNewCase,
@@ -34,8 +36,11 @@ describe('AdvisingCaseRepository tenant queue', () => {
   let otherAdvisor: UserId;
   let approver: UserId;
 
-  const open = async (world: CaseWorld) => {
-    const created = await cases.create(world.tenantId, buildNewCase(world));
+  const open = async (world: CaseWorld, createdAt?: string) => {
+    const created = await cases.create(
+      world.tenantId,
+      buildNewCase(world, createdAt === undefined ? {} : { createdAt }),
+    );
     if (created.status !== 'CREATED') {
       throw new Error('expected the case to be created');
     }
@@ -87,13 +92,30 @@ describe('AdvisingCaseRepository tenant queue', () => {
     expect(queue.find((entry) => entry.id === mine.id)?.studentId).toBe(mine.studentId);
   });
 
-  it('lists oldest first and each case once', async () => {
-    const queue = await cases.listTenantQueue(tenantId, { at: BEFORE_END });
-    const ids = queue.map((entry) => entry.id);
+  it('lists oldest first, each case once', async () => {
+    const tenant = await insertTenant(testDatabase.db);
+    const sections = await insertSharedSections(testDatabase.db, tenant);
+    const newer = await insertCaseWorldIn(testDatabase.db, sections, 'order-newer');
+    const older = await insertCaseWorldIn(testDatabase.db, sections, 'order-older');
+    const newerCase = await open(newer, '2026-09-23T10:00:00.000Z');
+    const olderCase = await open(older, '2026-09-21T10:00:00.000Z');
 
-    expect(new Set(ids).size).toBe(ids.length);
-    const times = queue.map((entry) => new Date(entry.createdAt).getTime());
-    expect(times).toEqual([...times].sort((a, b) => a - b));
+    const queue = await cases.listTenantQueue(tenant, { at: BEFORE_END });
+
+    expect(queue.map((entry) => entry.id)).toEqual([olderCase.id, newerCase.id]);
+  });
+
+  it('hides the cases of students the source deleted', async () => {
+    const world = await insertCaseWorldIn(testDatabase.db, shared, 'tq-deleted');
+    const created = await open(world);
+    await testDatabase.db
+      .update(studentTable)
+      .set({ isDeleted: true })
+      .where(eq(studentTable.id, world.studentId));
+
+    const queue = await cases.listTenantQueue(tenantId, { at: BEFORE_END });
+
+    expect(queue.map((entry) => entry.id)).not.toContain(created.id);
   });
 
   it('filters by status', async () => {
