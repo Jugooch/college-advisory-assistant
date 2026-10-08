@@ -136,8 +136,13 @@ export function createContainer(options: ContainerOptions): AppDependencies {
   const academic = wireAcademic(options, access.studentsService, access.access);
   const plans = wirePlans(options, access.access, academic.scheduleOptionsService);
   const cases = wireCases(options, access.access, plans.views);
-  const conversation = wireConversation(options, access.access);
   const policy = wirePolicy(options);
+  const { conversationStore } = wireConversation(options, access.access, {
+    academicSummary: academic.academicSummaryService,
+    policySearch: policy.policySearchService,
+    scheduleOptions: academic.scheduleOptionsService,
+    planViews: plans.views,
+  });
   return {
     controllers: {
       health: createHealthController(
@@ -153,7 +158,7 @@ export function createContainer(options: ContainerOptions): AppDependencies {
       planRevalidation: plans.planRevalidation,
       planViews: plans.planViews,
       ...cases,
-      ...conversation,
+      conversationStore,
       policySearch: policy.policySearch,
     },
     sessionResolver: access.sessionResolver,

@@ -58,7 +58,6 @@ import {
 import type { PlanViewsService } from '../plan-views/plan-views.service';
 import type { PolicySearchService } from '../policy-search/policy-search.service';
 import type { ScheduleOptionsService } from '../schedule-options/schedule-options.service';
-import { type ParsedToolRun, withArgs as parseArgs } from './conversation-tool-runners.logic';
 
 /** The read services the tools call. */
 export interface ToolRunnersDependencies {
@@ -82,21 +81,27 @@ export interface ToolRun {
 /** Runs one tool. */
 export type ToolRunner = (run: ToolRun) => Promise<ToolResult>;
 
+/** A tool run whose arguments are already parsed. */
+type ParsedToolRun<Args> = Omit<ToolRun, 'args'> & { readonly args: Args };
+
 /**
- * Types a runner body by its tool's schema: the arguments are parsed inside the runner, so the
- * body cannot read fields the schema lacks.
+ * Builds a runner that parses its arguments with the tool's schema, so the body's argument type
+ * is the schema's output and cannot drift from it.
  *
  * @param schema - The tool's argument schema.
  * @param body - The runner body, given the parsed arguments.
- * @returns A runner.
+ * @returns A runner that answers INVALID_ARGUMENTS when the arguments do not parse.
  */
 function withArgs<Schema extends z.ZodType>(
   schema: Schema,
-  body: (run: ParsedToolRun<ToolRun, z.output<Schema>>) => Promise<ToolResult>,
+  body: (run: ParsedToolRun<z.output<Schema>>) => Promise<ToolResult>,
 ): ToolRunner {
-  return parseArgs<ToolRun, Schema>(schema, body);
+  return (run) => {
+    const parsed = schema.safeParse(run.args);
+    if (!parsed.success) return Promise.resolve(failedResult(INVALID_ARGUMENTS, null));
+    return body({ ...run, args: parsed.data });
+  };
 }
-
 /**
  * Builds a successful result with one block and no notice.
  *
