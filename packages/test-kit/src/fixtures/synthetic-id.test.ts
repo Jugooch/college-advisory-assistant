@@ -42,6 +42,12 @@ describe('syntheticId', () => {
     expect(syntheticId('caseEvent', 1)).toBe('f1000000-0000-4000-8000-000000000001');
   });
 
+  it('gives the policy document, conversation and conversation turn kinds their own prefixes', () => {
+    expect(syntheticId('policyDocument', 1)).toBe('11000000-0000-4000-8000-000000000001');
+    expect(syntheticId('conversation', 1)).toBe('12000000-0000-4000-8000-000000000001');
+    expect(syntheticId('conversationTurn', 1)).toBe('13000000-0000-4000-8000-000000000001');
+  });
+
   it('rejects a seed that is negative, fractional, or too large for the final group', () => {
     expect(() => syntheticId('user', -1)).toThrow(RangeError);
     expect(() => syntheticId('user', 1.5)).toThrow(RangeError);
