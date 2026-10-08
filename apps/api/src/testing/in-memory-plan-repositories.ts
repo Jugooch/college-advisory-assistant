@@ -102,6 +102,11 @@ export function createInMemoryPlanRepository(store: InMemoryPlanStore): PlanRepo
           : stored.find((entry) => entry.revision.revision === revision)) ?? null,
       );
     },
+    findRevisionById: (tenantId, revisionId) => {
+      const stored = (store.planRevisions ?? []).find(({ revision }) => revision.id === revisionId);
+      const plan = stored === undefined ? null : findPlan(tenantId, stored.revision.planId);
+      return Promise.resolve(plan === null ? null : (stored ?? null));
+    },
     listForStudent: (tenantId, studentId) =>
       Promise.resolve(
         (store.plans ?? [])

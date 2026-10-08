@@ -25,6 +25,8 @@ The options were:
 
 Until #443's split lands, `apps/api/src/container.ts` may be up to **260 lines**, the smallest cap that #442 needs. The cap is set by a per-file `max-lines` override in `eslint.config.mjs` and listed in standard 01 §Size. No other file gets it. The devops-engineer removes the override as soon as the split merges, before #412 starts. #412 must not add wiring to `container.ts` while the override exists.
 
+This exception has ended: the split merged under #443, and #469 removed the override. `container.ts` is held to the normal 250-line cap.
+
 ### Composition root
 
 **Option 3.** The API composition root is `apps/api/src/container.ts` plus the files in `apps/api/src/wiring/`. "Only the composition root constructs services and repositories" stays true under that definition (standard 01 §Composition root).

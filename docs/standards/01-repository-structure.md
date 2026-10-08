@@ -168,8 +168,4 @@ The API's composition root is `apps/api/src/container.ts` plus the files in `app
 
 Files over 250 lines or functions over 60 lines fail lint. Split by responsibility, not arbitrarily: extract a helper, a sub-component, or a new module.
 
-A size exception needs a recorded owner approval, an ADR entry naming the file, its cap, and the issue that removes it, and a per-file override in `eslint.config.mjs` at the smallest cap that works. Current exceptions:
-
-| File                        | Cap                                      | Removed by                                            | Approval                                                                                                 |
-| --------------------------- | ---------------------------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `apps/api/src/container.ts` | 260 lines; takes effect when #455 merges | #443's composition-root split, before #412 (ADR-0014) | [#443 comment](https://github.com/Jugooch/college-advisory-assistant/issues/443#issuecomment-6050030916) |
+A size exception needs a recorded owner approval, an ADR entry naming the file, its cap, and the issue that removes it, and a per-file override in `eslint.config.mjs` at the smallest cap that works. There are no current exceptions. The last one, `apps/api/src/container.ts` (ADR-0014), ended when #469 removed its override.

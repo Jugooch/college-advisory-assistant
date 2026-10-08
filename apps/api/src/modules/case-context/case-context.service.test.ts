@@ -30,18 +30,39 @@ const second = buildPlanRevision({ revision: 2 }, 2);
  * Builds the service over a plan with two revisions, recording which revision was shown.
  *
  * @param plan - Overrides for the plan, for example another tenant.
- * @returns The service and the revisions shown.
+ * @param options - `withoutLookup` drops `findRevisionById` from the repository.
+ * @returns The service, the revisions shown, and the repository calls made.
  */
-function setup(plan: Parameters<typeof buildPlan>[0] = {}) {
+function setup(plan: Parameters<typeof buildPlan>[0] = {}, options: { withoutLookup?: true } = {}) {
   const shown: number[] = [];
+  const real = createInMemoryPlanRepository({
+    plans: [buildPlan(plan)],
+    planRevisions: [
+      { revision: first, result: {} },
+      { revision: second, result: {} },
+    ],
+  });
+  const calls = { byId: 0, scans: 0 };
+  const repository = {
+    ...real,
+    findRevisionById: (...args: Parameters<NonNullable<typeof real.findRevisionById>>) => {
+      calls.byId += 1;
+      return real.findRevisionById?.(...args) ?? Promise.resolve(null);
+    },
+    findRevision: (...args: Parameters<typeof real.findRevision>) => {
+      calls.scans += 1;
+      return real.findRevision(...args);
+    },
+    listForStudent: (...args: Parameters<typeof real.listForStudent>) => {
+      calls.scans += 1;
+      return real.listForStudent(...args);
+    },
+  };
   const service = createCaseContextService({
-    plans: createInMemoryPlanRepository({
-      plans: [buildPlan(plan)],
-      planRevisions: [
-        { revision: first, result: {} },
-        { revision: second, result: {} },
-      ],
-    }),
+    plans:
+      options.withoutLookup === true
+        ? { findPlan: (...args) => repository.findPlan(...args) }
+        : repository,
     views: {
       getRevision: (_actor, query) => {
         shown.push(query.revision);
@@ -49,7 +70,7 @@ function setup(plan: Parameters<typeof buildPlan>[0] = {}) {
       },
     },
   });
-  return { service, shown };
+  return { service, shown, calls };
 }
 
 describe('CaseContextService', () => {
@@ -92,5 +113,21 @@ describe('CaseContextService', () => {
       service.contextOf(actor, { studentId, planRevisionId }, { logger: createRecordingLogger() }),
     ).rejects.toBeInstanceOf(NotFoundError);
     expect(shown).toEqual([]);
+  });
+
+  it('finds the revision by its ID without scanning the plans', async () => {
+    const { service, calls } = setup();
+
+    await service.hasRevision(actor, { studentId, planRevisionId: second.id });
+
+    expect(calls).toEqual({ byId: 1, scans: 0 });
+  });
+
+  it('fails closed when the repository has no lookup by revision ID', async () => {
+    const { service } = setup({}, { withoutLookup: true });
+
+    await expect(
+      service.hasRevision(actor, { studentId, planRevisionId: first.id }),
+    ).rejects.toThrow('findRevisionById');
   });
 });
