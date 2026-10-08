@@ -3,6 +3,7 @@
  * @module @caa/db
  */
 export * from './client';
+export type { StoredConversationTurn } from './mappers/conversation.mapper';
 export type { StoredPlanRevision } from './mappers/plan-revision.mapper';
 export * from './repositories/academic-policy.repository';
 export * from './repositories/advising-case.repository';
@@ -10,6 +11,7 @@ export * from './repositories/advisor-assignment.repository';
 export * from './repositories/audit-snapshot.repository';
 export * from './repositories/campus.repository';
 export * from './repositories/campus-transition.repository';
+export * from './repositories/conversation.repository';
 export * from './repositories/course-catalog.repository';
 export * from './repositories/import-batch.repository';
 export * from './repositories/institution.repository';
