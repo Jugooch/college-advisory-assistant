@@ -1,6 +1,6 @@
 # ADR-0015: Conversation orchestration, the model boundary, the approved policy corpus, and chat history
 
-- **Status:** Proposed 2026-10-08. The repo owner chose decisions 1–4 (model, tools, history, UI) for #495. The tech lead's choices within them are listed on #495 for confirmation; this moves to Accepted once they are confirmed. The orchestrator defaults are adopted, except where evaluations live (§9).
+- **Status:** Accepted 2026-10-08. The repo owner chose decisions 1–4 (model, tools, history, UI) and confirmed the tech lead's choices listed on #495 on 2026-10-08. The orchestrator defaults are adopted, except where evaluations live (§9).
 - **Date:** 2026-10-08
 - **Deciders:** Tech lead; repo owner (product decisions 1–4 on #495)
 - **Related:** FR-01, FR-02, FR-08, FR-10, FR-14, FR-16, NFR-02, NFR-05, NFR-08, new AC42–AC47, T06, planning/07 §Modules, §Request lifecycle and §Failure containment, planning/09 §Canonical entities, §Logical app interfaces and §Retention, planning/10 (all), planning/11 §Interaction details, planning/04 §Change control (model vendor), ADR-0005, ADR-0008, ADR-0009, ADR-0010, ADR-0013, ADR-0014, issues #495–#520
