@@ -1,6 +1,6 @@
 /**
- * @file Tests for the advisor queue call: the filters ride on the path as a query string and
- * nothing else is added.
+ * @file Tests for the advisor queue call: the filters reach the typed client as query parameters,
+ * and the full request URL is asserted for each filter combination.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -10,6 +10,8 @@ const { fetchMock } = vi.hoisted(() => ({
   fetchMock: vi.fn<(url: string) => Promise<Response>>(),
 }));
 
+// NOTE: `apiClient` is a module-level singleton that reads the session cookie through
+// `next/headers`, so the test swaps in a real client with a stubbed `fetch` and no headers.
 vi.mock('@/lib/api-client', async () => {
   const { createApiClient } = await import('@caa/api-contract');
   return {
