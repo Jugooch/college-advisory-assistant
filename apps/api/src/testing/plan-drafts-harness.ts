@@ -2,6 +2,8 @@
  * @file Shared helpers for the plan draft HTTP tests: view options as the student would, build
  * the save body from them, and post and read plan endpoints, revalidate included. Test code only.
  * @module @caa/api/testing/plan-drafts-harness
+ * @requirement FR-02
+ * @requirement FR-11
  */
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { z } from 'zod';

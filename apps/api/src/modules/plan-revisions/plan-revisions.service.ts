@@ -31,13 +31,9 @@ import {
   RevisionConflictError,
 } from '../../shared/domain-errors';
 import type { RequestContext } from '../../shared/request-context';
-import {
-  auditMatchesPins,
-  buildNewRevision,
-  pinnedInputsMatch,
-} from '../plan-drafts/plan-drafts.logic';
 import type { PlanViewsService } from '../plan-views/plan-views.service';
 import type { ScheduleOptionsService } from '../schedule-options/schedule-options.service';
+import { auditMatchesPins, buildNewRevision, pinnedInputsMatch } from './plan-revisions.logic';
 
 /** Dependencies of the plan revisions service. */
 export interface PlanRevisionsServiceDependencies {

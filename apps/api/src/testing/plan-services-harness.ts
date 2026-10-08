@@ -2,6 +2,9 @@
  * @file Test harness for the plan services: one plan store, a fake replay, and the save and
  * revalidate services wired over them. Test code only.
  * @module @caa/api/testing/plan-services-harness
+ * @requirement FR-02
+ * @requirement FR-11
+ * @requirement NFR-04
  */
 import type {
   PlanView,
@@ -40,53 +43,35 @@ import {
 } from './in-memory-plan-repositories';
 import { createRecordingLogger } from './in-memory-repositories';
 
-export /**
- *
- */
-const NOW = new Date('2026-09-01T12:00:00.000Z');
-export /**
- *
- */
-const pins = SYNTHETIC_SCHEDULE_PINNED_INPUTS;
-export /**
- *
- */
-const replay = buildScheduleOptionsResponse();
-export /**
- *
- */
-const actor = buildActor({ roles: [Role.Student], tenantId: SYNTHETIC_TENANTS.a.id }, 1);
-export /**
- *
- */
-const studentId = StudentIdSchema.parse(syntheticId('student', 1));
-export /**
- *
- */
-const request: ScheduleOptionsRequest = {
+/** Fixed clock for the plan services. */
+export const NOW = new Date('2026-09-01T12:00:00.000Z');
+/** The pinned inputs the fake replay reports. */
+export const pins = SYNTHETIC_SCHEDULE_PINNED_INPUTS;
+/** The schedule options result the fake replay returns by default. */
+export const replay = buildScheduleOptionsResponse();
+/** The signed-in student, in tenant A. */
+export const actor = buildActor({ roles: [Role.Student], tenantId: SYNTHETIC_TENANTS.a.id }, 1);
+/** The actor's own student. */
+export const studentId = StudentIdSchema.parse(syntheticId('student', 1));
+/** The schedule request the stored revisions are replayed from. */
+export const request: ScheduleOptionsRequest = {
   termId: TermIdSchema.parse(replay.term.id),
   courseIds: replay.courseIds,
   creditSelections: [],
   constraints: [],
 };
-export /**
- *
- */
-const selected = (replay.options[0]?.bundles ?? [])
+/** The sorted section IDs of the replay's first option. */
+export const selected = (replay.options[0]?.bundles ?? [])
   .flatMap((bundle) => bundle.sections.map((section) => SectionIdSchema.parse(section.sectionId)))
   .sort();
-export /**
- *
- */
-const body: SavePlanRequest = {
+/** A valid save body choosing the first option on the replay pins. */
+export const body: SavePlanRequest = {
   request,
   selectedSectionIds: selected,
   expectedPinnedInputs: pins,
 };
-export /**
- *
- */
-const matchingAudit = buildAuditSnapshot({
+/** The latest audit, agreeing with the replay pins. */
+export const matchingAudit = buildAuditSnapshot({
   auditSource: pins.auditSource,
   auditVersion: pins.auditVersion,
   studentRecordEffectiveAt: pins.auditRecordEffectiveAt,

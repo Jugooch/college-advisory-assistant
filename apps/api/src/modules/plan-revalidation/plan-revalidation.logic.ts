@@ -8,7 +8,7 @@
 import type { ScheduleOptionsResponse } from '@caa/api-contract';
 import type { SectionId } from '@caa/domain';
 
-import { resolveSelection } from '../plan-drafts/plan-drafts.logic';
+import { resolveSelection } from '../plan-revisions/plan-revisions.logic';
 
 /**
  * Carries a revision's selection over to a revalidation: kept only if the identical section set

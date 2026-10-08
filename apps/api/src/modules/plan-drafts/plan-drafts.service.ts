@@ -16,8 +16,8 @@ import { type Actor, PlanRevisionCause, type StudentId } from '@caa/domain';
 import { NotFoundError } from '../../shared/domain-errors';
 import type { RequestContext } from '../../shared/request-context';
 import type { AccessService } from '../access/access.service';
+import { resolveSelection } from '../plan-revisions/plan-revisions.logic';
 import type { PlanRevisionsService } from '../plan-revisions/plan-revisions.service';
-import { resolveSelection } from './plan-drafts.logic';
 
 /** Dependencies of the plan drafts service. */
 export interface PlanDraftsServiceDependencies {
