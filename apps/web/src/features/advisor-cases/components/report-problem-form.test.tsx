@@ -10,9 +10,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ErrorCode } from '@caa/domain';
 import { syntheticId } from '@caa/test-kit';
 
+import { REPORT_CHANGES_NOTHING, WHO_SEES_THIS } from '@/shared/utils/case-wording';
 import { describeError } from '@/shared/utils/error-code-wording';
 
-import { REPORT_CHANGES_NOTHING, WHO_SEES_THIS } from '../utils/case-wording';
 import { CASE_REQUEST_FIELD, parseCreateCaseForm } from '../utils/create-case-form';
 import type { CreateCaseState } from '../utils/create-case-state';
 import { NOTE_REQUIRED_MESSAGE } from './note-field';

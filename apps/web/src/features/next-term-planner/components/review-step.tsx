@@ -7,7 +7,8 @@
  */
 import type { ReactElement } from 'react';
 
-import type { ReviewedConstraint } from '../utils/constraint-wording';
+import type { ReviewedConstraint } from '@/shared/utils/constraint-wording';
+
 import { type PlannerFormValues, PlannerStep } from '../utils/planner-fields';
 import { HiddenValues } from './hidden-values';
 

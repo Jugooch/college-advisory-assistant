@@ -33,6 +33,16 @@ export interface PlannerScreenProps {
 }
 
 /**
+ * Keys the form on its limits, so a limit filled in from chat shows in the fields.
+ *
+ * @param values - The typed values.
+ * @returns A key that changes when a limit changes.
+ */
+function formKey(values: PlannerFormValues): string {
+  return JSON.stringify([values.timeBlocks, values.creditRange, values.modality, values.campus]);
+}
+
+/**
  * Renders the screen for its view.
  *
  * @param props - The student, the view, and the form's data.
@@ -47,7 +57,7 @@ export function PlannerScreen({ view, ...form }: PlannerScreenProps): ReactEleme
     return (
       <>
         <IssueSummary issues={view.issues} />
-        <PlannerForm {...form} errors={errors} />
+        <PlannerForm key={formKey(values)} {...form} errors={errors} />
       </>
     );
   }

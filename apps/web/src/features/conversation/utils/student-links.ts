@@ -6,6 +6,7 @@
 
 /** The screens a chat block can point to. */
 export interface StudentLinks {
+  readonly studentId: string;
   readonly planner: string;
   readonly plans: string;
   readonly overview: string;
@@ -21,6 +22,7 @@ export interface StudentLinks {
 export function studentLinks(studentId: string): StudentLinks {
   const query = new URLSearchParams({ studentId }).toString();
   return {
+    studentId,
     planner: `/next-term-planner?${query}`,
     plans: `/my-plans?${query}`,
     overview: `/overview?${query}`,

@@ -1,12 +1,11 @@
 /**
  * @file The blocks of one assistant turn. Policy results, notices and referrals render their
- * structured fields; result-bearing blocks point to the screen that shows the verified result.
+ * structured fields; result blocks render the shared verified cards; suggestions are confirmable.
  * @module @caa/web/features/conversation/components/assistant-blocks
  * @requirement FR-10
  * @requirement NFR-02
  * @see docs/adr/0015-conversation-orchestration-and-policy-corpus.md
  */
-import Link from 'next/link';
 import type { ReactElement } from 'react';
 
 import type { AssistantBlock } from '@caa/api-contract';
@@ -16,6 +15,9 @@ import { PolicyHitList } from '@/shared/components/policy-hit-list';
 import { Timestamp } from '@/shared/components/timestamp';
 
 import { type StudentLinks, studentLinks } from '../utils/student-links';
+import { CasePreviewBlock } from './case-preview-block';
+import { ConstraintProposal } from './constraint-proposal';
+import { AcademicSummaryBlock, PlanEvidenceBlock, ScheduleOptionsBlock } from './verified-blocks';
 
 /** Props for {@link AssistantBlocks}. */
 export interface AssistantBlocksProps {
@@ -47,8 +49,8 @@ export function AssistantBlocks({ blocks, studentId }: AssistantBlocksProps): Re
 }
 
 /**
- * Renders one block: structured content for notices, referrals and policy results, and a pointer
- * to the verified screen for everything else.
+ * Renders one block: structured content for notices, referrals and policy results, and the
+ * result and suggestion blocks for everything else.
  *
  * @param props - The block and the links.
  * @returns The block's content.
@@ -84,51 +86,35 @@ function BlockBody({
         <PolicyHitList hits={block.results.hits} headingLevel={3} />
       );
     default:
-      return <ResultPointer block={block} links={links} />;
+      return <ResultBlock block={block} links={links} />;
   }
 }
 
 /**
- * Points to the screen that shows a verified result, instead of rendering one here.
+ * Renders a result or suggestion block: verified cards, constraint chips and the case preview.
  *
  * @param props - The block and the links.
- * @returns The pointer text with its link.
+ * @returns The block's content.
  */
-function ResultPointer({
+function ResultBlock({
   block,
   links,
 }: {
   readonly block: AssistantBlock;
   readonly links: StudentLinks;
-}): ReactElement {
+}): ReactElement | null {
   switch (block.kind) {
     case AssistantBlockKind.ScheduleOptions:
-      return (
-        <p>
-          A schedule search result is ready.{' '}
-          <Link href={links.planner}>Open it on the planner</Link>, where every check is shown.
-        </p>
-      );
+      return <ScheduleOptionsBlock block={block} />;
     case AssistantBlockKind.PlanEvidence:
-      return (
-        <p>
-          A saved plan is relevant here. <Link href={links.plans}>Open My plans</Link>. A saved plan
-          is not a registration.
-        </p>
-      );
+      return <PlanEvidenceBlock block={block} links={links} />;
     case AssistantBlockKind.AcademicSummary:
-      return (
-        <p>
-          Your academic summary is relevant here. <Link href={links.overview}>Open Overview</Link>.
-        </p>
-      );
+      return <AcademicSummaryBlock block={block} />;
+    case AssistantBlockKind.ConstraintProposal:
+      return <ConstraintProposal constraints={block.constraints} />;
+    case AssistantBlockKind.CasePreview:
+      return <CasePreviewBlock block={block} studentId={links.studentId} />;
     default:
-      return (
-        <p>
-          This suggestion isn’t available in chat yet. Use{' '}
-          <Link href={links.planner}>the form</Link> or{' '}
-          <Link href={links.help}>Help and cases</Link>.
-        </p>
-      );
+      return null;
   }
 }

@@ -41,10 +41,10 @@ import {
 } from '@/features/next-term-planner/utils/planner-view';
 import { savePlanDraftAction } from '@/features/plan-drafts/actions/save-plan-draft.action';
 import { bindOptionDraftControl } from '@/features/plan-drafts/components/option-draft-control';
-import { ScheduleResults } from '@/features/schedule-options/components/schedule-results';
 import { StudentLookupForm } from '@/features/session/components/student-lookup-form';
 import { StudentNav } from '@/features/student-navigation/components/student-nav';
 import { ApiErrorNotice } from '@/shared/components/api-error-notice';
+import { ScheduleResults } from '@/shared/components/schedule-results';
 import { planCandidateCourses } from '@/shared/utils/candidate-courses';
 import { type CourseLookup, summaryCourses } from '@/shared/utils/course-display';
 import { keepApiError } from '@/shared/utils/keep-api-error';

@@ -12,8 +12,8 @@ import type { ReactElement } from 'react';
 import type { CaseEventView } from '@caa/api-contract';
 
 import { Timestamp } from '@/shared/components/timestamp';
+import { describeAction } from '@/shared/utils/case-wording';
 
-import { describeAction } from '../utils/case-wording';
 import { describeResolutionOption, describeReviewActor } from '../utils/review-wording';
 
 /** Props for {@link ReviewTimeline}. */

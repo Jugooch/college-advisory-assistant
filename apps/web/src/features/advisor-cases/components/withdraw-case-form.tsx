@@ -11,9 +11,9 @@
  */
 import { type ReactElement, useActionState, useEffect, useRef } from 'react';
 
+import { CASE_CHANGED, FORM_REJECTED } from '@/shared/utils/case-wording';
 import { describeError } from '@/shared/utils/error-code-wording';
 
-import { CASE_CHANGED, FORM_REJECTED } from '../utils/case-wording';
 import {
   IDLE_WITHDRAW_STATE,
   WITHDRAW_CASE_FIELD,

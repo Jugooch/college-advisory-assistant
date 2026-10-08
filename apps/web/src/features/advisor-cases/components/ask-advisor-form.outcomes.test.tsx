@@ -11,9 +11,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ErrorCode } from '@caa/domain';
 import { buildPlanRevisionView, syntheticId } from '@caa/test-kit';
 
+import { OPEN_CASE_EXISTS } from '@/shared/utils/case-wording';
 import { describeError } from '@/shared/utils/error-code-wording';
 
-import { OPEN_CASE_EXISTS } from '../utils/case-wording';
 import type { CreateCaseState } from '../utils/create-case-state';
 import { AskAdvisorForm } from './ask-advisor-form';
 

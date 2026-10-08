@@ -307,3 +307,33 @@ td {
   min-height: 1.5rem;
   font-style: italic;
 }
+
+.chat-card {
+  margin: 0.5rem 0;
+}
+
+.chip-list {
+  margin: 0.5rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  margin: 0.5rem 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-neutral);
+  border-radius: 0.5rem;
+}
+
+.chip__statement {
+  margin: 0 0 0.5rem;
+  font-weight: bold;
+}
+
+.chip__editor {
+  margin: 0.5rem 0;
+}
+
+.chip__actions {
+  margin: 0.5rem 0 0;
+}

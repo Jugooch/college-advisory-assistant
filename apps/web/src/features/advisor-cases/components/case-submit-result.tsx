@@ -10,9 +10,9 @@
 import Link from 'next/link';
 import type { ReactElement } from 'react';
 
+import { FORM_REJECTED, OPEN_CASE_EXISTS } from '@/shared/utils/case-wording';
 import { describeError } from '@/shared/utils/error-code-wording';
 
-import { FORM_REJECTED, OPEN_CASE_EXISTS } from '../utils/case-wording';
 import type { CreateCaseState } from '../utils/create-case-state';
 
 /** Props for {@link CaseSubmitResult}. */
