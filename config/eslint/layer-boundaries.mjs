@@ -144,9 +144,14 @@ export function forbid(names, message, exact) {
  * @param {Parameters<typeof forbid>} args - The same arguments as `forbid`.
  * @returns {import('eslint').Linter.RuleEntry} The rule entry.
  */
-function appForbid(...args) {
+export function appForbid(...args) {
   return withPatterns(forbid(...args), [APP_TEST_SUPPORT_RESTRICTION]);
 }
+
+/** Why only the composition root imports `.wiring.ts` files (ADR-0014). */
+const WIRING_MSG = 'Only container.ts imports *.wiring.ts files; no other apps (ADR-0014).';
+/** Import pattern for wiring files. */
+const WIRING = '**/*.wiring';
 
 /** Import restrictions for every backend package and layer. */
 export const layerBoundaries = [
@@ -157,7 +162,7 @@ export const layerBoundaries = [
   {
     files: ['apps/api/src/**'],
     rules: {
-      'no-restricted-imports': appForbid(otherApps('api'), 'The API does not import other apps.'),
+      'no-restricted-imports': appForbid([WIRING, ...otherApps('api')], WIRING_MSG),
     },
   },
   {
@@ -218,6 +223,7 @@ export const layerBoundaries = [
           '@caa/engine',
           'drizzle-orm',
           'pg',
+          WIRING,
           '**/*.repository',
           '**/*.logic',
           ...otherApps('api'),
@@ -230,7 +236,15 @@ export const layerBoundaries = [
     files: ['apps/api/src/**/*.service.ts'],
     rules: {
       'no-restricted-imports': appForbid(
-        ['fastify', '**/*.controller', '**/*.routes', 'drizzle-orm', 'pg', ...otherApps('api')],
+        [
+          'fastify',
+          '**/*.controller',
+          '**/*.routes',
+          WIRING,
+          'drizzle-orm',
+          'pg',
+          ...otherApps('api'),
+        ],
         'Services have no HTTP or SQL; use repositories.',
       ),
       '@typescript-eslint/no-restricted-imports': typesOnly(
@@ -243,7 +257,7 @@ export const layerBoundaries = [
     files: ['apps/api/src/**/*.routes.ts'],
     rules: {
       'no-restricted-imports': appForbid(
-        ['@caa/db', '@caa/engine', '**/*.service', '**/*.logic', ...otherApps('api')],
+        ['@caa/db', '@caa/engine', '**/*.service', '**/*.logic', WIRING, ...otherApps('api')],
         'Routes only wire paths to controllers.',
       ),
     },
@@ -265,6 +279,7 @@ export const layerBoundaries = [
             '**/*.routes',
             '**/*.repository',
             '**/container',
+            WIRING,
             '**/config/*',
             '**/plugins/*',
             '**/request-context',

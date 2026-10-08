@@ -134,3 +134,32 @@ describe('checkStructure keeps apps/web/src TypeScript-only', () => {
     expect(paths.map(checkStructure)).toEqual([null, null]);
   });
 });
+
+describe('api wiring files (ADR-0014)', () => {
+  it('accepts an area wiring file and its test', () => {
+    const paths = [
+      'apps/api/src/wiring/plans.wiring.ts',
+      'apps/api/src/wiring/academic-reads.wiring.ts',
+      'apps/api/src/wiring/plans.wiring.test.ts',
+    ];
+
+    expect(paths.map(checkStructure)).toEqual([null, null, null]);
+  });
+
+  it.each([
+    'apps/api/src/wiring/plans.ts',
+    'apps/api/src/wiring/plans.service.ts',
+    'apps/api/src/wiring/Plans.wiring.ts',
+    'apps/api/src/wiring/index.ts',
+    'apps/api/src/wiring/plans/plans.wiring.ts',
+  ])('rejects %s', (path) => {
+    expect(checkStructure(path)).toContain('wiring');
+  });
+
+  it('rejects a wiring file outside the wiring folder', () => {
+    expect(checkStructure('apps/api/src/modules/plans/plans.wiring.ts')).toContain(
+      '<module>.routes.ts',
+    );
+    expect(checkStructure('apps/api/src/plans.wiring.ts')).toContain('container.ts');
+  });
+});

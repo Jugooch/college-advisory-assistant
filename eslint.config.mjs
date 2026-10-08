@@ -11,6 +11,7 @@ import tseslint from 'typescript-eslint';
 
 import { LANGUAGE_SYNTAX_BANS, layerBoundaries } from './config/eslint/layer-boundaries.mjs';
 import { webRules } from './config/eslint/web.mjs';
+import { wiringRules } from './config/eslint/wiring.mjs';
 
 export default tseslint.config(
   // ---- Ignored paths ----
@@ -148,6 +149,7 @@ export default tseslint.config(
 
   // ---- Layer boundaries (standards/01 and /05) ----
   ...layerBoundaries,
+  ...wiringRules,
 
   // ---- Next.js web app (standards/06) ----
   ...webRules,
