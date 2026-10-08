@@ -7,7 +7,7 @@
  * @requirement NFR-01
  * @see docs/adr/0013-plan-drafts-staleness-and-advisor-cases.md
  */
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect } from 'vitest';
 
 import { buildCourseAttempt } from '@caa/test-kit';
 
@@ -18,6 +18,7 @@ import {
 } from '../support/academic-endpoints-harness';
 import { summarizeError } from '../support/api-harness';
 import {
+  actOnCase,
   type CasesWorld,
   createCase,
   discrepancyBody,
@@ -174,8 +175,26 @@ describe('AC37 a student reports a source discrepancy', () => {
   });
 
   describe('the advisor resolution', () => {
-    it.todo(
-      'resolving a discrepancy case changes no attempt, audit or snapshot and creates no waiver (#412)',
+    acceptanceIt(
+      'AC37',
+      'changes no attempt, audit or snapshot and creates no waiver when resolved',
+      async () => {
+        const created = await createCase(app, discrepancyBody('COURSE_ATTEMPT'));
+        const caseId = String(dataOf(created).id);
+        await actOnCase(app, caseId, { action: 'CLAIM', expectedSequence: 1 });
+        const before = authoritativeRecords();
+
+        const resolved = await actOnCase(app, caseId, {
+          action: 'RESOLVE',
+          expectedSequence: 2,
+          resolution: 'REFERRED_OUTSIDE_APP',
+          note: 'Please ask the registrar about this grade.',
+        });
+
+        expect(resolved.statusCode).toBe(201);
+        expect(dataOf(resolved)).toMatchObject({ status: 'RESOLVED', context: null });
+        expect(authoritativeRecords()).toEqual(before);
+      },
     );
   });
 });
