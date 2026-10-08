@@ -32,6 +32,16 @@ const STRUCTURE_RULES = [
     expected: '<module>.routes.ts | .controller.ts | .service.ts | .mapper.ts | .logic.ts',
   },
   {
+    scope: /^apps\/api\/src\/wiring\/.*\/[^/]+$/,
+    allow: () => false,
+    expected: 'wiring files directly in apps/api/src/wiring/ (no subfolders)',
+  },
+  {
+    scope: /^apps\/api\/src\/wiring\//,
+    allow: (name) => /^[a-z0-9-]+\.wiring(\.test)?\.ts$/.test(name),
+    expected: '<area>.wiring.ts (ADR-0014)',
+  },
+  {
     scope: /^apps\/api\/src\/plugins\//,
     allow: (name) => /\.plugin(\.(integration\.)?test)?\.ts$/.test(name),
     expected: '*.plugin.ts',
