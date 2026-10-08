@@ -38,8 +38,8 @@ export const caseEventTable = pgTable(
     sequence: integer('sequence').notNull(),
     action: text('action').notNull().$type<CaseAction>(),
     actorUserId: uuid('actor_user_id').notNull(),
-    // NOTE: nullable until #448; NULL means the role wasn't recorded (ADR-0013 Amendment 1).
-    actorRole: text('actor_role').$type<Role>(),
+    // SAFETY: required (migration 0017); a missing role is a constraint error, never a guess.
+    actorRole: text('actor_role').notNull().$type<Role>(),
     at: timestamp('at', { withTimezone: true, precision: 3 }).notNull(),
     fromStatus: text('from_status').$type<CaseStatus>(),
     toStatus: text('to_status').notNull().$type<CaseStatus>(),
@@ -63,7 +63,7 @@ export const caseEventTable = pgTable(
     }),
     check(
       'case_event_actor_role_valid',
-      sql`${table.actorRole} IS NULL OR ${table.actorRole} IN ('STUDENT', 'ADVISOR', 'ADMIN')`,
+      sql`${table.actorRole} IN ('STUDENT', 'ADVISOR', 'ADMIN')`,
     ),
     check(
       'case_event_shape',

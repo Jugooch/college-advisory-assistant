@@ -11,6 +11,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
   type CaseId,
+  CaseStatus,
   IdentityStatus,
   type InstitutionId,
   Role,
@@ -19,6 +20,7 @@ import {
 } from '@caa/domain';
 
 import type { Database } from '../client';
+import { advisingCaseTable } from '../tables/advising-case.table';
 import { caseEventTable } from '../tables/case-event.table';
 import { userIdentityTable } from '../tables/user-identity.table';
 import { buildClaim, buildNewCase, buildResolve, insertCaseWorld } from '../testing/case-fixtures';
@@ -27,14 +29,17 @@ import { insertTenant, TEST_ISSUER, type TestDatabase } from '../testing/integra
 import { openIsolatedTestDatabase } from '../testing/isolated-database';
 import { createAdvisingCaseRepository } from './advising-case.repository';
 
+/** Postgres SQLSTATE for a NOT NULL violation. */
+const NOT_NULL_VIOLATION = '23502';
+
 const MIGRATION = fileURLToPath(
-  new URL('../../migrations/0016_case_event_actor_role.sql', import.meta.url),
+  new URL('../../migrations/0017_case_event_actor_role_required.sql', import.meta.url),
 );
 
-/** The backfill is the last statement of the migration, after the column and check. */
+/** The backfill is the first statement of the migration, before the column becomes required. */
 function backfillStatement(): string {
   const statements = readFileSync(MIGRATION, 'utf8').split('--> statement-breakpoint');
-  return statements[statements.length - 1] ?? '';
+  return statements[0] ?? '';
 }
 
 describe('case event actor role', () => {
@@ -71,10 +76,10 @@ describe('case event actor role', () => {
       .from(caseEventTable)
       .where(eq(caseEventTable.caseId, caseId))
       .orderBy(caseEventTable.sequence);
-    return rows.map((row) => `${row.action}:${String(row.actorRole)}`);
+    return rows.map((row) => `${row.action}:${row.actorRole}`);
   };
 
-  it('stores a given role and reads an unrecorded one as an omitted field', async () => {
+  it('stores the given role on every event', async () => {
     const { db } = testDatabase;
     const world = await newWorld(db, 'write');
     const repo = createAdvisingCaseRepository(db);
@@ -96,11 +101,11 @@ describe('case event actor role', () => {
 
     expect(created.event.actorRole).toBe('STUDENT');
     expect(claimed.status === 'APPENDED' && claimed.event.actorRole).toBe('ADMIN');
-    expect(resolved.status === 'APPENDED' && resolved.event.actorRole).toBeUndefined();
+    expect(resolved.status === 'APPENDED' && resolved.event.actorRole).toBe('ADVISOR');
     expect(await readRoles(created.case.id)).toEqual([
       'CREATE:STUDENT',
       'CLAIM:ADMIN',
-      'RESOLVE:null',
+      'RESOLVE:ADVISOR',
     ]);
   });
 
@@ -123,7 +128,38 @@ describe('case event actor role', () => {
     await expect(bad).rejects.toThrow();
   });
 
-  it('backfills rows written without a role, then still refuses UPDATE', async () => {
+  it('refuses an event written without a role', async () => {
+    const { db } = testDatabase;
+    const world = await newWorld(db, 'required');
+    const created = await createAdvisingCaseRepository(db).create(
+      world.tenantId,
+      buildNewCase(world),
+    );
+    if (created.status !== 'CREATED') {
+      throw new Error('expected the case to be created');
+    }
+
+    // NOTE: the case row moves to the event's state first, so the case-state trigger (0014) passes
+    // and the only thing wrong with the raw insert is the missing role.
+    const bare = db.transaction(async (tx) => {
+      await tx
+        .update(advisingCaseTable)
+        .set({ status: CaseStatus.InReview, ownerUserId: world.userId, lastSequence: 2 })
+        .where(eq(advisingCaseTable.id, created.case.id));
+      await tx.execute(sql`
+        INSERT INTO "case_event"
+          ("tenant_id", "case_id", "sequence", "action", "actor_user_id", "at", "from_status", "to_status")
+        VALUES (${world.tenantId}, ${created.case.id}, 2, 'CLAIM', ${world.userId},
+          '2026-10-02T10:00:00.000Z', 'OPEN', 'IN_REVIEW')`);
+    });
+
+    await expect(bare).rejects.toMatchObject({
+      cause: { code: NOT_NULL_VIOLATION, column: 'actor_role' },
+    });
+    expect(await readRoles(created.case.id)).toEqual(['CREATE:STUDENT']);
+  });
+
+  it('backfills leftover NULL roles before requiring the column, then still refuses UPDATE', async () => {
     const { db } = testDatabase;
     const advisorWorld = await newWorld(db, 'backfill-advisor');
     const adminWorld = await newWorld(db, 'backfill-admin');
@@ -145,12 +181,14 @@ describe('case event actor role', () => {
     // NOTE: simulate rows written before the migration by clearing the role, as the migration
     // itself would find them.
     await db.transaction(async (tx) => {
+      await tx.execute(sql`ALTER TABLE "case_event" ALTER COLUMN "actor_role" DROP NOT NULL`);
       await tx.execute(sql`ALTER TABLE "case_event" DISABLE TRIGGER "case_event_immutable_row"`);
       await tx.execute(sql`UPDATE "case_event" SET "actor_role" = NULL`);
       await tx.execute(sql`ALTER TABLE "case_event" ENABLE TRIGGER "case_event_immutable_row"`);
     });
 
     await db.execute(sql.raw(backfillStatement()));
+    await db.execute(sql`ALTER TABLE "case_event" ALTER COLUMN "actor_role" SET NOT NULL`);
 
     expect((await readRoles(advisorCase))[0]).toBe('CREATE:STUDENT');
     expect((await readRoles(advisorCase))[1]).toBe('CLAIM:ADVISOR');

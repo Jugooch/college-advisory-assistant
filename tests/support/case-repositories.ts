@@ -157,7 +157,7 @@ function store(world: CaseWorld, tenantId: string, newCase: NewAdvisingCase): Cr
     sequence: 1,
     action: CaseAction.Create,
     actorUserId,
-    ...(actorRole === undefined ? {} : { actorRole }),
+    actorRole,
     at: createdAt,
     fromStatus: null,
     toStatus: CaseStatus.Open,

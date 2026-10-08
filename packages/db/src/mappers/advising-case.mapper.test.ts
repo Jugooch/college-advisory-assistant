@@ -31,7 +31,7 @@ const EVENT_ROW: CaseEventRow = {
   sequence: 3,
   action: 'RESOLVE',
   actorUserId: '5d1c2b3a-4f5e-4d6c-8b7a-1a2b3c4d5e6f',
-  actorRole: null,
+  actorRole: 'ADVISOR',
   at: new Date('2026-10-03T15:00:00.000Z'),
   fromStatus: 'IN_REVIEW',
   toStatus: 'RESOLVED',
@@ -77,8 +77,8 @@ describe('toCaseEvent', () => {
     expect(event).toMatchObject({ at: '2026-10-03T15:00:00.000Z', resolution: 'PLAN_REVIEWED' });
   });
 
-  it('omits a NULL role and keeps a stored one', () => {
-    expect(toCaseEvent(EVENT_ROW).actorRole).toBeUndefined();
+  it('keeps the stored role', () => {
+    expect(toCaseEvent(EVENT_ROW).actorRole).toBe('ADVISOR');
     expect(toCaseEvent({ ...EVENT_ROW, actorRole: 'ADMIN' }).actorRole).toBe('ADMIN');
   });
 
