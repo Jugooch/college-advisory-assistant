@@ -3,6 +3,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import { Role } from '../enums/role.enum';
 import { type CaseEventInput, createCaseEvent } from './case-event.model';
 
 const CREATE: CaseEventInput = {
@@ -59,5 +60,19 @@ describe('createCaseEvent', () => {
     expect(createCaseEvent({ ...RESOLVE, note: 'a'.repeat(1000) }).note).toHaveLength(1000);
     expect(() => createCaseEvent({ ...RESOLVE, note: 'a'.repeat(1001) })).toThrow();
     expect(createCaseEvent({ ...RESOLVE, note: null }).note).toBeNull();
+  });
+});
+
+describe('CaseEvent actorRole', () => {
+  it.each(Object.values(Role))('accepts role %s', (role) => {
+    expect(createCaseEvent({ ...CREATE, actorRole: role }).actorRole).toBe(role);
+  });
+
+  it('accepts the field being absent', () => {
+    expect(createCaseEvent(CREATE).actorRole).toBeUndefined();
+  });
+
+  it('rejects an unknown role', () => {
+    expect(() => createCaseEvent({ ...CREATE, actorRole: 'ROOT' as never })).toThrow();
   });
 });
