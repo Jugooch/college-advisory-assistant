@@ -127,6 +127,20 @@
       "when": 1791473106158,
       "tag": "0017_case_event_actor_role_required",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791487993527,
+      "tag": "0018_policy_document",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1791487994989,
+      "tag": "0019_policy_document_immutable",
+      "breakpoints": true
     }
   ]
 }
