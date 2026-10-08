@@ -23,5 +23,6 @@ export * from './repositories/roster.repository';
 export * from './repositories/section-snapshot.repository';
 export * from './repositories/student.repository';
 export * from './repositories/student-snapshot.repository';
+export * from './repositories/student-turn-log.repository';
 export * from './repositories/term.repository';
 export * from './repositories/user-identity.repository';

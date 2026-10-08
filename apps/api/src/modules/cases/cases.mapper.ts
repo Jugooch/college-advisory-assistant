@@ -30,8 +30,6 @@ export interface CaseViewSource {
   readonly advisingCase: AdvisingCase;
   /** The case's events, oldest first. */
   readonly events: readonly CaseEvent[];
-  /** The user linked to the case's student. */
-  readonly studentUserId: UserId | null;
   /** The signed-in viewer. */
   readonly viewer: Actor;
   /** The frozen revision, or null for a source discrepancy. */

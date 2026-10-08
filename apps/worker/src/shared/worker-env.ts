@@ -17,6 +17,15 @@ const WorkerEnvSchema = z.object({
     (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
     z.coerce.number().int().min(0).max(100).default(5),
   ),
+  /**
+   * Minutes to keep student turn-log rows. Must be at least the longest conversation rate-limit
+   * window (ADR-0015 §2; `CONVERSATION_RATE_LIMIT` counts the last 10 minutes by default), or
+   * pruning would lower the count. Operating proposal. An empty value counts as unset.
+   */
+  TURN_LOG_RETENTION_MINUTES: z.preprocess(
+    (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+    z.coerce.number().int().min(1).default(60),
+  ),
 });
 
 /** Validated worker configuration. */
