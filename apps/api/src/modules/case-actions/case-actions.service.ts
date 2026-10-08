@@ -10,13 +10,18 @@
  * @see docs/adr/0013-plan-drafts-staleness-and-advisor-cases.md
  */
 import type { CaseEventRequest, CaseView } from '@caa/api-contract';
-import type { AdvisingCaseRepository, StudentRepository } from '@caa/db';
+import type {
+  AdvisingCaseRepository,
+  AdvisorAssignmentRepository,
+  StudentRepository,
+} from '@caa/db';
 import {
   type Actor,
   type AdvisingCase,
   CaseAction,
   type CaseId,
   type CaseStatus,
+  Role,
 } from '@caa/domain';
 
 import {
@@ -27,13 +32,19 @@ import {
 import type { RequestContext } from '../../shared/request-context';
 import type { AccessService } from '../access/access.service';
 import type { CaseViewerService } from '../case-viewer/case-viewer.service';
-import { caseActorOf, mayAttemptCaseAction, nextCaseStatus } from '../cases/cases.logic';
+import {
+  caseActorOf,
+  eventActorRoleOf,
+  mayAttemptCaseAction,
+  nextCaseStatus,
+} from '../cases/cases.logic';
 
 /** Dependencies of the case actions service. */
 export interface CaseActionsServiceDependencies {
   readonly access: Pick<AccessService, 'canViewStudent'>;
   readonly cases: Pick<AdvisingCaseRepository, 'findById' | 'appendEvent' | 'listEvents'>;
   readonly students: Pick<StudentRepository, 'findById'>;
+  readonly advisorAssignments: Pick<AdvisorAssignmentRepository, 'findActive'>;
   readonly caseViewer: Pick<CaseViewerService, 'viewCase'>;
   /** Returns the current time; the only clock an event time comes from. */
   readonly now: () => Date;
@@ -157,7 +168,7 @@ async function decideMove(
 export function createCaseActionsService(
   dependencies: CaseActionsServiceDependencies,
 ): CaseActionsService {
-  const { cases, caseViewer } = dependencies;
+  const { cases, caseViewer, advisorAssignments } = dependencies;
   return {
     async addCaseEvent(actor, command, context) {
       const { caseId, body } = command;
@@ -167,12 +178,24 @@ export function createCaseActionsService(
         context,
       });
       const isResolve = body.action === CaseAction.Resolve;
+      const at = dependencies.now().toISOString();
+      // SECURITY: the assignment is checked at the injected clock, on this call.
+      const isAdvisor = actor.roles.includes(Role.Advisor);
+      const hasActiveAssignment =
+        isAdvisor &&
+        (await advisorAssignments.findActive(actor.tenantId, {
+          advisorUserId: actor.userId,
+          studentId: advisingCase.studentId,
+          at,
+        })) !== null;
       const result = await cases.appendEvent(actor.tenantId, caseId, {
         expectedSequence: body.expectedSequence,
         event: {
           action: body.action,
           actorUserId: actor.userId,
-          at: dependencies.now().toISOString(),
+          // SECURITY: from the session, never the body.
+          actorRole: eventActorRoleOf(body.action, { isAdvisor, hasActiveAssignment }),
+          at,
           toStatus,
           resolution: isResolve ? (body.resolution ?? null) : null,
           note: isResolve ? (body.note ?? null) : null,

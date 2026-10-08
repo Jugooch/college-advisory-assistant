@@ -91,6 +91,15 @@ describe('CasesService.createCase', () => {
     expect(store.caseEvents).toHaveLength(1);
   });
 
+  it('writes STUDENT on the CREATE event, ignoring a role in the body', async () => {
+    const { service, store, logger } = setup();
+    const hostile = { ...body, actorRole: Role.Admin } as CreateCaseRequest;
+
+    await service.createCase(studentActor, { studentId, body: hostile }, { logger });
+
+    expect(store.caseEvents[0]).toMatchObject({ actorRole: Role.Student });
+  });
+
   it('refuses anyone who may not open a case with NotFoundError, writing nothing', async () => {
     const { service, store, logger } = setup({ canOpen: false });
 

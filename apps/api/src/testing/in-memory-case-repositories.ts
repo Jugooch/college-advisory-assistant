@@ -104,7 +104,7 @@ function refusalFor(store: InMemoryCaseStore, tenantId: string, newCase: NewAdvi
  * @returns The stored case and event.
  */
 function storeNewCase(store: InMemoryCaseStore, tenantId: string, newCase: NewAdvisingCase) {
-  const { actorUserId, ...fields } = newCase;
+  const { actorUserId, actorRole, ...fields } = newCase;
   const created = createAdvisingCase({
     ...fields,
     id: syntheticId('advisingCase', (store.cases ?? []).length + 1),
@@ -119,6 +119,7 @@ function storeNewCase(store: InMemoryCaseStore, tenantId: string, newCase: NewAd
     sequence: 1,
     action: CaseAction.Create,
     actorUserId,
+    actorRole,
     at: newCase.createdAt,
     fromStatus: null,
     toStatus: CaseStatus.Open,

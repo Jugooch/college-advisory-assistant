@@ -21,6 +21,7 @@ import {
 import {
   buildActor,
   buildAdvisingCase,
+  buildAdvisorAssignment,
   buildCaseEvent,
   buildInReviewAdvisingCase,
   buildInReviewCaseEvents,
@@ -65,6 +66,9 @@ function setup(stored: AdvisingCase, canView: (userId: string) => boolean = () =
     access: { canViewStudent: (actor) => Promise.resolve(canView(actor.userId)) },
     cases: createInMemoryCaseRepository(store),
     students: { findById: () => Promise.resolve(student) },
+    advisorAssignments: {
+      findActive: () => Promise.resolve(buildAdvisorAssignment()),
+    },
     caseViewer: createCaseViewerService({
       students: { findById: () => Promise.resolve(student) },
       caseContext: {
@@ -249,6 +253,7 @@ describe('CaseActionsService.addCaseEvent refusals', () => {
         appendEvent: () => Promise.resolve({ status }),
       },
       students: { findById: () => Promise.resolve(student) },
+      advisorAssignments: { findActive: () => Promise.resolve(buildAdvisorAssignment()) },
       caseViewer: { viewCase: () => Promise.reject(new Error('unused')) },
       now: () => NOW,
     });

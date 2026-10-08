@@ -52,7 +52,14 @@ export function wireCases(
     ),
     caseQueue: createCaseQueueController(createCaseQueueService({ cases, now })),
     caseActions: createCaseActionsController(
-      createCaseActionsService({ access, cases, students, caseViewer, now }),
+      createCaseActionsService({
+        access,
+        cases,
+        students,
+        advisorAssignments: repositories.advisorAssignments,
+        caseViewer,
+        now,
+      }),
     ),
   };
 }

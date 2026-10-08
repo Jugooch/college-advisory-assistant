@@ -16,7 +16,7 @@ import type {
 import {
   type Actor,
   type AdvisingCase,
-  type CaseAction,
+  CaseAction,
   type CaseEvent,
   Role,
   type UserId,
@@ -61,6 +61,18 @@ function roleOf(userId: UserId, source: CaseViewSource): Role {
 }
 
 /**
+ * Names the owner's role: the stored role of the latest CLAIM event, else the inferred role.
+ *
+ * @param ownerUserId - The case's owner.
+ * @param source - The case, its events, and the viewer being shown.
+ * @returns The role to show.
+ */
+function ownerRoleOf(ownerUserId: UserId, source: CaseViewSource): Role {
+  const claim = source.events.findLast((event) => event.action === CaseAction.Claim);
+  return claim?.actorRole ?? roleOf(ownerUserId, source);
+}
+
+/**
  * Maps one event to its view, with the actor as a role and `isYou`.
  *
  * @param event - The stored event.
@@ -72,7 +84,7 @@ function toEventView(event: CaseEvent, source: CaseViewSource): CaseEventView {
     id: event.id,
     sequence: event.sequence,
     action: event.action,
-    actorRole: roleOf(event.actorUserId, source),
+    actorRole: event.actorRole ?? roleOf(event.actorUserId, source),
     isYou: event.actorUserId === source.viewer.userId,
     at: event.at,
     fromStatus: event.fromStatus,
@@ -102,7 +114,7 @@ export function toCaseView(source: CaseViewSource): CaseView {
       advisingCase.ownerUserId === null
         ? null
         : {
-            role: roleOf(advisingCase.ownerUserId, source),
+            role: ownerRoleOf(advisingCase.ownerUserId, source),
             isYou: advisingCase.ownerUserId === source.viewer.userId,
           },
     createdAt: advisingCase.createdAt,

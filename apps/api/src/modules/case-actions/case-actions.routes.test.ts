@@ -77,6 +77,68 @@ describe('POST /v1/cases/:caseId/events actions', () => {
     );
   });
 
+  it('stores each event role from the session, and shows an admin CLAIM as ADMIN to the student', async () => {
+    const created = await createAsStudent(app);
+    const steps: readonly [string, string, number][] = [
+      [TOKENS.tenantAdmin, CaseAction.Claim, 1],
+      [TOKENS.tenantAdmin, CaseAction.Release, 2],
+      [TOKENS.advisor, CaseAction.Claim, 3],
+    ];
+    for (const [token, action, expectedSequence] of steps) {
+      await postEvent(app, {
+        caseId: created.id,
+        token,
+        body: eventBody(action, expectedSequence),
+      });
+    }
+    await postEvent(app, { caseId: created.id, token: TOKENS.advisor, body: resolveBody(4) });
+
+    expect(store.caseEvents?.map((event) => event.actorRole)).toEqual([
+      Role.Student,
+      Role.Admin,
+      Role.Admin,
+      Role.Advisor,
+      Role.Advisor,
+    ]);
+    const seen = readCase(await getPath(app, `/v1/cases/${created.id}`, TOKENS.student));
+    expect(seen.events[1]?.actorRole).toBe(Role.Admin);
+    expect(seen.owner).toEqual({ role: Role.Advisor, isYou: false });
+  });
+
+  it('stores STUDENT on a withdraw and ADMIN as the owner role while an admin holds the claim', async () => {
+    const created = await createAsStudent(app);
+    await postEvent(app, {
+      caseId: created.id,
+      token: TOKENS.tenantAdmin,
+      body: eventBody(CaseAction.Claim, 1),
+    });
+    expect(readCase(await getPath(app, `/v1/cases/${created.id}`, TOKENS.student)).owner).toEqual({
+      role: Role.Admin,
+      isYou: false,
+    });
+
+    await postEvent(app, {
+      caseId: created.id,
+      token: TOKENS.student,
+      body: eventBody(CaseAction.Withdraw, 2),
+    });
+
+    expect(store.caseEvents?.at(-1)).toMatchObject({ actorRole: Role.Student });
+  });
+
+  it('refuses a body carrying actorRole with 400 and writes nothing', async () => {
+    const created = await createAsStudent(app);
+
+    const response = await postEvent(app, {
+      caseId: created.id,
+      token: TOKENS.advisor,
+      body: eventBody(CaseAction.Claim, 1, { actorRole: Role.Admin }),
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(store.caseEvents).toHaveLength(1);
+  });
+
   it('lets the student see the claim with the owner as a role and no user ID', async () => {
     const caseId = await claimed();
 

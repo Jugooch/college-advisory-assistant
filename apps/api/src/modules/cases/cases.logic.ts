@@ -8,7 +8,7 @@
  * @see docs/adr/0013-plan-drafts-staleness-and-advisor-cases.md
  * @see docs/adr/0008-pure-logic-files.md
  */
-import { type AdvisingCase, CaseAction, CaseStatus, type UserId } from '@caa/domain';
+import { type AdvisingCase, CaseAction, CaseStatus, Role, type UserId } from '@caa/domain';
 
 /**
  * What the session's user is to one case. The service derives it from the session and the case;
@@ -150,4 +150,24 @@ export type LiveCaseStatus = typeof CaseStatus.Open | typeof CaseStatus.InReview
  */
 export function isLiveCaseStatus(status: CaseStatus): status is LiveCaseStatus {
   return status === CaseStatus.Open || status === CaseStatus.InReview;
+}
+
+/**
+ * Names the role an event is written under (ADR-0013 Amendment 1). The student's own actions are
+ * STUDENT. Staff actions are ADVISOR only when the session holds ADVISOR and has an active
+ * assignment for the student now; otherwise ADMIN, the only other role that can reach a case.
+ *
+ * @param action - The action being written.
+ * @param staff - Whether the session holds ADVISOR, and whether it has an active assignment now.
+ * @returns The role to store on the event.
+ */
+export function eventActorRoleOf(
+  action: CaseAction,
+  staff: { readonly isAdvisor: boolean; readonly hasActiveAssignment: boolean },
+): Role {
+  // SECURITY: derived from the session and the assignment at the injected clock, never a request.
+  if (action === CaseAction.Create || action === CaseAction.Withdraw) {
+    return Role.Student;
+  }
+  return staff.isAdvisor && staff.hasActiveAssignment ? Role.Advisor : Role.Admin;
 }

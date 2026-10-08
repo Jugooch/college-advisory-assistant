@@ -70,7 +70,7 @@ describe('toCaseView', () => {
       advisingCase: { ...advisingCase, ownerUserId: admin.userId },
       events: [
         ...events.slice(0, 1),
-        buildCaseEvent({ ...events[1], actorUserId: admin.userId }, 2),
+        buildCaseEvent({ ...events[1], actorUserId: admin.userId, actorRole: Role.Admin }, 2),
       ],
       studentUserId: student.userId,
       viewer: admin,
@@ -135,5 +135,90 @@ describe('toCaseQueueItem', () => {
     const item = toCaseQueueItem(advisingCase, { viewerUserId: admin.userId, routed: false });
 
     expect(item).toMatchObject({ ownerIsYou: false, routed: false });
+  });
+});
+
+describe('toCaseView stored roles', () => {
+  const adminClaim = [
+    buildCaseEvent({ caseId: advisingCase.id }, 1),
+    buildCaseEvent(
+      {
+        ...events[1],
+        actorUserId: admin.userId,
+        actorRole: Role.Admin,
+      },
+      2,
+    ),
+  ];
+
+  it.each([student, advisor, admin])(
+    'shows an admin CLAIM and the owner as ADMIN to every viewer',
+    (viewer) => {
+      const view = toCaseView({
+        advisingCase: { ...advisingCase, ownerUserId: admin.userId },
+        events: adminClaim,
+        studentUserId: student.userId,
+        viewer,
+        context,
+        allowedActions: [],
+      });
+
+      expect(view.events[1]?.actorRole).toBe(Role.Admin);
+      expect(view.owner?.role).toBe(Role.Admin);
+    },
+  );
+
+  it('takes the owner role from the latest CLAIM event', () => {
+    const released = [
+      ...adminClaim,
+      buildCaseEvent(
+        {
+          sequence: 3,
+          action: CaseAction.Release,
+          actorUserId: admin.userId,
+          actorRole: Role.Admin,
+          fromStatus: CaseStatus.InReview,
+          toStatus: CaseStatus.Open,
+        },
+        3,
+      ),
+      buildCaseEvent(
+        {
+          sequence: 4,
+          action: CaseAction.Claim,
+          actorUserId: advisor.userId,
+          actorRole: Role.Advisor,
+          fromStatus: CaseStatus.Open,
+          toStatus: CaseStatus.InReview,
+        },
+        4,
+      ),
+    ];
+
+    const view = toCaseView({
+      advisingCase: { ...advisingCase, ownerUserId: advisor.userId },
+      events: released,
+      studentUserId: student.userId,
+      viewer: student,
+      context,
+      allowedActions: [],
+    });
+
+    expect(view.owner?.role).toBe(Role.Advisor);
+  });
+
+  it('falls back to inference when an event has no stored role', () => {
+    const bare = buildCaseEvent({ ...events[1], actorRole: undefined }, 2);
+    const view = toCaseView({
+      advisingCase,
+      events: [buildCaseEvent({ caseId: advisingCase.id }, 1), bare],
+      studentUserId: student.userId,
+      viewer: student,
+      context,
+      allowedActions: [],
+    });
+
+    expect(view.events[1]?.actorRole).toBe(Role.Advisor);
+    expect(view.owner?.role).toBe(Role.Advisor);
   });
 });

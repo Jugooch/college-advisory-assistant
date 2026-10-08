@@ -13,14 +13,24 @@
  */
 import type { CaseListResponse, CaseView, CreateCaseRequest } from '@caa/api-contract';
 import type { AdvisingCaseRepository } from '@caa/db';
-import type { Actor, AdvisingCase, CaseId, StudentId } from '@caa/domain';
+import {
+  type Actor,
+  type AdvisingCase,
+  CaseAction,
+  type CaseId,
+  type StudentId,
+} from '@caa/domain';
 
 import { NotFoundError, OpenCaseExistsError } from '../../shared/domain-errors';
 import type { RequestContext } from '../../shared/request-context';
 import type { AccessService } from '../access/access.service';
 import type { CaseContextService } from '../case-context/case-context.service';
 import type { CaseViewerService } from '../case-viewer/case-viewer.service';
+import { eventActorRoleOf } from './cases.logic';
 import { toCaseSummary } from './cases.mapper';
+
+/** Staff facts for a student's own action, where they do not matter. */
+const NO_STAFF = { isAdvisor: false, hasActiveAssignment: false } as const;
 
 /** Dependencies of the cases service. */
 export interface CasesServiceDependencies {
@@ -138,6 +148,8 @@ export function createCasesService(dependencies: CasesServiceDependencies): Case
         discrepancySubject: body.discrepancySubject,
         studentNote: body.studentNote,
         actorUserId: actor.userId,
+        // SECURITY: only the student creates, so the role is fixed, never read from the body.
+        actorRole: eventActorRoleOf(CaseAction.Create, NO_STAFF),
         createdAt: dependencies.now().toISOString(),
       });
       if (result.status === 'OPEN_CASE_EXISTS') {
