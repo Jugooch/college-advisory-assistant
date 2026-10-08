@@ -20,7 +20,8 @@ The codebase is layered like MVC, with each concern in its own place.
 | **Academic rules**                                  | `packages/engine`                                               | I/O, clocks, randomness, a copy of a shared invariant  |
 | **Persistence** (tables, mappers, repositories)     | `packages/db`                                                   | Business rules, HTTP                                   |
 | **Background jobs and source adapters**             | `apps/worker`                                                   | HTTP, UI                                               |
-| **AI tools, prompts, templates**                    | `packages/assistant`                                            | Direct database access                                 |
+| **AI tools, prompts, templates, output guard**      | `packages/assistant`                                            | I/O, network, provider SDKs, clocks, randomness        |
+| **Outbound service adapters** (the model provider)  | `apps/api/src/adapters/*.adapter.ts` (ADR-0015)                 | Business rules, logging of request or response bodies  |
 
 Dependencies point one way:
 
@@ -30,7 +31,7 @@ api ──► api-contract, engine, db, assistant ──► domain
 worker ──► engine, db ──► domain
 ```
 
-ESLint `no-restricted-imports` blocks every other direction. `packages/domain` depends on nothing but `zod`.
+ESLint `no-restricted-imports` blocks every other direction. `packages/domain` depends on nothing but `zod`. A model provider SDK such as `@anthropic-ai/sdk` is imported only in `apps/api/src/adapters/` (ADR-0015 §1).
 
 ### Shared invariants
 
@@ -143,11 +144,14 @@ The API's composition root is `apps/api/src/container.ts` plus the files in `app
 | `.table.ts` / `.mapper.ts` / `.repository.ts`   | One entity's persistence                                                                                       |
 | `.api.ts`                                       | Frontend functions that call one API module                                                                    |
 | `.action.ts`                                    | One Next.js server action (standard 06 §Server actions)                                                        |
-| `.job.ts` / `.adapter.ts`                       | One background job / one source adapter                                                                        |
+| `.job.ts` / `.adapter.ts`                       | One background job / one source adapter (worker), or one outbound service adapter (api, ADR-0015)              |
+| `.tool.ts` / `.prompt.ts` / `.template.ts`      | `packages/assistant`: one tool's argument schema / one versioned prompt / one family of rendering templates    |
+| `.guard.ts` / `.port.ts` / `.fake.ts`           | `packages/assistant`: one output or message check / one port's types / one deterministic model fake            |
 | `.plugin.ts`                                    | One Fastify plugin                                                                                             |
 | `.wiring.ts`                                    | The API composition root for one area (§Composition root)                                                      |
 | `.schema.ts`                                    | Zod schema for a test-data format (for example golden cases)                                                   |
 | `.cases.ts`                                     | Golden cases for one rule family                                                                               |
+| `.eval.test.ts`                                 | T06 evaluations in `tests/evals/`, one dimension per file (standard 07, ADR-0015)                              |
 | `.test.ts(x)`                                   | Tests, colocated with the file under test                                                                      |
 
 - React component files are kebab-case and export one PascalCase component: `plan-card.tsx` → `PlanCard`.

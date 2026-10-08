@@ -55,15 +55,16 @@ Every response is one of two shapes:
 - `message` is safe to show a student: no stack traces, SQL, vendor payloads, or student identifiers.
 - Controllers send success through `sendData(reply, ResponseSchema, data)`, which validates the payload against the contract before sending.
 
-| Situation                               | Status                        | Code                                                   |
-| --------------------------------------- | ----------------------------- | ------------------------------------------------------ |
-| Body/params fail validation             | 400                           | `INVALID_REQUEST`                                      |
-| Not signed in / no access to the object | 401 / 404                     | `UNAUTHORIZED` / `NOT_FOUND` (don't reveal existence)  |
-| Program or catalog not qualified        | 422                           | `OUT_OF_SCOPE`                                         |
-| Source down / stale / semantic gap      | 503 / 409 / 422               | `SOURCE_UNAVAILABLE` / `STALE_SOURCE` / `SEMANTIC_GAP` |
-| Optimistic concurrency failure          | 409                           | `REVISION_CONFLICT`                                    |
-| Solver cap reached / proven infeasible  | 200 with `outcome` (ADR-0010) | `SEARCH_TIMEOUT` / `NO_FEASIBLE_PLAN`, never an error  |
-| Anything else                           | 500                           | `INTERNAL_ERROR`                                       |
+| Situation                                                         | Status                            | Code                                                    |
+| ----------------------------------------------------------------- | --------------------------------- | ------------------------------------------------------- |
+| Body/params fail validation                                       | 400                               | `INVALID_REQUEST`                                       |
+| Not signed in / no access to the object                           | 401 / 404                         | `UNAUTHORIZED` / `NOT_FOUND` (don't reveal existence)   |
+| Program or catalog not qualified                                  | 422                               | `OUT_OF_SCOPE`                                          |
+| Source down / stale / semantic gap                                | 503 / 409 / 422                   | `SOURCE_UNAVAILABLE` / `STALE_SOURCE` / `SEMANTIC_GAP`  |
+| Optimistic concurrency failure                                    | 409                               | `REVISION_CONFLICT`                                     |
+| Solver cap reached / proven infeasible                            | 200 with `outcome` (ADR-0010)     | `SEARCH_TIMEOUT` / `NO_FEASIBLE_PLAN`, never an error   |
+| Model down, over budget, off, or rate-limited (conversation turn) | 200 with `modelStatus` (ADR-0015) | never an error; the turn says so and points to the form |
+| Anything else                                                     | 500                               | `INTERNAL_ERROR`                                        |
 
 ## Services
 
