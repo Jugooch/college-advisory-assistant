@@ -123,6 +123,36 @@ export const CONVERSATION_MODEL_IDS = ['claude-haiku-5-5', 'claude-sonnet-5-5'] 
 /** Default `CONVERSATION_MODEL_ID`. */
 export const DEFAULT_CONVERSATION_MODEL_ID = 'claude-haiku-5-5';
 
+/** Most turns sent to the model (ADR-0015 §1). */
+export const MAX_CONVERSATION_HISTORY_TURNS = 20;
+
+/** Default `CONVERSATION_HISTORY_TURNS`. */
+export const DEFAULT_CONVERSATION_HISTORY_TURNS = 8;
+
+/** Default `CONVERSATION_RATE_LIMIT`: student turns per rolling 10 minutes. */
+export const DEFAULT_CONVERSATION_RATE_LIMIT = 20;
+
+/** Largest accepted `CONVERSATION_RATE_LIMIT`. */
+export const MAX_CONVERSATION_RATE_LIMIT = 1000;
+
+/**
+ * Builds a schema for a whole number in a range, defaulted. Digits only, so an empty or
+ * fractional value fails instead of coercing to 0 or rounding.
+ *
+ * @param fallback - Default when unset.
+ * @param min - Smallest accepted value.
+ * @param max - Largest accepted value.
+ * @returns The schema.
+ */
+function boundedWholeNumber(fallback: number, min: number, max: number) {
+  return z
+    .string()
+    .regex(/^\d+$/, 'must be a whole number')
+    .default(String(fallback))
+    .transform(Number)
+    .pipe(z.number().int().min(min).max(max));
+}
+
 /** The conversation model variables, shared by the API schema and the manual eval helper. */
 const ConversationModelFields = {
   CONVERSATION_MODEL: z.enum(ConversationModelMode).default(ConversationModelMode.Off),
@@ -130,6 +160,16 @@ const ConversationModelFields = {
   /** A secret: read here and nowhere else, and never logged. */
   ANTHROPIC_API_KEY: z.string().trim().min(1).optional(),
   CONVERSATION_PROVIDER_APPROVAL_REF: z.string().trim().min(1).optional(),
+  CONVERSATION_HISTORY_TURNS: boundedWholeNumber(
+    DEFAULT_CONVERSATION_HISTORY_TURNS,
+    0,
+    MAX_CONVERSATION_HISTORY_TURNS,
+  ),
+  CONVERSATION_RATE_LIMIT: boundedWholeNumber(
+    DEFAULT_CONVERSATION_RATE_LIMIT,
+    1,
+    MAX_CONVERSATION_RATE_LIMIT,
+  ),
 };
 
 /** Schema for the API's environment variables. */

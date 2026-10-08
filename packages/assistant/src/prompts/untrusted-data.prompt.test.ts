@@ -3,6 +3,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import { IntroId } from '../templates/intro.template';
 import { PROMPT_VERSION, SYSTEM_PROMPT } from './system.prompt';
 import { TOOL_DATA_CLOSE, wrapUntrustedData } from './untrusted-data.prompt';
 
@@ -41,5 +42,13 @@ describe('system prompt', () => {
       /Never state credits, grades, eligibility, deadlines or readiness/,
     );
     expect(SYSTEM_PROMPT).toContain('Call a tool instead of answering from memory');
+  });
+
+  it('tells the model to reply with exactly one intro id, listing every id', () => {
+    expect(SYSTEM_PROMPT).toContain('exactly one intro id and nothing else');
+    for (const id of Object.values(IntroId)) {
+      expect(SYSTEM_PROMPT).toContain(id);
+    }
+    expect(PROMPT_VERSION).toBe('system-2026-10-08.2');
   });
 });
