@@ -10,6 +10,7 @@ import {
   DEFAULT_AUDIT_RECORD_MAX_SKEW_MS,
   DEV_ACADEMIC_SOURCE_MAX_AGE_MS,
   loadApiEnv,
+  loadClaudeModelEnv,
   MAX_ACADEMIC_SOURCE_MAX_AGE_MS,
   MAX_AUDIT_RECORD_MAX_SKEW_MS,
 } from './env';
@@ -167,5 +168,59 @@ describe('loadApiEnv SCHEDULE_SOLVER_WORK_CAP', () => {
 
   it.each(['', ' ', '0', '-1', '1.5', '1e3', 'many'])('refuses %j at startup', (value) => {
     expect(() => loadApiEnv({ ...BASE, SCHEDULE_SOLVER_WORK_CAP: value })).toThrow(ZodError);
+  });
+});
+
+describe('loadApiEnv conversation model', () => {
+  it('defaults to off with the haiku model and no key', () => {
+    const env = loadApiEnv(BASE);
+    expect(env.CONVERSATION_MODEL).toBe('off');
+    expect(env.CONVERSATION_MODEL_ID).toBe('claude-haiku-5-5');
+    expect(env.ANTHROPIC_API_KEY).toBeUndefined();
+  });
+
+  it('refuses a model id outside the allowed list', () => {
+    expect(() => loadApiEnv({ ...BASE, CONVERSATION_MODEL_ID: 'claude-other' })).toThrow(ZodError);
+  });
+
+  it('requires the key for claude, without echoing anything secret', () => {
+    expect(() => loadApiEnv({ ...BASE, CONVERSATION_MODEL: 'claude' })).toThrow(
+      /ANTHROPIC_API_KEY/,
+    );
+  });
+
+  it('refuses demo in production', () => {
+    expect(() => loadApiEnv({ ...BASE, ...PRODUCTION, CONVERSATION_MODEL: 'demo' })).toThrow(
+      /demo/,
+    );
+  });
+
+  it('refuses claude in production without an approval reference, and accepts it with one', () => {
+    const claude = { ...BASE, ...PRODUCTION, CONVERSATION_MODEL: 'claude', ANTHROPIC_API_KEY: 'k' };
+    expect(() => loadApiEnv(claude)).toThrow(/CONVERSATION_PROVIDER_APPROVAL_REF/);
+    expect(
+      loadApiEnv({ ...claude, CONVERSATION_PROVIDER_APPROVAL_REF: 'APPROVAL-1' })
+        .CONVERSATION_MODEL,
+    ).toBe('claude');
+  });
+
+  it('allows claude outside production without an approval reference', () => {
+    const env = loadApiEnv({ ...BASE, CONVERSATION_MODEL: 'claude', ANTHROPIC_API_KEY: 'k' });
+    expect(env.CONVERSATION_MODEL).toBe('claude');
+  });
+});
+
+describe('loadClaudeModelEnv', () => {
+  it('reads the key and model id without needing a database', () => {
+    expect(
+      loadClaudeModelEnv({ ANTHROPIC_API_KEY: 'k', CONVERSATION_MODEL_ID: 'claude-sonnet-5-5' }),
+    ).toEqual({
+      apiKey: 'k',
+      modelId: 'claude-sonnet-5-5',
+    });
+  });
+
+  it('throws when the key is missing', () => {
+    expect(() => loadClaudeModelEnv({})).toThrow(ZodError);
   });
 });

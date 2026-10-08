@@ -23,7 +23,17 @@ import type { AdvisorAssignment, Student, UserIdentity } from '@caa/domain';
 
 import { type AcademicWorld, createAcademicRepositories } from './academic-repositories';
 import { type CaseRepositories, createCaseRepositories } from './case-repositories';
+import {
+  type ConversationRepositories,
+  type ConversationWorld,
+  createConversationRepositories,
+} from './conversation-repositories';
 import { createPlanRepositories, type PlanRepositories, type PlanWorld } from './plan-repositories';
+import {
+  createPolicyRepositories,
+  type PolicyDocumentWorld,
+  type PolicyRepositories,
+} from './policy-repositories';
 import {
   createProgramRepositories,
   type ProgramRepositories,
@@ -65,6 +75,12 @@ export interface AcceptanceOptions {
   readonly now?: Date;
   /** `ACTIVE_RULESET_VERSION`; defaults to {@link ACCEPTANCE_RULESET_VERSION}. */
   readonly rulesetVersion?: string;
+  /**
+   * The conversation model the API calls. NOTE: typed loosely and not yet passed on, because
+   * `ContainerOptions.conversationModel` arrives with #513; once it does, type this as
+   * `ConversationModel` and hand it to `createContainer`.
+   */
+  readonly conversationModel?: unknown;
 }
 
 /** The API app, not yet listening. */
@@ -76,7 +92,14 @@ export type AcceptanceApp = ReturnType<typeof buildApp>;
  * (section snapshots, transition tables) are optional: a case seeds only what it reads, and an
  * omitted field means nothing of that kind is stored.
  */
-export interface AcceptanceWorld extends AcademicWorld, ScheduleWorld, ProgramWorld, PlanWorld {
+export interface AcceptanceWorld
+  extends
+    AcademicWorld,
+    ScheduleWorld,
+    ProgramWorld,
+    PlanWorld,
+    PolicyDocumentWorld,
+    ConversationWorld {
   identities: readonly UserIdentity[];
   students: readonly Student[];
   assignments: readonly AdvisorAssignment[];
@@ -216,14 +239,16 @@ export function buildAcceptanceApp(
     SCHEDULE_SOLVER_WORK_CAP: String(options.solverWorkCap ?? ACCEPTANCE_SOLVER_WORK_CAP),
   });
   // NOTE: the intersection lets the harness provide repositories before the API adds them to
-  // `Repositories`: `studentUserLinks` (#151), the schedule ones (#221), and `programs` (#187), and `plans` (#409), and `cases` (#411). Once they're there,
+  // `Repositories`: `studentUserLinks` (#151), the schedule ones (#221), and `programs` (#187), and `plans` (#409), and `cases` (#411), and `policyDocuments` (#506) and `conversations` (#507). Once they're there,
   // the intersection is redundant and can go.
   const repositories: Repositories & {
     studentUserLinks: StudentUserLinkRepository;
   } & ScheduleRepositories &
     ProgramRepositories &
     PlanRepositories &
-    CaseRepositories = {
+    CaseRepositories &
+    PolicyRepositories &
+    ConversationRepositories = {
     userIdentities: createIdentities(world),
     students: createStudents(world),
     studentUserLinks: createStudentUserLinks(world),
@@ -233,6 +258,8 @@ export function buildAcceptanceApp(
     ...createProgramRepositories(world),
     ...createPlanRepositories(world),
     ...createCaseRepositories(world),
+    ...createPolicyRepositories(world),
+    ...createConversationRepositories(world),
   };
   return buildApp({
     dependencies: createContainer({ env, repositories, now: () => options.now ?? ACCEPTANCE_NOW }),
