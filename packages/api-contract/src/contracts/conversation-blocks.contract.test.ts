@@ -13,7 +13,7 @@ const HIT = {
   revision: 2,
   title: 'Withdrawal deadline',
   excerpt: 'Students may withdraw before the ninth week.',
-  topic: 'GENERAL',
+  topic: 'FINANCIAL_AID',
   effectiveFrom: '2026-08-01T00:00:00-05:00',
   effectiveTo: null,
   sourceLabel: 'Synthetic Registrar Handbook',
@@ -174,6 +174,16 @@ describe('CASE_PREVIEW block', () => {
     expect(accepts({ ...CASE_PREVIEW, discrepancySubject: 'COURSE_ATTEMPT' })).toBe(false);
   });
 
+  it('rejects a source discrepancy without a subject', () => {
+    const noSubject = {
+      ...CASE_PREVIEW,
+      reason: 'SOURCE_DISCREPANCY',
+      planId: null,
+      planRevision: null,
+    };
+    expect(accepts(noSubject)).toBe(false);
+  });
+
   it('accepts an empty note and rejects a note over 500 characters', () => {
     expect(accepts({ ...CASE_PREVIEW, suggestedNote: '' })).toBe(true);
     expect(accepts({ ...CASE_PREVIEW, suggestedNote: 'a'.repeat(501) })).toBe(false);
@@ -224,6 +234,11 @@ describe('NOTICE and REFERRAL blocks', () => {
   it('keeps the template identity bounds of the stored block reference', () => {
     expect(accepts({ ...NOTICE, templateId: 'a'.repeat(101) })).toBe(false);
     expect(accepts({ ...NOTICE, templateVersion: 'a'.repeat(51) })).toBe(false);
+  });
+
+  it('rejects a policy document for another topic', () => {
+    expect(accepts({ ...REFERRAL, policy: { ...HIT, topic: 'IMMIGRATION' } })).toBe(false);
+    expect(accepts({ ...REFERRAL, policy: { ...HIT, topic: 'GENERAL' } })).toBe(false);
   });
 
   it('requires an explicit null policy on a referral', () => {

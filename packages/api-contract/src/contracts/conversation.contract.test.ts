@@ -129,7 +129,7 @@ describe('ConversationQuerySchema', () => {
 describe('ConversationTurnRequestSchema', () => {
   const accepts = (body: unknown): boolean => ConversationTurnRequestSchema.safeParse(body).success;
 
-  it('accepts a message with and without planner inputs', () => {
+  it('accepts a message without planner inputs', () => {
     expect(accepts(REQUEST)).toBe(true);
   });
 

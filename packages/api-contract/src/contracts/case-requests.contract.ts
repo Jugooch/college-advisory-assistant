@@ -12,6 +12,7 @@ import {
   CASE_EVENT_NOTE_MAX_LENGTH,
   CaseAction,
   CaseActionSchema,
+  CaseReason,
   CaseReasonSchema,
   CaseResolutionSchema,
   CaseStatusSchema,
@@ -19,8 +20,6 @@ import {
   PlanRevisionIdSchema,
   STUDENT_NOTE_MAX_LENGTH,
 } from '@caa/domain';
-
-import { isCasePlanSatisfied, isCaseSubjectConsistent } from '../case-reason-rules';
 
 /**
  * Request body for `POST /v1/students/:studentId/cases`.
@@ -44,16 +43,19 @@ export const CreateCaseRequestSchema = z
     studentNote: z.string().trim().min(1).max(STUDENT_NOTE_MAX_LENGTH),
   })
   // SAFETY: a plan review without a plan is unreviewable (ADR-0013 §6 Objects, FR-12).
-  .refine((body) => isCasePlanSatisfied(body.reason, body.planRevisionId !== null), {
+  .refine((body) => body.reason === CaseReason.SourceDiscrepancy || body.planRevisionId !== null, {
     message: 'planRevisionId is required unless the reason is SOURCE_DISCREPANCY',
     path: ['planRevisionId'],
   })
   // SAFETY: a subject on another reason, or none on a discrepancy, would misroute the report
   // (ADR-0013 §6 Objects, FR-17).
-  .refine((body) => isCaseSubjectConsistent(body.reason, body.discrepancySubject !== null), {
-    message: 'discrepancySubject is present exactly when the reason is SOURCE_DISCREPANCY',
-    path: ['discrepancySubject'],
-  })
+  .refine(
+    (body) => (body.reason === CaseReason.SourceDiscrepancy) === (body.discrepancySubject !== null),
+    {
+      message: 'discrepancySubject is present exactly when the reason is SOURCE_DISCREPANCY',
+      path: ['discrepancySubject'],
+    },
+  )
   .readonly();
 
 /** Request body for `POST /v1/students/:studentId/cases`. */

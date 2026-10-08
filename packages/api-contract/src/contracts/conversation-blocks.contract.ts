@@ -11,6 +11,7 @@ import { z } from 'zod';
 
 import {
   AssistantBlockKind,
+  CaseReason,
   CaseReasonSchema,
   ConstraintStrength,
   DiscrepancySubjectSchema,
@@ -23,10 +24,9 @@ import {
   STUDENT_NOTE_MAX_LENGTH,
 } from '@caa/domain';
 
-import { isCasePlanSatisfied, isCaseSubjectConsistent } from '../case-reason-rules';
 import { AcademicSummaryResponseSchema } from './academic-summary.contract';
 import { PlanRevisionViewSchema } from './plan-revision-view.contract';
-import { policyAppliesAt, PolicyHitSchema, PolicySearchResponseSchema } from './policies.contract';
+import { PolicyHitSchema, PolicySearchResponseSchema } from './policies.contract';
 import { ScheduleOptionsResponseSchema } from './schedule-options.contract';
 
 /** Longest fixed template text of a notice or referral block, in characters. */
@@ -88,16 +88,20 @@ const CasePreviewBlockSchema = z
     message: 'planId and planRevision must be set together',
     path: ['planRevision'],
   })
-  .refine((block) => isCasePlanSatisfied(block.reason, block.planId !== null), {
+  .refine((block) => block.reason === CaseReason.SourceDiscrepancy || block.planId !== null, {
     message: 'planId is required unless the reason is SOURCE_DISCREPANCY',
     path: ['planId'],
   })
   // SAFETY: a subject on another reason, or none on a discrepancy, would misroute the report
   // (ADR-0015 §4, ADR-0013 §6, FR-17).
-  .refine((block) => isCaseSubjectConsistent(block.reason, block.discrepancySubject !== null), {
-    message: 'discrepancySubject is present exactly when the reason is SOURCE_DISCREPANCY',
-    path: ['discrepancySubject'],
-  })
+  .refine(
+    (block) =>
+      (block.reason === CaseReason.SourceDiscrepancy) === (block.discrepancySubject !== null),
+    {
+      message: 'discrepancySubject is present exactly when the reason is SOURCE_DISCREPANCY',
+      path: ['discrepancySubject'],
+    },
+  )
   .readonly();
 
 /**
@@ -174,9 +178,22 @@ export const AssistantBlockSchema = z.discriminatedUnion('kind', [
     })
     // SAFETY: an expired or not-yet-effective referral document must never show as current
     // guidance, so the policy must apply at asOf, as for POLICY_RESULTS (ADR-0015 §6, AC42).
-    .refine((block) => block.policy === null || policyAppliesAt(block.policy, block.asOf), {
-      message: 'policy must apply at asOf',
-      path: ['policy'],
+    .refine(
+      (block) => {
+        if (block.policy === null) return true;
+        const at = Date.parse(block.asOf);
+        return (
+          Date.parse(block.policy.effectiveFrom) <= at &&
+          (block.policy.effectiveTo === null || at < Date.parse(block.policy.effectiveTo))
+        );
+      },
+      { message: 'policy must apply at asOf', path: ['policy'] },
+    )
+    // SAFETY: the attached document must be the approved one for the referral's topic, or the
+    // student is sent to the wrong source (ADR-0015 §5, planning/09 source authority).
+    .refine((block) => block.policy === null || block.policy.topic === block.topic, {
+      message: 'policy topic must match the referral topic',
+      path: ['policy', 'topic'],
     })
     .readonly(),
 ]);
