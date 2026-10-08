@@ -9,6 +9,8 @@ export * from './contracts/academic-summary.contract';
 export * from './contracts/case-requests.contract';
 export * from './contracts/case-view.contract';
 export * from './contracts/cases.contract';
+export * from './contracts/conversation.contract';
+export * from './contracts/conversation-blocks.contract';
 export * from './contracts/course-checks.contract';
 export * from './contracts/course-checks-request.contract';
 export * from './contracts/course-display.contract';
