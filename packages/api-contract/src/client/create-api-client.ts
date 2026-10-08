@@ -25,15 +25,28 @@ export interface ApiClientOptions {
   readonly fetchFn?: typeof fetch;
 }
 
-/** Per-call options. `params` is required exactly when the endpoint path has `:params`. */
-export type CallOptions<TPath extends string> = [PathParamName<TPath>] extends [never]
+/** Path and body options, with `params` required exactly when the path has `:params`. */
+type BaseOptions<TPath extends string> = [PathParamName<TPath>] extends [never]
   ? { readonly body?: unknown }
   : { readonly params: PathParams<TPath>; readonly body?: unknown };
 
+/**
+ * Per-call options. `query` is typed from the endpoint's query schema (its input, so values are
+ * what the query string carries); endpoints without a query schema accept none.
+ */
+export type CallOptions<
+  TPath extends string,
+  TQuery extends z.ZodType | undefined = undefined,
+> = TQuery extends z.ZodType
+  ? BaseOptions<TPath> & { readonly query?: z.input<TQuery> }
+  : BaseOptions<TPath>;
+
 /** Arguments after the endpoint. Options may be omitted only when the path has no `:params`. */
-export type CallArgs<TPath extends string> = [PathParamName<TPath>] extends [never]
-  ? [options?: CallOptions<TPath>]
-  : [options: CallOptions<TPath>];
+export type CallArgs<TPath extends string, TQuery extends z.ZodType | undefined = undefined> = [
+  PathParamName<TPath>,
+] extends [never]
+  ? [options?: CallOptions<TPath, TQuery>]
+  : [options: CallOptions<TPath, TQuery>];
 
 /** Calls API endpoints and returns validated response data. */
 export interface ApiClient {
@@ -41,21 +54,60 @@ export interface ApiClient {
    * Calls an endpoint and validates the response against its contract.
    *
    * @param endpoint - Endpoint definition from a contract file.
-   * @param args - Optional `{ params, body }`. `params` fills the path's `:params`; `body` is sent as JSON.
+   * @param args - Optional `{ params, query, body }`. `params` fills the path's `:params`; `query` is validated with the endpoint's query schema and sent in the query string; `body` is sent as JSON.
    * @returns The validated `data` payload.
    * @throws {MissingPathParamError} When a path param has no value. No request is sent.
+   * @throws {z.ZodError} When `query` fails the endpoint's query schema. No request is sent.
    * @throws {ApiError} When the API returns an error envelope.
    */
-  call<TResponse extends z.ZodType, TPath extends EndpointPath>(
-    endpoint: EndpointDefinition<TResponse, TPath>,
-    ...args: CallArgs<TPath>
+  call<
+    TResponse extends z.ZodType,
+    TPath extends EndpointPath,
+    TQuery extends z.ZodType | undefined = undefined,
+  >(
+    endpoint: EndpointDefinition<TResponse, TPath, TQuery>,
+    ...args: CallArgs<TPath, TQuery>
   ): Promise<z.infer<TResponse>>;
 }
 
 /** Call options with the path-specific typing erased, for the untyped request step. */
 interface RequestOptions {
   readonly params?: Readonly<Record<string, string>>;
+  readonly query?: Readonly<Record<string, unknown>> | undefined;
   readonly body?: unknown;
+}
+
+/**
+ * Validates a query with the endpoint's schema and encodes it for the URL.
+ *
+ * @param schema - The endpoint's query schema, if it has one.
+ * @param query - Query values from the caller.
+ * @returns `''` for no query, otherwise `?` plus the encoded pairs. Undefined values are omitted.
+ * @throws {z.ZodError} When the query fails the schema, or when a query is given without a schema.
+ */
+function encodeQuery(
+  schema: z.ZodType | undefined,
+  query: Readonly<Record<string, unknown>> | undefined,
+): string {
+  if (query === undefined) {
+    return '';
+  }
+  if (schema === undefined) {
+    throw new TypeError('This endpoint takes no query');
+  }
+  schema.parse(query);
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value === undefined) {
+      continue;
+    }
+    if (typeof value !== 'string' && typeof value !== 'number' && typeof value !== 'boolean') {
+      throw new TypeError(`Query value "${key}" must be a string, number, or boolean`);
+    }
+    search.set(key, String(value));
+  }
+  const text = search.toString();
+  return text === '' ? '' : `?${text}`;
 }
 
 /**
@@ -68,10 +120,11 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
   const fetchFn = options.fetchFn ?? fetch;
 
   const send = async <TResponse extends z.ZodType>(
-    endpoint: EndpointDefinition<TResponse>,
+    endpoint: EndpointDefinition<TResponse, EndpointPath, z.ZodType | undefined>,
     request: RequestOptions,
   ): Promise<z.infer<TResponse>> => {
-    const url = `${options.baseUrl}${buildPath(endpoint.path, request.params ?? {})}`;
+    const path = buildPath(endpoint.path, request.params ?? {});
+    const url = `${options.baseUrl}${path}${encodeQuery(endpoint.query, request.query)}`;
     const headers = { 'content-type': 'application/json', ...(await options.getHeaders?.()) };
     const init: RequestInit = { method: endpoint.method, headers };
     if (request.body !== undefined) {

@@ -20,6 +20,7 @@ import {
 } from '@caa/domain';
 
 import { defineEndpoint } from '../define-endpoint';
+import { CaseQueueQuerySchema } from './case-requests.contract';
 import { CaseViewSchema } from './case-view.contract';
 
 /**
@@ -151,6 +152,7 @@ export const getCaseEndpoint = defineEndpoint({
 export const listAdvisorCasesEndpoint = defineEndpoint({
   method: 'GET',
   path: '/v1/advisor/cases',
+  query: CaseQueueQuerySchema,
   response: CaseQueueResponseSchema,
 });
 
