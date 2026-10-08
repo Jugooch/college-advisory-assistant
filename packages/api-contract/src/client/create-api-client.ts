@@ -54,10 +54,14 @@ export interface ApiClient {
    * Calls an endpoint and validates the response against its contract.
    *
    * @param endpoint - Endpoint definition from a contract file.
-   * @param args - Optional `{ params, query, body }`. `params` fills the path's `:params`; `query` is validated with the endpoint's query schema and sent in the query string; `body` is sent as JSON.
+   * @param args - Optional `{ params, query, body }`. `params` fills the path's `:params`;
+   *   `query` is validated with the endpoint's query schema and sent in the query string;
+   *   `body` is sent as JSON.
    * @returns The validated `data` payload.
    * @throws {MissingPathParamError} When a path param has no value. No request is sent.
    * @throws {z.ZodError} When `query` fails the endpoint's query schema. No request is sent.
+   * @throws {TypeError} When `query` is given to an endpoint with no query schema, or a query value
+   *   is not a string, number, or boolean. No request is sent.
    * @throws {ApiError} When the API returns an error envelope.
    */
   call<
@@ -83,7 +87,9 @@ interface RequestOptions {
  * @param schema - The endpoint's query schema, if it has one.
  * @param query - Query values from the caller.
  * @returns `''` for no query, otherwise `?` plus the encoded pairs. Undefined values are omitted.
- * @throws {z.ZodError} When the query fails the schema, or when a query is given without a schema.
+ * @throws {z.ZodError} When the query fails the schema.
+ * @throws {TypeError} When a query is given to an endpoint with no query schema, or a value is not
+ *   a string, number, or boolean.
  */
 function encodeQuery(
   schema: z.ZodType | undefined,
