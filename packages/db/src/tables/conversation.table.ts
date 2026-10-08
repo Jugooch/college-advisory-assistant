@@ -72,7 +72,7 @@ export const conversationTable = pgTable(
 );
 
 /**
- * The `conversation_turn` table. A turn is never updated (migration 0019 adds a trigger);
+ * The `conversation_turn` table. A turn is never updated (migration 0021 adds a trigger);
  * retention and clearing delete whole turns. Assistant turns keep block references only, never
  * rendered numbers or text beyond the short intro (ADR-0015 §7).
  */
@@ -115,6 +115,30 @@ export const conversationTurnTable = pgTable(
       table.conversationId,
       table.createdAt,
     ),
+  ],
+);
+
+/**
+ * The `student_turn_log` table: one content-free row per student message ever accepted, holding
+ * only tenant, student and time. The per-student rate limit counts these rows (ADR-0015 §2), so
+ * clearing a conversation or pruning old turns can't reset the count. It holds no text.
+ */
+export const studentTurnLogTable = pgTable(
+  'student_turn_log',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id').notNull(),
+    studentId: uuid('student_id').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true, precision: 3 }).notNull(),
+  },
+  (table) => [
+    // SECURITY: the student must be this tenant's.
+    foreignKey({
+      name: 'student_turn_log_student_fk',
+      columns: [table.tenantId, table.studentId],
+      foreignColumns: [studentTable.tenantId, studentTable.id],
+    }),
+    index('student_turn_log_window_idx').on(table.tenantId, table.studentId, table.createdAt),
   ],
 );
 

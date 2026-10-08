@@ -221,6 +221,36 @@ describe('conversation repository', () => {
     expect(total).toBe(2);
   });
 
+  it('keeps counting student turns after the conversation is cleared', async () => {
+    const world = await createWorld('count-after-clear');
+    const since = new Date(Date.parse(NOW) - 60_000).toISOString();
+    await append(world, 0, [studentTurn('one', NOW), assistantTurn(NOW)]);
+    await append(world, 2, [studentTurn('two', NOW), assistantTurn(NOW)]);
+
+    await repository.clear(world);
+
+    expect(await repository.listRecent({ ...world, limit: 10 })).toEqual([]);
+    expect(await repository.countStudentTurnsSince({ ...world, since })).toBe(2);
+  });
+
+  it('keeps counting student turns that retention has pruned', async () => {
+    const world = await createWorld('count-after-retention');
+    const since = new Date(Date.parse(NOW) - 60_000).toISOString();
+    await append(world, 0, [studentTurn('one', NOW), assistantTurn(NOW)]);
+    await appendWith({ retainCount: 1 })(world, 2, [studentTurn('two', NOW), assistantTurn(NOW)]);
+
+    expect(await repository.listRecent({ ...world, limit: 10 })).toHaveLength(1);
+    expect(await repository.countStudentTurnsSince({ ...world, since })).toBe(2);
+  });
+
+  it('does not count a refused append', async () => {
+    const world = await createWorld('count-refused');
+    await append(world, 0, [studentTurn('one', NOW), assistantTurn(NOW)]);
+    await append(world, 0, [studentTurn('stale', NOW), assistantTurn(NOW)]);
+
+    expect(await repository.countStudentTurnsSince({ ...world, since: NOW })).toBe(1);
+  });
+
   it('never reads, appends to or clears another tenant or student conversation', async () => {
     const owner = await createWorld('owner');
     const other = await createWorld('other');

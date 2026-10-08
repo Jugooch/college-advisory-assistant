@@ -31,8 +31,17 @@ CREATE TABLE "conversation_turn" (
           ('ANSWERED', 'GUARDED', 'BUDGET_EXHAUSTED', 'MODEL_UNAVAILABLE')))
 );
 --> statement-breakpoint
+CREATE TABLE "student_turn_log" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"tenant_id" uuid NOT NULL,
+	"student_id" uuid NOT NULL,
+	"created_at" timestamp (3) with time zone NOT NULL
+);
+--> statement-breakpoint
 ALTER TABLE "conversation" ADD CONSTRAINT "conversation_tenant_id_institution_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "public"."institution"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "conversation" ADD CONSTRAINT "conversation_student_fk" FOREIGN KEY ("tenant_id","student_id") REFERENCES "public"."student"("tenant_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "conversation" ADD CONSTRAINT "conversation_term_fk" FOREIGN KEY ("tenant_id","term_id") REFERENCES "public"."term"("tenant_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "conversation_turn" ADD CONSTRAINT "conversation_turn_conversation_fk" FOREIGN KEY ("tenant_id","conversation_id") REFERENCES "public"."conversation"("tenant_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-CREATE INDEX "conversation_turn_created_idx" ON "conversation_turn" USING btree ("tenant_id","conversation_id","created_at");
+ALTER TABLE "student_turn_log" ADD CONSTRAINT "student_turn_log_student_fk" FOREIGN KEY ("tenant_id","student_id") REFERENCES "public"."student"("tenant_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "conversation_turn_created_idx" ON "conversation_turn" USING btree ("tenant_id","conversation_id","created_at");--> statement-breakpoint
+CREATE INDEX "student_turn_log_window_idx" ON "student_turn_log" USING btree ("tenant_id","student_id","created_at");

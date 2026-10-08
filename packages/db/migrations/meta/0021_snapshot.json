@@ -1,6 +1,6 @@
 {
-  "id": "8ca04bf5-104f-42b4-b1a9-264416ce23e5",
-  "prevId": "4f4b8464-503a-479a-85dd-7051e868c5bc",
+  "id": "bf1e628d-9753-4e98-a037-29af68771986",
+  "prevId": "1b47ccbf-cece-47e6-be07-3d66ff10d91a",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1139,6 +1139,256 @@
         "case_event_shape": {
           "name": "case_event_shape",
           "value": "\"case_event\".\"sequence\" >= 1\n        AND \"case_event\".\"action\" IN ('CREATE', 'CLAIM', 'RELEASE', 'RESOLVE', 'WITHDRAW')\n        AND \"case_event\".\"to_status\" IN ('OPEN', 'IN_REVIEW', 'RESOLVED', 'WITHDRAWN')\n        AND (\"case_event\".\"from_status\" IS NULL OR \"case_event\".\"from_status\" IN\n          ('OPEN', 'IN_REVIEW', 'RESOLVED', 'WITHDRAWN'))\n        AND (\"case_event\".\"action\" = 'CREATE') = (\"case_event\".\"from_status\" IS NULL)\n        AND (\"case_event\".\"action\" = 'CREATE') = (\"case_event\".\"sequence\" = 1)\n        AND (\"case_event\".\"action\" = 'RESOLVE') = (\"case_event\".\"resolution\" IS NOT NULL)\n        AND (\"case_event\".\"resolution\" IS NULL OR \"case_event\".\"resolution\" IN\n          ('PLAN_REVIEWED', 'STUDENT_ACTION_NEEDED', 'REFERRED_OUTSIDE_APP'))\n        AND (\"case_event\".\"note\" IS NULL OR (\"case_event\".\"action\" = 'RESOLVE'\n          AND char_length(btrim(\"case_event\".\"note\")) BETWEEN 1 AND 1000))"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.conversation": {
+      "name": "conversation",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "student_id": {
+          "name": "student_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "term_id": {
+          "name": "term_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_sequence": {
+          "name": "last_sequence",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "conversation_tenant_id_institution_id_fk": {
+          "name": "conversation_tenant_id_institution_id_fk",
+          "tableFrom": "conversation",
+          "tableTo": "institution",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "conversation_student_fk": {
+          "name": "conversation_student_fk",
+          "tableFrom": "conversation",
+          "tableTo": "student",
+          "columnsFrom": [
+            "tenant_id",
+            "student_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "conversation_term_fk": {
+          "name": "conversation_term_fk",
+          "tableFrom": "conversation",
+          "tableTo": "term",
+          "columnsFrom": [
+            "tenant_id",
+            "term_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "conversation_tenant_student_term_key": {
+          "name": "conversation_tenant_student_term_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "student_id",
+            "term_id"
+          ]
+        },
+        "conversation_tenant_id_id_key": {
+          "name": "conversation_tenant_id_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "conversation_last_sequence_shape": {
+          "name": "conversation_last_sequence_shape",
+          "value": "\"conversation\".\"last_sequence\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.conversation_turn": {
+      "name": "conversation_turn",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "conversation_id": {
+          "name": "conversation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sequence": {
+          "name": "sequence",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "text": {
+          "name": "text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "block_refs": {
+          "name": "block_refs",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "model_status": {
+          "name": "model_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "metadata": {
+          "name": "metadata",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "conversation_turn_created_idx": {
+          "name": "conversation_turn_created_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "conversation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "conversation_turn_conversation_fk": {
+          "name": "conversation_turn_conversation_fk",
+          "tableFrom": "conversation_turn",
+          "tableTo": "conversation",
+          "columnsFrom": [
+            "tenant_id",
+            "conversation_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "conversation_turn_conversation_sequence_key": {
+          "name": "conversation_turn_conversation_sequence_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "conversation_id",
+            "sequence"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "conversation_turn_shape": {
+          "name": "conversation_turn_shape",
+          "value": "\"conversation_turn\".\"sequence\" >= 1\n        AND \"conversation_turn\".\"role\" IN ('STUDENT', 'ASSISTANT')\n        AND (\"conversation_turn\".\"role\" = 'ASSISTANT') = (\"conversation_turn\".\"block_refs\" IS NOT NULL)\n        AND (\"conversation_turn\".\"role\" = 'ASSISTANT') = (\"conversation_turn\".\"metadata\" IS NOT NULL)\n        AND (\"conversation_turn\".\"role\" = 'ASSISTANT') = (\"conversation_turn\".\"model_status\" IS NOT NULL)\n        AND (\"conversation_turn\".\"model_status\" IS NULL OR \"conversation_turn\".\"model_status\" IN\n          ('ANSWERED', 'GUARDED', 'BUDGET_EXHAUSTED', 'MODEL_UNAVAILABLE'))"
         }
       },
       "isRLSEnabled": false
@@ -4413,6 +4663,88 @@
           "value": "\"student\".\"source_id\" IS NULL OR length(\"student\".\"source_id\") > 0"
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.student_turn_log": {
+      "name": "student_turn_log",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "student_id": {
+          "name": "student_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "student_turn_log_window_idx": {
+          "name": "student_turn_log_window_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "student_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "student_turn_log_student_fk": {
+          "name": "student_turn_log_student_fk",
+          "tableFrom": "student_turn_log",
+          "tableTo": "student",
+          "columnsFrom": [
+            "tenant_id",
+            "student_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.term": {

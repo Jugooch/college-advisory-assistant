@@ -1,6 +1,6 @@
 {
-  "id": "a614cca1-24af-473d-9b7c-bad02d0ad795",
-  "prevId": "9707a4c4-08de-4fb5-a998-7e7cf0141fb0",
+  "id": "0f1b1875-d704-4168-b365-f95001d06eec",
+  "prevId": "8ca04bf5-104f-42b4-b1a9-264416ce23e5",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1139,256 +1139,6 @@
         "case_event_shape": {
           "name": "case_event_shape",
           "value": "\"case_event\".\"sequence\" >= 1\n        AND \"case_event\".\"action\" IN ('CREATE', 'CLAIM', 'RELEASE', 'RESOLVE', 'WITHDRAW')\n        AND \"case_event\".\"to_status\" IN ('OPEN', 'IN_REVIEW', 'RESOLVED', 'WITHDRAWN')\n        AND (\"case_event\".\"from_status\" IS NULL OR \"case_event\".\"from_status\" IN\n          ('OPEN', 'IN_REVIEW', 'RESOLVED', 'WITHDRAWN'))\n        AND (\"case_event\".\"action\" = 'CREATE') = (\"case_event\".\"from_status\" IS NULL)\n        AND (\"case_event\".\"action\" = 'CREATE') = (\"case_event\".\"sequence\" = 1)\n        AND (\"case_event\".\"action\" = 'RESOLVE') = (\"case_event\".\"resolution\" IS NOT NULL)\n        AND (\"case_event\".\"resolution\" IS NULL OR \"case_event\".\"resolution\" IN\n          ('PLAN_REVIEWED', 'STUDENT_ACTION_NEEDED', 'REFERRED_OUTSIDE_APP'))\n        AND (\"case_event\".\"note\" IS NULL OR (\"case_event\".\"action\" = 'RESOLVE'\n          AND char_length(btrim(\"case_event\".\"note\")) BETWEEN 1 AND 1000))"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.conversation": {
-      "name": "conversation",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "tenant_id": {
-          "name": "tenant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "student_id": {
-          "name": "student_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "term_id": {
-          "name": "term_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp (3) with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "last_sequence": {
-          "name": "last_sequence",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "conversation_tenant_id_institution_id_fk": {
-          "name": "conversation_tenant_id_institution_id_fk",
-          "tableFrom": "conversation",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "tableTo": "institution",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "conversation_student_fk": {
-          "name": "conversation_student_fk",
-          "tableFrom": "conversation",
-          "columnsFrom": [
-            "tenant_id",
-            "student_id"
-          ],
-          "tableTo": "student",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "conversation_term_fk": {
-          "name": "conversation_term_fk",
-          "tableFrom": "conversation",
-          "columnsFrom": [
-            "tenant_id",
-            "term_id"
-          ],
-          "tableTo": "term",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "conversation_tenant_student_term_key": {
-          "name": "conversation_tenant_student_term_key",
-          "columns": [
-            "tenant_id",
-            "student_id",
-            "term_id"
-          ],
-          "nullsNotDistinct": false
-        },
-        "conversation_tenant_id_id_key": {
-          "name": "conversation_tenant_id_id_key",
-          "columns": [
-            "tenant_id",
-            "id"
-          ],
-          "nullsNotDistinct": false
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "conversation_last_sequence_shape": {
-          "name": "conversation_last_sequence_shape",
-          "value": "\"conversation\".\"last_sequence\" >= 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.conversation_turn": {
-      "name": "conversation_turn",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "tenant_id": {
-          "name": "tenant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "conversation_id": {
-          "name": "conversation_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sequence": {
-          "name": "sequence",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "role": {
-          "name": "role",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "text": {
-          "name": "text",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "block_refs": {
-          "name": "block_refs",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "model_status": {
-          "name": "model_status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "metadata": {
-          "name": "metadata",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp (3) with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "conversation_turn_created_idx": {
-          "name": "conversation_turn_created_idx",
-          "columns": [
-            {
-              "expression": "tenant_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "conversation_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        }
-      },
-      "foreignKeys": {
-        "conversation_turn_conversation_fk": {
-          "name": "conversation_turn_conversation_fk",
-          "tableFrom": "conversation_turn",
-          "columnsFrom": [
-            "tenant_id",
-            "conversation_id"
-          ],
-          "tableTo": "conversation",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "conversation_turn_conversation_sequence_key": {
-          "name": "conversation_turn_conversation_sequence_key",
-          "columns": [
-            "conversation_id",
-            "sequence"
-          ],
-          "nullsNotDistinct": false
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "conversation_turn_shape": {
-          "name": "conversation_turn_shape",
-          "value": "\"conversation_turn\".\"sequence\" >= 1\n        AND \"conversation_turn\".\"role\" IN ('STUDENT', 'ASSISTANT')\n        AND (\"conversation_turn\".\"role\" = 'ASSISTANT') = (\"conversation_turn\".\"block_refs\" IS NOT NULL)\n        AND (\"conversation_turn\".\"role\" = 'ASSISTANT') = (\"conversation_turn\".\"metadata\" IS NOT NULL)\n        AND (\"conversation_turn\".\"role\" = 'ASSISTANT') = (\"conversation_turn\".\"model_status\" IS NOT NULL)\n        AND (\"conversation_turn\".\"model_status\" IS NULL OR \"conversation_turn\".\"model_status\" IN\n          ('ANSWERED', 'GUARDED', 'BUDGET_EXHAUSTED', 'MODEL_UNAVAILABLE'))"
         }
       },
       "isRLSEnabled": false
@@ -2546,6 +2296,220 @@
       },
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.policy_document": {
+      "name": "policy_document",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "document_key": {
+          "name": "document_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "revision": {
+          "name": "revision",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "body": {
+          "name": "body",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "topic": {
+          "name": "topic",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "subject_key": {
+          "name": "subject_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "audience": {
+          "name": "audience",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "effective_from": {
+          "name": "effective_from",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "effective_to": {
+          "name": "effective_to",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "approval_status": {
+          "name": "approval_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "approved_at": {
+          "name": "approved_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_label": {
+          "name": "source_label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "content_hash": {
+          "name": "content_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "policy_document_applicable_idx": {
+          "name": "policy_document_applicable_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "approval_status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "document_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "revision",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "policy_document_tenant_id_institution_id_fk": {
+          "name": "policy_document_tenant_id_institution_id_fk",
+          "tableFrom": "policy_document",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "tableTo": "institution",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "policy_document_tenant_id_document_key_revision_key": {
+          "name": "policy_document_tenant_id_document_key_revision_key",
+          "columns": [
+            "tenant_id",
+            "document_key",
+            "revision"
+          ],
+          "nullsNotDistinct": false
+        },
+        "policy_document_tenant_id_id_key": {
+          "name": "policy_document_tenant_id_id_key",
+          "columns": [
+            "tenant_id",
+            "id"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "policy_document_revision_positive": {
+          "name": "policy_document_revision_positive",
+          "value": "\"policy_document\".\"revision\" >= 1"
+        },
+        "policy_document_text_fields_not_empty": {
+          "name": "policy_document_text_fields_not_empty",
+          "value": "length(\"policy_document\".\"document_key\") > 0\n      AND length(\"policy_document\".\"title\") > 0 AND length(\"policy_document\".\"body\") > 0\n      AND length(\"policy_document\".\"subject_key\") > 0 AND length(\"policy_document\".\"source_label\") > 0"
+        },
+        "policy_document_body_length": {
+          "name": "policy_document_body_length",
+          "value": "length(\"policy_document\".\"body\") <= 20000"
+        },
+        "policy_document_topic_valid": {
+          "name": "policy_document_topic_valid",
+          "value": "\"policy_document\".\"topic\" IN ('GENERAL', 'FINANCIAL_AID', 'IMMIGRATION', 'ATHLETICS', 'ACCESSIBILITY', 'APPEALS', 'CRISIS')"
+        },
+        "policy_document_audience_valid": {
+          "name": "policy_document_audience_valid",
+          "value": "\"policy_document\".\"audience\" IN ('STUDENT', 'ADVISOR', 'ALL')"
+        },
+        "policy_document_approval_status_valid": {
+          "name": "policy_document_approval_status_valid",
+          "value": "\"policy_document\".\"approval_status\" IN ('DRAFT', 'APPROVED', 'WITHDRAWN')"
+        },
+        "policy_document_effective_range": {
+          "name": "policy_document_effective_range",
+          "value": "\"policy_document\".\"effective_to\" IS NULL OR \"policy_document\".\"effective_to\" > \"policy_document\".\"effective_from\""
+        },
+        "policy_document_approved_at_matches_status": {
+          "name": "policy_document_approved_at_matches_status",
+          "value": "(\"policy_document\".\"approval_status\" = 'APPROVED') = (\"policy_document\".\"approved_at\" IS NOT NULL)"
+        },
+        "policy_document_content_hash_format": {
+          "name": "policy_document_content_hash_format",
+          "value": "\"policy_document\".\"content_hash\" ~ '^sha256:[0-9a-f]{64}$'"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.prerequisite_rule": {

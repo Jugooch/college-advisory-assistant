@@ -22,7 +22,11 @@ import {
   toConversation,
   toStoredConversationTurn,
 } from '../mappers/conversation.mapper';
-import { conversationTable, conversationTurnTable } from '../tables/conversation.table';
+import {
+  conversationTable,
+  conversationTurnTable,
+  studentTurnLogTable,
+} from '../tables/conversation.table';
 
 /** A turn to append. The repository assigns the ID, conversation and sequence. */
 export type NewConversationTurn = ConversationTurn extends infer Turn
@@ -89,6 +93,31 @@ export function ownedBy(
 }
 
 /**
+ * Records one content-free log row per student message. The per-student rate limit counts this
+ * log, not the turns, so clearing or retention can't reset it (ADR-0015 §2).
+ *
+ * @param tx - The append transaction.
+ * @param owner - Tenant and student from the session.
+ * @param turns - The turns being appended; only student turns are logged.
+ * @returns Nothing; resolves when the rows are inserted.
+ */
+async function logStudentTurns(
+  tx: Pick<Database, 'insert'>,
+  { tenantId, studentId }: { tenantId: InstitutionId; studentId: StudentId },
+  turns: readonly NewConversationTurn[],
+): Promise<void> {
+  const studentTurns = turns.filter((turn) => turn.role === 'STUDENT');
+  if (studentTurns.length === 0) {
+    return;
+  }
+  await tx
+    .insert(studentTurnLogTable)
+    .values(
+      studentTurns.map((turn) => ({ tenantId, studentId, createdAt: new Date(turn.createdAt) })),
+    );
+}
+
+/**
  * Appends turns in one transaction, then applies retention.
  *
  * @param db - Typed database handle, bound first so the returned function takes one argument.
@@ -135,6 +164,7 @@ export const appendConversationTurns =
                 })),
               )
               .returning();
+      await logStudentTurns(tx, { tenantId, studentId }, turns);
       await tx
         .update(conversationTable)
         .set({ lastSequence })

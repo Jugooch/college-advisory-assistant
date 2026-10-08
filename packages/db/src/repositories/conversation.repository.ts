@@ -16,7 +16,11 @@ import {
   type StoredConversationTurn,
   toStoredConversationTurn,
 } from '../mappers/conversation.mapper';
-import { conversationTable, conversationTurnTable } from '../tables/conversation.table';
+import {
+  conversationTable,
+  conversationTurnTable,
+  studentTurnLogTable,
+} from '../tables/conversation.table';
 import {
   appendConversationTurns,
   type AppendTurnsRequest,
@@ -83,6 +87,7 @@ export interface ConversationRepository {
 
   /**
    * Counts the student's own turns since an instant, across their conversations, for the rate limit.
+   * Counts a content-free log, so clearing and retention never lower it (ADR-0015 §2).
    *
    * @param request - Tenant, student, and the window start.
    * @returns The number of student turns.
@@ -129,20 +134,12 @@ export function createConversationRepository(db: Database): ConversationReposito
     async countStudentTurnsSince({ tenantId, studentId, since }) {
       const rows = await db
         .select({ total: count() })
-        .from(conversationTurnTable)
-        .innerJoin(
-          conversationTable,
-          and(
-            eq(conversationTable.tenantId, conversationTurnTable.tenantId),
-            eq(conversationTable.id, conversationTurnTable.conversationId),
-          ),
-        )
+        .from(studentTurnLogTable)
         .where(
           and(
-            eq(conversationTable.tenantId, tenantId),
-            eq(conversationTable.studentId, studentId),
-            eq(conversationTurnTable.role, 'STUDENT'),
-            gte(conversationTurnTable.createdAt, new Date(since)),
+            eq(studentTurnLogTable.tenantId, tenantId),
+            eq(studentTurnLogTable.studentId, studentId),
+            gte(studentTurnLogTable.createdAt, new Date(since)),
           ),
         );
       return rows[0]?.total ?? 0;
