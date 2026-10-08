@@ -9,7 +9,10 @@
  * @requirement FR-15
  * @see docs/adr/0013-plan-drafts-staleness-and-advisor-cases.md
  */
-import { beforeEach, describe, expect } from 'vitest';
+import http from 'node:http';
+import https from 'node:https';
+
+import { afterEach, beforeEach, describe, expect, vi } from 'vitest';
 
 import { Role } from '@caa/domain';
 import { buildAdvisorAssignment, buildUserIdentity } from '@caa/test-kit';
@@ -58,12 +61,23 @@ function readQueueAsAdmin(query: string) {
 
 const RESOLVE = { action: 'RESOLVE', expectedSequence: 2, resolution: 'PLAN_REVIEWED' } as const;
 
+/** Everything but the case rows, as plain data, to compare before and after the actions. */
+function otherData(): string {
+  return JSON.stringify(world, (key, value: unknown) =>
+    key === 'cases' || key === 'caseEvents' ? undefined : value,
+  );
+}
+
 /** Ends the advisor's assignment before the harness clock. */
 function revokeAssignment(): void {
   world.assignments = [buildAdvisorAssignment({ effectiveTo: REVOKED_AT })];
 }
 
 describe('AC36 the assignment is revoked and the student withdraws', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   beforeEach(() => {
     resetCasesWorld(world);
     world.assignments = [buildAdvisorAssignment()];
@@ -193,6 +207,31 @@ describe('AC36 the assignment is revoked and the student withdraws', () => {
           expect(summarizeError(refused)).toMatchObject(INVALID);
           expect(world.caseEvents).toHaveLength(1);
         });
+      },
+    );
+
+    acceptanceIt(
+      'AC36',
+      'makes no outbound or institutional call from create, claim, release, resolve or withdraw',
+      async () => {
+        const outbound = [
+          vi.spyOn(globalThis, 'fetch'),
+          vi.spyOn(http, 'request'),
+          vi.spyOn(https, 'request'),
+        ];
+        const { caseId, revisionId } = await openCase(app);
+        const othersBefore = otherData();
+        await actOnCase(app, caseId, { action: 'CLAIM', expectedSequence: 1 });
+        await actOnCase(app, caseId, { action: 'RELEASE', expectedSequence: 2 });
+        await actOnCase(app, caseId, { action: 'CLAIM', expectedSequence: 3 });
+        await actOnCase(app, caseId, { ...RESOLVE, expectedSequence: 4 });
+        await createCase(app, planReviewBody(revisionId));
+        const second = world.cases?.at(-1)?.id ?? '';
+        await actAs(app, 'student')(second, { action: 'WITHDRAW', expectedSequence: 1 });
+
+        expect(world.cases?.map((entry) => entry.status)).toEqual(['RESOLVED', 'WITHDRAWN']);
+        expect(outbound.map((spy) => spy.mock.calls.length)).toEqual([0, 0, 0]);
+        expect(otherData()).toBe(othersBefore);
       },
     );
 
