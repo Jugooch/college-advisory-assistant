@@ -57,6 +57,7 @@ describe('createRuntimeDependencies', () => {
       'caseActions',
       'caseQueue',
       'cases',
+      'conversationStore',
       'courseChecks',
       'health',
       'planDrafts',

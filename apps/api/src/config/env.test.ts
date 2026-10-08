@@ -169,3 +169,73 @@ describe('loadApiEnv SCHEDULE_SOLVER_WORK_CAP', () => {
     expect(() => loadApiEnv({ ...BASE, SCHEDULE_SOLVER_WORK_CAP: value })).toThrow(ZodError);
   });
 });
+
+describe('loadApiEnv conversation settings', () => {
+  it('defaults to the model off with the documented limits', () => {
+    expect(loadApiEnv(BASE)).toMatchObject({
+      CONVERSATION_MODEL: 'off',
+      CONVERSATION_MODEL_ID: 'claude-haiku-5-5',
+      CONVERSATION_HISTORY_TURNS: 8,
+      CONVERSATION_RATE_LIMIT: 20,
+    });
+  });
+
+  it('accepts demo outside production and refuses it in production', () => {
+    expect(loadApiEnv({ ...BASE, CONVERSATION_MODEL: 'demo' }).CONVERSATION_MODEL).toBe('demo');
+    expect(() => loadApiEnv({ ...BASE, ...PRODUCTION, CONVERSATION_MODEL: 'demo' })).toThrow(
+      /CONVERSATION_MODEL=demo is not allowed/,
+    );
+  });
+
+  it('refuses an unknown provider', () => {
+    expect(() => loadApiEnv({ ...BASE, CONVERSATION_MODEL: 'other' })).toThrow(ZodError);
+  });
+
+  it('requires an API key for claude', () => {
+    expect(() => loadApiEnv({ ...BASE, CONVERSATION_MODEL: 'claude' })).toThrow(
+      /ANTHROPIC_API_KEY is required/,
+    );
+    expect(
+      loadApiEnv({ ...BASE, CONVERSATION_MODEL: 'claude', ANTHROPIC_API_KEY: 'k' })
+        .CONVERSATION_MODEL,
+    ).toBe('claude');
+  });
+
+  it('requires the approval reference for claude in production only', () => {
+    const claude = { ...BASE, ...PRODUCTION, CONVERSATION_MODEL: 'claude', ANTHROPIC_API_KEY: 'k' };
+
+    expect(() => loadApiEnv(claude)).toThrow(/CONVERSATION_PROVIDER_APPROVAL_REF is required/);
+    expect(
+      loadApiEnv({ ...claude, CONVERSATION_PROVIDER_APPROVAL_REF: 'APPR-1' }).CONVERSATION_MODEL,
+    ).toBe('claude');
+  });
+
+  it.each([['claude-sonnet-5-5'], ['claude-haiku-5-5']])('accepts model ID %s', (id) => {
+    expect(loadApiEnv({ ...BASE, CONVERSATION_MODEL_ID: id }).CONVERSATION_MODEL_ID).toBe(id);
+  });
+
+  it('refuses a model ID outside the allowlist', () => {
+    expect(() => loadApiEnv({ ...BASE, CONVERSATION_MODEL_ID: 'claude-opus-9' })).toThrow(ZodError);
+  });
+
+  it.each([
+    ['CONVERSATION_HISTORY_TURNS', '0', 0],
+    ['CONVERSATION_HISTORY_TURNS', '20', 20],
+    ['CONVERSATION_RATE_LIMIT', '1', 1],
+    ['CONVERSATION_RATE_LIMIT', '1000', 1000],
+  ])('accepts %s=%s', (name, value, expected) => {
+    expect(loadApiEnv({ ...BASE, [name]: value })).toMatchObject({ [name]: expected });
+  });
+
+  it.each([
+    ['CONVERSATION_HISTORY_TURNS', '21'],
+    ['CONVERSATION_HISTORY_TURNS', '-1'],
+    ['CONVERSATION_HISTORY_TURNS', '1.5'],
+    ['CONVERSATION_HISTORY_TURNS', ''],
+    ['CONVERSATION_RATE_LIMIT', '0'],
+    ['CONVERSATION_RATE_LIMIT', '1001'],
+    ['CONVERSATION_RATE_LIMIT', 'many'],
+  ])('refuses %s=%s', (name, value) => {
+    expect(() => loadApiEnv({ ...BASE, [name]: value })).toThrow(ZodError);
+  });
+});

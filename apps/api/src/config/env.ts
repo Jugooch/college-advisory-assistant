@@ -91,6 +91,42 @@ const ScheduleSolverWorkCapSchema = z
   // needs an ADR-0010 amendment with a new measurement.
   .pipe(z.number().int().min(1).max(MAX_SOLVER_WORK_CAP));
 
+/** `CONVERSATION_MODEL` values: `off` is the kill switch (ADR-0015 §1). */
+export const ConversationProvider = { Off: 'off', Demo: 'demo', Claude: 'claude' } as const;
+
+/** Model IDs the conversation may call; any other value is refused (ADR-0015 §1). */
+export const CONVERSATION_MODEL_IDS = ['claude-haiku-5-5', 'claude-sonnet-5-5'] as const;
+
+/** Most turns sent to the model (ADR-0015 §1). */
+export const MAX_CONVERSATION_HISTORY_TURNS = 20;
+
+/** Default `CONVERSATION_HISTORY_TURNS`. */
+export const DEFAULT_CONVERSATION_HISTORY_TURNS = 8;
+
+/** Default `CONVERSATION_RATE_LIMIT`: student turns per rolling 10 minutes. */
+export const DEFAULT_CONVERSATION_RATE_LIMIT = 20;
+
+/** Largest accepted `CONVERSATION_RATE_LIMIT`. */
+export const MAX_CONVERSATION_RATE_LIMIT = 1000;
+
+/**
+ * Builds a schema for a whole number in a range, defaulted. Digits only, so an empty or
+ * fractional value fails instead of coercing to 0 or rounding.
+ *
+ * @param fallback - Default when unset.
+ * @param min - Smallest accepted value.
+ * @param max - Largest accepted value.
+ * @returns The schema.
+ */
+function boundedWholeNumber(fallback: number, min: number, max: number) {
+  return z
+    .string()
+    .regex(/^\d+$/, 'must be a whole number')
+    .default(String(fallback))
+    .transform(Number)
+    .pipe(z.number().int().min(min).max(max));
+}
+
 /**
  * Parses a JSON string, reporting malformed JSON as a validation issue without echoing the value.
  *
@@ -126,6 +162,21 @@ const ApiEnvSchema = z
     ACTIVE_RULESET_VERSION: z.string().trim().min(1).optional(),
     ACADEMIC_SOURCE_MAX_AGE_MS: AcademicSourceMaxAgeSchema,
     SCHEDULE_SOLVER_WORK_CAP: ScheduleSolverWorkCapSchema,
+    CONVERSATION_MODEL: z.enum(ConversationProvider).default(ConversationProvider.Off),
+    CONVERSATION_MODEL_ID: z.enum(CONVERSATION_MODEL_IDS).default('claude-haiku-5-5'),
+    /** A secret: read here only, never logged. */
+    ANTHROPIC_API_KEY: z.string().trim().min(1).optional(),
+    CONVERSATION_PROVIDER_APPROVAL_REF: z.string().trim().min(1).optional(),
+    CONVERSATION_HISTORY_TURNS: boundedWholeNumber(
+      DEFAULT_CONVERSATION_HISTORY_TURNS,
+      0,
+      MAX_CONVERSATION_HISTORY_TURNS,
+    ),
+    CONVERSATION_RATE_LIMIT: boundedWholeNumber(
+      DEFAULT_CONVERSATION_RATE_LIMIT,
+      1,
+      MAX_CONVERSATION_RATE_LIMIT,
+    ),
   })
   // SECURITY: dev tokens are guessable shortcuts, so production refuses to start with them.
   .refine((env) => !(env.NODE_ENV === 'production' && env.AUTH_MODE === AuthMode.Dev), {
@@ -144,6 +195,35 @@ const ApiEnvSchema = z
     message: 'ACADEMIC_SOURCE_MAX_AGE_MS is required when NODE_ENV=production',
     path: ['ACADEMIC_SOURCE_MAX_AGE_MS'],
   })
+  // SAFETY: the scripted demo model must never answer real students (ADR-0015 §1).
+  .refine(
+    (env) =>
+      !(env.NODE_ENV === 'production' && env.CONVERSATION_MODEL === ConversationProvider.Demo),
+    {
+      message: 'CONVERSATION_MODEL=demo is not allowed when NODE_ENV=production',
+      path: ['CONVERSATION_MODEL'],
+    },
+  )
+  .refine(
+    (env) =>
+      env.CONVERSATION_MODEL !== ConversationProvider.Claude || env.ANTHROPIC_API_KEY !== undefined,
+    {
+      message: 'ANTHROPIC_API_KEY is required when CONVERSATION_MODEL=claude',
+      path: ['ANTHROPIC_API_KEY'],
+    },
+  )
+  // SAFETY: sending records to a provider is a recorded, approved act (planning/10).
+  .refine(
+    (env) =>
+      env.NODE_ENV !== 'production' ||
+      env.CONVERSATION_MODEL !== ConversationProvider.Claude ||
+      env.CONVERSATION_PROVIDER_APPROVAL_REF !== undefined,
+    {
+      message:
+        'CONVERSATION_PROVIDER_APPROVAL_REF is required when CONVERSATION_MODEL=claude and NODE_ENV=production',
+      path: ['CONVERSATION_PROVIDER_APPROVAL_REF'],
+    },
+  )
   .transform((env) => ({
     ...env,
     ACADEMIC_SOURCE_MAX_AGE_MS: env.ACADEMIC_SOURCE_MAX_AGE_MS ?? DEV_ACADEMIC_SOURCE_MAX_AGE_MS,
