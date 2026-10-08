@@ -16,6 +16,7 @@ import {
   insertSectionSnapshot,
 } from './section-snapshot-writer';
 import { type AcademicSeedCounts, seedAcademicData } from './seed-academic-data';
+import { insertPolicyDocuments } from './seed-policy-data';
 
 /** How many records of each kind the seed wrote. Counts only, safe to log. */
 export interface SeedCounts extends AcademicSeedCounts {
@@ -23,6 +24,7 @@ export interface SeedCounts extends AcademicSeedCounts {
   readonly identities: number;
   readonly students: number;
   readonly assignments: number;
+  readonly policyDocuments: number;
 }
 
 /** The part of a database handle or transaction the seed writes through. */
@@ -67,12 +69,14 @@ export async function seedDevData(db: Database, plan: DevSeedPlan): Promise<Seed
     await insertCampuses(tx, campuses);
     await insertCampusTransitionPolicy(tx, transitionPolicy, transitionPublishedAt);
     await insertSectionSnapshot(tx, snapshot);
+    const policyDocuments = await insertPolicyDocuments(tx, plan.policyDocuments);
     return {
       ...academicCounts,
       institutions: plan.institutions.length,
       identities: plan.identities.length,
       students: plan.students.length,
       assignments: plan.assignments.length,
+      policyDocuments,
     };
   });
 }
