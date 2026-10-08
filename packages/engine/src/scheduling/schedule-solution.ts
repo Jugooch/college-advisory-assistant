@@ -7,14 +7,15 @@
  * @requirement NFR-07
  * @see docs/adr/0010-deterministic-bounded-schedule-solver.md
  */
-import type {
-  AcademicPolicy,
-  CampusTransitionPolicy,
-  CheckResult,
-  CourseId,
-  ScheduleConstraint,
-  ScheduleOutcome,
-  UnmetPreference,
+import {
+  type AcademicPolicy,
+  type CampusTransitionPolicy,
+  type CheckResult,
+  type CourseId,
+  MAX_PLAN_COURSES,
+  type ScheduleConstraint,
+  type ScheduleOutcome,
+  type UnmetPreference,
 } from '@caa/domain';
 
 import type { SectionBundle, SectionBundles } from './build-section-bundles';
@@ -31,8 +32,11 @@ import type { LinkedCourseResult, LinkedCourseRule } from './linked-course-resul
  */
 export const DEFAULT_SOLVER_WORK_CAP = 3_000_000;
 
-/** Fewest and most courses one request may name (ADR-0010 §2). */
-export const MAX_SOLVER_COURSES = 8;
+/**
+ * Fewest and most courses one request may name (ADR-0010 §2). Derived from the domain plan cap
+ * so the plan schema, the contract and the solver can't drift apart.
+ */
+export const MAX_SOLVER_COURSES = MAX_PLAN_COURSES;
 
 /** Most options the solver returns (ADR-0010 §4). */
 export const MAX_SOLVER_OPTIONS = 3;
