@@ -6,6 +6,12 @@
  * For tests only. The production bundle is built from `server.ts` alone and never includes this
  * file, so nothing here is shipped or run by the deployed API.
  */
+export {
+  type ClaudeClient,
+  createClaudeModel,
+  createClaudeModelFromEnv,
+  ModelUnavailableError,
+} from './adapters/claude-model.adapter';
 export { buildApp, type BuildAppOptions } from './app';
 export { type ApiEnv, AuthMode, loadApiEnv } from './config/env';
 export {
