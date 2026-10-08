@@ -23,6 +23,7 @@ import {
   CaseStatus,
   createAdvisingCase,
   createCaseEvent,
+  type PlanId,
   type Student,
 } from '@caa/domain';
 import { syntheticId } from '@caa/test-kit';
@@ -240,6 +241,56 @@ function hasAssignment(
 }
 
 /**
+ * Maps each plan to its live case.
+ *
+ * @param world - Backing data.
+ * @param tenantCases - The tenant's cases.
+ * @param planIds - Plans to look up.
+ * @returns A map from plan ID to its live case; other plans have no entry.
+ */
+function liveByPlan(
+  world: CaseWorld,
+  tenantCases: readonly AdvisingCase[],
+  planIds: readonly PlanId[],
+): Promise<Map<PlanId, AdvisingCase>> {
+  const live = new Map<PlanId, AdvisingCase>();
+  for (const entry of tenantCases) {
+    const planId =
+      entry.planRevisionId === null
+        ? undefined
+        : planOf(world, entry.tenantId, entry.planRevisionId)?.id;
+    if (planId !== undefined && isLive(entry.status) && planIds.includes(planId)) {
+      live.set(planId, entry);
+    }
+  }
+  return Promise.resolve(live);
+}
+
+/**
+ * Lists the tenant's cases oldest first, each flagged routed when its student has an active
+ * assignment.
+ *
+ * @param world - Backing data.
+ * @param tenantCases - The tenant's cases.
+ * @param query - The instant and an optional status.
+ * @returns The flagged cases.
+ * @throws {RangeError} When the instant is invalid.
+ */
+function tenantQueue(
+  world: CaseWorld,
+  tenantCases: readonly AdvisingCase[],
+  query: { readonly at: string; readonly status?: CaseStatus | undefined },
+) {
+  const instant = requireInstant(query.at);
+  return Promise.resolve(
+    tenantCases
+      .filter((entry) => query.status === undefined || entry.status === query.status)
+      .toSorted(oldestFirst)
+      .map((entry) => ({ ...entry, routed: hasAssignment(world, entry, { at: instant }) })),
+  );
+}
+
+/**
  * Creates the advising case repository over the world.
  *
  * @param world - Backing data. Read and replaced on every call, so a case can inspect it.
@@ -279,6 +330,7 @@ export function createCaseRepositories(world: CaseWorld): CaseRepositories {
           .filter((entry) => entry.studentId === studentId)
           .toSorted((left, right) => oldestFirst(right, left)),
       ),
+    findLiveByPlanIds: (tenantId, planIds) => liveByPlan(world, inTenant(tenantId), planIds),
     listQueue: (tenantId, advisorUserId, { at, status }) => {
       const instant = requireInstant(at);
       return Promise.resolve(
@@ -291,6 +343,7 @@ export function createCaseRepositories(world: CaseWorld): CaseRepositories {
           .toSorted(oldestFirst),
       );
     },
+    listTenantQueue: (tenantId, query) => tenantQueue(world, inTenant(tenantId), query),
     listUnrouted: (tenantId, at) => {
       const instant = requireInstant(at);
       return Promise.resolve(
