@@ -8,18 +8,21 @@
  * @requirement NFR-05
  * @see docs/adr/0013-plan-drafts-staleness-and-advisor-cases.md
  */
-import type { ReactElement } from 'react';
+import { type ReactElement, useId } from 'react';
 
 import type { PlanFreshnessView } from '@caa/api-contract';
 
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Timestamp } from '@/shared/components/timestamp';
 import { describeFreshness, describeStaleReason } from '@/shared/utils/freshness-wording';
+import { type HeadingLevel, headingTag } from '@/shared/utils/heading-level';
 import { describeFreshnessBanner } from '@/shared/utils/plan-detail-wording';
 
 /** Props for {@link FreshnessBanner}. */
 export interface FreshnessBannerProps {
   readonly freshness: PlanFreshnessView;
+  /** Level of this card's heading; its sub-headings sit one level below. Defaults to `2`. */
+  readonly headingLevel?: HeadingLevel;
 }
 
 /**
@@ -28,12 +31,17 @@ export interface FreshnessBannerProps {
  * @param props - The freshness view.
  * @returns The banner section.
  */
-export function FreshnessBanner({ freshness }: FreshnessBannerProps): ReactElement {
+export function FreshnessBanner({
+  freshness,
+  headingLevel = 2,
+}: FreshnessBannerProps): ReactElement {
+  const headingId = useId();
+  const Heading = headingTag(headingLevel);
   const banner = describeFreshnessBanner(freshness.state);
   const badge = describeFreshness(freshness.state);
   return (
-    <section aria-labelledby="freshness-heading" className="notice">
-      <h2 id="freshness-heading">{banner.heading}</h2>
+    <section aria-labelledby={headingId} className="notice">
+      <Heading id={headingId}>{banner.heading}</Heading>
       <p>
         <StatusBadge label={badge.label} tone={badge.tone} /> Checked{' '}
         <Timestamp iso={freshness.checkedAt} />

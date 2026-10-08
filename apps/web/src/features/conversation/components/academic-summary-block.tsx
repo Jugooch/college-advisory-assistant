@@ -13,6 +13,8 @@ import type { AssistantBlock } from '@caa/api-contract';
 import { AuditFreshness } from '@/shared/components/audit-freshness';
 import { RequirementOverview } from '@/shared/components/requirement-overview';
 
+import { CHAT_CARD_LEVEL } from '../utils/chat-heading-level';
+
 /** Props for {@link AcademicSummaryBlock}. */
 export interface AcademicSummaryBlockProps {
   readonly block: Extract<AssistantBlock, { kind: 'ACADEMIC_SUMMARY' }>;
@@ -27,8 +29,8 @@ export interface AcademicSummaryBlockProps {
 export function AcademicSummaryBlock({ block }: AcademicSummaryBlockProps): ReactElement {
   return (
     <section className="chat-card" aria-label="Academic summary">
-      <AuditFreshness summary={block.summary} />
-      <RequirementOverview summary={block.summary} />
+      <AuditFreshness summary={block.summary} headingLevel={CHAT_CARD_LEVEL} />
+      <RequirementOverview summary={block.summary} headingLevel={CHAT_CARD_LEVEL} />
     </section>
   );
 }

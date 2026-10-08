@@ -9,10 +9,28 @@
  */
 import { ConstraintStrength, type ScheduleConstraint, ScheduleConstraintKind } from '@caa/domain';
 
-import { slotFieldName } from '@/shared/utils/slot-field-name';
-import { TIME_BLOCK_SLOTS } from '@/shared/utils/time-block-slots';
+import {
+  CAMPUS_SLOT,
+  type ConstraintSlot,
+  CREDIT_RANGE_SLOT,
+  MODALITY_SLOT,
+  PlannerStep,
+  slotFieldName,
+  SlotPart,
+  STEP_FIELD,
+  TIME_BLOCK_SLOTS,
+} from '@/shared/utils/planner-query-names';
 
 import { creditText } from './credit-text';
+
+/** The slot each limit kind fills. */
+const LIMIT_SLOT: Readonly<
+  Record<Exclude<ScheduleConstraint['kind'], 'UNAVAILABLE_TIME'>, ConstraintSlot>
+> = {
+  [ScheduleConstraintKind.CreditRange]: CREDIT_RANGE_SLOT,
+  [ScheduleConstraintKind.AllowedModalities]: MODALITY_SLOT,
+  [ScheduleConstraintKind.AllowedCampuses]: CAMPUS_SLOT,
+};
 
 /** The result of filling a constraint into the form's query. */
 export type FillResult =
@@ -20,9 +38,9 @@ export type FillResult =
   | { readonly kind: 'present' }
   | { readonly kind: 'blocked'; readonly message: string };
 
-const TIME_PARTS = ['day', 'start', 'end'] as const;
-const MIN_FIELD = slotFieldName('credit-range', 'min');
-const MAX_FIELD = slotFieldName('credit-range', 'max');
+const TIME_PARTS = [SlotPart.Day, SlotPart.Start, SlotPart.End] as const;
+const MIN_FIELD = slotFieldName(CREDIT_RANGE_SLOT, SlotPart.Min);
+const MAX_FIELD = slotFieldName(CREDIT_RANGE_SLOT, SlotPart.Max);
 const TIME_FULL = 'All three unavailable-time slots on the form are already used.';
 const SLOT_USED = 'The form already has an entry for this. Change or clear it on the form first.';
 
@@ -44,10 +62,14 @@ function isUsed(params: URLSearchParams, names: readonly string[]): boolean {
  * @param slot - The slot name.
  * @param constraint - The constraint.
  */
-function setStrength(params: URLSearchParams, slot: string, constraint: ScheduleConstraint): void {
-  params.set(slotFieldName(slot, 'strength'), constraint.strength);
+function setStrength(
+  params: URLSearchParams,
+  slot: ConstraintSlot,
+  constraint: ScheduleConstraint,
+): void {
+  params.set(slotFieldName(slot, SlotPart.Strength), constraint.strength);
   if (constraint.strength === ConstraintStrength.Preferred && constraint.priorityRank !== null) {
-    params.set(slotFieldName(slot, 'rank'), String(constraint.priorityRank));
+    params.set(slotFieldName(slot, SlotPart.Rank), String(constraint.priorityRank));
   }
 }
 
@@ -73,13 +95,13 @@ function fillTime(
     return TIME_FULL;
   }
   constraint.weekdays.forEach((day) => {
-    params.append(slotFieldName(slot, 'day'), day);
+    params.append(slotFieldName(slot, SlotPart.Day), day);
   });
   if (constraint.startTime !== '00:00') {
-    params.set(slotFieldName(slot, 'start'), constraint.startTime);
+    params.set(slotFieldName(slot, SlotPart.Start), constraint.startTime);
   }
   if (constraint.endTime !== '24:00') {
-    params.set(slotFieldName(slot, 'end'), constraint.endTime);
+    params.set(slotFieldName(slot, SlotPart.End), constraint.endTime);
   }
   setStrength(params, slot, constraint);
   return null;
@@ -103,23 +125,23 @@ function fillLimit(
       }
       params.set(MIN_FIELD, creditText(constraint.minCreditsHundredths));
       params.set(MAX_FIELD, creditText(constraint.maxCreditsHundredths));
-      setStrength(params, 'credit-range', constraint);
+      setStrength(params, CREDIT_RANGE_SLOT, constraint);
       return null;
     case ScheduleConstraintKind.AllowedModalities:
-      if (isUsed(params, ['modality'])) {
+      if (isUsed(params, [MODALITY_SLOT])) {
         return SLOT_USED;
       }
       constraint.modalities.forEach((value) => {
-        params.append('modality', value);
+        params.append(MODALITY_SLOT, value);
       });
-      setStrength(params, 'modality', constraint);
+      setStrength(params, MODALITY_SLOT, constraint);
       return null;
     case ScheduleConstraintKind.AllowedCampuses:
-      if (isUsed(params, ['campus'])) {
+      if (isUsed(params, [CAMPUS_SLOT])) {
         return SLOT_USED;
       }
-      params.set('campus', constraint.campusIds.join(', '));
-      setStrength(params, 'campus', constraint);
+      params.set(CAMPUS_SLOT, constraint.campusIds.join(', '));
+      setStrength(params, CAMPUS_SLOT, constraint);
       return null;
   }
 }
@@ -140,20 +162,24 @@ function valuesOf(params: URLSearchParams, name: string): readonly string[] {
 }
 
 /**
- * Whether the form already holds a constraint with the same values, whatever its strength.
+ * Finds the slot of the form that already holds a constraint with the same values, whatever its
+ * strength.
  *
  * @param current - The form's current query.
  * @param constraint - The constraint.
- * @returns `true` when one slot of the form already states it.
+ * @returns The slot that states it, or `null` when no slot does.
  */
-function isPresent(current: URLSearchParams, constraint: ScheduleConstraint): boolean {
+function findPresentSlot(
+  current: URLSearchParams,
+  constraint: ScheduleConstraint,
+): ConstraintSlot | null {
   const target = new URLSearchParams();
   const message =
     constraint.kind === ScheduleConstraintKind.UnavailableTime
       ? fillTime(target, constraint)
       : fillLimit(target, constraint);
   if (message !== null) {
-    return false;
+    return null;
   }
   const same = (names: readonly string[], targetNames: readonly string[]): boolean =>
     names.every(
@@ -162,17 +188,48 @@ function isPresent(current: URLSearchParams, constraint: ScheduleConstraint): bo
     );
   if (constraint.kind === ScheduleConstraintKind.UnavailableTime) {
     const home = TIME_PARTS.map((part) => slotFieldName(TIME_BLOCK_SLOTS[0], part));
-    return TIME_BLOCK_SLOTS.some((slot) =>
-      same(
-        TIME_PARTS.map((part) => slotFieldName(slot, part)),
-        home,
-      ),
+    return (
+      TIME_BLOCK_SLOTS.find((slot) =>
+        same(
+          TIME_PARTS.map((part) => slotFieldName(slot, part)),
+          home,
+        ),
+      ) ?? null
     );
   }
   const fields = Array.from(new Set(target.keys())).filter(
-    (name) => !name.endsWith('-strength') && !name.endsWith('-rank'),
+    (name) => !name.endsWith(`-${SlotPart.Strength}`) && !name.endsWith(`-${SlotPart.Rank}`),
   );
-  return fields.some((name) => valuesOf(target, name).length > 0) && same(fields, fields);
+  const isSame = fields.some((name) => valuesOf(target, name).length > 0) && same(fields, fields);
+  return isSame ? LIMIT_SLOT[constraint.kind] : null;
+}
+
+/**
+ * Tells how a constraint the form already holds compares with the one the student confirmed.
+ *
+ * @param current - The form's current query.
+ * @param constraint - The constraint.
+ * @param slot - The slot that holds it.
+ * @returns `present` when the strengths agree, otherwise `blocked`, so the chip never states a
+ *   strength the form doesn't hold.
+ */
+function comparePresent(
+  current: URLSearchParams,
+  constraint: ScheduleConstraint,
+  slot: ConstraintSlot,
+): FillResult {
+  const held =
+    current.get(slotFieldName(slot, SlotPart.Strength)) === ConstraintStrength.Hard
+      ? ConstraintStrength.Hard
+      : ConstraintStrength.Preferred;
+  if (held === constraint.strength) {
+    return { kind: 'present' };
+  }
+  const wording = held === ConstraintStrength.Hard ? 'Required' : 'Preferred';
+  return {
+    kind: 'blocked',
+    message: `The form already has this as ${wording}. Change its strength on the form.`,
+  };
 }
 
 /**
@@ -187,8 +244,9 @@ export function fillPlannerQuery(
   current: URLSearchParams,
   constraint: ScheduleConstraint,
 ): FillResult {
-  if (isPresent(current, constraint)) {
-    return { kind: 'present' };
+  const presentSlot = findPresentSlot(current, constraint);
+  if (presentSlot !== null) {
+    return comparePresent(current, constraint, presentSlot);
   }
   const params = new URLSearchParams(current);
   const message =
@@ -198,6 +256,6 @@ export function fillPlannerQuery(
   if (message !== null) {
     return { kind: 'blocked', message };
   }
-  params.set('step', 'edit');
+  params.set(STEP_FIELD, PlannerStep.Edit);
   return { kind: 'filled', params };
 }

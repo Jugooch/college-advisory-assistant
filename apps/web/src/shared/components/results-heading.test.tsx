@@ -12,17 +12,24 @@ describe('ResultsHeading', () => {
   afterEach(cleanup);
 
   it('moves focus to the default heading on load', () => {
-    render(<ResultsHeading />);
+    render(<ResultsHeading id="h" />);
 
     const heading = screen.getByRole('heading', { name: 'Schedule search results' });
     expect(document.activeElement).toBe(heading);
   });
 
   it('shows custom text without taking focus when told not to', () => {
-    render(<ResultsHeading text="Saved result, as of then" isFocused={false} />);
+    render(<ResultsHeading id="h" text="Saved result, as of then" isFocused={false} />);
 
     const heading = screen.getByRole('heading', { name: 'Saved result, as of then' });
     expect(document.activeElement).not.toBe(heading);
     expect(heading.hasAttribute('tabindex')).toBe(false);
+  });
+
+  it('renders at the level it is given, with the given id', () => {
+    render(<ResultsHeading id="mine" headingLevel={3} />);
+
+    const heading = screen.getByRole('heading', { level: 3 });
+    expect(heading.id).toBe('mine');
   });
 });

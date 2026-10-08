@@ -7,11 +7,12 @@
  * @requirement NFR-05
  * @see docs/adr/0013-plan-drafts-staleness-and-advisor-cases.md
  */
-import type { ReactElement, ReactNode } from 'react';
+import { type ReactElement, type ReactNode, useId } from 'react';
 
 import type { PlanRevisionView, ScheduleOptionsResponse } from '@caa/api-contract';
 
 import { formatTimestamp } from '@/shared/utils/format-display';
+import { type HeadingLevel, headingTag } from '@/shared/utils/heading-level';
 import { RESULT_UNAVAILABLE_DETAIL } from '@/shared/utils/plan-detail-wording';
 
 /** Props for {@link ResultSection}. */
@@ -21,6 +22,8 @@ export interface ResultSectionProps {
   readonly isHistory: boolean;
   /** Renders the result under the given heading, without moving focus; the page supplies it. */
   readonly renderResult: (result: ScheduleOptionsResponse, heading: string) => ReactNode;
+  /** Level of this card's heading; its sub-headings sit one level below. Defaults to `2`. */
+  readonly headingLevel?: HeadingLevel;
 }
 
 /**
@@ -33,11 +36,14 @@ export function ResultSection({
   revision,
   isHistory,
   renderResult,
+  headingLevel = 2,
 }: ResultSectionProps): ReactElement {
+  const headingId = useId();
+  const Heading = headingTag(headingLevel);
   if (revision.result === null) {
     return (
-      <section aria-labelledby="result-unavailable-heading">
-        <h2 id="result-unavailable-heading">Saved result</h2>
+      <section aria-labelledby={headingId}>
+        <Heading id={headingId}>Saved result</Heading>
         <p>{RESULT_UNAVAILABLE_DETAIL}</p>
       </section>
     );

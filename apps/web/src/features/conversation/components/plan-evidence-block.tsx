@@ -17,6 +17,7 @@ import { ScheduleResults } from '@/shared/components/schedule-results';
 import { Timestamp } from '@/shared/components/timestamp';
 import { PLAN_BOUNDARY_NOTE } from '@/shared/utils/plan-detail-wording';
 
+import { CHAT_CARD_LEVEL } from '../utils/chat-heading-level';
 import type { StudentLinks } from '../utils/student-links';
 
 /** Props for {@link PlanEvidenceBlock}. */
@@ -40,16 +41,17 @@ export function PlanEvidenceBlock({ block, links }: PlanEvidenceBlockProps): Rea
         Revision {plan.revision}, saved <Timestamp iso={plan.createdAt} />
       </p>
       <p>{PLAN_BOUNDARY_NOTE}</p>
-      <FreshnessBanner freshness={plan.freshness} />
+      <FreshnessBanner freshness={plan.freshness} headingLevel={CHAT_CARD_LEVEL} />
       <ResultSection
         revision={plan}
         isHistory={isHistory}
+        headingLevel={CHAT_CARD_LEVEL}
         renderResult={(result, heading) => (
           <ScheduleResults
             result={result}
-            courses={new Map()}
             heading={heading}
             isHeadingFocused={false}
+            headingLevel={CHAT_CARD_LEVEL}
           />
         )}
       />

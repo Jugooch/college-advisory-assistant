@@ -14,6 +14,7 @@ import { AssistantBlockKind } from '@caa/domain';
 import { PolicyHitList } from '@/shared/components/policy-hit-list';
 import { Timestamp } from '@/shared/components/timestamp';
 
+import { CHAT_CARD_LEVEL } from '../utils/chat-heading-level';
 import { type StudentLinks, studentLinks } from '../utils/student-links';
 import { AcademicSummaryBlock } from './academic-summary-block';
 import { CasePreviewBlock } from './case-preview-block';
@@ -75,7 +76,9 @@ function BlockBody({
       return (
         <div role="note" className="notice notice--problem">
           <p>{block.text}</p>
-          {block.policy === null ? null : <PolicyHitList hits={[block.policy]} headingLevel={3} />}
+          {block.policy === null ? null : (
+            <PolicyHitList hits={[block.policy]} headingLevel={CHAT_CARD_LEVEL} />
+          )}
           <p>
             Checked <Timestamp iso={block.asOf} />.
           </p>
@@ -85,7 +88,7 @@ function BlockBody({
       return block.results.hits.length === 0 ? (
         <p>No approved policy matched. Ask your advising office.</p>
       ) : (
-        <PolicyHitList hits={block.results.hits} headingLevel={3} />
+        <PolicyHitList hits={block.results.hits} headingLevel={CHAT_CARD_LEVEL} />
       );
     default:
       return <ResultBlock block={block} links={links} />;

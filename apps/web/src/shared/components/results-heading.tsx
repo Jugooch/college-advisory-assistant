@@ -7,12 +7,18 @@
  */
 import { type ReactElement, useEffect, useRef } from 'react';
 
+import { type HeadingLevel, headingTag } from '@/shared/utils/heading-level';
+
 /** Props for {@link ResultsHeading}. */
 export interface ResultsHeadingProps {
   /** Heading text; defaults to the search heading. */
   readonly text?: string | undefined;
   /** Whether focus moves here on first render. A saved result shown on load must not take it. */
   readonly isFocused?: boolean | undefined;
+  /** The heading's id, so the section can name itself by it. */
+  readonly id: string;
+  /** The heading's level. Defaults to `2`. */
+  readonly headingLevel?: HeadingLevel | undefined;
 }
 
 /**
@@ -24,7 +30,10 @@ export interface ResultsHeadingProps {
 export function ResultsHeading({
   text = 'Schedule search results',
   isFocused = true,
+  id,
+  headingLevel = 2,
 }: ResultsHeadingProps): ReactElement {
+  const Heading = headingTag(headingLevel);
   const ref = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     if (isFocused) {
@@ -32,8 +41,8 @@ export function ResultsHeading({
     }
   }, [isFocused]);
   return (
-    <h2 id="results-heading" ref={ref} tabIndex={isFocused ? -1 : undefined}>
+    <Heading id={id} ref={ref} tabIndex={isFocused ? -1 : undefined}>
       {text}
-    </h2>
+    </Heading>
   );
 }

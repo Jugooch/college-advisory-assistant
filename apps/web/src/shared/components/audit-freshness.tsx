@@ -7,7 +7,7 @@
  * @requirement NFR-02
  * @see docs/planning/08-academic-verification-and-planning.md
  */
-import type { ReactElement } from 'react';
+import { type ReactElement, useId } from 'react';
 
 import type { AcademicSummaryResponse } from '@caa/api-contract';
 import { CheckState } from '@caa/domain';
@@ -15,11 +15,14 @@ import { CheckState } from '@caa/domain';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { ReasonExplanation } from '@/shared/components/reason-explanation';
 import { formatTimestamp } from '@/shared/utils/format-display';
+import { type HeadingLevel, headingTag } from '@/shared/utils/heading-level';
 import { isStandingUnverified } from '@/shared/utils/requirement-state-wording';
 
 /** Props for {@link AuditFreshness}. */
 export interface AuditFreshnessProps {
   readonly summary: AcademicSummaryResponse;
+  /** Level of this card's heading; its Defaults to `2`. */
+  readonly headingLevel?: HeadingLevel;
 }
 
 /** One freshness verdict as the API returns it: PASS with no reason, or UNKNOWN with one. */
@@ -63,12 +66,14 @@ function VerdictItem({ title, verdict, recordAsOf }: VerdictItemProps): ReactEle
  * @param props - The academic summary.
  * @returns The freshness section.
  */
-export function AuditFreshness({ summary }: AuditFreshnessProps): ReactElement {
+export function AuditFreshness({ summary, headingLevel = 2 }: AuditFreshnessProps): ReactElement {
+  const headingId = useId();
+  const Heading = headingTag(headingLevel);
   const { auditReflectsRecord, programCatalogConsistency } = summary;
   if (auditReflectsRecord === null || programCatalogConsistency === null) {
     return (
-      <section className="notice notice--caution" aria-labelledby="freshness-heading">
-        <h2 id="freshness-heading">Degree audit</h2>
+      <section className="notice notice--caution" aria-labelledby={headingId}>
+        <Heading id={headingId}>Degree audit</Heading>
         <p>
           <StatusBadge label="No degree audit on file" tone="caution" />
         </p>
@@ -84,11 +89,11 @@ export function AuditFreshness({ summary }: AuditFreshnessProps): ReactElement {
   return (
     <section
       className={isUnverified ? 'notice notice--caution' : 'notice'}
-      aria-labelledby="freshness-heading"
+      aria-labelledby={headingId}
     >
-      <h2 id="freshness-heading">
+      <Heading id={headingId}>
         {isUnverified ? 'Degree audit needs verification' : 'Degree audit'}
-      </h2>
+      </Heading>
       <ul>
         <VerdictItem
           title="Audit reflects your record"

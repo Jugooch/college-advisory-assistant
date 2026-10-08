@@ -16,6 +16,7 @@ import { ReasonExplanation } from '@/shared/components/reason-explanation';
 import type { CampusLookup } from '@/shared/utils/campus-display';
 import { describeCheckState } from '@/shared/utils/check-state-wording';
 import type { CourseLookup } from '@/shared/utils/course-display';
+import { type HeadingLevel, headingTag } from '@/shared/utils/heading-level';
 
 /** Props for {@link CheckResultItem}. */
 export interface CheckResultItemProps {
@@ -31,6 +32,8 @@ export interface CheckResultItemProps {
   readonly campuses: CampusLookup;
   /** Short lowercase name of the rule for the "no rule" message; defaults to the dimension. */
   readonly ruleName?: string;
+  /** Level of this card's heading; its sub-headings sit one level below. Defaults to `4`. */
+  readonly headingLevel?: HeadingLevel;
 }
 
 /**
@@ -46,11 +49,13 @@ export function CheckResultItem({
   courses,
   campuses,
   ruleName,
+  headingLevel = 4,
 }: CheckResultItemProps): ReactElement {
+  const Heading = headingTag(headingLevel);
   if (check === null) {
     return (
       <li className="check">
-        <h4>{dimension}</h4>
+        <Heading>{dimension}</Heading>
         <StatusBadge label="No rule to check" tone="neutral" />
         <p>
           This course has no {ruleName ?? dimension.toLowerCase()} rule, so nothing was checked
@@ -62,7 +67,7 @@ export function CheckResultItem({
   const display = describeCheckState(check.state, asOf);
   return (
     <li className="check">
-      <h4>{dimension}</h4>
+      <Heading>{dimension}</Heading>
       <StatusBadge label={display.label} tone={display.tone} />
       {check.reasonCode === undefined ? null : <ReasonExplanation code={check.reasonCode} />}
       <CheckEvidence dimension={dimension} check={check} courses={courses} campuses={campuses} />

@@ -325,6 +325,12 @@ td {
   border-radius: 0.5rem;
 }
 
+/* Focus moves to the chip after Confirm or Dismiss, with a mouse or the keyboard (WCAG 2.4.7). */
+.chip:focus {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
 .chip__statement {
   margin: 0 0 0.5rem;
   font-weight: bold;

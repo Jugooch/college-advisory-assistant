@@ -12,6 +12,7 @@ import type { ScheduleOption } from '@caa/api-contract';
 import { CheckResultItem } from '@/shared/components/check-result-item';
 import type { CampusLookup } from '@/shared/utils/campus-display';
 import { type CourseLookup, describeCourse } from '@/shared/utils/course-display';
+import type { HeadingLevel } from '@/shared/utils/heading-level';
 
 /** Props for {@link OptionChecks}. */
 export interface OptionChecksProps {
@@ -20,6 +21,8 @@ export interface OptionChecksProps {
   readonly asOf: string;
   readonly courses: CourseLookup;
   readonly campuses: CampusLookup;
+  /** Level of this card's heading; its sub-headings sit one level below. Defaults to `4`. */
+  readonly headingLevel?: HeadingLevel;
 }
 
 /**
@@ -29,9 +32,15 @@ export interface OptionChecksProps {
  * @param props - The option, the as-of text, and the course names.
  * @returns A list with one item per check.
  */
-export function OptionChecks({ option, asOf, courses, campuses }: OptionChecksProps): ReactElement {
+export function OptionChecks({
+  option,
+  asOf,
+  courses,
+  campuses,
+  headingLevel = 4,
+}: OptionChecksProps): ReactElement {
   const { setResults } = option;
-  const shared = { asOf, courses, campuses };
+  const shared = { asOf, courses, campuses, headingLevel };
   const perCourse = [
     ...option.courseResults.map((result) => ({ result, suffix: '' })),
     ...option.linkedCourseResults.map((result) => ({ result, suffix: ' (linked section)' })),

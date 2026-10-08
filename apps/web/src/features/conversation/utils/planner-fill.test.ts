@@ -13,7 +13,14 @@ import {
   syntheticId,
 } from '@caa/test-kit';
 
-import { slotFieldName } from '@/shared/utils/slot-field-name';
+import {
+  CAMPUS_SLOT,
+  CREDIT_RANGE_SLOT,
+  PlannerStep,
+  slotFieldName,
+  SlotPart,
+  STEP_FIELD,
+} from '@/shared/utils/planner-query-names';
 
 import { fillPlannerQuery } from './planner-fill';
 
@@ -99,5 +106,27 @@ describe('fillPlannerQuery', () => {
     const range = filled(BASE, buildCreditRange());
     expect(fillPlannerQuery(range, buildCreditRange()).kind).toBe('present');
     expect(fillPlannerQuery(BASE, buildCreditRange()).kind).toBe('filled');
+  });
+
+  it('builds every field name and the step from the planner shared names', () => {
+    const params = filled(BASE, buildCreditRange());
+    expect(params.get(STEP_FIELD)).toBe(PlannerStep.Edit);
+    expect(params.has(slotFieldName(CREDIT_RANGE_SLOT, SlotPart.Min))).toBe(true);
+    expect(params.has(slotFieldName(CREDIT_RANGE_SLOT, SlotPart.Max))).toBe(true);
+    expect(params.has(slotFieldName(CREDIT_RANGE_SLOT, SlotPart.Strength))).toBe(true);
+    const campus = filled(BASE, buildAllowedCampuses());
+    expect(campus.has(CAMPUS_SLOT)).toBe(true);
+  });
+
+  it('does not report a constraint as present when the form holds it at another strength', () => {
+    const required = new URLSearchParams(BASE);
+    required.set('block1-day', Weekday.Friday);
+    required.set(slotFieldName('block1', SlotPart.Strength), 'HARD');
+    const preferred = fillPlannerQuery(required, buildUnavailableTime());
+    expect(preferred.kind).toBe('blocked');
+    const holdsPreferred = filled(BASE, buildUnavailableTime());
+    const asRequired = fillPlannerQuery(holdsPreferred, buildUnavailableTime(HARD_STRENGTH));
+    expect(asRequired.kind).toBe('blocked');
+    expect(asRequired.kind === 'blocked' ? asRequired.message : '').toMatch(/Preferred/);
   });
 });

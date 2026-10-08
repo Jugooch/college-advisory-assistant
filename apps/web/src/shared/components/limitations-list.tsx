@@ -4,15 +4,18 @@
  * @requirement FR-18
  * @requirement NFR-02
  */
-import type { ReactElement } from 'react';
+import { type ReactElement, useId } from 'react';
 
 import type { ScheduleLimitation } from '@caa/domain';
 
+import { type HeadingLevel, headingTag } from '@/shared/utils/heading-level';
 import { describeLimitation } from '@/shared/utils/option-wording';
 
 /** Props for {@link LimitationsList}. */
 export interface LimitationsListProps {
   readonly limitations: readonly ScheduleLimitation[];
+  /** Level of this card's heading; its sub-headings sit one level below. Defaults to `3`. */
+  readonly headingLevel?: HeadingLevel;
 }
 
 /**
@@ -21,10 +24,15 @@ export interface LimitationsListProps {
  * @param props - The limitation codes from the response.
  * @returns The section.
  */
-export function LimitationsList({ limitations }: LimitationsListProps): ReactElement {
+export function LimitationsList({
+  limitations,
+  headingLevel = 3,
+}: LimitationsListProps): ReactElement {
+  const headingId = useId();
+  const Heading = headingTag(headingLevel);
   return (
-    <section aria-labelledby="limitations-heading">
-      <h3 id="limitations-heading">What was not checked</h3>
+    <section aria-labelledby={headingId}>
+      <Heading id={headingId}>What was not checked</Heading>
       <ul>
         {limitations.map((code) => {
           const wording = describeLimitation(code);

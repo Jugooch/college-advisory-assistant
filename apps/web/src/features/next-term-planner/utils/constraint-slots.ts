@@ -8,15 +8,13 @@
 import { ConstraintStrength, ScheduleConstraintKind } from '@caa/domain';
 
 import { parseCreditText } from '@/shared/utils/credit-choice';
-
 import {
   type ConstraintSlot,
-  type PlannerFormValues,
   slotFieldName,
-  type StrengthInput,
   TIME_BLOCK_SLOTS,
-  type TimeBlockInput,
-} from './planner-fields';
+} from '@/shared/utils/planner-query-names';
+
+import { type PlannerFormValues, type StrengthInput, type TimeBlockInput } from './planner-fields';
 
 /** A field error: the field's query name and the message shown next to it. */
 export type FieldError = readonly [name: string, message: string];

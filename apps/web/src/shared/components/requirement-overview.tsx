@@ -4,11 +4,12 @@
  * @requirement FR-04
  * @requirement NFR-02
  */
-import type { ReactElement } from 'react';
+import { type ReactElement, useId } from 'react';
 
 import type { AcademicSummaryResponse } from '@caa/api-contract';
 
 import { indexCourses } from '@/shared/utils/course-display';
+import { type HeadingLevel, headingTag } from '@/shared/utils/heading-level';
 import { isStandingUnverified } from '@/shared/utils/requirement-state-wording';
 import { buildRequirementTree } from '@/shared/utils/requirement-tree';
 
@@ -18,6 +19,8 @@ import { RequirementTreeItem } from './requirement-tree-item';
 /** Props for {@link RequirementOverview}. */
 export interface RequirementOverviewProps {
   readonly summary: AcademicSummaryResponse;
+  /** Level of this card's heading; its Defaults to `2`. */
+  readonly headingLevel?: HeadingLevel;
 }
 
 /**
@@ -26,7 +29,12 @@ export interface RequirementOverviewProps {
  * @param props - The academic summary.
  * @returns The requirements section, or null.
  */
-export function RequirementOverview({ summary }: RequirementOverviewProps): ReactElement | null {
+export function RequirementOverview({
+  summary,
+  headingLevel = 2,
+}: RequirementOverviewProps): ReactElement | null {
+  const headingId = useId();
+  const Heading = headingTag(headingLevel);
   const { audit, requirements } = summary;
   if (audit === null) {
     return null;
@@ -34,8 +42,8 @@ export function RequirementOverview({ summary }: RequirementOverviewProps): Reac
   const isUnverified = isStandingUnverified(summary);
   const courses = indexCourses(summary.courses);
   return (
-    <section aria-labelledby="requirements-heading">
-      <h2 id="requirements-heading">Degree requirements</h2>
+    <section aria-labelledby={headingId}>
+      <Heading id={headingId}>Degree requirements</Heading>
       <p>
         States come from your degree audit and are shown exactly as it reports them.
         {isUnverified ? ' They need verification and are not your current standing.' : ''}

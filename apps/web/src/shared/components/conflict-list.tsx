@@ -5,13 +5,14 @@
  * @requirement FR-10
  * @requirement NFR-02
  */
-import type { ReactElement } from 'react';
+import { type ReactElement, useId } from 'react';
 
 import type { ConflictSet } from '@caa/api-contract';
 
 import { CheckResultItem } from '@/shared/components/check-result-item';
 import type { CampusLookup } from '@/shared/utils/campus-display';
 import type { CourseLookup } from '@/shared/utils/course-display';
+import { type HeadingLevel, headingTag, subHeadingLevel } from '@/shared/utils/heading-level';
 
 /** Props for {@link ConflictList}. */
 export interface ConflictListProps {
@@ -19,6 +20,8 @@ export interface ConflictListProps {
   readonly asOf: string;
   readonly courses: CourseLookup;
   readonly campuses: CampusLookup;
+  /** Level of this card's heading; its sub-headings sit one level below. Defaults to `3`. */
+  readonly headingLevel?: HeadingLevel;
 }
 
 /**
@@ -32,10 +35,13 @@ export function ConflictList({
   asOf,
   courses,
   campuses,
+  headingLevel = 3,
 }: ConflictListProps): ReactElement {
+  const headingId = useId();
+  const Heading = headingTag(headingLevel);
   return (
-    <section aria-labelledby="conflicts-heading">
-      <h3 id="conflicts-heading">Verified conflicts</h3>
+    <section aria-labelledby={headingId}>
+      <Heading id={headingId}>Verified conflicts</Heading>
       <p>
         Each conflict below was verified. The list is not guaranteed to be the smallest set that
         explains why nothing fits.
@@ -49,6 +55,7 @@ export function ConflictList({
             asOf={asOf}
             courses={courses}
             campuses={campuses}
+            headingLevel={subHeadingLevel(headingLevel)}
           />
         ))}
       </ul>

@@ -79,6 +79,42 @@ describe('verified blocks in chat', () => {
   });
 });
 
+describe('heading levels in chat', () => {
+  it('puts every card under the panel h2: no h2, first heading h3, no skipped level', () => {
+    const plan = buildPlanRevisionView({ freshness: buildStalePlanFreshnessView() });
+    const { container } = render(
+      <AssistantBlocks
+        blocks={[
+          buildScheduleOptionsBlock(),
+          buildPlanEvidenceBlock({ plan }),
+          buildAcademicSummaryBlock(),
+        ]}
+        studentId={STUDENT_ID}
+      />,
+    );
+    const levels = Array.from(container.querySelectorAll('h1, h2, h3, h4, h5, h6')).map((h) =>
+      Number(h.tagName.slice(1)),
+    );
+    expect(levels.length).toBeGreaterThan(3);
+    expect(levels).not.toContain(2);
+    levels.forEach((level, index) => {
+      const previous = levels[index - 1] ?? 2;
+      expect(level).toBeLessThanOrEqual(previous + 1);
+    });
+  });
+
+  it('keeps every id unique when two result blocks share the transcript', () => {
+    const { container } = render(
+      <AssistantBlocks
+        blocks={[buildScheduleOptionsBlock(), buildScheduleOptionsBlock()]}
+        studentId={STUDENT_ID}
+      />,
+    );
+    const ids = Array.from(container.querySelectorAll('[id]')).map((element) => element.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
 describe('case preview in chat', () => {
   it('shows what would be shared, hands off by link, and ignores any suggested note', () => {
     const block = buildCasePreviewBlock({ suggestedNote: 'MODEL NOTE', planRevision: 1 });

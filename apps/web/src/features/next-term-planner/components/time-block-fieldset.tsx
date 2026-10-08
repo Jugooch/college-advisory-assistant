@@ -9,12 +9,9 @@ import type { ReactElement } from 'react';
 
 import { Weekday } from '@caa/domain';
 
-import {
-  type ConstraintSlot,
-  plannerFieldId,
-  slotFieldName,
-  type TimeBlockInput,
-} from '../utils/planner-fields';
+import { type ConstraintSlot, slotFieldName } from '@/shared/utils/planner-query-names';
+
+import { plannerFieldId, type TimeBlockInput } from '../utils/planner-fields';
 import { StrengthField } from './strength-field';
 
 /** Props for {@link TimeBlockFieldset}. */

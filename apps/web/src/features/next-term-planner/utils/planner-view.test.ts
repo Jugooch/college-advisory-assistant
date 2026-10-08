@@ -8,8 +8,8 @@ import { ErrorCode } from '@caa/domain';
 import { SYNTHETIC_COURSES, syntheticId } from '@caa/test-kit';
 
 import { indexCourses } from '@/shared/utils/course-display';
+import { PlannerStep } from '@/shared/utils/planner-query-names';
 
-import { PlannerStep } from './planner-fields';
 import { planScheduleRequest } from './planner-plan';
 import { readPlannerQuery } from './planner-query';
 import { confirmedRequest, isSearchRequested, planPlannerView } from './planner-view';

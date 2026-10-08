@@ -13,6 +13,8 @@ import type { AssistantBlock } from '@caa/api-contract';
 
 import { ScheduleResults } from '@/shared/components/schedule-results';
 
+import { CHAT_CARD_LEVEL } from '../utils/chat-heading-level';
+
 /** Props for {@link ScheduleOptionsBlock}. */
 export interface ScheduleOptionsBlockProps {
   readonly block: Extract<AssistantBlock, { kind: 'SCHEDULE_OPTIONS' }>;
@@ -25,5 +27,11 @@ export interface ScheduleOptionsBlockProps {
  * @returns The results section.
  */
 export function ScheduleOptionsBlock({ block }: ScheduleOptionsBlockProps): ReactElement {
-  return <ScheduleResults result={block.result} courses={new Map()} isHeadingFocused={false} />;
+  return (
+    <ScheduleResults
+      result={block.result}
+      isHeadingFocused={false}
+      headingLevel={CHAT_CARD_LEVEL}
+    />
+  );
 }

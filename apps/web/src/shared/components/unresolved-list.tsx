@@ -6,13 +6,14 @@
  * @requirement FR-10
  * @requirement NFR-02
  */
-import type { ReactElement } from 'react';
+import { type ReactElement, useId } from 'react';
 
 import type { ScheduleOptionsResponse } from '@caa/api-contract';
 
 import { CheckResultItem } from '@/shared/components/check-result-item';
 import type { CampusLookup } from '@/shared/utils/campus-display';
 import type { CourseLookup } from '@/shared/utils/course-display';
+import { type HeadingLevel, headingTag, subHeadingLevel } from '@/shared/utils/heading-level';
 
 /** Props for {@link UnresolvedList}. */
 export interface UnresolvedListProps {
@@ -20,6 +21,8 @@ export interface UnresolvedListProps {
   readonly asOf: string;
   readonly courses: CourseLookup;
   readonly campuses: CampusLookup;
+  /** Level of this card's heading; its sub-headings sit one level below. Defaults to `3`. */
+  readonly headingLevel?: HeadingLevel;
 }
 
 /**
@@ -33,10 +36,13 @@ export function UnresolvedList({
   asOf,
   courses,
   campuses,
+  headingLevel = 3,
 }: UnresolvedListProps): ReactElement {
+  const headingId = useId();
+  const Heading = headingTag(headingLevel);
   return (
-    <section aria-labelledby="unresolved-heading">
-      <h3 id="unresolved-heading">Not resolved</h3>
+    <section aria-labelledby={headingId}>
+      <Heading id={headingId}>Not resolved</Heading>
       {unresolved.length === 0 ? (
         <p>Nothing was left unresolved by this search.</p>
       ) : (
@@ -54,6 +60,7 @@ export function UnresolvedList({
                 asOf={asOf}
                 courses={courses}
                 campuses={campuses}
+                headingLevel={subHeadingLevel(headingLevel)}
               />
             ))}
           </ul>

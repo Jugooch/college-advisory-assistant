@@ -6,7 +6,7 @@
  * @requirement FR-10
  * @requirement NFR-02
  */
-import type { ReactElement, ReactNode } from 'react';
+import { type ReactElement, type ReactNode, useId } from 'react';
 
 import type { ScheduleOption } from '@caa/api-contract';
 
@@ -15,6 +15,7 @@ import type { CampusLookup } from '@/shared/utils/campus-display';
 import { describeAggregate } from '@/shared/utils/check-state-wording';
 import type { CourseLookup } from '@/shared/utils/course-display';
 import { formatCredits } from '@/shared/utils/format-display';
+import { type HeadingLevel, headingTag, subHeadingLevel } from '@/shared/utils/heading-level';
 import { describeUnmetPreference } from '@/shared/utils/option-wording';
 
 import { OptionChecks } from './option-checks';
@@ -28,6 +29,8 @@ export interface OptionCardProps {
   readonly campuses: CampusLookup;
   /** Controls for this option, such as saving it as a draft; supplied by the page. */
   readonly actions?: ReactNode;
+  /** Level of this card's heading; its sub-headings sit one level below. Defaults to `3`. */
+  readonly headingLevel?: HeadingLevel;
 }
 
 /**
@@ -42,23 +45,26 @@ export function OptionCard({
   courses,
   campuses,
   actions,
+  headingLevel = 3,
 }: OptionCardProps): ReactElement {
   const aggregate = describeAggregate(option.aggregate);
   const total = option.setResults.creditLoad.evidence?.creditLoad?.totalCreditsHundredths;
-  const headingId = `option-${String(option.rank)}-heading`;
+  const headingId = useId();
+  const Heading = headingTag(headingLevel);
+  const SubHeading = headingTag(subHeadingLevel(headingLevel));
   return (
     <article className="option-card" aria-labelledby={headingId}>
-      <h3 id={headingId}>Option {option.rank}</h3>
+      <Heading id={headingId}>Option {option.rank}</Heading>
       <p>
         <StatusBadge label={aggregate.label} tone={aggregate.tone} /> {aggregate.explanation}
       </p>
-      <h4>Courses and sections</h4>
+      <SubHeading>Courses and sections</SubHeading>
       <SectionList bundles={option.bundles} courses={courses} campuses={campuses} />
-      <h4>Credits</h4>
+      <SubHeading>Credits</SubHeading>
       <p>
         Total credits: {total === undefined ? 'not determined' : `${formatCredits(total)} credits`}
       </p>
-      <h4>Preferences this option misses</h4>
+      <SubHeading>Preferences this option misses</SubHeading>
       {option.unmetPreferences.length === 0 ? (
         <p>No preference is missed by this option.</p>
       ) : (
@@ -72,11 +78,17 @@ export function OptionCard({
           ))}
         </ul>
       )}
-      <h4>Checks, shown separately</h4>
-      <OptionChecks option={option} asOf={asOf} courses={courses} campuses={campuses} />
+      <SubHeading>Checks, shown separately</SubHeading>
+      <OptionChecks
+        option={option}
+        asOf={asOf}
+        courses={courses}
+        campuses={campuses}
+        headingLevel={subHeadingLevel(headingLevel)}
+      />
       {actions === undefined ? null : (
         <>
-          <h4>Keep this option</h4>
+          <SubHeading>Keep this option</SubHeading>
           {actions}
         </>
       )}
