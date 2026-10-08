@@ -48,12 +48,12 @@ const FRESHNESS_WORDING: Readonly<Record<PlanFreshness, FreshnessDisplay>> = {
 
 // SAFETY: each reason has its own sentence, so the student sees exactly what the API reported.
 const REASON_WORDING: Readonly<Record<PlanStaleReason, string>> = {
-  STUDENT_RECORD_SUPERSEDED: 'Your student record has been updated since this draft was built.',
+  STUDENT_RECORD_SUPERSEDED: 'Your course record changed after this draft was saved.',
   AUDIT_SUPERSEDED: 'Your degree audit has been updated since this draft was built.',
   SECTIONS_SUPERSEDED: 'The course sections have been updated since this draft was built.',
   RULESET_CHANGED: 'The advising rules have changed since this draft was built.',
   TRANSITION_TABLE_CHANGED: 'The campus travel-time data has changed since this draft was built.',
-  SOURCE_EXPIRED: 'Some of the records this draft used are now older than the allowed age.',
+  SOURCE_EXPIRED: 'The data this draft used is older than allowed.',
   SOURCE_UNAVAILABLE: 'A source system couldn’t be reached, so the draft couldn’t be compared.',
 };
 

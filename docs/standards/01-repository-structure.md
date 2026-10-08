@@ -58,7 +58,8 @@ The engine, domain shared invariants, and `.logic.ts` files give deep-equal outp
 apps/api/src/
   server.ts               process entry: load env, build app, listen
   app.ts                  buildApp(): Fastify instance, not listening
-  container.ts            composition root: the ONLY place that constructs services/repositories
+  container.ts            composition root: createContainer, createRuntimeDependencies, graph types
+  wiring/<area>.wiring.ts composition root for one area; imported only by container.ts (§Composition root)
   config/env.ts           validated environment
   plugins/*.plugin.ts     cross-cutting Fastify setup (errors, auth, request context)
   shared/*.ts             small HTTP helpers
@@ -117,6 +118,16 @@ packages/test-kit/src/golden/
   cases/<rule-family>.cases.ts      development cases, one file per rule family
 ```
 
+## Composition root
+
+The API's composition root is `apps/api/src/container.ts` plus the files in `apps/api/src/wiring/` (ADR-0014). Only the composition root constructs repositories, services, and controllers.
+
+- **`container.ts`** keeps `createContainer`, `createRuntimeDependencies`, and the graph types (`Controllers`, `Repositories`, `ContainerOptions`, `AppDependencies`). It's the only file that opens the database and builds repositories, and it calls each `wire<Area>` function once.
+- **`wiring/<area>.wiring.ts`** builds the services and controllers of one area, a cohesive group of modules such as `plans` or `academic-reads`. It exports one function, `wire<Area>`, plus its parameter and return types. Only `container.ts` and the file's own test import it.
+- **May:** call module `create*` factories; pass them repositories by name, other services, the clock function, and validated configuration; choose an implementation from a configuration value, with a `// SECURITY:` or `// SAFETY:` comment when the choice affects either; import types from `container.ts`.
+- **May not:** hold logic (loops, transformation, validation, business rules), do I/O beyond construction (no database, repositories, `process.env`, clock calls, or logging), keep module state, or import another wiring file, routes, plugins, Fastify, Drizzle, or `pg`. A service two areas share is built once, in `container.ts` or the owning area's `wire<Area>`, and `container.ts` passes it to the other area. Factories get the repositories they use by name, never a spread of the whole `repositories` object.
+- Every composition-root file stays under the 250-line cap. When an area nears it, split the area.
+
 ## File naming
 
 - **kebab-case** for every file and folder: `plan-revision.model.ts`, `system-status-card.tsx`.
@@ -134,6 +145,7 @@ packages/test-kit/src/golden/
 | `.action.ts`                                    | One Next.js server action (standard 06 §Server actions)                                                        |
 | `.job.ts` / `.adapter.ts`                       | One background job / one source adapter                                                                        |
 | `.plugin.ts`                                    | One Fastify plugin                                                                                             |
+| `.wiring.ts`                                    | The API composition root for one area (§Composition root)                                                      |
 | `.schema.ts`                                    | Zod schema for a test-data format (for example golden cases)                                                   |
 | `.cases.ts`                                     | Golden cases for one rule family                                                                               |
 | `.test.ts(x)`                                   | Tests, colocated with the file under test                                                                      |
@@ -155,3 +167,9 @@ packages/test-kit/src/golden/
 ## Size
 
 Files over 250 lines or functions over 60 lines fail lint. Split by responsibility, not arbitrarily: extract a helper, a sub-component, or a new module.
+
+A size exception needs a recorded owner approval, an ADR entry naming the file, its cap, and the issue that removes it, and a per-file override in `eslint.config.mjs` at the smallest cap that works. Current exceptions:
+
+| File                        | Cap                                      | Removed by                                            | Approval                                                                                                 |
+| --------------------------- | ---------------------------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `apps/api/src/container.ts` | 260 lines; takes effect when #455 merges | #443's composition-root split, before #412 (ADR-0014) | [#443 comment](https://github.com/Jugooch/college-advisory-assistant/issues/443#issuecomment-6050030916) |
