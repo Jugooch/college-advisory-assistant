@@ -58,12 +58,14 @@ const NEW_DATE_NOW_SELECTOR = "NewExpression[callee.name='Date'][arguments.lengt
  *   block that adds syntax bans must repeat.
  * @param {string} newDateMessage - Why an argument-less `new Date()` is banned, naming where the
  *   time comes from instead.
+ * @param {{ name: string, message: string }[]} [extraGlobals] - Further banned globals, such as
+ *   `fetch` for code that must do no I/O.
  * @returns {Record<string, import('eslint').Linter.RuleEntry>} The rule entries.
  */
-export function determinismBans(syntaxBans, newDateMessage) {
+export function determinismBans(syntaxBans, newDateMessage, extraGlobals = []) {
   return {
     'no-restricted-properties': ['error', ...NONDETERMINISTIC_PROPERTIES],
-    'no-restricted-globals': ['error', ...NONDETERMINISTIC_GLOBALS],
+    'no-restricted-globals': ['error', ...NONDETERMINISTIC_GLOBALS, ...extraGlobals],
     'no-restricted-syntax': [
       'error',
       ...syntaxBans,
