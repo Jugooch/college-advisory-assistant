@@ -57,6 +57,7 @@ export default async function MyPlansPage({
       ) : (
         <PlanList
           plans={plans.plans}
+          studentId={query.studentId}
           terms={terms instanceof ApiError ? null : terms.terms}
           plannerHref={`/next-term-planner?studentId=${query.studentId}`}
         />

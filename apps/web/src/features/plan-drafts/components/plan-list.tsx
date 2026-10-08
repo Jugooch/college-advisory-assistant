@@ -21,6 +21,8 @@ export interface PlanListProps {
   readonly plans: readonly PlanSummary[];
   /** Terms the planner knows, used only to name each plan's term; `null` when unavailable. */
   readonly terms: readonly PlannableTerm[] | null;
+  /** Internal student ID, carried in each plan's detail link. */
+  readonly studentId: string;
   /** Link to the planner, offered when there are no plans. */
   readonly plannerHref: string;
 }
@@ -31,10 +33,10 @@ const UNNAMED_TERM = 'Term (code not available)';
 /**
  * Renders the student's plans, or the empty state.
  *
- * @param props - The plans, the term names, and the planner link.
+ * @param props - The plans, the term names, the student, and the planner link.
  * @returns The plans section.
  */
-export function PlanList({ plans, terms, plannerHref }: PlanListProps): ReactElement {
+export function PlanList({ plans, terms, studentId, plannerHref }: PlanListProps): ReactElement {
   if (plans.length === 0) {
     return (
       <p>
@@ -58,7 +60,11 @@ export function PlanList({ plans, terms, plannerHref }: PlanListProps): ReactEle
       <tbody>
         {plans.map((plan) => (
           <tr key={plan.id}>
-            <th scope="row">{codes.get(plan.termId) ?? UNNAMED_TERM}</th>
+            <th scope="row">
+              <Link href={`/my-plans/${plan.id}?studentId=${studentId}`}>
+                {codes.get(plan.termId) ?? UNNAMED_TERM}
+              </Link>
+            </th>
             <td>
               Revision {plan.latestRevision}, saved <Timestamp iso={plan.createdAt} />
             </td>
