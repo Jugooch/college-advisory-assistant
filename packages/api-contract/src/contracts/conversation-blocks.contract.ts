@@ -14,8 +14,6 @@ import {
   CaseReasonSchema,
   ConstraintStrength,
   DiscrepancySubjectSchema,
-  isCasePlanSatisfied,
-  isCaseSubjectConsistent,
   MAX_SCHEDULE_CONSTRAINTS,
   NoticeCodeSchema,
   PlanIdSchema,
@@ -25,6 +23,7 @@ import {
   STUDENT_NOTE_MAX_LENGTH,
 } from '@caa/domain';
 
+import { isCasePlanSatisfied, isCaseSubjectConsistent } from '../case-reason-rules';
 import { AcademicSummaryResponseSchema } from './academic-summary.contract';
 import { PlanRevisionViewSchema } from './plan-revision-view.contract';
 import { policyAppliesAt, PolicyHitSchema, PolicySearchResponseSchema } from './policies.contract';
@@ -85,15 +84,14 @@ const CasePreviewBlockSchema = z
   })
   // SAFETY: a plan review without a plan is unreviewable, and a plan ID without its revision
   // names nothing to freeze (ADR-0015 §4, ADR-0013 §6, FR-12).
-  .refine(
-    (block) =>
-      (block.planId === null) === (block.planRevision === null) &&
-      isCasePlanSatisfied(block.reason, block.planId !== null),
-    {
-      message: 'planId and planRevision are set together unless SOURCE_DISCREPANCY',
-      path: ['planId'],
-    },
-  )
+  .refine((block) => (block.planId === null) === (block.planRevision === null), {
+    message: 'planId and planRevision must be set together',
+    path: ['planRevision'],
+  })
+  .refine((block) => isCasePlanSatisfied(block.reason, block.planId !== null), {
+    message: 'planId is required unless the reason is SOURCE_DISCREPANCY',
+    path: ['planId'],
+  })
   // SAFETY: a subject on another reason, or none on a discrepancy, would misroute the report
   // (ADR-0015 §4, ADR-0013 §6, FR-17).
   .refine((block) => isCaseSubjectConsistent(block.reason, block.discrepancySubject !== null), {

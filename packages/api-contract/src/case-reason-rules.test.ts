@@ -1,9 +1,9 @@
 /**
- * @file Tests for the shared case reason invariants.
+ * @file Tests for the private case-reason rules.
  */
 import { describe, expect, it } from 'vitest';
 
-import { isCasePlanSatisfied, isCaseSubjectConsistent } from './case-reason.enum';
+import { isCasePlanSatisfied, isCaseSubjectConsistent } from './case-reason-rules';
 
 describe('isCaseSubjectConsistent', () => {
   it('requires a subject exactly for SOURCE_DISCREPANCY', () => {

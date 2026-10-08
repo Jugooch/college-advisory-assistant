@@ -21,25 +21,3 @@ export type CaseReason = (typeof CaseReason)[keyof typeof CaseReason];
 
 /** Runtime schema for {@link CaseReason}. */
 export const CaseReasonSchema = z.enum(CaseReason);
-
-/**
- * Returns whether a case's subject agrees with its reason: a discrepancy subject is present
- * exactly when the reason is SOURCE_DISCREPANCY.
- *
- * @param reason - Why the case is opened.
- * @param hasSubject - Whether a discrepancy subject is set.
- * @returns `true` when the pair is consistent.
- */
-export const isCaseSubjectConsistent = (reason: CaseReason, hasSubject: boolean): boolean =>
-  (reason === CaseReason.SourceDiscrepancy) === hasSubject;
-
-/**
- * Returns whether a case has the plan its reason needs: every reason except SOURCE_DISCREPANCY
- * is a review of a plan.
- *
- * @param reason - Why the case is opened.
- * @param hasPlan - Whether a plan is attached.
- * @returns `true` when the plan requirement holds.
- */
-export const isCasePlanSatisfied = (reason: CaseReason, hasPlan: boolean): boolean =>
-  reason === CaseReason.SourceDiscrepancy || hasPlan;

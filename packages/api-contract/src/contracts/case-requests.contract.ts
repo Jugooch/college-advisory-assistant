@@ -16,11 +16,11 @@ import {
   CaseResolutionSchema,
   CaseStatusSchema,
   DiscrepancySubjectSchema,
-  isCasePlanSatisfied,
-  isCaseSubjectConsistent,
   PlanRevisionIdSchema,
   STUDENT_NOTE_MAX_LENGTH,
 } from '@caa/domain';
+
+import { isCasePlanSatisfied, isCaseSubjectConsistent } from '../case-reason-rules';
 
 /**
  * Request body for `POST /v1/students/:studentId/cases`.
