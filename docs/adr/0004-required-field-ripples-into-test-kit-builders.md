@@ -1,6 +1,6 @@
 # ADR-0004: Required-field ripples into test-kit builders
 
-- **Status:** Accepted; Amendment 1 superseded 2026-10-06 by ADR-0009 Amendment 1 (#255, #333)
+- **Status:** Accepted; Amendment 1 superseded 2026-10-06 by ADR-0009 Amendment 1 (#255, #333); Amendment 3 added 2026-10-08 (#488)
 - **Date:** 2026-09-28
 - **Deciders:** Tech lead
 - **Related:** ADR-0002 (amends its override consequence), issue #108, PRs #70, #104, #105
@@ -40,7 +40,7 @@ This retroactively covers #70 (`lowestPassingLetterGrade: null`) and #104 (`stud
 - A domain PR that adds a required field stays atomic and `main` stays green.
 - Reviewers have a closed file list to check the override against. Anything outside it is a BLOCKER.
 - qa-engineer owns the default after the merge and may change it in its own PR.
-- A ripple into engine, db, API, or acceptance code still takes several PRs.
+- A ripple into engine, db, API, or acceptance code still takes several PRs, except the interface ripple that Amendment 3 allows.
 
 ## Revisit when
 
@@ -95,3 +95,48 @@ The options were:
 - The second half of #212 lands as one domain PR with a separate web commit, and `main` stays green.
 - Every added code ships with owner-written wording, and the existing test still bans overclaiming words.
 - A change to web code other than the map and its test is outside the case.
+
+## Amendment 3 (2026-10-08, issue #488): interface ripples
+
+**Related:** ADR-0002 (amends its override consequence again), standards README §Hard limits, standard 08 §Interface ripple, `.claude/hooks/enforce-ownership.mjs`, `scripts/check-ownership.mjs`, issues #399, #468, #488, PR #486.
+
+**Context.** Some cross-package interfaces add a member as optional while it rolls out, for example a `packages/db` repository method. Dependents guard it with `if (!repo.findX)`, and their test fakes leave it out. #468 step 3 (PR #486) makes the revision, live-case and queue lookups required. Neither order of single-owner PRs compiles:
+
+- If the db PR lands first, the api guards become `@typescript-eslint/no-unnecessary-condition` errors, and the api and acceptance fakes that leave the member out fail typecheck.
+- If the dependents land first, they can't drop the guards, because calling a member that may be undefined doesn't compile while it's still optional.
+
+The architecture reviewer blocked #486 because no named case covered the api and `tests/support` edits. Unlike the earlier cases, this ripple reaches code areas (api, engine, db, acceptance) rather than a closed list of files. Fixing it also needs the owners' judgment about which tests cover the absent-member behavior.
+
+The options were:
+
+- **(a) A named interface-ripple override.** Each dependent owner's agent makes its own minimal edits as a separate commit on the interface owner's branch, under tight limits.
+- **(b) A staged rollout.** This is how the optional member got onto `main` in the first place. Its final step is exactly this ripple, so staging again doesn't remove it.
+- **(c) A tech-lead ruling per PR.** This unblocks one PR at a time, but each ruling sets limits from scratch, and reviewers have no standing rule to check against.
+- **(d) A temporary lint suppression on the guards.** The standards README forbids disabling a rule to make code pass, and suppression doesn't fix the fakes that fail typecheck.
+- **(e) The orchestrator makes the dependent edits**, as in the earlier cases. Those cases are transcriptions into fixed files. Here the edits are in code, and deciding which tests to remove takes the owner's judgment.
+
+**Decision: (a).** Standard 08 §Interface ripple has the rules:
+
+- The only edits allowed are removing absent-member guards and the tests of that absent-member behavior, and adding the member to test fakes and stubs.
+- There is no other behavior change in any dependent area.
+- There is one commit per owning area, and that area's agent builds it.
+- The PR carries the `ownership-override` label, and its body cites #488 and lists each out-of-area file.
+
+Several agents committing to one owner's branch is safe for these reasons:
+
+- The PreToolUse edit hook keys on the agent, not the branch, so each agent can still edit only its own area.
+- The CI ownership check, keyed on the branch prefix, rejects any out-of-area file unless the PR has the label and its body names an authorization (ADR-0002, standard 08).
+- One commit per area lets reviewers check each owner's edits against the rules on their own.
+
+**Consequences.**
+
+- #486 lands as one db PR with separate api and qa commits, and `main` stays green.
+- Reviewers check each out-of-area file against the allowed edits. A new branch, new logic, a refactor or a new test case in a dependent area is a BLOCKER.
+- If a dependent needs more than guard removal and fake additions, the case doesn't apply. That owner changes its code first in its own PR where it can. Otherwise the tech lead rules on the issue.
+- Optional interface members stay a temporary rollout state with a tracked issue. This case only shortens their last step.
+
+**Revisit when:**
+
+- The case is used for edits other than guard removal and fake additions.
+- One ripple spans more than two dependent areas, or the case comes up often enough that the optional-member rollout pattern itself should change.
+- A human reviewer joins and could approve cross-area PRs directly.
