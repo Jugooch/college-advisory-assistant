@@ -86,6 +86,18 @@ export class RevisionConflictError extends DomainError {
   }
 }
 
+/** The plan already has an open case, so a second one would split the advisor's review. */
+export class OpenCaseExistsError extends DomainError {
+  /** Creates a REVISION_CONFLICT error that points the student to the case they already have. */
+  constructor() {
+    super(
+      ErrorCode.RevisionConflict,
+      'This plan already has an open case with an advisor. Open that case instead.',
+    );
+    this.name = 'OpenCaseExistsError';
+  }
+}
+
 /**
  * Loaded inputs contradict how they were queried, for example a prerequisite rule at another
  * ruleset than the policy it was loaded with. Not a `DomainError`: it is a defect, so the error

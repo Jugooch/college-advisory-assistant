@@ -61,6 +61,7 @@ describe('createRuntimeDependencies', () => {
       'scheduleOptions',
       'planDrafts',
       'planViews',
+      'cases',
       'plannableTerms',
     ]);
   });
