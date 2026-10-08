@@ -104,6 +104,18 @@ describe('PlanList', () => {
     expect(container.querySelector('li')?.textContent).toContain('couldn’t be reached');
   });
 
+  it('explains out of date and couldn’t check, each with a next step', () => {
+    const container = renderList([
+      summary(1, { freshness: buildUnknownPlanFreshnessView() }),
+      summary(2, { termId: SPRING, freshness: buildStalePlanFreshnessView() }),
+    ]);
+
+    expect(container.textContent).toContain('We couldn’t compare this draft');
+    expect(container.textContent).toContain('ask your advisor to review this draft');
+    expect(container.textContent).toContain('Something this draft was built on has changed');
+    expect(container.textContent).toContain('Plan next term again');
+  });
+
   it('labels the table and its headers for screen readers', () => {
     const container = renderList([summary(1)]);
 

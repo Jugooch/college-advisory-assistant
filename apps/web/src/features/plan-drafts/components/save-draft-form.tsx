@@ -15,6 +15,7 @@ import type { SavePlanRequest } from '@caa/api-contract';
 
 import { DRAFT_FIELD, encodeSaveDraft, STUDENT_FIELD } from '../utils/save-draft-form';
 import { IDLE_SAVE_DRAFT_STATE, type SaveDraftState } from '../utils/save-draft-state';
+import { SaveDraftConfirmation } from './save-draft-confirmation';
 import { SaveDraftResult } from './save-draft-result';
 
 /** Props for {@link SaveDraftForm}. */
@@ -49,6 +50,9 @@ export function SaveDraftForm({
   const [state, formAction, isPending] = useActionState(saveAction, IDLE_SAVE_DRAFT_STATE);
   const router = useRouter();
   const confirmationRef = useRef<HTMLDivElement>(null);
+  const refreshOptions = (): void => {
+    router.refresh();
+  };
   useEffect(() => {
     if (state.kind === 'saved') {
       confirmationRef.current?.focus();
@@ -58,22 +62,31 @@ export function SaveDraftForm({
     <form action={formAction} aria-describedby={`${idPrefix}-note`}>
       <input type="hidden" name={STUDENT_FIELD} value={studentId} />
       <input type="hidden" name={DRAFT_FIELD} value={encodeSaveDraft(draft)} />
-      <button type="submit" disabled={isPending}>
-        {isPending ? 'Saving…' : label}
+      <button
+        type="submit"
+        aria-disabled={isPending}
+        onClick={(event) => {
+          if (isPending) {
+            event.preventDefault();
+          }
+        }}
+      >
+        {label}
       </button>
       <p id={`${idPrefix}-note`}>A draft is a saved plan. It doesn’t register you for anything.</p>
-      <div id={`${idPrefix}-result`} role="status" aria-live="polite">
-        {state.kind === 'idle' ? null : (
-          <SaveDraftResult
-            state={state}
-            plansHref={plansHref}
-            confirmationRef={confirmationRef}
-            onRefresh={() => {
-              router.refresh();
-            }}
-          />
+      <div role="status" aria-live="polite">
+        {state.kind === 'idle' || state.kind === 'saved' ? null : (
+          <SaveDraftResult state={state} onRefresh={refreshOptions} />
         )}
+        {isPending ? <p>Saving…</p> : null}
       </div>
+      {state.kind === 'saved' ? (
+        <SaveDraftConfirmation
+          state={state}
+          plansHref={plansHref}
+          confirmationRef={confirmationRef}
+        />
+      ) : null}
     </form>
   );
 }

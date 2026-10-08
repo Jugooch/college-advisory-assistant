@@ -17,8 +17,6 @@ import { describeFreshness, describeStaleReason } from '../utils/plan-wording';
 /** Props for {@link PlanFreshness}. */
 export interface PlanFreshnessProps {
   readonly freshness: PlanFreshnessView;
-  /** Show the explanation sentence as well as the label and reasons. */
-  readonly isExplained?: boolean;
 }
 
 /**
@@ -28,15 +26,13 @@ export interface PlanFreshnessProps {
  * @param props - The freshness view.
  * @returns The freshness text.
  */
-export function PlanFreshness({
-  freshness,
-  isExplained = false,
-}: PlanFreshnessProps): ReactElement {
+export function PlanFreshness({ freshness }: PlanFreshnessProps): ReactElement {
   const display = describeFreshness(freshness.state);
   return (
     <>
       <StatusBadge label={display.label} tone={display.tone} />
-      {isExplained ? <p>{display.explanation}</p> : null}
+      <p>{display.explanation}</p>
+      {display.nextStep === null ? null : <p>{display.nextStep}</p>}
       {freshness.reasons.length === 0 ? null : (
         <ul>
           {freshness.reasons.map((reason) => (

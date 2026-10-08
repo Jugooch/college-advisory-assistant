@@ -16,6 +16,8 @@ export interface FreshnessDisplay {
   readonly label: string;
   readonly tone: StatusTone;
   readonly explanation: string;
+  /** What to do next; `null` when the draft is up to date. */
+  readonly nextStep: string | null;
 }
 
 // SAFETY: UNKNOWN has its own wording and is never shown as up to date (ADR-0013 §3).
@@ -25,18 +27,22 @@ const FRESHNESS_WORDING: Readonly<Record<PlanFreshness, FreshnessDisplay>> = {
     tone: 'neutral',
     explanation:
       'The records this draft was built on are still the latest. This says nothing about seats or registration.',
+    nextStep: null,
   },
   STALE: {
     label: 'Out of date',
     tone: 'caution',
     explanation:
       'Something this draft was built on has changed. Treat it as history, not as a current check.',
+    nextStep:
+      'Plan next term again to build a current draft, or ask your advisor to review this one.',
   },
   UNKNOWN: {
     label: 'Couldn’t check',
     tone: 'caution',
     explanation:
       'We couldn’t compare this draft with the latest records. Treat it as history, not as a current check.',
+    nextStep: 'Try again later, or ask your advisor to review this draft.',
   },
 };
 

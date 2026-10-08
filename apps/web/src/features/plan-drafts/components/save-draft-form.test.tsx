@@ -105,17 +105,19 @@ describe('SaveDraftForm', () => {
     );
   });
 
-  it('moves focus to the confirmation inside a polite live region', async () => {
+  it('moves focus to the confirmation, outside the polite live region', async () => {
     renderForm(toSavedState(buildPlanView()));
 
     fireEvent.click(screen.getByRole('button', { name: 'Save as draft' }));
 
-    const region = screen.getByRole('status');
+    const confirmation = await screen.findByText(/Draft saved\./);
+    const focused = confirmation.closest('[tabindex="-1"]');
     await waitFor(() => {
-      expect(document.activeElement).toBe(region.firstElementChild);
+      expect(document.activeElement).toBe(focused);
     });
-    expect(region.getAttribute('aria-live')).toBe('polite');
-    expect(region.firstElementChild?.getAttribute('tabindex')).toBe('-1');
+    // One announcement: the focused confirmation is outside the polite region.
+    expect(screen.getByRole('status').contains(focused)).toBe(false);
+    expect(screen.getByRole('status').getAttribute('aria-live')).toBe('polite');
   });
 
   it('tells the student the options changed and refreshes them on request', async () => {
@@ -192,10 +194,43 @@ describe('SaveDraftForm', () => {
     if (name !== 'idle') {
       fireEvent.click(screen.getByRole('button', { name: 'Save as draft' }));
       await waitFor(() => {
-        expect(screen.getByRole('status').textContent).not.toBe('');
+        expect(container.textContent).toMatch(/Draft saved|changed|Your record|looked/);
       });
     }
 
     expect(await violations(container)).toEqual([]);
+  });
+
+  it('keeps the button focusable and named while saving, and ignores a second click', async () => {
+    let finish: (state: SaveDraftState) => void = () => undefined;
+    const saveAction = vi.fn(
+      async () =>
+        new Promise<SaveDraftState>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    render(
+      <SaveDraftForm
+        saveAction={saveAction}
+        studentId={STUDENT_ID}
+        draft={DRAFT}
+        label="Save as draft"
+        idPrefix="s"
+        plansHref="/my-plans"
+      />,
+    );
+    const button = screen.getByRole('button', { name: 'Save as draft' });
+    button.focus();
+
+    fireEvent.click(button);
+    await screen.findByText('Saving…');
+    fireEvent.click(button);
+
+    expect(button.hasAttribute('disabled')).toBe(false);
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    expect(document.activeElement).toBe(button);
+    expect(saveAction).toHaveBeenCalledTimes(1);
+    finish({ kind: 'conflict' });
+    await screen.findByText(/Your options changed/);
   });
 });
