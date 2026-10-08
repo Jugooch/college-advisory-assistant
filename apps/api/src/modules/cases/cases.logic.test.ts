@@ -6,9 +6,16 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { CaseAction, CaseStatus } from '@caa/domain';
+import { CaseAction, CaseStatus, type UserId } from '@caa/domain';
 
-import { allowedCaseActions, CaseActor, isLiveCaseStatus, nextCaseStatus } from './cases.logic';
+import {
+  allowedCaseActions,
+  CaseActor,
+  caseActorOf,
+  isLiveCaseStatus,
+  mayAttemptCaseAction,
+  nextCaseStatus,
+} from './cases.logic';
 
 const STATUSES = Object.values(CaseStatus);
 const ACTIONS = Object.values(CaseAction);
@@ -101,5 +108,40 @@ describe('isLiveCaseStatus', () => {
     expect(isLiveCaseStatus(status)).toBe(
       status === CaseStatus.Open || status === CaseStatus.InReview,
     );
+  });
+});
+
+const STUDENT_USER = 'user-student' as UserId;
+const STAFF_USER = 'user-staff' as UserId;
+const OTHER_STAFF = 'user-other' as UserId;
+
+describe('caseActorOf', () => {
+  it.each([
+    { name: 'the student', user: STUDENT_USER, owner: null, expected: CaseActor.Student },
+    { name: 'the owner', user: STAFF_USER, owner: STAFF_USER, expected: CaseActor.Owner },
+    { name: 'other staff', user: OTHER_STAFF, owner: STAFF_USER, expected: CaseActor.Reviewer },
+    { name: 'staff, no owner', user: STAFF_USER, owner: null, expected: CaseActor.Reviewer },
+  ])('names $name', ({ user, owner, expected }) => {
+    const actor = { userId: user, studentUserId: STUDENT_USER };
+
+    expect(caseActorOf(actor, { ownerUserId: owner })).toBe(expected);
+  });
+});
+
+describe('mayAttemptCaseAction', () => {
+  it.each([
+    { action: CaseAction.Claim, actor: CaseActor.Student, expected: false },
+    { action: CaseAction.Claim, actor: CaseActor.Reviewer, expected: true },
+    { action: CaseAction.Claim, actor: CaseActor.Owner, expected: true },
+    { action: CaseAction.Release, actor: CaseActor.Reviewer, expected: false },
+    { action: CaseAction.Release, actor: CaseActor.Owner, expected: true },
+    { action: CaseAction.Resolve, actor: CaseActor.Reviewer, expected: false },
+    { action: CaseAction.Resolve, actor: CaseActor.Student, expected: false },
+    { action: CaseAction.Resolve, actor: CaseActor.Owner, expected: true },
+    { action: CaseAction.Withdraw, actor: CaseActor.Student, expected: true },
+    { action: CaseAction.Withdraw, actor: CaseActor.Reviewer, expected: false },
+    { action: CaseAction.Create, actor: CaseActor.Student, expected: false },
+  ])('$action by $actor is $expected', ({ action, actor, expected }) => {
+    expect(mayAttemptCaseAction(action, actor)).toBe(expected);
   });
 });

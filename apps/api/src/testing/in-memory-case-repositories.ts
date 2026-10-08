@@ -221,6 +221,13 @@ export function createInMemoryCaseRepository(store: InMemoryCaseStore): Advising
             isAssigned(entry, at, advisorUserId),
         ),
       ),
+    listTenantQueue: (tenantId, { at, status }) =>
+      Promise.resolve(
+        inTenant(tenantId)
+          .filter((entry) => status === undefined || entry.status === status)
+          .map((entry) => ({ ...entry, routed: isAssigned(entry, at) }))
+          .toSorted((left, right) => Date.parse(left.createdAt) - Date.parse(right.createdAt)),
+      ),
     listUnrouted: (tenantId, at) =>
       Promise.resolve(
         inTenant(tenantId).filter(

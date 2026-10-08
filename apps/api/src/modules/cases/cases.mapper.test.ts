@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { CaseViewSchema } from '@caa/api-contract';
+import { CaseQueueItemSchema, CaseViewSchema } from '@caa/api-contract';
 import { CaseAction, CaseStatus, Role } from '@caa/domain';
 import {
   buildActor,
@@ -15,7 +15,7 @@ import {
   syntheticId,
 } from '@caa/test-kit';
 
-import { toCaseSummary, toCaseView } from './cases.mapper';
+import { toCaseQueueItem, toCaseSummary, toCaseView } from './cases.mapper';
 
 const student = buildActor({ roles: [Role.Student] }, 1);
 const advisor = buildActor({ roles: [Role.Advisor] }, 2);
@@ -118,5 +118,22 @@ describe('toCaseSummary', () => {
     expect(summary.planRevisionId).toBe(
       advisingCase.planRevisionId ?? syntheticId('planRevision', 1),
     );
+  });
+});
+
+describe('toCaseQueueItem', () => {
+  it('marks the viewer’s own case and carries no note, owner ID or user ID', () => {
+    const item = toCaseQueueItem(advisingCase, { viewerUserId: advisor.userId, routed: true });
+
+    expect(() => CaseQueueItemSchema.parse(item)).not.toThrow();
+    expect(item).toMatchObject({ caseId: advisingCase.id, ownerIsYou: true, routed: true });
+    expect(JSON.stringify(item)).not.toContain(advisor.userId);
+    expect(JSON.stringify(item)).not.toContain(advisingCase.studentNote);
+  });
+
+  it('is not the viewer’s case for another viewer, and keeps routed false', () => {
+    const item = toCaseQueueItem(advisingCase, { viewerUserId: admin.userId, routed: false });
+
+    expect(item).toMatchObject({ ownerIsYou: false, routed: false });
   });
 });

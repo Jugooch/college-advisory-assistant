@@ -9,6 +9,7 @@
 import type {
   CaseEventView,
   CaseListResponse,
+  CaseQueueResponse,
   CaseView,
   PlanRevisionView,
 } from '@caa/api-contract';
@@ -126,5 +127,30 @@ export function toCaseSummary(advisingCase: AdvisingCase): CaseSummary {
     discrepancySubject: advisingCase.discrepancySubject,
     status: advisingCase.status,
     createdAt: advisingCase.createdAt,
+  };
+}
+
+/** One row of the advisor or admin queue. */
+export type CaseQueueItem = CaseQueueResponse['cases'][number];
+
+/**
+ * Builds one queue row. Opaque IDs and case facts only: no note, no owner ID, no student name.
+ *
+ * @param advisingCase - The stored case.
+ * @param options - The signed-in user's ID, and whether the student has an active assignment.
+ * @returns The queue row.
+ */
+export function toCaseQueueItem(
+  advisingCase: AdvisingCase,
+  options: { readonly viewerUserId: UserId; readonly routed: boolean },
+): CaseQueueItem {
+  return {
+    caseId: advisingCase.id,
+    studentId: advisingCase.studentId,
+    reason: advisingCase.reason,
+    status: advisingCase.status,
+    createdAt: advisingCase.createdAt,
+    ownerIsYou: advisingCase.ownerUserId === options.viewerUserId,
+    routed: options.routed,
   };
 }

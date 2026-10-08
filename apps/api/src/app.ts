@@ -6,6 +6,8 @@ import Fastify, { type FastifyInstance } from 'fastify';
 
 import type { AppDependencies } from './container';
 import { registerAcademicSummaryRoutes } from './modules/academic-summary/academic-summary.routes';
+import { registerCaseActionsRoutes } from './modules/case-actions/case-actions.routes';
+import { registerCaseQueueRoutes } from './modules/case-queue/case-queue.routes';
 import { registerCasesRoutes } from './modules/cases/cases.routes';
 import { registerCourseChecksRoutes } from './modules/course-checks/course-checks.routes';
 import { registerHealthRoutes } from './modules/health/health.routes';
@@ -51,6 +53,8 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
       registerPlanRevalidationRoutes(scope, controllers.planRevalidation);
       registerPlanViewsRoutes(scope, controllers.planViews);
       registerCasesRoutes(scope, controllers.cases);
+      registerCaseQueueRoutes(scope, controllers.caseQueue);
+      registerCaseActionsRoutes(scope, controllers.caseActions);
     },
   });
   return app;
