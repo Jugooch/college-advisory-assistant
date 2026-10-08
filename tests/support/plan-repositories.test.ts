@@ -7,7 +7,8 @@
 import { describe, expect, it } from 'vitest';
 
 import type { NewPlanRevision } from '@caa/db';
-import { buildPlan, buildPlanRevision, SYNTHETIC_TENANTS } from '@caa/test-kit';
+import { PlanRevisionIdSchema } from '@caa/domain';
+import { buildPlan, buildPlanRevision, SYNTHETIC_TENANTS, syntheticId } from '@caa/test-kit';
 
 import { createPlanRepositories } from './plan-repositories';
 
@@ -70,5 +71,18 @@ describe('plan repository fake', () => {
       await plans.appendRevision(TENANT_B, id, { expectedRevision: 1, revision: newRevision() }),
     ).toEqual({ status: 'PLAN_NOT_FOUND' });
     expect(await plans.listForStudent(TENANT_A, NEW_PLAN.studentId)).toHaveLength(1);
+  });
+
+  it('finds a revision by ID within the tenant only', async () => {
+    const { plans } = createPlanRepositories({});
+    const created = await plans.createWithFirstRevision(TENANT_A, NEW_PLAN, newRevision());
+    if (created.status !== 'CREATED') {
+      throw new Error('expected CREATED');
+    }
+    const revisionId = created.revision.revision.id;
+    expect((await plans.findRevisionById?.(TENANT_A, revisionId))?.revision.id).toBe(revisionId);
+    expect(await plans.findRevisionById?.(TENANT_B, revisionId)).toBeNull();
+    const absent = PlanRevisionIdSchema.parse(syntheticId('planRevision', 99));
+    expect(await plans.findRevisionById?.(TENANT_A, absent)).toBeNull();
   });
 });
