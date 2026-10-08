@@ -27,7 +27,8 @@ export interface PolicyHelpSectionProps {
 }
 
 /**
- * Renders the block.
+ * Composes the policy search form, its results, and the where-to-ask list into one block for
+ * the help page, so the page itself stays a thin loader.
  *
  * @param props - The student, the query, and the outcomes.
  * @returns The block.

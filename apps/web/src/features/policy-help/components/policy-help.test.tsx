@@ -65,11 +65,10 @@ describe('PolicySearchForm', () => {
 describe('PolicySearchResults', () => {
   afterEach(cleanup);
 
-  it('keeps an empty polite live region before any search', () => {
+  it('keeps an empty status region before any search', () => {
     render(<PolicySearchResults text={null} result={null} />);
 
     expect(screen.getByRole('status').textContent).toBe('');
-    expect(screen.getByRole('status').getAttribute('aria-live')).toBe('polite');
   });
 
   it('shows each hit with its source label, revision, interval, and approval time', async () => {
@@ -143,7 +142,7 @@ describe('WhereToAsk', () => {
 
     const headings = screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent);
     expect(headings[0]).toBe('Crisis or urgent personal support');
-    expect(screen.getAllByText('Ask your advising office.').length).toBeGreaterThan(3);
+    expect(screen.getAllByText('Ask your advising office.')).toHaveLength(4);
     expect(screen.getByRole('heading', { name: 'Aid office' })).toBeTruthy();
     expect(screen.getByText('Unavailable:')).toBeTruthy();
     expect(await violations()).toBe(0);

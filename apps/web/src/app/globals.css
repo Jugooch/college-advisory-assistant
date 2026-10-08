@@ -78,6 +78,10 @@ body {
   border-color: var(--color-negative);
 }
 
+.policy-hit__excerpt {
+  white-space: pre-wrap;
+}
+
 .facts {
   display: grid;
   grid-template-columns: max-content 1fr;

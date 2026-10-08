@@ -36,11 +36,11 @@ export interface WhereToAskProps {
  */
 export function WhereToAsk({ entries }: WhereToAskProps): ReactElement {
   return (
-    <section aria-labelledby="where-to-ask-heading">
+    <section className="where-to-ask" aria-labelledby="where-to-ask-heading">
       <h2 id="where-to-ask-heading">Where to ask</h2>
-      <ul>
+      <ul className="where-to-ask__list">
         {entries.map(({ topic, result }) => (
-          <li key={topic}>
+          <li key={topic} className="where-to-ask__topic">
             <h3>{describeTopic(topic)}</h3>
             {'hits' in result ? (
               result.hits.length === 0 ? (
@@ -49,7 +49,7 @@ export function WhereToAsk({ entries }: WhereToAskProps): ReactElement {
                 <PolicyHitList hits={result.hits} headingLevel={4} />
               )
             ) : (
-              <p>
+              <p className="notice notice--caution where-to-ask__unavailable">
                 <strong>Unavailable:</strong> the referral information for this topic is unavailable
                 right now (support reference: {result.requestId ?? 'none'}). {ASK_ADVISING_OFFICE}
               </p>

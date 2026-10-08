@@ -20,7 +20,8 @@ export interface PolicySearchFormProps {
 }
 
 /**
- * Renders the form.
+ * A plain GET form, so a search works without scripting and the query stays in the URL where
+ * the server page reads it.
  *
  * @param props - The student, the last text, and whether it was refused.
  * @returns The form.
@@ -31,7 +32,7 @@ export function PolicySearchForm({
   invalid,
 }: PolicySearchFormProps): ReactElement {
   return (
-    <form method="get" role="search" aria-label="Policy search">
+    <form className="policy-search" method="get" role="search" aria-label="Policy search">
       <input type="hidden" name="studentId" value={studentId} />
       <label htmlFor="policy-search">Search school policies</label>{' '}
       <input
@@ -44,7 +45,11 @@ export function PolicySearchForm({
         aria-describedby={invalid ? 'policy-search-error' : undefined}
       />{' '}
       <button type="submit">Search</button>
-      {invalid ? <p id="policy-search-error">Enter one search of up to 200 characters.</p> : null}
+      {invalid ? (
+        <p id="policy-search-error" className="notice notice--problem policy-search__error">
+          Enter one search of up to 200 characters.
+        </p>
+      ) : null}
     </form>
   );
 }
