@@ -41,8 +41,46 @@ const TOPIC_PATTERNS: readonly (readonly [SpecialistTopic, RegExp])[] = [
   [SpecialistTopic.Appeals, /\bappeal|\bgrievance|\breinstat|\bpetition/],
 ];
 
-const CRISIS_PATTERN =
-  /suicid|\bkill(ing)? (myself|me)\b|\bend(ing)? (my life|it all|my own life)\b|\bend(ing)? it\b|\bnot wake up\b|want to die|wanna die|better off dead|self[- ]?harm|hurt(ing)? myself|harm(ing)? myself|cut(ting)? myself|(don'?t|do not|doesn'?t) want to (live|be alive|be here)|no reason to live|\bcan'?t go on (anymore|like this|living)|\bcan'?t keep going\b|overdose|being abused|abusing me|in danger|not safe|unsafe|emergency|\b911\b/;
+// SAFETY: over-inclusive on purpose (ADR-0015 §5): a false positive shows the referral, a false negative is unacceptable.
+const CRISIS_PATTERN = new RegExp(
+  [
+    'suicid',
+    '\\bkill(ing|s)? (myself|me|my ?self)\\b',
+    '\\b(kms|kys)\\b',
+    '\\bend(ing)? (my life|my own life|it all|it)\\b',
+    '\\b(take|taking|took) (my|my own) (own )?life\\b',
+    '\\btake my own life\\b',
+    '\\bnot wake up\\b',
+    '\\b(want|wanna|wish|wished|going|planning|plan|ready|trying|thinking of|thinking about)( to| i was| i were)? ?(be )?(die|dying|dead|disappear|vanish)',
+    '\\bwant to (die|disappear|vanish|be dead|not exist)',
+    'better off (dead|without me)',
+    '\\bno (point|reason|purpose) (in |to )?(living|live|going on|go on|being alive|continuing|existing|life)',
+    "\\bcan'?t go on\\b(?! (on |to |in |at |campus|friday|monday|tuesday|wednesday|thursday|saturday|sunday|the |a |that |this |my |our ))",
+    '\\bwant (it|this|everything) to (stop|end|be over)',
+    "\\bcan'?t (keep going|do this anymore|take it anymore|take this anymore|take it any ?more)\\b",
+    '\\bgive up on (life|living)\\b',
+    'self[- ]?(harm|injur|mutilat)',
+    '\\b(hurt|hurting|harm|harming|cut|cutting|injure|injuring|burn|burning) (myself|my ?self)\\b',
+    "(don'?t|do not|doesn'?t|no longer) want to (live|be alive|be here|exist|wake)",
+    '\\bno reason to (live|go on|be alive)\\b',
+    'overdos',
+    '\\b(die|dies|dying|dead|death|unalive|unaliv\\w*)\\b',
+    '\\bend(ing)? (things|everything|the pain|my pain|my suffering|the suffering)\\b',
+    '\\b(nobody|no one|no-one) (would|will) (miss|care|notice)',
+    '\\bburden\\b',
+    '\\bnot worth (living|it|going on|being alive)\\b',
+    "\\bisn'?t worth (living|it)\\b",
+    '\\bworth living\\b',
+    "out of this life|\\bsomething drastic\\b|\\bwon'?t be around\\b|\\bsleep forever\\b|\\bdone with (life|everything|living)\\b|\\bhate being alive\\b",
+    '\\b(better|rather) (off )?without me\\b|\\bbetter without me\\b',
+    '\\b(jump|jumping) (off|from)\\b|\\b(shoot|shooting|hang|hanging|drown|drowning|poison|poisoning|stab|stabbing) (myself|my ?self)\\b',
+    "\\bcan'?t (take|handle|stand|bear) (it|this|life)\\b",
+    "\\bdon'?t (wanna|want to|wish to) (live|be alive|be here|exist)|\\bdo not wish to (live|be alive)",
+    '\\bthinking (about|of) (ending|death|dying)',
+    'being abused|abusing me|\\babused\\b',
+    'in danger|not safe|unsafe|emergency|\\b911\\b',
+  ].join('|'),
+);
 
 const HYPOTHETICAL_PATTERN =
   /assum(e|ing) (that )?i|what if i|if i (pass|passed|fail|failed|get|got|finish|complete|retake|drop|withdraw|took|take|had)|suppose i|pretend i|let'?s say i|imagine i|hypothetical/;
@@ -54,13 +92,18 @@ const GRADE_DISPUTE_PATTERN =
   /grade[^.!?]{0,30}(wrong|incorrect|missing|mistake|error|not right|isn'?t right|doesn'?t look right|doesn'?t match|off)|(wrong|incorrect|missing|bad|erroneous) grade|grade (dispute|error|discrepancy)|dispute (my|the|a) grade|should (have|'ve) (gotten|got|received|earned) an? [a-f]\b|transcript[^.!?]{0,30}(wrong|incorrect|mistake|error)/;
 
 /**
- * Lowercases, straightens curly apostrophes and collapses whitespace so keyword lists stay simple.
+ * NFKC-normalizes, drops invisible characters, lowercases, straightens curly apostrophes and collapses whitespace so keyword lists stay simple.
  *
  * @param message - The raw message.
  * @returns The normalized text.
  */
 function normalize(message: string): string {
-  return message.toLowerCase().replace(/[‘’ʼ]/g, "'").replace(/\s+/g, ' ');
+  return message
+    .normalize('NFKC')
+    .replace(/[\p{Cf}\u00AD]/gu, '')
+    .toLowerCase()
+    .replace(/[\u2018\u2019\u201A\u201B\u02BC\u2032\u00B4\u0060]/g, "'")
+    .replace(/\s+/g, ' ');
 }
 
 /**

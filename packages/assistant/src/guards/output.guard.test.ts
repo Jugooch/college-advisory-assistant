@@ -81,7 +81,27 @@ describe('guardIntro', () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.reasons).toContain(reason);
+      expect(new Set(result.reasons).size).toBe(result.reasons.length);
     }
+  });
+
+  it('never repeats a reason code', () => {
+    expect(guardIntro('You got a B in Biology.')).toEqual({
+      ok: false,
+      reasons: [GuardReason.CreditOrGrade],
+    });
+  });
+
+  it('rejects non-ASCII characters left after normalization', () => {
+    expect(guardIntro('Here are your options А')).toEqual({
+      ok: false,
+      reasons: [GuardReason.NonAscii],
+    });
+  });
+
+  it('returns the original text, unnormalized, when it passes', () => {
+    const text = 'Here are your options.';
+    expect(guardIntro(text)).toEqual({ ok: true, text });
   });
 
   it.each(ACCEPTED)('accepts unchanged: %s', (text) => {
@@ -104,7 +124,12 @@ describe('guardIntro', () => {
     const first = guardIntro('You are eligible and registered, see https://x.edu');
     expect(first).toEqual({
       ok: false,
-      reasons: [GuardReason.Eligibility, GuardReason.EnrollmentStatus, GuardReason.Url],
+      reasons: [
+        GuardReason.Eligibility,
+        GuardReason.EnrollmentStatus,
+        GuardReason.AcademicAction,
+        GuardReason.Url,
+      ],
     });
     expect(guardIntro('You are eligible and registered, see https://x.edu')).toEqual(first);
   });
