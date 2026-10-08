@@ -7,19 +7,33 @@
  */
 import { type ReactElement, useEffect, useRef } from 'react';
 
+/** Props for {@link ResultsHeading}. */
+export interface ResultsHeadingProps {
+  /** Heading text; defaults to the search heading. */
+  readonly text?: string | undefined;
+  /** Whether focus moves here on first render. A saved result shown on load must not take it. */
+  readonly isFocused?: boolean | undefined;
+}
+
 /**
- * Renders the results heading and moves focus to it when it first appears.
+ * Renders the results heading and, unless told not to, moves focus to it when it first appears.
  *
- * @returns The focusable heading.
+ * @param props - The optional text and focus choice.
+ * @returns The heading.
  */
-export function ResultsHeading(): ReactElement {
+export function ResultsHeading({
+  text = 'Schedule search results',
+  isFocused = true,
+}: ResultsHeadingProps): ReactElement {
   const ref = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
-    ref.current?.focus();
-  }, []);
+    if (isFocused) {
+      ref.current?.focus();
+    }
+  }, [isFocused]);
   return (
-    <h2 id="results-heading" ref={ref} tabIndex={-1}>
-      Schedule search results
+    <h2 id="results-heading" ref={ref} tabIndex={isFocused ? -1 : undefined}>
+      {text}
     </h2>
   );
 }
