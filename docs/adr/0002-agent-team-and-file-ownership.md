@@ -20,7 +20,7 @@ Development is done largely by Claude Code subagents. Without boundaries, agents
 
 - Cross-area features are split into ordered, single-owner PRs. More PRs, but each is small and reviewable.
 - Reviews cost model usage on every push to an open PR.
-- Mechanical repo-wide changes need the `ownership-override` label and a linked justification.
+- Mechanical repo-wide changes need the `ownership-override` label and a linked justification. ADR-0004 and its amendments add narrow ripple cases (standard 08 §Ownership overrides).
 
 ## Revisit when
 

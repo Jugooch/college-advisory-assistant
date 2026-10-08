@@ -28,12 +28,13 @@ Issue (with requirement IDs and acceptance examples)
 
 A PR may change files outside its owner's area only with the `ownership-override` label, and only in one of these cases. Every override PR links its authorizing ADR or tech-lead issue in the body. Reviewers treat any out-of-area file that doesn't fit a listed case as a BLOCKER.
 
-| Case                  | What it allows                                                                                                                              | Authorized by                             |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
-| Repo-wide mechanical  | A mechanical change that touches many areas, for example a rename across every package                                                      | Its own ADR or tech-lead issue            |
-| Known finding fixed   | Removing a fixed entry from `tests/support/known-findings.ts` in the fixing PR (standard 07, known findings)                                | Standard 07 and the finding's `bug` issue |
-| Required-field ripple | Updating a test-kit builder when a domain PR adds a required field, under the rules below                                                   | #108 (ADR-0004)                           |
-| Wording-map ripple    | Adding frontend-authored wording to the web reason-code map when a domain PR adds, renames or removes a `ReasonCode`, under the rules below | #261 (ADR-0004 Amendment 2)               |
+| Case                  | What it allows                                                                                                                                  | Authorized by                             |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| Repo-wide mechanical  | A mechanical change that touches many areas, for example a rename across every package                                                          | Its own ADR or tech-lead issue            |
+| Known finding fixed   | Removing a fixed entry from `tests/support/known-findings.ts` in the fixing PR (standard 07, known findings)                                    | Standard 07 and the finding's `bug` issue |
+| Required-field ripple | Updating a test-kit builder when a domain PR adds a required field, under the rules below                                                       | #108 (ADR-0004)                           |
+| Wording-map ripple    | Adding frontend-authored wording to the web reason-code map when a domain PR adds, renames or removes a `ReasonCode`, under the rules below     | #261 (ADR-0004 Amendment 2)               |
+| Interface ripple      | Removing absent-member guards and adding the member to test fakes when a cross-package interface member becomes required, under the rules below | #488 (ADR-0004 Amendment 3)               |
 
 ### Required-field ripple
 
@@ -80,6 +81,22 @@ Retired on 2026-10-06 (#333). The api seed fixtures now build from the db seed p
 Reviewers compare the applied text with the linked comment. Any difference, or wording without a linked comment, is a BLOCKER. After the merge, the frontend-engineer may change the wording in its own PR.
 
 If anything else in `apps/web` breaks, this case doesn't apply. An example is a component that switches on the code. The frontend-engineer changes that code first in its own PR where it can; otherwise the tech lead rules on the issue.
+
+### Interface ripple
+
+Some cross-package interfaces have optional members, for example a `packages/db` repository method that dependents guard with `if (!repo.findX)` while it rolls out. When the owning PR makes such a member required, neither order of single-owner PRs keeps `main` green: once the member is required, the dependents' guards fail lint (`@typescript-eslint/no-unnecessary-condition`) and their test fakes that omit it fail typecheck; and dropping the guards first doesn't compile while the member is still optional. So the minimal dependent edits land in the owning PR, under these rules (ADR-0004 Amendment 3):
+
+1. **Only these edits:**
+   - removing the guards for the absent member, and the tests that cover the absent-member behavior;
+   - adding the member to test fakes and stubs that implement the interface.
+2. **No other behavior change.** No new logic, refactors, renames or test cases in the dependent areas.
+3. **One commit per owning area, built by that area's agent** on the owning PR's branch, for example `refactor(api): drop the optional live-case lookup guards`. Each agent edits only its own area; the orchestrator never makes these edits.
+4. **The PR body says so.** Under Handoffs, add:
+   > **Ownership override (interface ripple, standard 08, authorized by #488, ADR-0004 Amendment 3):** `<member>` became required; dependents changed only `<files>`, each in its own owner's commit, removing absent-member guards and their tests and adding the member to test fakes.
+
+Reviewers check each out-of-area file against rules 1 and 2. Any other change in a dependent area is a BLOCKER.
+
+If a dependent needs anything beyond rule 1, for example new handling for a value the member returns, this case doesn't apply. That owner makes the change first in its own PR where it can; otherwise the tech lead rules on the issue.
 
 ## Commits and PR titles
 
