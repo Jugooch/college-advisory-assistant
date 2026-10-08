@@ -68,7 +68,7 @@ Every response is one of two shapes:
 ## Services
 
 - Factory function `createXxxService(dependencies)` returning an object that implements an exported `XxxService` interface.
-- Long-lived dependencies (repositories, other services, the clock, configuration) come in through the `dependencies` object. Only `container.ts` constructs them. Pure code, meaning `@caa/engine` and `.logic.ts` functions, is imported directly, because there's nothing to construct or replace.
+- Long-lived dependencies (repositories, other services, the clock, configuration) come in through the `dependencies` object. Only the composition root, `container.ts` and its `wiring/*.wiring.ts` files (standard 01 §Composition root), constructs them. Pure code, meaning `@caa/engine` and `.logic.ts` functions, is imported directly, because there's nothing to construct or replace.
 - A `.service.ts` file exports its factory, its `XxxService` interface, and their supporting types. Nothing else. Another service imports only its types and reaches its behavior through the injected interface. A pure helper that two services need goes in a `.logic.ts` file.
 - Methods take the authenticated actor (`actor: Actor`) as their first argument when the operation touches tenant data. `// SECURITY:` comments mark authorization decisions.
 - Request-scoped values come in through a single **final** `context: RequestContext` parameter that the controller builds from the request. Today it carries the request logger (`context.logger`, Fastify's `request.log`, typed as the `Logger` port), so every log line has the request ID (standard 09). New request-scoped values are added to `RequestContext`, never as extra parameters. Services never import Fastify types and never log through a process-wide logger.
