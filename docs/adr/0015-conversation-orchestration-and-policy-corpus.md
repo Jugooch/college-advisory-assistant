@@ -1,6 +1,6 @@
 # ADR-0015: Conversation orchestration, the model boundary, the approved policy corpus, and chat history
 
-- **Status:** Accepted 2026-10-08. The repo owner chose decisions 1–4 (model, tools, history, UI) and confirmed the tech lead's choices listed on #495 on 2026-10-08. The orchestrator defaults are adopted, except where evaluations live (§9).
+- **Status:** Accepted 2026-10-08; amended 2026-10-08 (Amendment 1: template-only intros, two-tier crisis detection). The repo owner chose decisions 1–4 (model, tools, history, UI) and confirmed the tech lead's choices listed on #495 on 2026-10-08. The orchestrator defaults are adopted, except where evaluations live (§9).
 - **Date:** 2026-10-08
 - **Deciders:** Tech lead; repo owner (product decisions 1–4 on #495)
 - **Related:** FR-01, FR-02, FR-08, FR-10, FR-14, FR-16, NFR-02, NFR-05, NFR-08, new AC42–AC47, T06, planning/07 §Modules, §Request lifecycle and §Failure containment, planning/09 §Canonical entities, §Logical app interfaces and §Retention, planning/10 (all), planning/11 §Interaction details, planning/04 §Change control (model vendor), ADR-0005, ADR-0008, ADR-0009, ADR-0010, ADR-0013, ADR-0014, issues #495–#520
@@ -31,7 +31,7 @@ What the planning docs leave open: which provider and how it is isolated, how a 
 
 - **The kill switch is `CONVERSATION_MODEL=off`.** It stops every model call. The wiring picks the adapter from configuration, with a `// SAFETY:` comment (standard 01 §Composition root). The test container can inject any `ConversationModel` through an optional `ContainerOptions.conversationModel`. That is a permanent test seam, not a rollout step.
 - **Provider qualification.** planning/04 lists a model vendor as a change needing requalification, and planning/10 requires provider approval before student records are sent. S6 uses synthetic data only. Production refuses `claude` until `CONVERSATION_PROVIDER_APPROVAL_REF` names the approval record, so enabling it with real records is a deliberate, recorded act. This ADR is the change request for synthetic use only.
-- **Metadata.** Each assistant turn records `modelId`, `promptVersion`, `toolSchemaVersion`, `templateVersion` and the guard's reason codes. None of them enters `pinnedInputs`, a constraint hash, or any plan revision (planning/07 §Request lifecycle).
+- **Metadata.** Each assistant turn records `modelId`, `promptVersion`, `toolSchemaVersion`, `templateVersion` and the guard reason codes (Amendment 1). None of them enters `pinnedInputs`, a constraint hash, or any plan revision (planning/07 §Request lifecycle).
 
 ### 2. A turn: one synchronous request, bounded
 
@@ -47,14 +47,14 @@ The orchestrator then:
 1. Runs the deterministic message detectors (§5). Their blocks are always added, whatever the model does.
 2. Loads the last `CONVERSATION_HISTORY_TURNS` turns from the store (§7) and calls the model with the versioned system prompt and the six tool schemas.
 3. Executes each tool call through §4, feeding results back, within a budget: at most 3 model calls, 4 tool calls, and 1 `request_plan` per turn, and 25 seconds in total. A call past the budget is not executed.
-4. Passes the model's final text through the output guard (§3), renders the blocks, and stores both turns.
+4. Resolves the model's final reply to a server-written intro (§3, Amendment 1), renders the blocks, and stores both turns.
 
 The response is always 200 with a `modelStatus`, following ADR-0010's "200 with `outcome`" precedent, so the UI renders one shape and the form keeps working. No new `ErrorCode` is added, which avoids an error-handler and wording-map ripple.
 
 | `modelStatus`       | When                                                         | Model text shown        |
 | ------------------- | ------------------------------------------------------------ | ----------------------- |
-| `ANSWERED`          | The model replied and the guard passed its text              | The guarded text        |
-| `GUARDED`           | The guard rejected the text (§3)                             | A template intro        |
+| `ANSWERED`          | The model's final reply was a valid intro id (Amendment 1)   | The chosen intro        |
+| `GUARDED`           | The server chose instead of the model (Amendment 1)          | The default intro       |
 | `BUDGET_EXHAUSTED`  | The budget ran out                                           | A template intro        |
 | `MODEL_UNAVAILABLE` | The adapter failed or timed out                              | The fallback template   |
 | `RATE_LIMITED`      | The student is over `CONVERSATION_RATE_LIMIT`; no model call | The rate-limit template |
@@ -62,9 +62,9 @@ The response is always 200 with a `modelStatus`, following ADR-0010's "200 with 
 
 `RATE_LIMITED` and `DISABLED` store nothing. The other four store the student turn and the assistant turn. Every fallback template points to the planner form, My plans and Help and cases, which work without a model (planning/07 §Failure containment). Rate counting reads the turn store with the injected clock, so it holds across api instances and needs no in-memory state.
 
-**Rejected:** streaming (planning/11 asks to announce completed updates, not tokens, and it complicates the guard, which needs the whole text); a 503 or 429 error code (a new `ErrorCode` ripples into the api error handler and the web wording map for no user benefit).
+**Rejected:** streaming (planning/11 asks to announce completed updates, not tokens, and it complicated the original output guard, which needed the whole text); a 503 or 429 error code (a new `ErrorCode` ripples into the api error handler and the web wording map for no user benefit).
 
-### 3. What the model may say, and the output guard
+### 3. What the model may say
 
 **The model chooses tools; the server writes the claims.** The response is a short intro plus blocks. The blocks are exactly the rendered results of this turn's successful tool calls and detectors, in order. The model can't add, remove or edit a block, and it can't cite one that wasn't produced.
 
@@ -73,13 +73,9 @@ The response is always 200 with a `modelStatus`, following ADR-0010's "200 with 
 - Data blocks reuse existing contract schemas and are shown by the existing verified web components: `SCHEDULE_OPTIONS` (a `ScheduleOptionsResponse`), `PLAN_EVIDENCE` (a plan revision view with its read-time freshness), `ACADEMIC_SUMMARY`, `POLICY_RESULTS` (§6), `CONSTRAINT_PROPOSAL` (§4) and `CASE_PREVIEW` (§4).
 - Text blocks are `NOTICE` and `REFERRAL`. They carry `templateId`, `templateVersion` and the text the server rendered from `@caa/assistant` templates and structured fields.
 
-The intro is the only model-authored text. The server keeps it only if the deterministic output guard in `@caa/assistant` passes it:
+**The intro** is a server-written template the model picks by id. The model writes no visible text, and there is no output guard on model prose. The rules are in Amendment 1, which replaced the free-text intro, its 600-character cap and its guard on 2026-10-08.
 
-- It is at most 600 characters. A longer intro is replaced, never truncated, because truncation can drop a "not".
-- It matches none of the consequential patterns: credit or grade values, eligibility, prerequisite, pass, fail, met or satisfied wording, `UNKNOWN` or `CONDITIONAL` restated, readiness or "on track", dates and deadlines, "registered", "enrolled" or "approved", confidence or percentages, promises that an advisor was notified or will reply, and URLs.
-- Otherwise the intro is a fixed template chosen from the block kinds ("Here are your schedule options. Each card shows its own checks."), and `modelStatus` is `GUARDED`.
-
-The guard is deliberately over-inclusive. A false positive costs awkward wording; a false negative is a release blocker (planning/10). The guard never touches a block, so a CONDITIONAL or UNKNOWN check reaches the student exactly as the engine returned it. The web renders the intro as plain text (no Markdown, HTML or links) under a label that it is assistant text, visually separate from the verified cards. No second LLM certifies anything (planning/10).
+Nothing rewrites a block, so a CONDITIONAL or UNKNOWN check reaches the student exactly as the engine returned it. The web renders the intro as plain text (no Markdown, HTML or links) under a label that it is assistant text, visually separate from the verified cards. No second LLM certifies anything (planning/10).
 
 ### 4. The six tools: arguments, binding, and what the model sees
 
@@ -95,24 +91,24 @@ Every tool's argument schema is a strict Zod object in `@caa/assistant`. None ha
 | `draft_case_context`      | `reason`, optional `planId`, `discrepancySubject`, `suggestedNote` (≤500) | Builds a preview only. Nothing is created                                                                                                                     | `CASE_PREVIEW`        |
 
 - **Proposals are never applied.** `propose_constraints` downgrades every proposed constraint to `PREFERRED`. The student sees each as an editable chip with a hard/preferred toggle, and confirming it writes it into the planner form. `request_plan` reads only the form state, so an unconfirmed proposal can't reach the solver, and a hard constraint exists only if the student chose it (FR-08, planning/11 "asks before interpreting 'no Fridays' as mandatory").
-- **Case drafts are previews.** A `CASE_PREVIEW` names the reason, the plan revision, the queue ("advisors assigned to you"), and an editable note. The note passes the output guard and is left empty if it fails. Its action opens the existing case form, prefilled. The student submits through the S5 case flow. The transcript is never attached (planning/11 §Case submission, ADR-0013 §6).
+- **Case drafts are previews.** A `CASE_PREVIEW` names the reason, the plan revision, the queue ("advisors assigned to you"), and an editable note that starts empty. The model can't suggest a note (Amendment 1). Its action opens the existing case form, prefilled. The student submits through the S5 case flow. The transcript is never attached (planning/11 §Case submission, ADR-0013 §6).
 - **Minimized model input.** The model receives a reduced projection of each result: requirement names and states, course codes, outcome and option counts, per-option check states, and policy titles and excerpts. Never names, emails, student or user IDs, grades, notes, or the case note (standard 09). The student sees the full block.
-- **Untrusted data.** Each tool result goes to the model inside an explicit data wrapper, and the system prompt says content inside it is never an instruction. That is defence in depth only. The binding, the strict schemas and the guard hold even if the model obeys an injection, and the evals (§9) prove it with a scripted model that does exactly that.
+- **Untrusted data.** Each tool result goes to the model inside an explicit data wrapper, and the system prompt says content inside it is never an instruction. That is defence in depth only. The binding, the strict schemas and the template-only intro (Amendment 1) hold even if the model obeys an injection, and the evals (§9) prove it with a scripted model that does exactly that.
 - **Tool failure is shown.** A service error (`STALE_SOURCE`, `SOURCE_UNAVAILABLE`, `NOT_FOUND`, …) goes to the model as its code and always adds a `NOTICE` with the existing wording for that code. An outage is never hidden (planning/10 release blocker).
 
 ### 5. Fixed responses: referral, crisis, hypotheticals, overrides, grade disputes
 
 Deterministic detectors in `@caa/assistant` run on the student's message before the model. Each match adds a fixed, versioned template block, whatever the model says:
 
-| Detector                                                                  | Block                                                                                                                                                                                                                             |
-| ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Financial aid, immigration, athletics eligibility, accessibility, appeals | `REFERRAL` for the topic: the app can't make this determination, a degree-valid schedule says nothing about it, and where to ask. It includes the tenant's approved referral document for that topic when the corpus has one (§6) |
-| Crisis or urgent safety language                                          | `REFERRAL` `CRISIS`, shown first: the vetted resource, that this chat is not monitored live and is not an emergency service, and no promise of advisor contact. The model is not called                                           |
-| "Assume I passed", "what if I pass"                                       | `NOTICE` `HYPOTHETICAL_NOT_SUPPORTED`: scenarios aren't supported yet, and the official record is unchanged (no scenario engine in V1)                                                                                            |
-| "Ignore the prerequisite", override requests                              | `NOTICE` `OVERRIDE_PROCESS`: the official override route, with no eligibility label                                                                                                                                               |
-| "My grade is wrong"                                                       | `NOTICE` `GRADE_DISPUTE`: offers a source discrepancy case through the existing case flow                                                                                                                                         |
+| Detector                                                                  | Block                                                                                                                                                                                                                                                |
+| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Financial aid, immigration, athletics eligibility, accessibility, appeals | `REFERRAL` for the topic: the app can't make this determination, a degree-valid schedule says nothing about it, and where to ask. It includes the tenant's approved referral document for that topic when the corpus has one (§6)                    |
+| Crisis or urgent safety language (two tiers, Amendment 1)                 | `REFERRAL` `CRISIS`, shown first: the vetted resource, that this chat is not monitored live and is not an emergency service, and no promise of advisor contact. Tier 1 (unambiguous): the model is not called. Tier 2 (ambiguous): the turn proceeds |
+| "Assume I passed", "what if I pass"                                       | `NOTICE` `HYPOTHETICAL_NOT_SUPPORTED`: scenarios aren't supported yet, and the official record is unchanged (no scenario engine in V1)                                                                                                               |
+| "Ignore the prerequisite", override requests                              | `NOTICE` `OVERRIDE_PROCESS`: the official override route, with no eligibility label                                                                                                                                                                  |
+| "My grade is wrong"                                                       | `NOTICE` `GRADE_DISPUTE`: offers a source discrepancy case through the existing case flow                                                                                                                                                            |
 
-The topics are a domain enum, `SpecialistTopic`. The keyword lists are over-inclusive for the same reason as the guard. Model text that tries to answer one of these topics is caught by the guard's eligibility and date patterns.
+The topics are a domain enum, `SpecialistTopic`. The keyword lists are over-inclusive, except crisis tier 1, which holds unambiguous first-person phrases only (Amendment 1). The model can't answer one of these topics in its own words, because it writes no visible text.
 
 ### 6. The approved policy corpus and its search
 
@@ -127,27 +123,27 @@ The topics are a domain enum, `SpecialistTopic`. The keyword lists are over-incl
 
 ### 7. History is server-side and bounded; preferences live in the form
 
-- **Store.** A `Conversation` per tenant, student and term, with append-only `ConversationTurn`s numbered from 1. A turn has a `role` (`STUDENT` or `ASSISTANT`), the student's text or the guarded intro, block references, `modelStatus`, metadata, and `createdAt`.
+- **Store.** A `Conversation` per tenant, student and term, with append-only `ConversationTurn`s numbered from 1. A turn has a `role` (`STUDENT` or `ASSISTANT`), the student's text or the server intro (Amendment 1), block references, `modelStatus`, metadata, and `createdAt`.
 - **Block references, not payloads.** A stored assistant turn keeps only each block's kind and IDs: the policy `documentKey` and revision, the plan ID and revision, the template ID and version, the proposed constraints, and the case reason. A schedule-options result is not stored. When a transcript is reloaded, a past `SCHEDULE_OPTIONS` or `PLAN_EVIDENCE` block shows as "shown at <time>" with a link to rerun or open the plan. A stored PASS is never presented as current (ADR-0013 §3).
 - **Access.** Only the student reads, posts to or clears their conversation. Advisors and admins get 404, because the transcript is not shared with staff (planning/11 §Case submission).
-- **Model context.** The last `CONVERSATION_HISTORY_TURNS` turns: the student's messages and the guarded intros. Raw model text, tool results and blocks are never replayed. Facts needed again are refetched through tools (planning/10 §Conversation state). The client never sends history.
+- **Model context.** The last `CONVERSATION_HISTORY_TURNS` turns: the student's messages and the server intros, leaving out every tier-1 crisis exchange (Amendment 1). Raw model text, tool results and blocks are never replayed. Facts needed again are refetched through tools (planning/10 §Conversation state). The client never sends history.
 - **Retention.** planning/09 proposes 30 days for raw conversation. Each append deletes the conversation's turns older than 30 days by the injected clock, and any beyond the newest 100. `DELETE /v1/students/:studentId/conversation?termId=` lets the student clear it. Turns are append-only otherwise: no UPDATE.
 - **Confirmed preferences live in the planner form, not a new store.** A confirmed chip fills the form. The form state goes with each turn as `plannerInputs`, and it is persisted the way it is today, through a saved plan draft's inputs (ADR-0013 §2). This is the simplest option that satisfies planning/10 "persist confirmed preferences separately from chat". The only path from chat to the solver is through a student-confirmed form field. **Rejected:** a separate preferences table, which would duplicate the draft's inputs and need its own staleness rules.
-- **Logging.** Message text, intros, notes and policy bodies are never logged. Log lines carry opaque IDs, `modelStatus`, tool names, guard reason codes, durations and token counts (standard 09, FR-14).
+- **Logging.** Message text, intros, notes and policy bodies are never logged. Log lines carry opaque IDs, `modelStatus`, tool names, guard reason codes (Amendment 1), durations and token counts (standard 09, FR-14).
 
 ### 8. The UI
 
 - A chat panel on Next-term planner, beside the form, never in place of it. Every chat action has a non-chat equivalent: the form, the existing cards, My plans, Help and cases, and the policy search.
 - Constraint chips have a labelled hard/preferred radio group and a Confirm button. Nothing fills the form without Confirm.
-- Data blocks use the existing verified components. The intro is plain text with an "assistant" label.
+- Data blocks use the existing verified components. The intro is plain text with an "assistant" label, and is omitted when empty (a tier-1 crisis turn, Amendment 1).
 - A send shows a busy state. One polite live-region announcement is made when the turn completes (planning/11). Keyboard-only use and focus return to the input are covered by tests.
-- When `modelStatus` isn't `ANSWERED`, the panel shows the template and points to the form. When `CONVERSATION_MODEL=off`, the panel says chat is unavailable, and the rest of the page is unchanged.
+- For `BUDGET_EXHAUSTED`, `MODEL_UNAVAILABLE`, `RATE_LIMITED` and `DISABLED`, the panel shows the template and points to the form. `GUARDED` renders like `ANSWERED`, because its intro is already a server template (Amendment 1). When `CONVERSATION_MODEL=off`, the panel says chat is unavailable, and the rest of the page is unchanged.
 
 ### 9. Packages, file roles, evaluations, and the SDK dependency
 
-- **`@caa/assistant` stays pure and depends only on `@caa/domain`.** It holds the model port types, tool argument schemas, the system prompt, templates, the output guard, the message detectors, and the scripted and demo models. No I/O, clock, randomness, `process.env` or network (lint). Its folders get role suffixes, enforced by `scripts/check-conventions.mjs` (standard 01): `tools/*.tool.ts` (plus the existing `tools/tool-catalog.ts`), `prompts/*.prompt.ts`, `templates/*.template.ts`, `guards/*.guard.ts`, `ports/*.port.ts`, `fakes/*.fake.ts`. The contract can't import the assistant, so the block schemas are in `@caa/api-contract` and the enums they share (`SpecialistTopic`, `ModelStatus`, `AssistantBlockKind`, `NoticeCode`) are in `@caa/domain`.
+- **`@caa/assistant` stays pure and depends only on `@caa/domain`.** It holds the model port types, tool argument schemas, the system prompt, templates and intro selection, the message detectors, and the scripted and demo models. No I/O, clock, randomness, `process.env` or network (lint). Its folders get role suffixes, enforced by `scripts/check-conventions.mjs` (standard 01): `tools/*.tool.ts` (plus the existing `tools/tool-catalog.ts`), `prompts/*.prompt.ts`, `templates/*.template.ts`, `guards/*.guard.ts`, `ports/*.port.ts`, `fakes/*.fake.ts`. The contract can't import the assistant, so the block schemas are in `@caa/api-contract` and the enums they share (`SpecialistTopic`, `ModelStatus`, `AssistantBlockKind`, `NoticeCode`) are in `@caa/domain`.
 - **The api owns orchestration.** Modules `policy-search`, `conversation-store`, `conversation-tools` and `conversation` (services and `.logic.ts`), a `conversation` wiring area, and the new folder `apps/api/src/adapters/` for `*.adapter.ts` files that call an external service. The worker's `.adapter.ts` role already exists. This extends it to the api for outbound calls only.
-- **Evaluations live in `tests/evals/`, owned by QA, not in `@caa/assistant`.** This changes the orchestrator's default. Standard 07 §Academic test independence requires that expected results are written by QA, not by the author of the guard and templates under test. Files are `t06-<slug>.eval.test.ts`, run by `pnpm test` in CI against the scripted model through `@caa/api/testing`. Each case is multi-turn and states literal expectations. A CONDITIONAL→PASS upgrade, an invented minimum grade, another student's record, a saved plan called registered, a hidden outage, or a promised human reply fails CI as a release blocker. `pnpm --filter @caa/tests eval:live` runs the same cases against Claude. It is manual and never in CI or `pnpm verify`. It needs `ANTHROPIC_API_KEY`, runs outside the agent sandbox, and prints a per-dimension report. Release blockers fail it too.
+- **Evaluations live in `tests/evals/`, owned by QA, not in `@caa/assistant`.** This changes the orchestrator's default. Standard 07 §Academic test independence requires that expected results are written by QA, not by the author of the detectors and templates under test. Files are `t06-<slug>.eval.test.ts`, run by `pnpm test` in CI against the scripted model through `@caa/api/testing`. Each case is multi-turn and states literal expectations. A CONDITIONAL→PASS upgrade, an invented minimum grade, another student's record, a saved plan called registered, a hidden outage, or a promised human reply fails CI as a release blocker. `pnpm --filter @caa/tests eval:live` runs the same cases against Claude. It is manual and never in CI or `pnpm verify`. It needs `ANTHROPIC_API_KEY`, runs outside the agent sandbox, and prints a per-dimension report. Release blockers fail it too.
 - **Security review of `@anthropic-ai/sdk`.** It is the first outbound runtime dependency. The adding PR (api) records in its description the version pinned exactly, its transitive dependencies, its license, and that it is imported in one adapter file only (lint). The key is read only by `config/env.ts`. The adapter sends only the minimized projection (§4), and no request or response body is logged. The sandbox network allowlist (ADR-0003) is unchanged: agents never reach the provider.
 
 ### 10. Endpoints
@@ -163,7 +159,7 @@ The topics are a domain enum, `SpecialistTopic`. The keyword lists are over-incl
 
 - A demoable flow on synthetic data, with no engine change. The engine and `pinnedInputs` are untouched, so determinism (NFR-01) is unaffected.
 - With the model off or down, every S1–S5 screen works unchanged, and the panel says so.
-- The guard will sometimes replace harmless text. That is accepted; the evals measure the rate.
+- The model can't write visible text (Amendment 1). Some replies will fall back to the default intro; that is accepted, and `eval:live` measures the `GUARDED` rate.
 - Everything is additive. New enums, models, tables, endpoints and screens; no new `ErrorCode`, and no field becomes required on an existing type. All new env variables have defaults, so the acceptance harness keeps building. QA's in-memory fakes for the new repositories land before the api PRs that need them, through the harness's existing `Repositories &` intersection.
 - Tooling: devops adds the assistant role suffixes, `apps/api/src/adapters/`, the SDK import restriction, the assistant purity rules, and the `tests/evals/` naming rule (#497).
 - planning/09 gets a decision note for the endpoints, `PolicyDocument` and conversation retention. planning/13 gets AC41 (S5's file, which had no row) and AC42–AC47. Standards 01, 05, 07 and 09 get matching touch-ups. All in this PR.
@@ -172,6 +168,59 @@ The topics are a domain enum, `SpecialistTopic`. The keyword lists are over-incl
 ## Revisit when
 
 - A real institution's records would be sent to a model (provider qualification, planning/10 and planning/12).
-- The guard's false-positive rate in `eval:live` makes chat unhelpful. Then consider typed claim slots the model fills, still rendered by templates, never free paraphrase.
+- The `GUARDED` rate in `eval:live` makes chat unhelpful (Amendment 1). Then consider the provider's structured output for the intro id, a port change needing its own amendment. Typed claim slots or free paraphrase stay out of scope.
 - Streaming, multi-term scenarios ("assume I passed"), or embeddings search are wanted.
 - A tenant needs its own referral wording beyond the corpus, or a second provider.
+
+## Amendment 1 (2026-10-08, issue #504): template-only intros and two-tier crisis detection
+
+**Related:** PR #534 (#504), reviews at `fc6847c`, `c104dc5` and `8ca5ff0`; #505, #512, #513, #515, #516, #518, #519; planning/10 §Consequential output boundary and §Specialist routing; planning/13 AC44 and AC46. The repo owner made both decisions on 2026-10-08.
+
+**Context.** PR #534 failed safety review four rounds running, on the two lists §3 and §5 asked to be over-inclusive. Each fix to the output guard opened a new bypass: a curly apostrophe, a non-breaking space, a bidirectional override that showed "You are eligible." while the guard checked a cleaned copy. A regex can't prove that free prose states no academic fact. The crisis list hit the opposite problem. Every phrase added to catch a missed crisis ("can't take it", "dead", "jump from", "in danger") also caught a planning question ("I can't take this class until spring", "dead week", "jump from MATH 101 to MATH 201"), and §5 then answered that question with only an emergency card. One list can't be both complete and harmless when its only action is to drop the turn.
+
+**Decision 1: the model never writes visible text.**
+
+- **The model picks an intro id.** Its final reply's text, trimmed, must be exactly one `IntroId`, an enum in `@caa/assistant` `templates/intro.template.ts`. The port is unchanged: `ModelReply.text` carries the id. The system prompt lists the ids, built from the enum so they can't drift, and says to reply with one id and nothing else.
+
+  | `IntroId`             | Valid when the turn has                        |
+  | --------------------- | ---------------------------------------------- |
+  | `SCHEDULE_OPTIONS`    | a `SCHEDULE_OPTIONS` block                     |
+  | `PLAN_EVIDENCE`       | a `PLAN_EVIDENCE` block                        |
+  | `ACADEMIC_SUMMARY`    | an `ACADEMIC_SUMMARY` block                    |
+  | `POLICY_RESULTS`      | a `POLICY_RESULTS` block                       |
+  | `CONSTRAINT_PROPOSAL` | a `CONSTRAINT_PROPOSAL` block                  |
+  | `CASE_PREVIEW`        | a `CASE_PREVIEW` block                         |
+  | `ASK_FOR_DETAIL`      | no data block (notices and referrals are fine) |
+  | `CANNOT_HELP`         | no data block (notices and referrals are fine) |
+
+- **Each id renders one fixed server sentence.** No slots, no values, printable ASCII, at most 600 characters, and nothing that states or implies credits, grades, eligibility, prerequisites, dates, readiness, registration, or contact by a person. `ASK_FOR_DETAIL` asks what the student wants to plan and points to the form; `CANNOT_HELP` says the assistant can't answer that and points to the form, My plans and Help and cases. Tests assert every sentence as a literal, so any wording change is a visible, reviewed diff that bumps `TEMPLATE_VERSION`.
+- **Anything else gets the default intro.** That covers prose, an id with extra text, two ids, an empty reply, an unknown id, or an id whose block the turn lacks. The default is the existing block-kind fallback (`fallbackIntro(kinds)`); with no block at all it is the `ASK_FOR_DETAIL` sentence. `modelStatus` is then `GUARDED`. A pure `resolveIntro(replyText, kinds) → { text, introId | null, reasons }` in `@caa/assistant` decides this, so the api holds no intro rules.
+- **The output guard is deleted, not kept for templates.** Server intros are constants pinned by literal tests and reviewed in PRs. A runtime regex over constants catches nothing those tests don't, and keeping it invites reuse on model text. The `.guard.ts` role stays, for the message detectors.
+- **Every other piece of model text is discarded.** Text alongside tool calls, text after the budget runs out, and a `MAX_TOKENS` reply are never shown, stored or logged.
+- **No case note from the model.** `draft_case_context` loses `suggestedNote` (a `TOOL_SCHEMA_VERSION` bump). `CASE_PREVIEW.suggestedNote` stays in the contract and is always `""`. The student writes the note in the case form.
+- **Guard reason codes** now mean intro and crisis outcomes: `INTRO_NOT_AN_ID`, `INTRO_BLOCK_MISSING` and `CRISIS_UNAMBIGUOUS`. They are an exported enum in `@caa/assistant`, recorded in `metadata.guardReasons`, which keeps its shape.
+
+**`GUARDED`'s new meaning.** The server chose the reply instead of the model: the final reply wasn't a valid intro id for the turn's blocks, or tier-1 crisis language skipped the model. The `ModelStatus` enum, `StoredModelStatusSchema`, the turn and block contracts, and the port don't change. `ANSWERED` now means the model's final reply was a valid intro id. `BUDGET_EXHAUSTED` takes precedence over `GUARDED`.
+
+**Decision 2: crisis detection has two tiers.** `detectFixedResponses` returns `crisis: 'NONE' | 'AMBIGUOUS' | 'UNAMBIGUOUS'` in place of a boolean. Tier 1 wins when both match.
+
+- **Tier 1, unambiguous** (first-person self-harm or suicide: "kill myself", "suicidal", "end my life", "take my own life", "want to die", "wish I were dead", "better off dead", "hurt myself", "kms"). The model is not called. The response holds only the `REFERRAL` `CRISIS` block, with an empty intro, as §5 says. The turn is stored as `GUARDED`, with `modelId: null` and `CRISIS_UNAMBIGUOUS`, and this exchange is never replayed to the model (§7). The list holds first-person phrases only: a tier-1 false positive costs an unanswered planning question, so a broad or third-person word ("suicide" alone, a course title) belongs in tier 2.
+- **Tier 2, ambiguous** ("can't go on", "can't take it", "no point", "give up", "hopeless", "disappear", "dead", "dying", "in danger", "jump off"). A `REFERRAL` `CRISIS` block comes first, with its own `templateId` and text: the same resources, that chat isn't monitored live and isn't an emergency service, and no promise of contact. Then the turn proceeds normally, so "I can't take this class until spring" still gets its planning answer.
+- **Error costs.** A tier-2 false positive is acceptable: it adds one card. A tier-1 false negative is a release blocker. QA owns a fixed, versioned, synthetic phrase list in `tests/evals/` (#519) with three parts: tier-1 phrases, each of which must skip the model and show only the crisis referral; tier-2 phrases, each of which must show the card and still call the model; and planning questions that must never be tier 1. The detector's author doesn't write that list (standard 07 §Academic test independence).
+- **Detector blocks are added at every status**, including `RATE_LIMITED` and `DISABLED`, which still store nothing. A student over the rate limit still sees the crisis card.
+
+Tier-2 message text reaches the model, as any other message does. S6 is synthetic-only, and §1's provider approval covers real records before they're sent.
+
+This narrows planning/10, which allows free-form model text to introduce the UI. Nothing planning/10 requires is dropped. AC44 and AC46 in planning/13 are reworded to match: AC44 tests intro ids instead of a text guard, and AC46 adds the two tiers. This is the change request for them (planning/04 §Change control).
+
+**Consequences.**
+
+- **ai-engineer, #504 (PR #534):** delete the output guard and its tests; add `IntroId`, the intro sentences and `resolveIntro`; split crisis into two tiers and add the tier-2 crisis template; rewrite the system prompt for ids (`PROMPT_VERSION` bump); drop `suggestedNote` from `draft_case_context` (`TOOL_SCHEMA_VERSION` bump). This one PR keeps `@caa/assistant` consistent.
+- **ai-engineer, #505:** the demo model's final replies are intro ids. Scripted steps can misbehave with prose, an unknown id, or an id whose block is missing.
+- **api-engineer, #512 and #513:** `CASE_PREVIEW.suggestedNote` is always `""`, and the api calls `resolveIntro` instead of a guard. #513 also covers the two crisis tiers, detector blocks at every status, and leaving tier-1 exchanges out of the history.
+- **frontend-engineer, #515 and #516:** an empty intro isn't rendered. `GUARDED` renders like `ANSWERED`. The case form opens with an empty note.
+- **qa-engineer, #518 and #519:** AC44 and AC46 as reworded, and the crisis phrase list.
+- **domain-engineer, #538:** doc comments only. `CASE_PREVIEW.suggestedNote`, `AssistantTurnView.intro`, `ASSISTANT_TURN_MAX_LENGTH` and `guardReasons` still describe the output guard. No shape changes, so nothing ripples.
+- Standards 01, 07 and 09 drop the output guard wording, in this PR. No tooling changes: the `.guard.ts` role and every lint rule stay as they are.
+
+**Revisit when** the `GUARDED` rate in `eval:live` makes chat unhelpful (then consider provider structured output for the id, a port change needing its own amendment); or the tier-2 card shows on most turns in the pilot (then tune tier 2, never tier 1).
