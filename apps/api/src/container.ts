@@ -67,7 +67,6 @@ import { wireAcademic } from './wiring/academic.wiring';
 import { wireAccess } from './wiring/access.wiring';
 import { wireCases } from './wiring/cases.wiring';
 import { wireConversation } from './wiring/conversation.wiring';
-import { wireConversationTools } from './wiring/conversation-tools.wiring';
 import { wirePlans } from './wiring/plans.wiring';
 import { wirePolicy } from './wiring/policy.wiring';
 
@@ -147,14 +146,10 @@ export function createContainer(options: ContainerOptions): AppDependencies {
   const cases = wireCases(options, access.access, plans.views);
   const policy = wirePolicy(options);
   const conversation = wireConversation(options, access.access, {
-    tools: wireConversationTools({
-      access: access.access,
-      academicSummary: academic.academicSummaryService,
-      policySearch: policy.policySearchService,
-      scheduleOptions: academic.scheduleOptionsService,
-      planViews: plans.views,
-    }),
+    academicSummary: academic.academicSummaryService,
     policySearch: policy.policySearchService,
+    scheduleOptions: academic.scheduleOptionsService,
+    planViews: plans.views,
   });
   return {
     controllers: {

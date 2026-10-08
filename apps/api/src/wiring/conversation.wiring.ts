@@ -10,6 +10,7 @@ import { createDemoModel } from '@caa/assistant';
 import { createClaudeModel, DEFAULT_MODEL_TIMEOUT_MS } from '../adapters/claude-model.adapter';
 import { type ApiEnv, ConversationModelMode } from '../config/env';
 import type { ContainerOptions } from '../container';
+import type { AcademicSummaryService } from '../modules/academic-summary/academic-summary.service';
 import type { AccessService } from '../modules/access/access.service';
 import {
   type ConversationController,
@@ -24,9 +25,12 @@ import {
   createConversationStoreController,
 } from '../modules/conversation-store/conversation-store.controller';
 import { createConversationStoreService } from '../modules/conversation-store/conversation-store.service';
-import type { ConversationToolsService } from '../modules/conversation-tools/conversation-tools.service';
+import { createConversationToolRunnersService } from '../modules/conversation-tool-runners/conversation-tool-runners.service';
+import { createConversationToolsService } from '../modules/conversation-tools/conversation-tools.service';
 import { createConversationTurnStoreService } from '../modules/conversation-turn-store/conversation-turn-store.service';
+import type { PlanViewsService } from '../modules/plan-views/plan-views.service';
 import type { PolicySearchService } from '../modules/policy-search/policy-search.service';
+import type { ScheduleOptionsService } from '../modules/schedule-options/schedule-options.service';
 
 /** The model id recorded when a test injects a model. */
 export const INJECTED_MODEL_ID = 'injected-test-model';
@@ -87,11 +91,12 @@ export function chooseConversationModel(
   }
 }
 
-/** The services the conversation turn is built on. */
-export interface ConversationSources {
-  /** The six tools, bound to the read services (`wireConversationTools`). */
-  readonly tools: ConversationToolsService;
+/** The read services the conversation tools call. */
+export interface ConversationToolSources {
+  readonly academicSummary: AcademicSummaryService;
   readonly policySearch: PolicySearchService;
+  readonly scheduleOptions: ScheduleOptionsService;
+  readonly planViews: PlanViewsService;
 }
 
 /**
@@ -99,16 +104,20 @@ export interface ConversationSources {
  *
  * @param options - Configuration, repositories, clock, and an optional injected model.
  * @param access - The access rule, including who may converse.
- * @param sources - The bound tools and the policy search.
+ * @param sources - The read services the tools and the referral lookup call.
  * @returns The conversation controllers.
  */
 export function wireConversation(
   options: ContainerOptions,
   access: AccessService,
-  sources: ConversationSources,
+  sources: ConversationToolSources,
 ): ConversationWiring {
   const { env, repositories, now } = options;
   const chosen = chooseConversationModel(env, options.conversationModel);
+  const tools = createConversationToolsService({
+    access,
+    runners: createConversationToolRunnersService(sources),
+  });
   return {
     conversationStore: createConversationStoreController(
       createConversationStoreService({
@@ -131,7 +140,7 @@ export function wireConversation(
           loop:
             chosen === null
               ? null
-              : createConversationLoopService({ model: chosen.model, tools: sources.tools, now }),
+              : createConversationLoopService({ model: chosen.model, tools, now }),
           modelId: chosen?.modelId ?? null,
           historyTurns: env.CONVERSATION_HISTORY_TURNS,
         }),
