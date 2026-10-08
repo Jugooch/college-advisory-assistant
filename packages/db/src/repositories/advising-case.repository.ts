@@ -152,8 +152,7 @@ export interface AdvisingCaseRepository {
    *   withdrawn cases, another tenant's plan, or a source-deleted student has no entry.
    * @throws {z.ZodError} When a stored row fails the domain schema.
    */
-  // TODO(#462): make this required once the QA and api in-memory fakes implement it.
-  findLiveByPlanIds?(
+  findLiveByPlanIds(
     tenantId: InstitutionId,
     planIds: readonly PlanId[],
   ): Promise<ReadonlyMap<PlanId, AdvisingCase>>;
@@ -189,11 +188,7 @@ export interface AdvisingCaseRepository {
    * @throws {TypeError} When the database returns a non-boolean routed flag.
    * @throws {z.ZodError} When a stored row fails the domain schema.
    */
-  // TODO(#471): make this required once the QA and api in-memory fakes implement it.
-  listTenantQueue?(
-    tenantId: InstitutionId,
-    query: QueueQuery,
-  ): Promise<readonly TenantQueueEntry[]>;
+  listTenantQueue(tenantId: InstitutionId, query: QueueQuery): Promise<readonly TenantQueueEntry[]>;
 
   /**
    * Lists the tenant's OPEN cases whose student has no active assignment at `at`, oldest first,
@@ -249,6 +244,52 @@ function activeAssignment(db: Database, instant: Date, advisorUserId?: UserId) {
     );
 }
 
+/** What a visible-case read filters, orders and flags. */
+interface VisibleCaseQuery {
+  /** Extra condition, such as the case, student, plan or queue wanted. */
+  readonly where?: SQL | undefined;
+  /** Order newest first instead of oldest first. */
+  readonly newestFirst?: boolean;
+  /** When set, each row also says whether its student has an active assignment at this instant. */
+  readonly routedAt?: Date;
+}
+
+/**
+ * Reads the tenant's cases whose student isn't deleted by the source. Every case read goes
+ * through this one query, so the tenant filter and the tombstone rule live in one place.
+ *
+ * @param db - Typed database handle.
+ * @param tenantId - Tenant from the session.
+ * @param query - The extra condition, order and optional routed flag.
+ * @returns Each case row with its routed flag (null unless `routedAt` is set).
+ */
+async function selectVisibleCases(
+  db: Database,
+  tenantId: InstitutionId,
+  query: VisibleCaseQuery,
+): Promise<{ row: typeof advisingCaseTable.$inferSelect; routed: unknown }[]> {
+  const cases = advisingCaseTable;
+  const routed =
+    query.routedAt === undefined
+      ? sql<unknown>`null`
+      : sql<unknown>`${exists(activeAssignment(db, query.routedAt))}`;
+  return (
+    db
+      .select({ row: cases, routed })
+      .from(cases)
+      .innerJoin(
+        studentTable,
+        and(eq(studentTable.tenantId, cases.tenantId), eq(studentTable.id, cases.studentId)),
+      )
+      // SECURITY: every read is filtered by tenant; a tombstoned student's cases are invisible.
+      .where(and(eq(cases.tenantId, tenantId), eq(studentTable.isDeleted, false), query.where))
+      .orderBy(
+        query.newestFirst === true ? desc(cases.createdAt) : asc(cases.createdAt),
+        asc(cases.id),
+      )
+  );
+}
+
 /**
  * Reads cases of students who aren't deleted by the source.
  *
@@ -263,21 +304,8 @@ async function readCases(
   tenantId: InstitutionId,
   filter: { readonly where?: SQL | undefined; readonly newestFirst?: boolean },
 ): Promise<AdvisingCase[]> {
-  const cases = advisingCaseTable;
-  const rows = await db
-    .select({ row: cases })
-    .from(cases)
-    .innerJoin(
-      studentTable,
-      and(eq(studentTable.tenantId, cases.tenantId), eq(studentTable.id, cases.studentId)),
-    )
-    // SECURITY: every read is filtered by tenant; a tombstoned student's cases are invisible.
-    .where(and(eq(cases.tenantId, tenantId), eq(studentTable.isDeleted, false), filter.where))
-    .orderBy(
-      filter.newestFirst === true ? desc(cases.createdAt) : asc(cases.createdAt),
-      asc(cases.id),
-    );
-  return rows.map((entry) => toAdvisingCase(entry.row));
+  const rows = await selectVisibleCases(db, tenantId, filter);
+  return rows.map(({ row }) => toAdvisingCase(row));
 }
 
 /**
@@ -297,22 +325,10 @@ async function readTenantQueue(
 ): Promise<TenantQueueEntry[]> {
   const instant = parseInstant(at);
   const cases = advisingCaseTable;
-  const rows = await db
-    .select({ row: cases, routed: sql<unknown>`${exists(activeAssignment(db, instant))}` })
-    .from(cases)
-    .innerJoin(
-      studentTable,
-      and(eq(studentTable.tenantId, cases.tenantId), eq(studentTable.id, cases.studentId)),
-    )
-    .where(
-      and(
-        // SECURITY: filtered by tenant; a tombstoned student's cases are invisible.
-        eq(cases.tenantId, tenantId),
-        eq(studentTable.isDeleted, false),
-        status === undefined ? undefined : eq(cases.status, status),
-      ),
-    )
-    .orderBy(asc(cases.createdAt), asc(cases.id));
+  const rows = await selectVisibleCases(db, tenantId, {
+    where: status === undefined ? undefined : eq(cases.status, status),
+    routedAt: instant,
+  });
   return rows.map(({ row, routed }) => {
     if (typeof routed !== 'boolean') {
       throw new TypeError('the routed flag was not a boolean');
@@ -339,22 +355,12 @@ async function readLiveByPlanIds(
     return live;
   }
   const cases = advisingCaseTable;
-  const rows = await db
-    .select({ row: cases })
-    .from(cases)
-    .innerJoin(
-      studentTable,
-      and(eq(studentTable.tenantId, cases.tenantId), eq(studentTable.id, cases.studentId)),
-    )
-    .where(
-      and(
-        // SECURITY: filtered by tenant; a tombstoned student's cases are invisible.
-        eq(cases.tenantId, tenantId),
-        eq(studentTable.isDeleted, false),
-        inArray(cases.planId, [...planIds]),
-        inArray(cases.status, [CaseStatus.Open, CaseStatus.InReview]),
-      ),
-    );
+  const rows = await selectVisibleCases(db, tenantId, {
+    where: and(
+      inArray(cases.planId, [...planIds]),
+      inArray(cases.status, [CaseStatus.Open, CaseStatus.InReview]),
+    ),
+  });
   for (const { row } of rows) {
     if (row.planId !== null) {
       live.set(PlanIdSchema.parse(row.planId), toAdvisingCase(row));
@@ -367,12 +373,9 @@ async function readLiveByPlanIds(
  * Creates the advising case repository.
  *
  * @param db - Typed database handle.
- * @returns An {@link AdvisingCaseRepository} that always implements `findLiveByPlanIds` and `listTenantQueue`.
+ * @returns An {@link AdvisingCaseRepository}.
  */
-export function createAdvisingCaseRepository(db: Database): AdvisingCaseRepository & {
-  readonly findLiveByPlanIds: NonNullable<AdvisingCaseRepository['findLiveByPlanIds']>;
-  readonly listTenantQueue: NonNullable<AdvisingCaseRepository['listTenantQueue']>;
-} {
+export function createAdvisingCaseRepository(db: Database): AdvisingCaseRepository {
   const cases = advisingCaseTable;
   return {
     create: createCaseWithEvent(db),
