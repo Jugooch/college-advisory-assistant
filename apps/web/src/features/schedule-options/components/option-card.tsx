@@ -6,7 +6,7 @@
  * @requirement FR-10
  * @requirement NFR-02
  */
-import type { ReactElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 
 import type { ScheduleOption } from '@caa/api-contract';
 
@@ -26,15 +26,23 @@ export interface OptionCardProps {
   readonly asOf: string;
   readonly courses: CourseLookup;
   readonly campuses: CampusLookup;
+  /** Controls for this option, such as saving it as a draft; supplied by the page. */
+  readonly actions?: ReactNode;
 }
 
 /**
  * Renders one option as an article.
  *
- * @param props - The option, the as-of text, and the course names.
+ * @param props - The option, the as-of text, the course names, and any controls.
  * @returns The option card.
  */
-export function OptionCard({ option, asOf, courses, campuses }: OptionCardProps): ReactElement {
+export function OptionCard({
+  option,
+  asOf,
+  courses,
+  campuses,
+  actions,
+}: OptionCardProps): ReactElement {
   const aggregate = describeAggregate(option.aggregate);
   const total = option.setResults.creditLoad.evidence?.creditLoad?.totalCreditsHundredths;
   const headingId = `option-${String(option.rank)}-heading`;
@@ -66,6 +74,12 @@ export function OptionCard({ option, asOf, courses, campuses }: OptionCardProps)
       )}
       <h4>Checks, shown separately</h4>
       <OptionChecks option={option} asOf={asOf} courses={courses} campuses={campuses} />
+      {actions === undefined ? null : (
+        <>
+          <h4>Keep this option</h4>
+          {actions}
+        </>
+      )}
     </article>
   );
 }

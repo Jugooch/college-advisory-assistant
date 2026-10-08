@@ -7,14 +7,15 @@ import Link from 'next/link';
 import type { ReactElement } from 'react';
 
 /** The student screens. */
-export type StudentScreen = 'overview' | 'course-checks' | 'next-term-planner';
+export type StudentScreen =
+  'overview' | 'course-checks' | 'next-term-planner' | 'my-plans' | 'help-and-cases';
 
 /** Props for {@link StudentNav}. */
 export interface StudentNavProps {
   /** Internal student ID, carried in each link's query. */
   readonly studentId: string;
-  /** The screen being shown, marked with `aria-current`. */
-  readonly current: StudentScreen;
+  /** The screen being shown, marked with `aria-current`; `null` on a screen the nav doesn't list. */
+  readonly current: StudentScreen | null;
 }
 
 /** Each screen's path and link text, in navigation order. */
@@ -26,6 +27,8 @@ const SCREENS: readonly {
   { screen: 'overview', path: '/overview', label: 'Overview' },
   { screen: 'course-checks', path: '/course-checks', label: 'Course checks' },
   { screen: 'next-term-planner', path: '/next-term-planner', label: 'Plan next term' },
+  { screen: 'my-plans', path: '/my-plans', label: 'My plans' },
+  { screen: 'help-and-cases', path: '/help-and-cases', label: 'Help and cases' },
 ];
 
 /**

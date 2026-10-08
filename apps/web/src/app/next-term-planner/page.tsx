@@ -24,6 +24,8 @@ import {
   isSearchRequested,
   planPlannerView,
 } from '@/features/next-term-planner/utils/planner-view';
+import { savePlanDraftAction } from '@/features/plan-drafts/actions/save-plan-draft.action';
+import { bindOptionDraftControl } from '@/features/plan-drafts/components/option-draft-control';
 import { ScheduleResults } from '@/features/schedule-options/components/schedule-results';
 import { StudentLookupForm } from '@/features/session/components/student-lookup-form';
 import { StudentNav } from '@/features/student-navigation/components/student-nav';
@@ -80,7 +82,18 @@ export default async function NextTermPlannerPage({
       {terms instanceof ApiError ? (
         <ApiErrorNotice error={terms} headingId="terms-error-heading" />
       ) : null}
-      {view.kind === 'searched' ? <ScheduleResults result={view.result} courses={courses} /> : null}
+      {view.kind === 'searched' && plan.request !== null ? (
+        <ScheduleResults
+          result={view.result}
+          courses={courses}
+          renderSaveDraft={bindOptionDraftControl({
+            saveAction: savePlanDraftAction,
+            studentId: student.studentId,
+            request: plan.request,
+            result: view.result,
+          })}
+        />
+      ) : null}
       <PlannerScreen
         studentId={student.studentId}
         view={view}

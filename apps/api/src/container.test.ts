@@ -62,6 +62,7 @@ describe('createRuntimeDependencies', () => {
       'planDrafts',
       'planRevalidation',
       'planViews',
+      'cases',
       'plannableTerms',
     ]);
   });

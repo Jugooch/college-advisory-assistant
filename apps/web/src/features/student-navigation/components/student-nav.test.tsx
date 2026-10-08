@@ -24,5 +24,22 @@ describe('StudentNav', () => {
     expect(html).toContain(
       `<a href="/next-term-planner?studentId=${STUDENT_ID}">Plan next term</a>`,
     );
+    expect(html).toContain(`<a href="/my-plans?studentId=${STUDENT_ID}">My plans</a>`);
+  });
+
+  it('links to Help and cases and marks it current there', () => {
+    const html = renderToStaticMarkup(
+      <StudentNav studentId={STUDENT_ID} current="help-and-cases" />,
+    );
+
+    expect(html).toContain(
+      `<a aria-current="page" href="/help-and-cases?studentId=${STUDENT_ID}">Help and cases</a>`,
+    );
+  });
+
+  it('marks no link current on a screen the nav doesn’t list', () => {
+    const html = renderToStaticMarkup(<StudentNav studentId={STUDENT_ID} current={null} />);
+
+    expect(html).not.toContain('aria-current');
   });
 });
