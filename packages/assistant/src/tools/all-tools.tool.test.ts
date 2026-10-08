@@ -36,7 +36,7 @@ const VALID_ARGS: Readonly<Record<string, unknown>> = {
   },
   request_plan: {},
   get_validation_evidence: { planId: PLAN_ID, revision: 2 },
-  draft_case_context: { reason: 'PLAN_REVIEW', planId: PLAN_ID, suggestedNote: 'Please review.' },
+  draft_case_context: { reason: 'PLAN_REVIEW', planId: PLAN_ID },
 };
 
 /**
@@ -96,10 +96,10 @@ describe('tool catalog', () => {
     expect(schema.safeParse({ query: 'a'.repeat(200) }).success).toBe(true);
   });
 
-  it('bounds the case note to 500 characters', () => {
+  it('has no free-text note on draft_case_context', () => {
     const schema = schemaOf('draft_case_context');
     expect(
-      schema.safeParse({ reason: 'PLAN_REVIEW', suggestedNote: 'a'.repeat(501) }).success,
+      schema.safeParse({ reason: 'PLAN_REVIEW', suggestedNote: 'Please review.' }).success,
     ).toBe(false);
   });
 
