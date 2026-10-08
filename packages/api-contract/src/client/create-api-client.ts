@@ -138,6 +138,9 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     }
 
     const response = await fetchFn(url, init);
+    if (response.status === 204) {
+      return endpoint.response.parse(undefined);
+    }
     const json: unknown = await response.json();
     if (!response.ok) {
       throw ApiError.fromResponseBody(json, response.status);
