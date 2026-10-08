@@ -37,7 +37,6 @@ import {
 import { createInMemoryCaseRepository } from '../../testing/in-memory-case-repositories';
 import { createRecordingLogger } from '../../testing/in-memory-repositories';
 import { createCaseViewerService } from '../case-viewer/case-viewer.service';
-import { nextCaseStatus } from '../cases/cases.logic';
 import { createCaseActionsService } from './case-actions.service';
 
 const NOW = new Date('2026-09-01T12:00:00.000Z');
@@ -93,35 +92,31 @@ const resolve: CaseEventRequest = {
 
 describe('CaseActionsService.addCaseEvent allowed actions', () => {
   it.each([
-    { name: 'claim', make: open, actor: advisor, body: claim(1), from: CaseStatus.Open },
+    { name: 'claim', make: open, actor: advisor, body: claim(1), to: CaseStatus.InReview },
     {
       name: 'release',
       make: inReview,
       actor: advisor,
       body: { action: CaseAction.Release, expectedSequence: 2 },
-      from: CaseStatus.InReview,
+      to: CaseStatus.Open,
     },
-    { name: 'resolve', make: inReview, actor: advisor, body: resolve, from: CaseStatus.InReview },
+    { name: 'resolve', make: inReview, actor: advisor, body: resolve, to: CaseStatus.Resolved },
     {
       name: 'withdraw an open case',
       make: open,
       actor: studentActor,
       body: { action: CaseAction.Withdraw, expectedSequence: 1 },
-      from: CaseStatus.Open,
+      to: CaseStatus.Withdrawn,
     },
     {
       name: 'withdraw a case in review',
       make: inReview,
       actor: studentActor,
       body: { action: CaseAction.Withdraw, expectedSequence: 2 },
-      from: CaseStatus.InReview,
+      to: CaseStatus.Withdrawn,
     },
-  ])('$name leads to the status nextCaseStatus gives', async (scenario) => {
+  ])('$name leads to the status the ADR-0013 table gives', async (scenario) => {
     const { service, store, logger, caseId } = setup(scenario.make());
-    const kind = scenario.actor === studentActor ? 'STUDENT' : 'OWNER';
-    const expected =
-      nextCaseStatus(scenario.from, scenario.body.action, kind) ??
-      nextCaseStatus(scenario.from, scenario.body.action, 'REVIEWER');
 
     const view = await service.addCaseEvent(
       scenario.actor,
@@ -129,8 +124,8 @@ describe('CaseActionsService.addCaseEvent allowed actions', () => {
       { logger },
     );
 
-    expect(view.status).toBe(expected);
-    expect(store.caseEvents.at(-1)).toMatchObject({ toStatus: expected, at: NOW.toISOString() });
+    expect(view.status).toBe(scenario.to);
+    expect(store.caseEvents.at(-1)).toMatchObject({ toStatus: scenario.to, at: NOW.toISOString() });
     expect(view.lastSequence).toBe(scenario.body.expectedSequence + 1);
   });
 

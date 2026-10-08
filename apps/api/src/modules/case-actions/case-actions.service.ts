@@ -58,10 +58,10 @@ export interface CaseActionsService {
    * @throws {NotFoundError} When the case is missing, the actor may not see its student
    *   (including an assignment revoked since the claim), or the actor's relationship to the
    *   case never allows the action (a student claiming, a non-owner releasing or resolving, an
-   *   advisor withdrawing).
+   *   advisor withdrawing, or a resolve of a case nobody claimed).
    * @throws {RevisionConflictError} When `expectedSequence` is stale, including a lost claim race.
    * @throws {InvalidRequestError} When the case's status doesn't allow the action, such as any
-   *   action on a RESOLVED or WITHDRAWN case, or a resolve of a case nobody claimed.
+   *   action on a RESOLVED or WITHDRAWN case.
    * @throws {z.ZodError} When a stored case or event breaks a contract.
    */
   addCaseEvent(

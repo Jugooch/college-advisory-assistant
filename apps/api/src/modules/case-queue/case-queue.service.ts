@@ -35,6 +35,7 @@ export interface CaseQueueService {
    * @returns The queue rows, with no note, owner ID or student name.
    * @throws {NotFoundError} When the actor is neither an advisor nor an admin, or a non-admin
    *   asks for the unrouted view.
+   * @throws {Error} When an admin reads and the repository has no tenant-wide queue read.
    * @throws {z.ZodError} When a stored case breaks a contract.
    */
   listQueue(
@@ -72,6 +73,7 @@ function requireQueueAccess(actor: Actor, query: CaseQueueQuery): boolean {
  * @param cases - Case repository.
  * @param call - The admin, the validated filters, and the instant to evaluate assignments at.
  * @returns The rows, oldest first.
+ * @throws {Error} When the repository has no tenant-wide queue read.
  */
 async function readAdminRows(
   cases: CaseQueueServiceDependencies['cases'],
@@ -86,8 +88,12 @@ async function readAdminRows(
     return found.map((entry) => toCaseQueueItem(entry, { viewerUserId, routed: false }));
   }
   const filter = { at, ...(query.status === undefined ? {} : { status: query.status }) };
-  // TODO(#471): call listTenantQueue unconditionally once the QA fake implements it.
-  const entries = (await cases.listTenantQueue?.(actor.tenantId, filter)) ?? [];
+  // TODO(#468): the interface method becomes required once the QA fake implements it.
+  if (cases.listTenantQueue === undefined) {
+    // Fail closed: an empty queue would hide cases from the admin who must see them.
+    throw new Error('the case repository does not implement listTenantQueue');
+  }
+  const entries = await cases.listTenantQueue(actor.tenantId, filter);
   return entries
     .filter((entry) => query.unrouted !== false || entry.routed)
     .map((entry) => toCaseQueueItem(entry, { viewerUserId, routed: entry.routed }));
