@@ -19,6 +19,7 @@ import {
   CaseStatus,
   createAdvisingCase,
   createCaseEvent,
+  type PlanId,
   type Student,
 } from '@caa/domain';
 import { syntheticId } from '@caa/test-kit';
@@ -86,6 +87,7 @@ function refusalFor(store: InMemoryCaseStore, tenantId: string, newCase: NewAdvi
   }
   const hasLive = (store.cases ?? []).some(
     (entry) =>
+      entry.tenantId === tenantId &&
       entry.tenantId === tenantId &&
       isLive(entry.status) &&
       planOf(entry.planRevisionId)?.id === plan.id,
@@ -172,6 +174,35 @@ function appendTo(
 }
 
 /**
+ * Finds the live case of each given plan, reaching the plan through the revision the case froze.
+ *
+ * @param store - Backing data.
+ * @param tenantId - Tenant from the session.
+ * @param planIds - The plans wanted.
+ * @returns A map from plan ID to its live case.
+ */
+function liveByPlan(
+  store: InMemoryCaseStore,
+  tenantId: string,
+  planIds: readonly PlanId[],
+): ReadonlyMap<PlanId, AdvisingCase> {
+  const planOf = new Map(
+    (store.planRevisions ?? []).map(({ revision }) => [revision.id, revision.planId]),
+  );
+  return new Map(
+    (store.cases ?? []).flatMap((entry) => {
+      const planId = entry.planRevisionId === null ? undefined : planOf.get(entry.planRevisionId);
+      return entry.tenantId === tenantId &&
+        isLive(entry.status) &&
+        planId !== undefined &&
+        planIds.includes(planId)
+        ? [[planId, entry] as const]
+        : [];
+    }),
+  );
+}
+
+/**
  * Creates the case repository over the store, filtered by tenant like PostgreSQL.
  *
  * @param store - Backing data. Read and replaced on every call.
@@ -213,6 +244,7 @@ export function createInMemoryCaseRepository(store: InMemoryCaseStore): Advising
           .filter((entry) => entry.studentId === studentId)
           .toSorted((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt)),
       ),
+    findLiveByPlanIds: (tenantId, planIds) => Promise.resolve(liveByPlan(store, tenantId, planIds)),
     listQueue: (tenantId, advisorUserId, { at, status }) =>
       Promise.resolve(
         inTenant(tenantId).filter(

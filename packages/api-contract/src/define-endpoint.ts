@@ -33,21 +33,28 @@ export type PathParams<TPath extends string> = Readonly<Record<PathParamName<TPa
 export interface EndpointDefinition<
   TResponse extends z.ZodType,
   TPath extends EndpointPath = EndpointPath,
+  TQuery extends z.ZodType | undefined = undefined,
 > {
   readonly method: HttpMethod;
   readonly path: TPath;
   readonly response: TResponse;
+  /** Query-string schema. Absent when the endpoint takes no query; the client then rejects one. */
+  readonly query?: TQuery;
 }
 
 /**
  * Declares an endpoint. Returns its input unchanged but locks in the literal types, including the
  * path literal so callers get its param names.
  *
- * @param definition - Method, versioned path, and response schema.
+ * @param definition - Method, versioned path, response schema, and optional query schema.
  * @returns The same definition.
  */
-export function defineEndpoint<TResponse extends z.ZodType, const TPath extends EndpointPath>(
-  definition: EndpointDefinition<TResponse, TPath>,
-): EndpointDefinition<TResponse, TPath> {
+export function defineEndpoint<
+  TResponse extends z.ZodType,
+  const TPath extends EndpointPath,
+  TQuery extends z.ZodType | undefined = undefined,
+>(
+  definition: EndpointDefinition<TResponse, TPath, TQuery>,
+): EndpointDefinition<TResponse, TPath, TQuery> {
   return definition;
 }
