@@ -9,6 +9,7 @@ import simpleImportSort from 'eslint-plugin-simple-import-sort';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
+import { assistantRules } from './config/eslint/assistant.mjs';
 import { LANGUAGE_SYNTAX_BANS, layerBoundaries } from './config/eslint/layer-boundaries.mjs';
 import { webRules } from './config/eslint/web.mjs';
 import { wiringRules } from './config/eslint/wiring.mjs';
@@ -149,6 +150,7 @@ export default tseslint.config(
 
   // ---- Layer boundaries (standards/01 and /05) ----
   ...layerBoundaries,
+  ...assistantRules,
   ...wiringRules,
 
   // ---- Next.js web app (standards/06) ----

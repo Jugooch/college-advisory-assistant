@@ -1,4 +1,6 @@
 # Code quality gates. Job names are required status checks on main; rename them only together with the ruleset.
+# SECURITY: CI must never receive ANTHROPIC_API_KEY. Tests use fake model ports; live evals run only
+# by hand (ADR-0015 §9). scripts/test/ci-model-key.test.mjs fails if any workflow names the key.
 name: CI
 
 on:
