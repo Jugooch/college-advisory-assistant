@@ -1,10 +1,12 @@
 /**
  * @file Integration tests for finding the live case of each plan against PostgreSQL.
  */
+import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { CaseAction, CaseStatus, type PlanId } from '@caa/domain';
 
+import { studentTable } from '../tables/student.table';
 import {
   buildClaim,
   buildNewCase,
@@ -110,5 +112,17 @@ describe('AdvisingCaseRepository findLiveByPlanIds', () => {
 
     expect([...found.keys()]).toEqual([planId]);
     expect(await cases.findLiveByPlanIds(world.tenantId, [])).toEqual(new Map());
+  });
+
+  it('has no entry once the source has deleted the student', async () => {
+    const world = await newWorld('tombstone');
+    const planId = await planOf(world);
+    await createCase(world);
+    await testDatabase.db
+      .update(studentTable)
+      .set({ isDeleted: true })
+      .where(eq(studentTable.id, world.studentId));
+
+    expect((await cases.findLiveByPlanIds(world.tenantId, [planId])).size).toBe(0);
   });
 });

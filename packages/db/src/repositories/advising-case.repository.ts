@@ -30,6 +30,7 @@ import {
   CaseStatus,
   type InstitutionId,
   type PlanId,
+  PlanIdSchema,
   type StudentId,
   type UserId,
 } from '@caa/domain';
@@ -290,7 +291,7 @@ async function readLiveByPlanIds(
     );
   for (const { row } of rows) {
     if (row.planId !== null) {
-      live.set(row.planId as PlanId, toAdvisingCase(row));
+      live.set(PlanIdSchema.parse(row.planId), toAdvisingCase(row));
     }
   }
   return live;
