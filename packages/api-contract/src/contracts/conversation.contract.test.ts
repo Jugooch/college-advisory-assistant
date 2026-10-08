@@ -220,6 +220,30 @@ describe('ConversationTurnResponseSchema', () => {
   });
 });
 
+describe('lastSequence', () => {
+  const conv = { available: true, unavailableReason: null, turns: [] };
+  const bodies = [
+    (v: unknown) => ConversationTurnResponseSchema.safeParse({ turn: ANSWER, lastSequence: v }),
+    (v: unknown) => ConversationResponseSchema.safeParse({ ...conv, lastSequence: v }),
+  ];
+
+  it('is accepted when present and when absent', () => {
+    for (const parse of bodies) {
+      expect(parse(0).success).toBe(true);
+      expect(parse(2).success).toBe(true);
+    }
+    expect(ConversationResponseSchema.safeParse(conv).success).toBe(true);
+    expect(ConversationTurnResponseSchema.safeParse({ turn: ANSWER }).success).toBe(true);
+  });
+
+  it('is rejected when negative or not an integer', () => {
+    for (const parse of bodies) {
+      expect(parse(-1).success).toBe(false);
+      expect(parse(1.5).success).toBe(false);
+    }
+  });
+});
+
 describe('ConversationResponseSchema', () => {
   const ok = { available: true, unavailableReason: null, turns: [STUDENT_TURN, ASSISTANT_TURN] };
   const accepts = (body: unknown): boolean => ConversationResponseSchema.safeParse(body).success;

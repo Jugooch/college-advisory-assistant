@@ -97,7 +97,15 @@ export type AssistantTurnView = z.infer<typeof AssistantTurnViewSchema>;
 
 /** Response body for `POST /v1/students/:studentId/conversation/turns`. */
 export const ConversationTurnResponseSchema = z
-  .strictObject({ turn: AssistantTurnViewSchema })
+  .strictObject({
+    turn: AssistantTurnViewSchema,
+    /**
+     * The conversation's last stored sequence. When present, the client must use it as the next
+     * `expectedSequence`, because clear and unreadable turns leave it ahead of the visible
+     * transcript (ADR-0015 §2, AC44).
+     */
+    lastSequence: z.number().int().min(0).optional(),
+  })
   .readonly();
 
 /** Response body for `POST /v1/students/:studentId/conversation/turns`. */
@@ -149,6 +157,12 @@ export const ConversationResponseSchema = z
     unavailableReason: z.literal(NoticeCode.Disabled).nullable(),
     /** The newest 100 turns, oldest first. */
     turns: z.array(ConversationTurnViewSchema).max(MAX_TRANSCRIPT_TURNS).readonly(),
+    /**
+     * The conversation's last stored sequence. When present, the client must use it as the next
+     * `expectedSequence`, because clear and unreadable turns leave it ahead of the visible
+     * transcript (ADR-0015 §2, AC44).
+     */
+    lastSequence: z.number().int().min(0).optional(),
   })
   // SAFETY: an unavailable conversation always says why, and an available one never does, so
   // the UI can't show a disabled panel without a reason or a stale reason on a working one
