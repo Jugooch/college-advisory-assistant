@@ -17,7 +17,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 
-import type { CaseAction, CaseResolution, CaseStatus } from '@caa/domain';
+import type { CaseAction, CaseResolution, CaseStatus, Role } from '@caa/domain';
 
 import { advisingCaseTable } from './advising-case.table';
 import { institutionTable } from './institution.table';
@@ -38,6 +38,8 @@ export const caseEventTable = pgTable(
     sequence: integer('sequence').notNull(),
     action: text('action').notNull().$type<CaseAction>(),
     actorUserId: uuid('actor_user_id').notNull(),
+    // NOTE: nullable until #448; NULL means the role wasn't recorded (ADR-0013 Amendment 1).
+    actorRole: text('actor_role').$type<Role>(),
     at: timestamp('at', { withTimezone: true, precision: 3 }).notNull(),
     fromStatus: text('from_status').$type<CaseStatus>(),
     toStatus: text('to_status').notNull().$type<CaseStatus>(),
@@ -59,6 +61,10 @@ export const caseEventTable = pgTable(
       columns: [table.tenantId, table.actorUserId],
       foreignColumns: [userIdentityTable.tenantId, userIdentityTable.id],
     }),
+    check(
+      'case_event_actor_role_valid',
+      sql`${table.actorRole} IS NULL OR ${table.actorRole} IN ('STUDENT', 'ADVISOR', 'ADMIN')`,
+    ),
     check(
       'case_event_shape',
       sql`${table.sequence} >= 1

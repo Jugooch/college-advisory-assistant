@@ -22,6 +22,8 @@ export function toCaseEvent(row: CaseEventRow): CaseEvent {
     sequence: row.sequence,
     action: row.action,
     actorUserId: row.actorUserId,
+    // NOTE: NULL (not yet recorded) is an omitted field, not a value.
+    actorRole: row.actorRole ?? undefined,
     at: row.at.toISOString(),
     fromStatus: row.fromStatus,
     toStatus: row.toStatus,
