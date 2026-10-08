@@ -36,25 +36,31 @@ export interface ScheduleResultsProps {
    * options (`null`). The page supplies it, so this feature knows nothing about drafts.
    */
   readonly renderSaveDraft?: (option: ScheduleOption | null) => ReactNode;
+  /** Heading text; defaults to the search heading. A saved result names its "as of" time here. */
+  readonly heading?: string;
+  /** Whether focus moves to the heading on load. Saved results pass `false`. */
+  readonly isHeadingFocused?: boolean;
 }
 
 /**
  * Renders a finished search. Nothing here implies a registration or open seats.
  *
- * @param props - The response, course names, and the optional save control.
+ * @param props - The response, course names, the optional save control, and the heading choices.
  * @returns The results section.
  */
 export function ScheduleResults({
   result,
   courses,
   renderSaveDraft,
+  heading,
+  isHeadingFocused,
 }: ScheduleResultsProps): ReactElement {
   const names = indexCourses(result.courses, [...courses.values()]);
   const campuses = indexCampuses(result.campuses);
   const asOf = describeAsOf(result.pinnedInputs);
   return (
     <section aria-labelledby="results-heading">
-      <ResultsHeading />
+      <ResultsHeading text={heading} isFocused={isHeadingFocused} />
       <p>
         Term: {result.term.termCode} ({describeDateRange(result.term.startsOn, result.term.endsOn)})
       </p>
