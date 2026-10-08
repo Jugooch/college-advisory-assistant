@@ -69,6 +69,7 @@ describe('POST /v1/students/:studentId/cases', () => {
       }),
     ]);
     expect(view.createdAt).toBe('2026-09-01T12:00:00.000Z');
+    expect(store.caseEvents?.[0]).toMatchObject({ actorRole: Role.Student });
     expect(store.cases).toHaveLength(1);
     expect(store.caseEvents).toHaveLength(1);
   });

@@ -6,12 +6,13 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { CaseAction, CaseStatus, type UserId } from '@caa/domain';
+import { CaseAction, CaseStatus, Role, type UserId } from '@caa/domain';
 
 import {
   allowedCaseActions,
   CaseActor,
   caseActorOf,
+  eventActorRoleOf,
   isLiveCaseStatus,
   mayAttemptCaseAction,
   nextCaseStatus,
@@ -144,4 +145,27 @@ describe('mayAttemptCaseAction', () => {
   ])('$action by $actor is $expected', ({ action, actor, expected }) => {
     expect(mayAttemptCaseAction(action, actor)).toBe(expected);
   });
+});
+
+describe('eventActorRoleOf', () => {
+  it.each([CaseAction.Create, CaseAction.Withdraw])('writes STUDENT for %s', (action) => {
+    expect(eventActorRoleOf(action, { isAdvisor: true, hasActiveAssignment: true })).toBe(
+      Role.Student,
+    );
+  });
+
+  it.each([CaseAction.Claim, CaseAction.Release, CaseAction.Resolve])(
+    'writes ADVISOR for %s only with the advisor role and an active assignment',
+    (action) => {
+      expect(eventActorRoleOf(action, { isAdvisor: true, hasActiveAssignment: true })).toBe(
+        Role.Advisor,
+      );
+      expect(eventActorRoleOf(action, { isAdvisor: true, hasActiveAssignment: false })).toBe(
+        Role.Admin,
+      );
+      expect(eventActorRoleOf(action, { isAdvisor: false, hasActiveAssignment: false })).toBe(
+        Role.Admin,
+      );
+    },
+  );
 });

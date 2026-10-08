@@ -171,6 +171,7 @@ describe('GET /v1/cases/:caseId', () => {
           sequence: 2,
           action: CaseAction.Claim,
           actorUserId: IDENTITIES.advisor.id,
+          actorRole: Role.Advisor,
           fromStatus: CaseStatus.Open,
           toStatus: CaseStatus.InReview,
         },
