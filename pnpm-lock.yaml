@@ -188,6 +188,9 @@ importers:
       '@caa/domain':
         specifier: workspace:*
         version: link:../domain
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
 
   packages/db:
     dependencies:
