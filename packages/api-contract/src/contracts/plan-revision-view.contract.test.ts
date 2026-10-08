@@ -129,6 +129,10 @@ describe('PlanRevisionViewSchema', () => {
     expect(accepts({ selectedSectionIds: [sectionId(2), sectionId(1)] })).toBe(false);
   });
 
+  it('accepts a REVALIDATED OPTIONS_FOUND view with a null selection', () => {
+    expect(accepts({ cause: 'REVALIDATED', selectedSectionIds: null })).toBe(true);
+  });
+
   it('rejects a selection on an outcome with no options even when the result is unavailable', () => {
     expect(
       accepts({
