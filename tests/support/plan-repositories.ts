@@ -63,6 +63,26 @@ function storeRevision(
 }
 
 /**
+ * Finds a revision by ID when its plan is the tenant's.
+ *
+ * @param world - Backing data.
+ * @param tenantId - Tenant from the session.
+ * @param revisionId - The revision.
+ * @returns The stored revision, or null.
+ */
+function revisionInTenant(
+  world: PlanWorld,
+  tenantId: string,
+  revisionId: string,
+): StoredPlanRevision | null {
+  const stored = (world.planRevisions ?? []).find(({ revision }) => revision.id === revisionId);
+  const isTenants = (world.plans ?? []).some(
+    (plan) => plan.tenantId === tenantId && plan.id === stored?.revision.planId,
+  );
+  return isTenants ? (stored ?? null) : null;
+}
+
+/**
  * Creates the plan repository over the world.
  *
  * @param world - Backing data. Read and replaced on every call, so a case can inspect it.
@@ -110,6 +130,8 @@ export function createPlanRepositories(world: PlanWorld): PlanRepositories {
           : stored.find((entry) => entry.revision.revision === revision)) ?? null,
       );
     },
+    findRevisionById: (tenantId, revisionId) =>
+      Promise.resolve(revisionInTenant(world, tenantId, revisionId)),
     listForStudent: (tenantId, studentId) =>
       Promise.resolve(
         (world.plans ?? [])
