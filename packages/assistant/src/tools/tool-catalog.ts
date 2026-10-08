@@ -31,7 +31,7 @@ export const TOOL_NAMES: readonly ToolName[] = Object.values(ToolName);
  * Version of the tool names, descriptions and argument schemas. Bump it on any change to them;
  * each assistant turn records it (ADR-0015 §1, §4).
  */
-export const TOOL_SCHEMA_VERSION = 'tools-2026-10-08.1';
+export const TOOL_SCHEMA_VERSION = 'tools-2026-10-08.2';
 
 /** A JSON Schema object handed to the model provider as a tool's input schema. */
 export type ToolInputJsonSchema = Readonly<Record<string, unknown>>;
