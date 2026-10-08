@@ -9,6 +9,7 @@
 import Link from 'next/link';
 import type { ReactElement, Ref } from 'react';
 
+import { PlanFreshness } from '@/shared/components/plan-freshness';
 import { Timestamp } from '@/shared/components/timestamp';
 
 import {
@@ -16,7 +17,6 @@ import {
   SAVED_MESSAGE,
   type SaveDraftState,
 } from '../utils/save-draft-state';
-import { PlanFreshness } from './plan-freshness';
 
 /** Props for {@link SaveDraftConfirmation}. */
 export interface SaveDraftConfirmationProps {

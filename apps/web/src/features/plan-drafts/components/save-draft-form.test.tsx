@@ -17,7 +17,9 @@ import {
   syntheticId,
 } from '@caa/test-kit';
 
-import { DRAFT_FIELD, optionSectionIds, parseSaveDraftForm } from '../utils/save-draft-form';
+import { optionSectionIds } from '@/shared/utils/option-section-ids';
+
+import { DRAFT_FIELD, parseSaveDraftForm } from '../utils/save-draft-form';
 import { type SaveDraftState, toSavedState } from '../utils/save-draft-state';
 import { SaveDraftForm } from './save-draft-form';
 

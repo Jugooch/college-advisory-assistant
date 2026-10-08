@@ -11,18 +11,18 @@ import type { ReactElement } from 'react';
 
 import type { PlannableTerm, PlanSummary } from '@caa/api-contract';
 
+import { PlanFreshness } from '@/shared/components/plan-freshness';
 import { Timestamp } from '@/shared/components/timestamp';
 
 import { describeOpenCase } from '../utils/plan-wording';
-import { PlanFreshness } from './plan-freshness';
 
 /** Props for {@link PlanList}. */
 export interface PlanListProps {
+  /** Internal student ID, carried in the plan detail, ask-an-advisor and Help and cases links. */
+  readonly studentId: string;
   readonly plans: readonly PlanSummary[];
   /** Terms the planner knows, used only to name each plan's term; `null` when unavailable. */
   readonly terms: readonly PlannableTerm[] | null;
-  /** Internal student ID, carried in each plan's detail link. */
-  readonly studentId: string;
   /** Link to the planner, offered when there are no plans. */
   readonly plannerHref: string;
 }
@@ -58,22 +58,38 @@ export function PlanList({ plans, terms, studentId, plannerHref }: PlanListProps
         </tr>
       </thead>
       <tbody>
-        {plans.map((plan) => (
-          <tr key={plan.id}>
-            <th scope="row">
-              <Link href={`/my-plans/${plan.id}?studentId=${studentId}`}>
-                {codes.get(plan.termId) ?? UNNAMED_TERM}
-              </Link>
-            </th>
-            <td>
-              Revision {plan.latestRevision}, saved <Timestamp iso={plan.createdAt} />
-            </td>
-            <td>
-              <PlanFreshness freshness={plan.freshness} />
-            </td>
-            <td>{describeOpenCase(plan.openCaseStatus)}</td>
-          </tr>
-        ))}
+        {plans.map((plan) => {
+          const termName = codes.get(plan.termId) ?? UNNAMED_TERM;
+          return (
+            <tr key={plan.id}>
+              <th scope="row">
+                <Link href={`/my-plans/${plan.id}?studentId=${studentId}`}>{termName}</Link>
+              </th>
+              <td>
+                Revision {plan.latestRevision}, saved <Timestamp iso={plan.createdAt} />
+              </td>
+              <td>
+                <PlanFreshness freshness={plan.freshness} />
+              </td>
+              <td>
+                {describeOpenCase(plan.openCaseStatus)}{' '}
+                {plan.openCaseStatus === null ? (
+                  <Link
+                    href={`/ask-an-advisor?${new URLSearchParams({ studentId, planId: plan.id })}`}
+                  >
+                    Ask an advisor
+                    <span className="visually-hidden"> about the {termName} draft</span>
+                  </Link>
+                ) : (
+                  <Link href={`/help-and-cases?${new URLSearchParams({ studentId })}`}>
+                    See your case
+                    <span className="visually-hidden"> about the {termName} draft</span>
+                  </Link>
+                )}
+              </td>
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   );

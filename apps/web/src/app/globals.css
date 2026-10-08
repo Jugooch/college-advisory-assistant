@@ -216,3 +216,21 @@ td {
     font-weight: bold;
   }
 }
+
+/* Text for screen readers only; the link stays one visible phrase (WCAG 2.4.4). */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* A student's or advisor's note keeps its line breaks and wraps long words. */
+.note-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

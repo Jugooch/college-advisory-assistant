@@ -12,13 +12,9 @@ import {
   syntheticId,
 } from '@caa/test-kit';
 
-import {
-  DRAFT_FIELD,
-  encodeSaveDraft,
-  optionSectionIds,
-  parseSaveDraftForm,
-  STUDENT_FIELD,
-} from './save-draft-form';
+import { optionSectionIds } from '@/shared/utils/option-section-ids';
+
+import { DRAFT_FIELD, encodeSaveDraft, parseSaveDraftForm, STUDENT_FIELD } from './save-draft-form';
 
 const STUDENT_ID = syntheticId('student', 1);
 const RESULT = buildScheduleOptionsResponse();
@@ -43,19 +39,6 @@ function form(fields: Record<string, string>): FormData {
   });
   return data;
 }
-
-describe('optionSectionIds', () => {
-  it('lists the option’s sections, distinct and sorted, adding or dropping none', () => {
-    const expected = [
-      ...new Set(
-        OPTION.bundles.flatMap((bundle) => bundle.sections.map((section) => section.sectionId)),
-      ),
-    ].sort();
-
-    expect(optionSectionIds(OPTION)).toEqual(expected);
-    expect(expected.length).toBeGreaterThan(0);
-  });
-});
 
 describe('parseSaveDraftForm', () => {
   const body = {

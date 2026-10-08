@@ -6,11 +6,7 @@
  * @requirement NFR-04
  * @see docs/adr/0013-plan-drafts-staleness-and-advisor-cases.md
  */
-import {
-  type SavePlanRequest,
-  SavePlanRequestSchema,
-  type ScheduleOption,
-} from '@caa/api-contract';
+import { type SavePlanRequest, SavePlanRequestSchema } from '@caa/api-contract';
 import { type StudentId, StudentIdSchema } from '@caa/domain';
 
 /** Form field that carries the encoded {@link SavePlanRequest}. */
@@ -23,19 +19,6 @@ export const STUDENT_FIELD = 'studentId';
 export interface SaveDraftForm {
   readonly studentId: StudentId;
   readonly body: SavePlanRequest;
-}
-
-/**
- * Lists the section IDs of an option, in the order the API expects them: sorted and distinct.
- *
- * @param option - A schedule option from the API.
- * @returns Its section IDs. No section is added, dropped, or substituted.
- */
-export function optionSectionIds(option: ScheduleOption): SavePlanRequest['selectedSectionIds'] {
-  const ids = option.bundles.flatMap((bundle) =>
-    bundle.sections.map((section) => section.sectionId),
-  );
-  return [...new Set(ids)].sort((a, b) => a.localeCompare(b, 'en'));
 }
 
 /**
