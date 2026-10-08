@@ -3,10 +3,12 @@
  */
 import { randomUUID } from 'node:crypto';
 
+import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { PlanRevisionIdSchema } from '@caa/domain';
 
+import { studentTable } from '../tables/student.table';
 import { insertTenant, openTestDatabase, type TestDatabase } from '../testing/integration-fixtures';
 import { buildNewRevision, insertPlanWorld, type PlanWorld } from '../testing/plan-fixtures';
 import { createPlanRepository } from './plan.repository';
@@ -61,5 +63,23 @@ describe('PlanRepository.findRevisionById', () => {
     expect(
       await plans.findRevisionById(world.tenantId, PlanRevisionIdSchema.parse(randomUUID())),
     ).toBeNull();
+  });
+
+  it('returns null once the source has deleted the student', async () => {
+    const world = await newWorld('tombstone');
+    const created = await plans.createWithFirstRevision(
+      world.tenantId,
+      { studentId: world.studentId, termId: world.termId, createdAt: '2026-10-01T15:00:00.000Z' },
+      buildNewRevision(world),
+    );
+    if (created.status !== 'CREATED') {
+      throw new Error('expected the plan to be created');
+    }
+    await testDatabase.db
+      .update(studentTable)
+      .set({ isDeleted: true })
+      .where(eq(studentTable.id, world.studentId));
+
+    expect(await plans.findRevisionById(world.tenantId, created.revision.revision.id)).toBeNull();
   });
 });
