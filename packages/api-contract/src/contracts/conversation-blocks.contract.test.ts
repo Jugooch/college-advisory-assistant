@@ -69,6 +69,7 @@ const REFERRAL = {
   templateVersion: '1',
   text: 'Please contact the financial aid office.',
   policy: null,
+  asOf: AS_OF,
 };
 
 /**
@@ -176,6 +177,36 @@ describe('CASE_PREVIEW block', () => {
   it('accepts an empty note and rejects a note over 500 characters', () => {
     expect(accepts({ ...CASE_PREVIEW, suggestedNote: '' })).toBe(true);
     expect(accepts({ ...CASE_PREVIEW, suggestedNote: 'a'.repeat(501) })).toBe(false);
+  });
+});
+
+describe('REFERRAL policy freshness', () => {
+  const accepted = (policy: unknown): boolean => accepts({ ...REFERRAL, policy });
+
+  it('rejects an expired and a not-yet-effective policy', () => {
+    expect(accepted({ ...HIT, effectiveTo: '2026-10-08T08:59:59-05:00' })).toBe(false);
+    expect(accepted({ ...HIT, effectiveFrom: '2026-10-08T09:00:01-05:00' })).toBe(false);
+  });
+
+  it('applies effectiveFrom <= asOf < effectiveTo at the boundaries', () => {
+    expect(accepted({ ...HIT, effectiveFrom: AS_OF })).toBe(true);
+    expect(accepted({ ...HIT, effectiveTo: AS_OF })).toBe(false);
+    expect(accepted({ ...HIT, effectiveTo: '2026-10-08T09:00:01-05:00' })).toBe(true);
+  });
+
+  it('compares instants across offsets and requires asOf', () => {
+    expect(accepted({ ...HIT, effectiveTo: '2026-10-08T14:00:00Z' })).toBe(false);
+    expect(accepts({ ...REFERRAL, asOf: undefined })).toBe(false);
+  });
+});
+
+describe('proposal strength', () => {
+  it('rejects a HARD proposed constraint', () => {
+    const hard = {
+      ...PROPOSAL,
+      constraints: [{ constraint: { ...CREDIT_RANGE, strength: 'HARD' }, confirmed: false }],
+    };
+    expect(accepts(hard)).toBe(false);
   });
 });
 

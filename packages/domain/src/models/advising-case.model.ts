@@ -6,7 +6,11 @@
  */
 import { z } from 'zod';
 
-import { CaseReason, CaseReasonSchema } from '../enums/case-reason.enum';
+import {
+  CaseReasonSchema,
+  isCasePlanSatisfied,
+  isCaseSubjectConsistent,
+} from '../enums/case-reason.enum';
 import { CaseStatus, CaseStatusSchema } from '../enums/case-status.enum';
 import { DiscrepancySubjectSchema } from '../enums/discrepancy-subject.enum';
 import { InstitutionIdSchema } from './institution.model';
@@ -45,12 +49,12 @@ export const AdvisingCaseSchema = z
     lastSequence: z.number().int().min(1),
   })
   // SAFETY: a plan review without a plan, or a discrepancy without a subject, is unreviewable.
-  .refine((c) => c.reason === CaseReason.SourceDiscrepancy || c.planRevisionId !== null, {
+  .refine((c) => isCasePlanSatisfied(c.reason, c.planRevisionId !== null), {
     message: 'planRevisionId is required unless the reason is SOURCE_DISCREPANCY',
     path: ['planRevisionId'],
   })
   // SAFETY: a discrepancy subject on another reason would misroute the report (FR-17).
-  .refine((c) => (c.reason === CaseReason.SourceDiscrepancy) === (c.discrepancySubject !== null), {
+  .refine((c) => isCaseSubjectConsistent(c.reason, c.discrepancySubject !== null), {
     message: 'discrepancySubject is present exactly when the reason is SOURCE_DISCREPANCY',
     path: ['discrepancySubject'],
   })

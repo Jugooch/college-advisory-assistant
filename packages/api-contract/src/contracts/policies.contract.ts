@@ -75,6 +75,22 @@ export const PolicyHitSchema = z
 export type PolicyHit = z.infer<typeof PolicyHitSchema>;
 
 /**
+ * Returns whether a revision is in effect at an instant: effectiveFrom <= asOf < effectiveTo,
+ * where a `null` end is open. Compared as instants, not strings.
+ *
+ * @param hit - The policy revision.
+ * @param asOf - ISO 8601 instant the policy is judged at.
+ * @returns `true` when the revision applies at `asOf`.
+ */
+export const policyAppliesAt = (hit: PolicyHit, asOf: string): boolean => {
+  const at = Date.parse(asOf);
+  return (
+    Date.parse(hit.effectiveFrom) <= at &&
+    (hit.effectiveTo === null || at < Date.parse(hit.effectiveTo))
+  );
+};
+
+/**
  * Response body for `GET /v1/policies`.
  *
  * `asOf` is the instant at which the server judged which revisions applied. An empty list is a
@@ -94,17 +110,10 @@ export const PolicySearchResponseSchema = z
   // SAFETY: an expired or not-yet-effective revision must never show as current policy. A hit
   // applies when effectiveFrom <= asOf < effectiveTo (null = open), compared as instants
   // (ADR-0015 §6, AC42).
-  .refine(
-    (body) => {
-      const asOf = Date.parse(body.asOf);
-      return body.hits.every(
-        (hit) =>
-          Date.parse(hit.effectiveFrom) <= asOf &&
-          (hit.effectiveTo === null || asOf < Date.parse(hit.effectiveTo)),
-      );
-    },
-    { message: 'every hit must apply at asOf', path: ['hits'] },
-  )
+  .refine((body) => body.hits.every((hit) => policyAppliesAt(hit, body.asOf)), {
+    message: 'every hit must apply at asOf',
+    path: ['hits'],
+  })
   .readonly();
 
 /** Response body for `GET /v1/policies`. */

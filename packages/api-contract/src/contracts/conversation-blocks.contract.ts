@@ -11,9 +11,11 @@ import { z } from 'zod';
 
 import {
   AssistantBlockKind,
-  CaseReason,
   CaseReasonSchema,
+  ConstraintStrength,
   DiscrepancySubjectSchema,
+  isCasePlanSatisfied,
+  isCaseSubjectConsistent,
   MAX_SCHEDULE_CONSTRAINTS,
   NoticeCodeSchema,
   PlanIdSchema,
@@ -25,7 +27,7 @@ import {
 
 import { AcademicSummaryResponseSchema } from './academic-summary.contract';
 import { PlanRevisionViewSchema } from './plan-revision-view.contract';
-import { PolicyHitSchema, PolicySearchResponseSchema } from './policies.contract';
+import { policyAppliesAt, PolicyHitSchema, PolicySearchResponseSchema } from './policies.contract';
 import { ScheduleOptionsResponseSchema } from './schedule-options.contract';
 
 /** Longest fixed template text of a notice or referral block, in characters. */
@@ -50,6 +52,12 @@ export const ProposedConstraintSchema = z
   .strictObject({
     constraint: ScheduleConstraintSchema,
     confirmed: z.literal(false),
+  })
+  // SAFETY: every proposal is downgraded to PREFERRED, so a hard constraint exists only when
+  // the student chooses it in the planner form (ADR-0015 §4).
+  .refine((proposed) => proposed.constraint.strength === ConstraintStrength.Preferred, {
+    message: 'a proposed constraint must be PREFERRED',
+    path: ['constraint', 'strength'],
   })
   .readonly();
 
@@ -80,7 +88,7 @@ const CasePreviewBlockSchema = z
   .refine(
     (block) =>
       (block.planId === null) === (block.planRevision === null) &&
-      (block.reason === CaseReason.SourceDiscrepancy || block.planId !== null),
+      isCasePlanSatisfied(block.reason, block.planId !== null),
     {
       message: 'planId and planRevision are set together unless SOURCE_DISCREPANCY',
       path: ['planId'],
@@ -88,14 +96,10 @@ const CasePreviewBlockSchema = z
   )
   // SAFETY: a subject on another reason, or none on a discrepancy, would misroute the report
   // (ADR-0015 §4, ADR-0013 §6, FR-17).
-  .refine(
-    (block) =>
-      (block.reason === CaseReason.SourceDiscrepancy) === (block.discrepancySubject !== null),
-    {
-      message: 'discrepancySubject is present exactly when the reason is SOURCE_DISCREPANCY',
-      path: ['discrepancySubject'],
-    },
-  )
+  .refine((block) => isCaseSubjectConsistent(block.reason, block.discrepancySubject !== null), {
+    message: 'discrepancySubject is present exactly when the reason is SOURCE_DISCREPANCY',
+    path: ['discrepancySubject'],
+  })
   .readonly();
 
 /**
@@ -167,6 +171,14 @@ export const AssistantBlockSchema = z.discriminatedUnion('kind', [
       ...TEMPLATE_FIELDS,
       /** The approved referral document the text points to, or `null` when none applies. */
       policy: PolicyHitSchema.nullable(),
+      /** The instant the policy was judged at, ISO 8601 with offset. */
+      asOf: z.iso.datetime({ offset: true }),
+    })
+    // SAFETY: an expired or not-yet-effective referral document must never show as current
+    // guidance, so the policy must apply at asOf, as for POLICY_RESULTS (ADR-0015 §6, AC42).
+    .refine((block) => block.policy === null || policyAppliesAt(block.policy, block.asOf), {
+      message: 'policy must apply at asOf',
+      path: ['policy'],
     })
     .readonly(),
 ]);
