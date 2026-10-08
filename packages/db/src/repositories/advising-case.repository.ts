@@ -68,6 +68,12 @@ export interface QueueQuery {
   readonly status?: CaseStatus;
 }
 
+/** A case in the tenant-wide queue, with whether its student has an active assignment. */
+export type TenantQueueEntry = AdvisingCase & {
+  /** True when the case's student has an active assignment at the queried instant. */
+  readonly routed: boolean;
+};
+
 /**
  * Reads and appends advising cases. A case changes only by appending an event, and events are
  * never updated or deleted, so there are no such methods and the database refuses them too.
@@ -171,6 +177,25 @@ export interface AdvisingCaseRepository {
   ): Promise<readonly AdvisingCase[]>;
 
   /**
+   * Lists every case in the tenant, oldest first, whoever holds it, for admins. Each entry says
+   * whether its student has an active assignment at `at`. Cases of source-deleted students are
+   * hidden, as in {@link AdvisingCaseRepository.listQueue}.
+   *
+   * @param tenantId - Tenant from the session.
+   * @param query - The instant to evaluate assignments at (ISO 8601 with offset, from an
+   *   injected clock), and optionally only cases in one status.
+   * @returns The tenant's cases, each flagged routed or not.
+   * @throws {RangeError} When `at` is not a valid date-time.
+   * @throws {TypeError} When the database returns a non-boolean routed flag.
+   * @throws {z.ZodError} When a stored row fails the domain schema.
+   */
+  // TODO(#471): make this required once the QA and api in-memory fakes implement it.
+  listTenantQueue?(
+    tenantId: InstitutionId,
+    query: QueueQuery,
+  ): Promise<readonly TenantQueueEntry[]>;
+
+  /**
    * Lists the tenant's OPEN cases whose student has no active assignment at `at`, oldest first,
    * so every student has a human route. For admins.
    *
@@ -256,6 +281,47 @@ async function readCases(
 }
 
 /**
+ * Reads every visible case in the tenant with its routed flag, oldest first.
+ *
+ * @param db - Typed database handle.
+ * @param tenantId - Tenant from the session.
+ * @param query - Instant to evaluate assignments at, and an optional status.
+ * @returns The cases, each flagged routed or not.
+ * @throws {RangeError} When `at` is not a valid date-time.
+ * @throws {TypeError} When the database returns a non-boolean routed flag.
+ */
+async function readTenantQueue(
+  db: Database,
+  tenantId: InstitutionId,
+  { at, status }: QueueQuery,
+): Promise<TenantQueueEntry[]> {
+  const instant = parseInstant(at);
+  const cases = advisingCaseTable;
+  const rows = await db
+    .select({ row: cases, routed: sql<unknown>`${exists(activeAssignment(db, instant))}` })
+    .from(cases)
+    .innerJoin(
+      studentTable,
+      and(eq(studentTable.tenantId, cases.tenantId), eq(studentTable.id, cases.studentId)),
+    )
+    .where(
+      and(
+        // SECURITY: filtered by tenant; a tombstoned student's cases are invisible.
+        eq(cases.tenantId, tenantId),
+        eq(studentTable.isDeleted, false),
+        status === undefined ? undefined : eq(cases.status, status),
+      ),
+    )
+    .orderBy(asc(cases.createdAt), asc(cases.id));
+  return rows.map(({ row, routed }) => {
+    if (typeof routed !== 'boolean') {
+      throw new TypeError('the routed flag was not a boolean');
+    }
+    return { ...toAdvisingCase(row), routed };
+  });
+}
+
+/**
  * Reads the live case of each plan, keyed by plan.
  *
  * @param db - Typed database handle.
@@ -301,10 +367,11 @@ async function readLiveByPlanIds(
  * Creates the advising case repository.
  *
  * @param db - Typed database handle.
- * @returns An {@link AdvisingCaseRepository} that always implements `findLiveByPlanIds`.
+ * @returns An {@link AdvisingCaseRepository} that always implements `findLiveByPlanIds` and `listTenantQueue`.
  */
 export function createAdvisingCaseRepository(db: Database): AdvisingCaseRepository & {
   readonly findLiveByPlanIds: NonNullable<AdvisingCaseRepository['findLiveByPlanIds']>;
+  readonly listTenantQueue: NonNullable<AdvisingCaseRepository['listTenantQueue']>;
 } {
   const cases = advisingCaseTable;
   return {
@@ -343,6 +410,8 @@ export function createAdvisingCaseRepository(db: Database): AdvisingCaseReposito
         ),
       });
     },
+
+    listTenantQueue: (tenantId, query) => readTenantQueue(db, tenantId, query),
 
     async listUnrouted(tenantId, at) {
       const instant = parseInstant(at);
