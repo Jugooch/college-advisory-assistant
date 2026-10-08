@@ -2,6 +2,8 @@
  * @file Public API of @caa/assistant. Other packages import only from here.
  * @module @caa/assistant
  */
+export * from './fakes/demo-model.fake';
+export * from './fakes/scripted-model.fake';
 export * from './guards/message.guard';
 export * from './ports/conversation-model.port';
 export * from './prompts/system.prompt';

@@ -4,7 +4,7 @@
  * @requirement FR-16
  * @see docs/adr/0015-conversation-orchestration-and-policy-corpus.md
  */
-import { and, asc, desc, eq, gt, isNull, lte, or } from 'drizzle-orm';
+import { and, asc, desc, eq, isNotNull, lte } from 'drizzle-orm';
 
 import type { InstitutionId, PolicyAudience, PolicyDocument } from '@caa/domain';
 
@@ -25,11 +25,13 @@ export interface ApplicablePolicyQuery {
 /** Reads approved policy documents. */
 export interface PolicyDocumentRepository {
   /**
-   * Lists the documents that apply to the audiences at the instant: approved only, with
-   * `effectiveFrom <= asOf` and (`effectiveTo` is null or `asOf < effectiveTo`), and only the
-   * highest such revision of each document key. That revision is chosen first; the audience
-   * filter is applied to it afterwards, so a key whose current revision is for another audience
-   * returns nothing rather than an older revision. Draft and withdrawn revisions never appear.
+   * Lists the documents that apply to the audiences at the instant. For each document key the
+   * current revision is chosen first: the highest revision that was ever approved
+   * (`approvedAt` set, so a withdrawn draft never counts) with `effectiveFrom <= asOf`. It is
+   * returned only when it is still approved (not retracted), `asOf < effectiveTo` (or
+   * `effectiveTo` is null), and its audience is allowed. A retracted or expired current revision
+   * returns nothing for its key; an older revision never applies again. A newer revision that
+   * has not started yet is not current, so the older one still applies. Drafts never appear.
    *
    * @param query - Tenant, audiences, and instant.
    * @returns The applicable documents ordered by `documentKey`; empty when no audience is given.
@@ -61,17 +63,23 @@ export function createPolicyDocumentRepository(db: Database): PolicyDocumentRepo
         .where(
           and(
             eq(table.tenantId, tenantId),
-            // SAFETY: only approved text is ever searchable; drafts and withdrawn never leave.
-            eq(table.approvalStatus, 'APPROVED'),
-            // SAFETY: start is inclusive and end is exclusive, so a document ends exactly at effectiveTo.
+            // SAFETY: only revisions that were once approved can be current; a withdrawn draft
+            // was never published, so it can't hide an older approved revision.
+            isNotNull(table.approvedAt),
+            // SAFETY: start is inclusive, so a revision becomes current exactly at effectiveFrom.
             lte(table.effectiveFrom, instant),
-            or(isNull(table.effectiveTo), gt(table.effectiveTo, instant)),
           ),
         )
         .orderBy(asc(table.documentKey), desc(table.revision));
-      // SAFETY: audience is applied only after the current revision is chosen, so a revision
-      // narrowed to another audience never lets an older, broader revision through.
-      return rows.filter((row) => audiences.includes(row.audience)).map(toPolicyDocument);
+      // SAFETY (ADR-0015 Amendment 2): the current revision is chosen above, before any other
+      // filter. Retraction, expiry (end is exclusive) and audience apply to it afterwards, so
+      // none of them lets an older revision through.
+      const current = rows.filter(
+        (row) =>
+          row.approvalStatus === 'APPROVED' &&
+          (row.effectiveTo === null || row.effectiveTo > instant),
+      );
+      return current.filter((row) => audiences.includes(row.audience)).map(toPolicyDocument);
     },
   };
 }
