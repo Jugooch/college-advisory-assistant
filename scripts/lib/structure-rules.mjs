@@ -47,12 +47,53 @@ const STRUCTURE_RULES = [
     expected: '*.plugin.ts',
   },
   {
+    scope: /^apps\/api\/src\/adapters\//,
+    allow: (name) => /^[a-z0-9-]+\.adapter(\.(integration\.)?test)?\.ts$/.test(name),
+    expected: '*.adapter.ts (the only place that imports @anthropic-ai/sdk, ADR-0015 §9)',
+  },
+  {
     scope: /^apps\/api\/src\/[^/]+$/,
     allow: (name) =>
       /^(server|app|container)(\.(integration\.)?test)?\.ts$/.test(name) ||
       /^testing(\.test)?\.ts$/.test(name),
     expected:
-      'server.ts | app.ts | container.ts | testing.ts (other code goes in modules/, plugins/, shared/, config/)',
+      'server.ts | app.ts | container.ts | testing.ts (other code goes in modules/, adapters/, plugins/, shared/, config/)',
+  },
+  {
+    scope: /^packages\/assistant\/src\/tools\/[^/]+$/,
+    allow: (name) => /^([a-z0-9-]+\.tool|tool-catalog)(\.test)?\.ts$/.test(name),
+    expected: '*.tool.ts | tool-catalog.ts',
+  },
+  {
+    scope: /^packages\/assistant\/src\/prompts\/[^/]+$/,
+    allow: (name) => /^[a-z0-9-]+\.prompt(\.test)?\.ts$/.test(name),
+    expected: '*.prompt.ts',
+  },
+  {
+    scope: /^packages\/assistant\/src\/templates\/[^/]+$/,
+    allow: (name) => /^[a-z0-9-]+\.template(\.test)?\.ts$/.test(name),
+    expected: '*.template.ts',
+  },
+  {
+    scope: /^packages\/assistant\/src\/guards\/[^/]+$/,
+    allow: (name) => /^[a-z0-9-]+\.guard(\.test)?\.ts$/.test(name),
+    expected: '*.guard.ts',
+  },
+  {
+    scope: /^packages\/assistant\/src\/ports\/[^/]+$/,
+    allow: (name) => /^[a-z0-9-]+\.port(\.test)?\.ts$/.test(name),
+    expected: '*.port.ts',
+  },
+  {
+    scope: /^packages\/assistant\/src\/fakes\/[^/]+$/,
+    allow: (name) => /^[a-z0-9-]+\.fake(\.test)?\.ts$/.test(name),
+    expected: '*.fake.ts',
+  },
+  {
+    scope: /^packages\/assistant\/src\/[^/]+\//,
+    allow: () => false,
+    expected:
+      'tools/, prompts/, templates/, guards/, ports/, or fakes/ (ADR-0015 §1); no other assistant folders',
   },
   {
     scope: /^packages\/domain\/src\/models\//,
@@ -171,6 +212,11 @@ const STRUCTURE_RULES = [
     scope: /^tests\/acceptance\//,
     allow: (name) => /^ac\d{2}-[a-z0-9-]+\.test\.ts$/.test(name) || name === 'README.md',
     expected: 'acNN-short-description.test.ts',
+  },
+  {
+    scope: /^tests\/evals\//,
+    allow: (name) => /^t06-[a-z0-9-]+\.eval\.test\.ts$/.test(name),
+    expected: 't06-<slug>.eval.test.ts',
   },
   {
     scope: /^(apps|packages)\/[^/]+\/src\/.+\/index\.ts$/,

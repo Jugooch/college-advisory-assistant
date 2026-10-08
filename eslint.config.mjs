@@ -9,7 +9,13 @@ import simpleImportSort from 'eslint-plugin-simple-import-sort';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
-import { LANGUAGE_SYNTAX_BANS, layerBoundaries } from './config/eslint/layer-boundaries.mjs';
+import { assistantRules } from './config/eslint/assistant.mjs';
+import {
+  LANGUAGE_SYNTAX_BANS,
+  layerBoundaries,
+  SDK_ADAPTER_FILES,
+  SDK_RESTRICTION,
+} from './config/eslint/layer-boundaries.mjs';
 import { webRules } from './config/eslint/web.mjs';
 import { wiringRules } from './config/eslint/wiring.mjs';
 
@@ -149,6 +155,7 @@ export default tseslint.config(
 
   // ---- Layer boundaries (standards/01 and /05) ----
   ...layerBoundaries,
+  ...assistantRules,
   ...wiringRules,
 
   // ---- Next.js web app (standards/06) ----
@@ -161,6 +168,15 @@ export default tseslint.config(
       'max-lines-per-function': 'off',
       '@typescript-eslint/require-await': 'off',
       'no-restricted-imports': 'off',
+    },
+  },
+
+  // ---- Tests may import test entry points, but never the model SDK outside the adapters ----
+  {
+    files: ['**/*.test.ts', '**/*.test.tsx', '**/*.test.mjs', 'tests/**'],
+    ignores: [SDK_ADAPTER_FILES],
+    rules: {
+      'no-restricted-imports': ['error', { patterns: [SDK_RESTRICTION] }],
     },
   },
 );
