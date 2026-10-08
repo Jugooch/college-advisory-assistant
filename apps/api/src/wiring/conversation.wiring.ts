@@ -1,42 +1,133 @@
 /**
- * @file Composition root for the conversation: the transcript read and clear.
+ * @file Composition root for the conversation: the transcript, the turn endpoint, and the choice
+ * of model.
  * @module @caa/api/wiring/conversation
  * @see docs/adr/0014-api-composition-root-wiring-files.md
  */
-import { ConversationModelMode } from '../config/env';
+import type { ConversationModel } from '@caa/assistant';
+import { createDemoModel } from '@caa/assistant';
+
+import { createClaudeModel, DEFAULT_MODEL_TIMEOUT_MS } from '../adapters/claude-model.adapter';
+import { type ApiEnv, ConversationModelMode } from '../config/env';
 import type { ContainerOptions } from '../container';
 import type { AccessService } from '../modules/access/access.service';
+import {
+  type ConversationController,
+  createConversationController,
+} from '../modules/conversation/conversation.controller';
+import { createConversationService } from '../modules/conversation/conversation.service';
+import { createConversationLoopService } from '../modules/conversation-loop/conversation-loop.service';
 import {
   type ConversationStoreController,
   createConversationStoreController,
 } from '../modules/conversation-store/conversation-store.controller';
 import { createConversationStoreService } from '../modules/conversation-store/conversation-store.service';
+import type { ConversationToolsService } from '../modules/conversation-tools/conversation-tools.service';
+import type { PolicySearchService } from '../modules/policy-search/policy-search.service';
+
+/** The model id recorded when a test injects a model. */
+export const INJECTED_MODEL_ID = 'injected-test-model';
+
+/** The model id recorded for the demo model. */
+export const DEMO_MODEL_ID = 'demo-model';
+
+/** The chosen model and the id recorded with each turn. */
+export interface ChosenModel {
+  readonly model: ConversationModel;
+  readonly modelId: string;
+}
 
 /** What {@link wireConversation} builds. */
 export interface ConversationWiring {
   readonly conversationStore: ConversationStoreController;
+  readonly conversation: ConversationController;
 }
 
 /**
- * Builds the conversation transcript service and controller.
+ * Picks the conversation model from configuration.
  *
- * @param options - Configuration, repositories, and clock.
+ * @param env - Validated configuration.
+ * @param injected - A model a test supplies; it replaces the configured one.
+ * @returns The model, or `null` when chat is off.
+ * @throws {Error} When production would use the demo model, or Claude without an approval ref.
+ */
+export function chooseConversationModel(
+  env: ApiEnv,
+  injected: ConversationModel | undefined,
+): ChosenModel | null {
+  if (injected !== undefined) return { model: injected, modelId: INJECTED_MODEL_ID };
+  const isProduction = env.NODE_ENV === 'production';
+  // SAFETY: the switch is the kill switch (ADR-0015 section 1). Production refuses the demo
+  // model, and refuses Claude until the provider approval record is named; env validation
+  // already checks both, and this repeats them so a bad config can't build a model.
+  switch (env.CONVERSATION_MODEL) {
+    case ConversationModelMode.Off:
+      return null;
+    case ConversationModelMode.Demo:
+      if (isProduction) throw new Error('CONVERSATION_MODEL=demo is not allowed in production');
+      return { model: createDemoModel(), modelId: DEMO_MODEL_ID };
+    case ConversationModelMode.Claude:
+      if (env.ANTHROPIC_API_KEY === undefined) {
+        throw new Error('ANTHROPIC_API_KEY is required when CONVERSATION_MODEL=claude');
+      }
+      if (isProduction && env.CONVERSATION_PROVIDER_APPROVAL_REF === undefined) {
+        throw new Error('CONVERSATION_PROVIDER_APPROVAL_REF is required in production');
+      }
+      return {
+        model: createClaudeModel({
+          apiKey: env.ANTHROPIC_API_KEY,
+          modelId: env.CONVERSATION_MODEL_ID,
+          timeoutMs: DEFAULT_MODEL_TIMEOUT_MS,
+        }),
+        modelId: env.CONVERSATION_MODEL_ID,
+      };
+  }
+}
+
+/** The services the conversation turn is built on. */
+export interface ConversationSources {
+  /** The six tools, bound to the read services (`wireConversationTools`). */
+  readonly tools: ConversationToolsService;
+  readonly policySearch: PolicySearchService;
+}
+
+/**
+ * Builds the conversation transcript and turn services and controllers.
+ *
+ * @param options - Configuration, repositories, clock, and an optional injected model.
  * @param access - The access rule, including who may converse.
+ * @param sources - The bound tools and the policy search.
  * @returns The conversation controllers.
  */
 export function wireConversation(
   options: ContainerOptions,
   access: AccessService,
+  sources: ConversationSources,
 ): ConversationWiring {
   const { env, repositories, now } = options;
+  const chosen = chooseConversationModel(env, options.conversationModel);
   return {
     conversationStore: createConversationStoreController(
       createConversationStoreService({
         access,
         conversations: repositories.conversations,
         now,
-        // SAFETY: `off` is the kill switch; the transcript still reads, and says chat is off.
-        isAvailable: env.CONVERSATION_MODEL !== ConversationModelMode.Off,
+        isAvailable: chosen !== null,
+      }),
+    ),
+    conversation: createConversationController(
+      createConversationService({
+        access,
+        conversations: repositories.conversations,
+        loop:
+          chosen === null
+            ? null
+            : createConversationLoopService({ model: chosen.model, tools: sources.tools, now }),
+        modelId: chosen?.modelId ?? null,
+        policySearch: sources.policySearch,
+        now,
+        historyTurns: env.CONVERSATION_HISTORY_TURNS,
+        rateLimit: env.CONVERSATION_RATE_LIMIT,
       }),
     ),
   };

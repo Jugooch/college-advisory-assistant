@@ -4,6 +4,7 @@
  * services, and controllers (ADR-0014).
  * @module @caa/api/container
  */
+import type { ConversationModel } from '@caa/assistant';
 import {
   type AcademicPolicyRepository,
   type AdvisingCaseRepository,
@@ -48,6 +49,7 @@ import type { AcademicSummaryController } from './modules/academic-summary/acade
 import type { CaseActionsController } from './modules/case-actions/case-actions.controller';
 import type { CaseQueueController } from './modules/case-queue/case-queue.controller';
 import type { CasesController } from './modules/cases/cases.controller';
+import type { ConversationController } from './modules/conversation/conversation.controller';
 import type { ConversationStoreController } from './modules/conversation-store/conversation-store.controller';
 import type { CourseChecksController } from './modules/course-checks/course-checks.controller';
 import { createHealthController, type HealthController } from './modules/health/health.controller';
@@ -65,6 +67,7 @@ import { wireAcademic } from './wiring/academic.wiring';
 import { wireAccess } from './wiring/access.wiring';
 import { wireCases } from './wiring/cases.wiring';
 import { wireConversation } from './wiring/conversation.wiring';
+import { wireConversationTools } from './wiring/conversation-tools.wiring';
 import { wirePlans } from './wiring/plans.wiring';
 import { wirePolicy } from './wiring/policy.wiring';
 
@@ -84,6 +87,7 @@ export interface Controllers {
   readonly caseQueue: CaseQueueController;
   readonly caseActions: CaseActionsController;
   readonly conversationStore: ConversationStoreController;
+  readonly conversation: ConversationController;
   readonly policySearch: PolicySearchController;
 }
 
@@ -116,6 +120,11 @@ export interface ContainerOptions {
   readonly repositories: Repositories;
   /** Returns the current time. */
   readonly now: () => Date;
+  /**
+   * A model that replaces the one `CONVERSATION_MODEL` selects. A permanent test seam, used by
+   * the harnesses to inject the scripted fake; production never sets it (ADR-0015 section 1).
+   */
+  readonly conversationModel?: ConversationModel;
 }
 
 /** Everything the app needs to register its routes. */
@@ -136,8 +145,17 @@ export function createContainer(options: ContainerOptions): AppDependencies {
   const academic = wireAcademic(options, access.studentsService, access.access);
   const plans = wirePlans(options, access.access, academic.scheduleOptionsService);
   const cases = wireCases(options, access.access, plans.views);
-  const conversation = wireConversation(options, access.access);
   const policy = wirePolicy(options);
+  const conversation = wireConversation(options, access.access, {
+    tools: wireConversationTools({
+      access: access.access,
+      academicSummary: academic.academicSummaryService,
+      policySearch: policy.policySearchService,
+      scheduleOptions: academic.scheduleOptionsService,
+      planViews: plans.views,
+    }),
+    policySearch: policy.policySearchService,
+  });
   return {
     controllers: {
       health: createHealthController(

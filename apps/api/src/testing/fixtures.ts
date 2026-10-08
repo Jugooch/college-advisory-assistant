@@ -78,7 +78,10 @@ function signInAs(identity: UserIdentity): DevTokenIdentity {
 export function buildWorldApp(
   logStream?: LogDestination,
   repositoryOverrides: Partial<Repositories> = {},
-  settings: Pick<TestAppOptions, 'solverWorkCap'> = {},
+  settings: Pick<
+    TestAppOptions,
+    'solverWorkCap' | 'conversationModel' | 'conversationRateLimit' | 'conversationHistoryTurns'
+  > = {},
 ): {
   app: FastifyInstance;
   store: InMemoryStore;
