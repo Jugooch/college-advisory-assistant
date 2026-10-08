@@ -13,6 +13,7 @@ import {
   type Plan,
   type PlanId,
   PlanIdSchema,
+  type PlanRevisionId,
   type StudentId,
 } from '@caa/domain';
 
@@ -111,6 +112,21 @@ export interface PlanRepository {
   ): Promise<StoredPlanRevision | null>;
 
   /**
+   * Finds one revision by its ID, without knowing the plan.
+   *
+   * @param tenantId - Tenant from the session.
+   * @param revisionId - Revision to find.
+   * @returns The revision with its opaque result, or null when absent, another tenant's, or its
+   *   student was deleted by the source.
+   * @throws {z.ZodError} When the stored row fails the domain schema.
+   */
+  // TODO(#440): make this required once the QA and api in-memory fakes implement it.
+  findRevisionById?(
+    tenantId: InstitutionId,
+    revisionId: PlanRevisionId,
+  ): Promise<StoredPlanRevision | null>;
+
+  /**
    * Lists the student's plans, newest first, each with its newest revision.
    *
    * @param tenantId - Tenant from the session.
@@ -183,9 +199,11 @@ async function readRevisionRow(
  * Creates the plan repository.
  *
  * @param db - Typed database handle.
- * @returns A {@link PlanRepository}.
+ * @returns A {@link PlanRepository} that always implements `findRevisionById`.
  */
-export function createPlanRepository(db: Database): PlanRepository {
+export function createPlanRepository(db: Database): PlanRepository & {
+  readonly findRevisionById: NonNullable<PlanRepository['findRevisionById']>;
+} {
   return {
     createWithFirstRevision: (tenantId, newPlan, firstRevision) =>
       createPlanWithRevision(db)(tenantId, newPlan, firstRevision),
@@ -205,6 +223,19 @@ export function createPlanRepository(db: Database): PlanRepository {
       }
       const row = await readRevisionRow(db, tenantId, { planId, revision });
       return row ? toStoredPlanRevision(row) : null;
+    },
+
+    async findRevisionById(tenantId, revisionId) {
+      const [row] = await db
+        .select()
+        .from(planRevisionTable)
+        // SECURITY: filtered by tenant, so another tenant's revision ID finds nothing.
+        .where(and(eq(planRevisionTable.tenantId, tenantId), eq(planRevisionTable.id, revisionId)));
+      if (!row) {
+        return null;
+      }
+      const [plan] = await readVisiblePlans(db, tenantId, eq(planTable.id, row.planId));
+      return plan ? toStoredPlanRevision(row) : null;
     },
 
     async listForStudent(tenantId, studentId) {
