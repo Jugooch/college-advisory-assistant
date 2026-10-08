@@ -29,11 +29,7 @@ import {
   createConversationRepositories,
 } from './conversation-repositories';
 import { createPlanRepositories, type PlanRepositories, type PlanWorld } from './plan-repositories';
-import {
-  createPolicyRepositories,
-  type PolicyDocumentWorld,
-  type PolicyRepositories,
-} from './policy-repositories';
+import { createPolicyRepositories, type PolicyDocumentWorld } from './policy-repositories';
 import {
   createProgramRepositories,
   type ProgramRepositories,
@@ -239,7 +235,7 @@ export function buildAcceptanceApp(
     SCHEDULE_SOLVER_WORK_CAP: String(options.solverWorkCap ?? ACCEPTANCE_SOLVER_WORK_CAP),
   });
   // NOTE: the intersection lets the harness provide repositories before the API adds them to
-  // `Repositories`: `studentUserLinks` (#151), the schedule ones (#221), and `programs` (#187), and `plans` (#409), and `cases` (#411), and `policyDocuments` (#506) and `conversations` (#507). Once they're there,
+  // `Repositories`: `studentUserLinks` (#151), the schedule ones (#221), and `programs` (#187), and `plans` (#409), and `cases` (#411), and and `conversations` (#507). Once they're there,
   // the intersection is redundant and can go.
   const repositories: Repositories & {
     studentUserLinks: StudentUserLinkRepository;
@@ -247,7 +243,6 @@ export function buildAcceptanceApp(
     ProgramRepositories &
     PlanRepositories &
     CaseRepositories &
-    PolicyRepositories &
     ConversationRepositories = {
     userIdentities: createIdentities(world),
     students: createStudents(world),
