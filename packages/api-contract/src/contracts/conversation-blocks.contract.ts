@@ -77,7 +77,7 @@ const CasePreviewBlockSchema = z
     planRevision: z.number().int().min(1).nullable(),
     /** What is disputed. Set exactly for a source discrepancy, otherwise `null`. */
     discrepancySubject: DiscrepancySubjectSchema.nullable(),
-    /** Suggested note the student can edit. Empty when the output guard rejected the text. */
+    /** Always empty: the model can't suggest a note; the student writes it in the case form (ADR-0015 Amendment 1). */
     suggestedNote: z.string().max(STUDENT_NOTE_MAX_LENGTH),
     /** Who receives the case, for example "advisors assigned to you". */
     queueLabel: z.string().min(1).max(100),

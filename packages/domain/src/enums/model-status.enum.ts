@@ -9,6 +9,7 @@ import { z } from 'zod';
 /** How the model boundary ended for one assistant turn. */
 export const ModelStatus = {
   Answered: 'ANSWERED',
+  /** The server chose the reply instead of the model (invalid intro id or tier-1 crisis). */
   Guarded: 'GUARDED',
   BudgetExhausted: 'BUDGET_EXHAUSTED',
   ModelUnavailable: 'MODEL_UNAVAILABLE',
