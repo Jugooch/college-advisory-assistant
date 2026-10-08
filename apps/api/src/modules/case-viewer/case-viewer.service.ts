@@ -60,7 +60,6 @@ export function createCaseViewerService(dependencies: CaseViewerDependencies): C
     return toCaseView({
       advisingCase,
       events: stored.events,
-      studentUserId,
       viewer: actor,
       context:
         advisingCase.planRevisionId === null
