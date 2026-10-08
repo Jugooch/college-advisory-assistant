@@ -40,44 +40,60 @@ const TEMPLATE_FIELDS = {
  * stored schedule or plan block is re-run or reopened, never replayed as current.
  */
 export const AssistantBlockRefSchema = z.discriminatedUnion('kind', [
-  z.strictObject({
-    kind: z.literal(AssistantBlockKind.ScheduleOptions),
-    /** When the options were shown. ISO 8601 with offset. */
-    shownAt: z.iso.datetime({ offset: true }),
-  }),
-  z.strictObject({
-    kind: z.literal(AssistantBlockKind.PlanEvidence),
-    planId: PlanIdSchema,
-    planRevisionId: PlanRevisionIdSchema,
-    revision: z.number().int().min(1),
-  }),
-  z.strictObject({
-    kind: z.literal(AssistantBlockKind.AcademicSummary),
-    /** When the summary was shown. ISO 8601 with offset. */
-    shownAt: z.iso.datetime({ offset: true }),
-  }),
-  z.strictObject({
-    kind: z.literal(AssistantBlockKind.PolicyResults),
-    documents: z.array(PolicyRevisionRefSchema).max(MAX_POLICY_REFS).readonly(),
-  }),
-  z.strictObject({
-    kind: z.literal(AssistantBlockKind.ConstraintProposal),
-    constraints: ScheduleConstraintSetSchema,
-  }),
-  z.strictObject({
-    kind: z.literal(AssistantBlockKind.CasePreview),
-    reason: CaseReasonSchema,
-  }),
-  z.strictObject({
-    kind: z.literal(AssistantBlockKind.Notice),
-    code: NoticeCodeSchema,
-    ...TEMPLATE_FIELDS,
-  }),
-  z.strictObject({
-    kind: z.literal(AssistantBlockKind.Referral),
-    topic: SpecialistTopicSchema,
-    ...TEMPLATE_FIELDS,
-  }),
+  z
+    .strictObject({
+      kind: z.literal(AssistantBlockKind.ScheduleOptions),
+      /** When the options were shown. ISO 8601 with offset. */
+      shownAt: z.iso.datetime({ offset: true }),
+    })
+    .readonly(),
+  z
+    .strictObject({
+      kind: z.literal(AssistantBlockKind.PlanEvidence),
+      planId: PlanIdSchema,
+      planRevisionId: PlanRevisionIdSchema,
+      revision: z.number().int().min(1),
+    })
+    .readonly(),
+  z
+    .strictObject({
+      kind: z.literal(AssistantBlockKind.AcademicSummary),
+      /** When the summary was shown. ISO 8601 with offset. */
+      shownAt: z.iso.datetime({ offset: true }),
+    })
+    .readonly(),
+  z
+    .strictObject({
+      kind: z.literal(AssistantBlockKind.PolicyResults),
+      documents: z.array(PolicyRevisionRefSchema).max(MAX_POLICY_REFS).readonly(),
+    })
+    .readonly(),
+  z
+    .strictObject({
+      kind: z.literal(AssistantBlockKind.ConstraintProposal),
+      constraints: ScheduleConstraintSetSchema,
+    })
+    .readonly(),
+  z
+    .strictObject({
+      kind: z.literal(AssistantBlockKind.CasePreview),
+      reason: CaseReasonSchema,
+    })
+    .readonly(),
+  z
+    .strictObject({
+      kind: z.literal(AssistantBlockKind.Notice),
+      code: NoticeCodeSchema,
+      ...TEMPLATE_FIELDS,
+    })
+    .readonly(),
+  z
+    .strictObject({
+      kind: z.literal(AssistantBlockKind.Referral),
+      topic: SpecialistTopicSchema,
+      ...TEMPLATE_FIELDS,
+    })
+    .readonly(),
 ]);
 
 /** A validated stored block reference. */

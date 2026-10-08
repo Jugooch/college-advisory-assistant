@@ -41,6 +41,7 @@ export * from './models/academic-policy.model';
 export * from './models/actor.model';
 export * from './models/advising-case.model';
 export * from './models/advisor-assignment.model';
+export * from './models/assistant-block-ref.model';
 export * from './models/audit-snapshot.model';
 export * from './models/campus.model';
 export * from './models/campus-transition-policy.model';

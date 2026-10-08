@@ -6,7 +6,7 @@
  */
 import { z } from 'zod';
 
-import { ModelStatusSchema } from '../enums/model-status.enum';
+import { StoredModelStatusSchema } from '../enums/model-status.enum';
 import { TurnRole } from '../enums/turn-role.enum';
 import { AssistantBlockRefSchema, PolicyRevisionRefSchema } from './assistant-block-ref.model';
 import { ConversationIdSchema } from './conversation.model';
@@ -77,7 +77,7 @@ export const ConversationTurnSchema = z.discriminatedUnion('role', [
       role: z.literal(TurnRole.Assistant),
       text: z.string().max(ASSISTANT_TURN_MAX_LENGTH),
       blockRefs: z.array(AssistantBlockRefSchema).max(MAX_TURN_BLOCKS).readonly(),
-      modelStatus: ModelStatusSchema,
+      modelStatus: StoredModelStatusSchema,
       metadata: AssistantTurnMetadataSchema,
     })
     .readonly(),

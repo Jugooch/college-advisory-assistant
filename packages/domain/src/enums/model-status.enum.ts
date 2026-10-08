@@ -21,3 +21,14 @@ export type ModelStatus = (typeof ModelStatus)[keyof typeof ModelStatus];
 
 /** Runtime schema for {@link ModelStatus}. */
 export const ModelStatusSchema = z.enum(ModelStatus);
+
+/**
+ * Schema for the statuses a stored assistant turn can carry. `RATE_LIMITED` and `DISABLED`
+ * store nothing (ADR-0015 §2), so a turn with either is refused.
+ */
+export const StoredModelStatusSchema = z.enum([
+  ModelStatus.Answered,
+  ModelStatus.Guarded,
+  ModelStatus.BudgetExhausted,
+  ModelStatus.ModelUnavailable,
+]);
