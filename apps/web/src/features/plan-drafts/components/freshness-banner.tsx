@@ -14,9 +14,9 @@ import type { PlanFreshnessView } from '@caa/api-contract';
 
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Timestamp } from '@/shared/components/timestamp';
+import { describeFreshness, describeStaleReason } from '@/shared/utils/freshness-wording';
 
 import { describeFreshnessBanner } from '../utils/plan-detail-wording';
-import { describeFreshness, describeStaleReason } from '../utils/plan-wording';
 
 /** Props for {@link FreshnessBanner}. */
 export interface FreshnessBannerProps {

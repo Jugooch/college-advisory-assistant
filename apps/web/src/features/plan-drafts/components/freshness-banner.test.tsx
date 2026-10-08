@@ -14,7 +14,8 @@ import {
   buildUnknownPlanFreshnessView,
 } from '@caa/test-kit';
 
-import { describeStaleReason } from '../utils/plan-wording';
+import { describeStaleReason } from '@/shared/utils/freshness-wording';
+
 import { FreshnessBanner } from './freshness-banner';
 
 describe('FreshnessBanner', () => {

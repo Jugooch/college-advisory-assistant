@@ -15,13 +15,9 @@ import {
 } from '@caa/test-kit';
 
 import { savePlanDraft } from '@/api/plan-drafts.api';
+import { optionSectionIds } from '@/shared/utils/option-section-ids';
 
-import {
-  DRAFT_FIELD,
-  encodeSaveDraft,
-  optionSectionIds,
-  STUDENT_FIELD,
-} from '../utils/save-draft-form';
+import { DRAFT_FIELD, encodeSaveDraft, STUDENT_FIELD } from '../utils/save-draft-form';
 import { IDLE_SAVE_DRAFT_STATE } from '../utils/save-draft-state';
 import { savePlanDraftAction } from './save-plan-draft.action';
 
