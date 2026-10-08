@@ -2,6 +2,7 @@
  * @file Public API of @caa/domain. Other packages import only from here.
  * @module @caa/domain
  */
+export * from './enums/assistant-block-kind.enum';
 export * from './enums/attempt-status.enum';
 export * from './enums/auth-mode.enum';
 export * from './enums/case-action.enum';
@@ -18,6 +19,8 @@ export * from './enums/grade-scheme.enum';
 export * from './enums/identity-status.enum';
 export * from './enums/import-batch-status.enum';
 export * from './enums/import-operation.enum';
+export * from './enums/model-status.enum';
+export * from './enums/notice-code.enum';
 export * from './enums/plan-freshness.enum';
 export * from './enums/plan-revision-cause.enum';
 export * from './enums/policy-approval-status.enum';
@@ -32,17 +35,21 @@ export * from './enums/schedule-constraint.enum';
 export * from './enums/schedule-outcome.enum';
 export * from './enums/section-modality.enum';
 export * from './enums/specialist-topic.enum';
+export * from './enums/turn-role.enum';
 export * from './enums/weekday.enum';
 export * from './models/academic-policy.model';
 export * from './models/actor.model';
 export * from './models/advising-case.model';
 export * from './models/advisor-assignment.model';
+export * from './models/assistant-block-ref.model';
 export * from './models/audit-snapshot.model';
 export * from './models/campus.model';
 export * from './models/campus-transition-policy.model';
 export * from './models/case-event.model';
 export * from './models/check-evidence.model';
 export * from './models/check-result.model';
+export * from './models/conversation.model';
+export * from './models/conversation-turn.model';
 export * from './models/course.model';
 export * from './models/course-attempt.model';
 export * from './models/credit-selection.model';
