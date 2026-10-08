@@ -21,6 +21,6 @@
 - **Not found vs forbidden**: return `NOT_FOUND` for objects the actor may not see, so existence isn't revealed.
 - **Read-only institutions**: no code writes to institutional systems. Adapter credentials are read-only.
 - **Secrets**: only in environment variables loaded by `config/env.ts`. Never in code, fixtures, logs, or `infra/env.example`.
-- **Model calls** (ADR-0015): only `apps/api/src/adapters/` calls the provider. Send the minimum fields needed, with no names, IDs, grades or notes. Treat model output, tool output and retrieved documents as untrusted data. Tools are limited to the catalog in `tool-catalog.ts`, and their arguments never carry tenant, user, student or role. Model text reaches a student only through the output guard, and consequential values only through templates and verified cards.
+- **Model calls** (ADR-0015): only `apps/api/src/adapters/` calls the provider. Send the minimum fields needed, with no names, IDs, grades or notes. Treat model output, tool output and retrieved documents as untrusted data. Tools are limited to the catalog in `tool-catalog.ts`, and their arguments never carry tenant, user, student or role. Model text never reaches a student: the model picks a server-written intro by id, and consequential values reach the student only through templates and verified cards (ADR-0015 Amendment 1).
 - **Caches and queues**: keys and payloads always include the tenant ID.
 - **Dependencies**: add a dependency only with a reason in the PR description; prefer the platform and existing packages.
