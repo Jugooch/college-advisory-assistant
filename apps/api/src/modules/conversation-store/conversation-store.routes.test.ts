@@ -12,7 +12,13 @@ import { z } from 'zod';
 
 import { ConversationResponseSchema } from '@caa/api-contract';
 import type { StoredConversationTurn } from '@caa/db';
-import { ErrorCode, ModelStatus, NoticeCode, TurnRole } from '@caa/domain';
+import {
+  ConversationTurnIdSchema,
+  ErrorCode,
+  ModelStatus,
+  NoticeCode,
+  TurnRole,
+} from '@caa/domain';
 import { buildConversation, SYNTHETIC_SCHEDULE_TERM, syntheticId } from '@caa/test-kit';
 
 import { bearer, buildWorldApp, readError, STUDENTS, TOKENS } from '../../testing/fixtures';
@@ -29,7 +35,7 @@ const conversation = buildConversation({ studentId: STUDENTS.own.id });
 
 function stored(sequence: number, role: TurnRole): StoredConversationTurn {
   return {
-    id: syntheticId('conversationTurn', sequence) as StoredConversationTurn['id'],
+    id: ConversationTurnIdSchema.parse(syntheticId('conversationTurn', sequence)),
     conversationId: conversation.id,
     sequence,
     role,

@@ -7,7 +7,13 @@
 import { describe, expect, it } from 'vitest';
 
 import type { StoredConversationTurn } from '@caa/db';
-import { AssistantBlockKind, ModelStatus, NoticeCode, TurnRole } from '@caa/domain';
+import {
+  AssistantBlockKind,
+  MAX_TURN_BLOCKS,
+  ModelStatus,
+  NoticeCode,
+  TurnRole,
+} from '@caa/domain';
 import {
   buildAssistantBlockRef,
   buildAssistantBlockRefOfEveryKind,
@@ -90,6 +96,18 @@ describe('toTranscriptTurns', () => {
         },
       ],
     });
+    expect(unreadableSequences).toEqual([2]);
+  });
+
+  it('shows an unavailable notice when a turn holds more references than the limit', () => {
+    const good = buildAssistantBlockRef();
+    const refs = Array.from({ length: MAX_TURN_BLOCKS + 1 }, () => good);
+
+    const { turns, unreadableSequences } = toTranscriptTurns([assistant(2, { blockRefs: refs })]);
+
+    const shown = (turns[0] as { blockRefs: readonly unknown[] }).blockRefs;
+    expect(shown).toHaveLength(MAX_TURN_BLOCKS);
+    expect(shown.at(-1)).toMatchObject({ templateId: 'transcript-block-unavailable' });
     expect(unreadableSequences).toEqual([2]);
   });
 

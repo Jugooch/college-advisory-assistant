@@ -55,9 +55,12 @@ function parseBlockRefs(stored: unknown): {
   }
   const items: readonly unknown[] = stored.slice(0, MAX_TURN_BLOCKS);
   const parsed = items.map((item) => AssistantBlockRefSchema.safeParse(item));
+  const kept = parsed.map((result) => (result.success ? result.data : UNAVAILABLE_BLOCK));
+  const isOverLimit = stored.length > MAX_TURN_BLOCKS;
   return {
-    refs: parsed.map((result) => (result.success ? result.data : UNAVAILABLE_BLOCK)),
-    hasUnreadable: stored.length > MAX_TURN_BLOCKS || parsed.some((result) => !result.success),
+    // The last kept slot becomes the notice, so dropped references are never silent.
+    refs: isOverLimit ? [...kept.slice(0, MAX_TURN_BLOCKS - 1), UNAVAILABLE_BLOCK] : kept,
+    hasUnreadable: isOverLimit || parsed.some((result) => !result.success),
   };
 }
 
