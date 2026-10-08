@@ -54,15 +54,15 @@ const TOPIC_PATTERNS: readonly (readonly [SpecialistTopic, RegExp])[] = [
 // SAFETY: tier 1 is first-person self-harm or suicide phrases only (ADR-0015 Amendment 1). It skips the model and shows the crisis referral.
 const TIER1_PATTERN = new RegExp(
   [
-    '\\bkill(ing)? myself\\b',
+    '\\bkill(ing|ed)? my ?self\\b',
     '\\bsuicidal\\b',
     '\\bend(ing)? my (own )?life\\b',
     '\\b(take|taking|took) my (own )?life\\b',
-    '\\b(want to|wanna) die\\b',
+    '\\b(want to|wanna) (die|be dead)\\b',
     '\\bwish i (was|were) dead\\b',
     '\\bbetter off dead\\b',
-    '\\bhurt(ing)? myself\\b',
-    '\\bkms\\b',
+    '\\bhurt(ing)? my ?self\\b',
+    '\\bk\\.? ?m\\.? ?s\\b',
   ].join('|'),
 );
 
