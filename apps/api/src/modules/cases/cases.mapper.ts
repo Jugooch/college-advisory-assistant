@@ -18,7 +18,7 @@ import {
   type AdvisingCase,
   CaseAction,
   type CaseEvent,
-  Role,
+  type Role,
   type UserId,
 } from '@caa/domain';
 
@@ -41,35 +41,18 @@ export interface CaseViewSource {
 }
 
 /**
- * Names the role a user acted as. The case stores a user, not the role they held, so the
- * student is the user linked to the student record, the viewer is their own staff role, and any
- * other staff user is shown as an advisor.
+ * Names the owner's role: the stored role of the latest CLAIM event. A role is never inferred.
  *
- * @param userId - The actor of an event, or the owner of the case.
- * @param source - The case and viewer being shown.
- * @returns The role to show.
- */
-function roleOf(userId: UserId, source: CaseViewSource): Role {
-  if (userId === source.studentUserId) {
-    return Role.Student;
-  }
-  const isAdminOnly =
-    userId === source.viewer.userId &&
-    source.viewer.roles.includes(Role.Admin) &&
-    !source.viewer.roles.includes(Role.Advisor);
-  return isAdminOnly ? Role.Admin : Role.Advisor;
-}
-
-/**
- * Names the owner's role: the stored role of the latest CLAIM event, else the inferred role.
- *
- * @param ownerUserId - The case's owner.
  * @param source - The case, its events, and the viewer being shown.
  * @returns The role to show.
+ * @throws {Error} When the case has an owner but no CLAIM event, which breaks the case contract.
  */
-function ownerRoleOf(ownerUserId: UserId, source: CaseViewSource): Role {
+function ownerRoleOf(source: CaseViewSource): Role {
   const claim = source.events.findLast((event) => event.action === CaseAction.Claim);
-  return claim?.actorRole ?? roleOf(ownerUserId, source);
+  if (claim === undefined) {
+    throw new Error('Stored case has an owner but no CLAIM event');
+  }
+  return claim.actorRole;
 }
 
 /**
@@ -114,7 +97,7 @@ export function toCaseView(source: CaseViewSource): CaseView {
       advisingCase.ownerUserId === null
         ? null
         : {
-            role: ownerRoleOf(advisingCase.ownerUserId, source),
+            role: ownerRoleOf(source),
             isYou: advisingCase.ownerUserId === source.viewer.userId,
           },
     createdAt: advisingCase.createdAt,

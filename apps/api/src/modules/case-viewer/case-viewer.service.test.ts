@@ -12,6 +12,7 @@ import {
   buildAdvisingCase,
   buildCaseEvent,
   buildInReviewAdvisingCase,
+  buildInReviewCaseEvents,
   buildPlanRevisionView,
   buildStudent,
 } from '@caa/test-kit';
@@ -52,7 +53,7 @@ describe('CaseViewerService.viewCase', () => {
 
     const view = await viewer.viewCase(
       actor,
-      { advisingCase: buildInReviewAdvisingCase(), events },
+      { advisingCase: buildInReviewAdvisingCase(), events: buildInReviewCaseEvents() },
       { logger },
     );
 

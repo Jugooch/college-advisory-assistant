@@ -206,4 +206,38 @@ describe('toCaseView stored roles', () => {
 
     expect(view.owner?.role).toBe(Role.Advisor);
   });
+
+  it('shows one event with the same role to every viewer, only isYou differs', () => {
+    const views = [student, advisor, admin].map((viewer) =>
+      toCaseView({
+        advisingCase: { ...advisingCase, ownerUserId: admin.userId },
+        events: adminClaim,
+        studentUserId: student.userId,
+        viewer,
+        context,
+        allowedActions: [],
+      }),
+    );
+
+    expect(views.map((v) => v.events[1]?.actorRole)).toEqual([Role.Admin, Role.Admin, Role.Admin]);
+    expect(views.map((v) => v.events[1]?.isYou)).toEqual([false, false, true]);
+    expect(views.map((v) => v.owner)).toEqual([
+      { role: Role.Admin, isYou: false },
+      { role: Role.Admin, isYou: false },
+      { role: Role.Admin, isYou: true },
+    ]);
+  });
+
+  it('fails closed when the case has an owner but no CLAIM event', () => {
+    expect(() =>
+      toCaseView({
+        advisingCase: { ...advisingCase, ownerUserId: advisor.userId },
+        events: adminClaim.slice(0, 1),
+        studentUserId: student.userId,
+        viewer: advisor,
+        context,
+        allowedActions: [],
+      }),
+    ).toThrow('owner but no CLAIM');
+  });
 });
