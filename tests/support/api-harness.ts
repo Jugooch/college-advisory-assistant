@@ -61,6 +61,10 @@ export const ACCEPTANCE_SOLVER_WORK_CAP = 3_000_000;
 export interface AcceptanceOptions {
   /** `SCHEDULE_SOLVER_WORK_CAP`; defaults to {@link ACCEPTANCE_SOLVER_WORK_CAP}. */
   readonly solverWorkCap?: number;
+  /** The clock; defaults to {@link ACCEPTANCE_NOW}. */
+  readonly now?: Date;
+  /** `ACTIVE_RULESET_VERSION`; defaults to {@link ACCEPTANCE_RULESET_VERSION}. */
+  readonly rulesetVersion?: string;
 }
 
 /** The API app, not yet listening. */
@@ -206,7 +210,7 @@ export function buildAcceptanceApp(
     DATABASE_URL: 'postgres://unused.invalid/acceptance',
     AUTH_MODE: AuthMode.Dev,
     DEV_AUTH_TOKENS: JSON.stringify(tokenMap),
-    ACTIVE_RULESET_VERSION: ACCEPTANCE_RULESET_VERSION,
+    ACTIVE_RULESET_VERSION: options.rulesetVersion ?? ACCEPTANCE_RULESET_VERSION,
     ACADEMIC_SOURCE_MAX_AGE_MS: String(ACCEPTANCE_SOURCE_MAX_AGE_MS),
     AUDIT_RECORD_MAX_SKEW_MS: String(ACCEPTANCE_AUDIT_SKEW_MS),
     SCHEDULE_SOLVER_WORK_CAP: String(options.solverWorkCap ?? ACCEPTANCE_SOLVER_WORK_CAP),
@@ -231,7 +235,7 @@ export function buildAcceptanceApp(
     ...createCaseRepositories(world),
   };
   return buildApp({
-    dependencies: createContainer({ env, repositories, now: () => ACCEPTANCE_NOW }),
+    dependencies: createContainer({ env, repositories, now: () => options.now ?? ACCEPTANCE_NOW }),
     logger: false,
   });
 }
