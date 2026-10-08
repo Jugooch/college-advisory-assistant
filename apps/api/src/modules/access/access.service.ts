@@ -47,6 +47,42 @@ export interface AccessService {
    * @returns True only when the student is in the actor's tenant and linked to the actor's user.
    */
   canSavePlan(actor: Actor, studentId: StudentId, context: RequestContext): Promise<boolean>;
+
+  /**
+   * Decides whether the actor may open an advisor case for the student. Only the student's own
+   * record qualifies: an assigned advisor or an admin may read a case, not open one for the
+   * student (ADR-0013 §6).
+   *
+   * @param actor - Authenticated actor from the session.
+   * @param studentId - Internal student ID from the path.
+   * @param context - Request-scoped values; the decision is logged with opaque IDs only.
+   * @returns True only when the student is in the actor's tenant and linked to the actor's user.
+   */
+  canOpenCase(actor: Actor, studentId: StudentId, context: RequestContext): Promise<boolean>;
+}
+
+/**
+ * Decides whether the student record is the actor's own: a student in the actor's tenant whose
+ * linked user is the actor.
+ *
+ * @param students - Student repository.
+ * @param actor - Authenticated actor from the session.
+ * @param studentId - Internal student ID from the path.
+ * @returns True only for the student's own record.
+ */
+async function isOwnRecord(
+  students: StudentRepository,
+  actor: Actor,
+  studentId: StudentId,
+): Promise<boolean> {
+  // SECURITY: the tenant comes from the session actor, never from the request.
+  const student = await students.findById(actor.tenantId, studentId);
+  return (
+    student !== null &&
+    student.tenantId === actor.tenantId &&
+    actor.roles.includes(Role.Student) &&
+    student.userId === actor.userId
+  );
 }
 
 /**
@@ -95,18 +131,21 @@ export function createAccessService(dependencies: AccessServiceDependencies): Ac
       return isAllowed;
     },
     async canSavePlan(actor, studentId, context) {
-      // SECURITY: the tenant comes from the session actor, never from the request.
-      const student = await dependencies.students.findById(actor.tenantId, studentId);
       // SECURITY: authoring is limited to the student's own record, so an advisor or admin who
       // can read the plan still can't save one for the student (ADR-0013 §5).
-      const isAllowed =
-        student !== null &&
-        student.tenantId === actor.tenantId &&
-        actor.roles.includes(Role.Student) &&
-        student.userId === actor.userId;
+      const isAllowed = await isOwnRecord(dependencies.students, actor, studentId);
       context.logger.info(
         { actorUserId: actor.userId, tenantId: actor.tenantId, studentId, isAllowed },
         'plan save access decision',
+      );
+      return isAllowed;
+    },
+    async canOpenCase(actor, studentId, context) {
+      // SECURITY: only the student opens a case, and only for their own record (ADR-0013 §6).
+      const isAllowed = await isOwnRecord(dependencies.students, actor, studentId);
+      context.logger.info(
+        { actorUserId: actor.userId, tenantId: actor.tenantId, studentId, isAllowed },
+        'case open access decision',
       );
       return isAllowed;
     },

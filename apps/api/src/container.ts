@@ -4,12 +4,14 @@
  */
 import {
   type AcademicPolicyRepository,
+  type AdvisingCaseRepository,
   type AdvisorAssignmentRepository,
   type AuditSnapshotRepository,
   type CampusRepository,
   type CampusTransitionRepository,
   type CourseCatalogRepository,
   createAcademicPolicyRepository,
+  createAdvisingCaseRepository,
   createAdvisorAssignmentRepository,
   createAuditSnapshotRepository,
   createCampusRepository,
@@ -42,6 +44,9 @@ import {
 } from './modules/academic-summary/academic-summary.controller';
 import { createAcademicSummaryService } from './modules/academic-summary/academic-summary.service';
 import { type AccessService, createAccessService } from './modules/access/access.service';
+import { createCaseContextService } from './modules/case-context/case-context.service';
+import { type CasesController, createCasesController } from './modules/cases/cases.controller';
+import { createCasesService } from './modules/cases/cases.service';
 import {
   type CourseChecksController,
   createCourseChecksController,
@@ -103,6 +108,7 @@ export interface Controllers {
   readonly plannableTerms: PlannableTermsController;
   readonly planDrafts: PlanDraftsController;
   readonly planViews: PlanViewsController;
+  readonly cases: CasesController;
 }
 
 /** Every repository the API reads through. Tests pass in-memory fakes. */
@@ -123,6 +129,7 @@ export interface Repositories {
   readonly campusTransitions: CampusTransitionRepository;
   readonly campuses: CampusRepository;
   readonly plans: PlanRepository;
+  readonly cases: AdvisingCaseRepository;
 }
 
 /** What {@link createContainer} needs. */
@@ -154,18 +161,19 @@ function createSessionResolver(env: ApiEnv, identities: UserIdentityRepository):
 }
 
 /**
- * Builds the plan controllers: saves replay schedule options, and reads derive freshness.
+ * Builds the plan and case controllers: saves replay schedule options, reads derive freshness,
+ * and a case freezes a saved revision, shown with its freshness.
  *
  * @param options - Configuration, repositories, and clock.
  * @param access - The access rule, including who may author a plan.
  * @param scheduleOptions - The existing schedule options service the save replays.
- * @returns The plan drafts controller.
+ * @returns The plan drafts, plan views, and cases controllers.
  */
 function createPlanControllers(
   options: ContainerOptions,
   access: AccessService,
   scheduleOptions: ScheduleOptionsService,
-): Pick<Controllers, 'planDrafts' | 'planViews'> {
+): Pick<Controllers, 'planDrafts' | 'planViews' | 'cases'> {
   const { env, repositories, now } = options;
   const freshness = createPlanFreshnessService({
     ...repositories,
@@ -175,9 +183,11 @@ function createPlanControllers(
   });
   const views = createPlanViewsService({ ...repositories, access, freshness });
   const drafts = createPlanDraftsService({ ...repositories, access, scheduleOptions, views, now });
+  const caseContext = createCaseContextService({ plans: repositories.plans, views });
   return {
     planDrafts: createPlanDraftsController(drafts),
     planViews: createPlanViewsController(views),
+    cases: createCasesController(createCasesService({ ...repositories, access, caseContext, now })),
   };
 }
 
@@ -196,7 +206,7 @@ function createAcademicControllers(
   access: AccessService,
 ): Pick<
   Controllers,
-  'academicSummary' | 'courseChecks' | 'scheduleOptions' | 'planDrafts' | 'planViews'
+  'academicSummary' | 'courseChecks' | 'scheduleOptions' | 'planDrafts' | 'planViews' | 'cases'
 > {
   const { env, repositories, now } = options;
   const pinnedRecords = createPinnedRecordsService({
@@ -246,27 +256,18 @@ export function createContainer(options: ContainerOptions): AppDependencies {
     now,
     authMode: env.AUTH_MODE,
   });
-  const accessService = createAccessService({
-    students: repositories.students,
-    advisorAssignments: repositories.advisorAssignments,
-    now,
-  });
-  const studentsService = createStudentsService({
-    access: accessService,
-    students: repositories.students,
-  });
+  const accessService = createAccessService({ ...repositories, now });
+  const studentsService = createStudentsService({ ...repositories, access: accessService });
   return {
     controllers: {
       health: createHealthController(healthService),
-      session: createSessionController(
-        createSessionService({ studentUserLinks: repositories.studentUserLinks }),
-      ),
+      session: createSessionController(createSessionService(repositories)),
       students: createStudentsController(studentsService),
       ...createAcademicControllers(options, studentsService, accessService),
       plannableTerms: createPlannableTermsController(
         createPlannableTermsService({
+          ...repositories,
           access: accessService,
-          sectionSnapshots: repositories.sectionSnapshots,
           now,
           maxSourceAgeMs: env.ACADEMIC_SOURCE_MAX_AGE_MS,
         }),
@@ -302,6 +303,7 @@ export function createRuntimeDependencies(env: ApiEnv): AppDependencies {
     campusTransitions: createCampusTransitionRepository(db),
     campuses: createCampusRepository(db),
     plans: createPlanRepository(db),
+    cases: createAdvisingCaseRepository(db),
   };
   return createContainer({ env, repositories, now: () => new Date() });
 }
