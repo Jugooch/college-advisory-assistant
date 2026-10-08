@@ -22,13 +22,17 @@ import {
   toolCallStep,
   ToolName,
 } from '@caa/assistant';
+import type { StoredConversationTurn } from '@caa/db';
 import {
   AssistantBlockKind,
   AssistantTurnMetadataSchema,
+  ConversationTurnIdSchema,
   ModelStatus,
   NoticeCode,
   SpecialistTopic,
+  TurnRole,
 } from '@caa/domain';
+import { syntheticId } from '@caa/test-kit';
 
 import { setupTurnApp, TURN_TERM_ID } from '../../testing/conversation-turn-harness';
 import { bearer, STUDENTS, TEST_NOW, TOKENS } from '../../testing/fixtures';
@@ -148,5 +152,93 @@ describe('POST /v1/students/:studentId/conversation/turns', () => {
       { role: 'assistant', text: INTRO_TEXTS[IntroId.AskForDetail], toolCalls: [] },
       { role: 'user', text: 'third question' },
     ]);
+  });
+
+  it('does not let a stale expectedSequence run the model or dodge the rate limit', async () => {
+    const { post, model, store } = setupTurnApp({
+      steps: [finalStep(IntroId.AskForDetail), finalStep(IntroId.AskForDetail)],
+      rateLimit: 2,
+    });
+    await post('one');
+
+    const stale = await post('two', { expectedSequence: 999 });
+    const second = await post('two');
+    const limited = await post('three');
+
+    expect(stale.status).toBe(409);
+    expect(model?.requests).toHaveLength(2);
+    expect(second.turn?.turn.modelStatus).toBe(ModelStatus.Answered);
+    expect(limited.turn?.turn.modelStatus).toBe(ModelStatus.RateLimited);
+    expect(store.studentTurnLog).toHaveLength(2);
+  });
+
+  it('keeps the last sequence through a clear, so only the real last sequence succeeds', async () => {
+    const { post, app, store, conversation } = setupTurnApp({
+      steps: [finalStep(IntroId.AskForDetail), finalStep(IntroId.AskForDetail)],
+    });
+    await post('one');
+
+    await app.inject({
+      method: 'DELETE',
+      url: `/v1/students/${STUDENTS.own.id}/conversation?termId=${TURN_TERM_ID}`,
+      headers: bearer(TOKENS.student),
+    });
+    const staleAfterClear = await post('two', { expectedSequence: 0 });
+    const afterClear = await post('two', { expectedSequence: 2 });
+
+    expect(store.lastSequences?.[conversation.id]).toBe(4);
+    expect(staleAfterClear.status).toBe(409);
+    expect(afterClear.turn?.turn.sequence).toBe(4);
+  });
+
+  describe('retention', () => {
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const seeded = (
+      sequence: number,
+      createdAt: string,
+      conversationId: StoredConversationTurn['conversationId'],
+    ): StoredConversationTurn => ({
+      id: ConversationTurnIdSchema.parse(syntheticId('conversationTurn', sequence)),
+      conversationId,
+      sequence,
+      role: TurnRole.Student,
+      text: 'older',
+      blockRefs: null,
+      modelStatus: null,
+      metadata: null,
+      createdAt,
+    });
+
+    it('deletes turns older than 30 days on the next append and keeps newer ones', async () => {
+      const { post, store, conversation } = setupTurnApp({
+        steps: [finalStep(IntroId.AskForDetail)],
+      });
+      const old = new Date(TEST_NOW.getTime() - 30 * DAY_MS - 1000).toISOString();
+      const recent = new Date(TEST_NOW.getTime() - 29 * DAY_MS).toISOString();
+      store.conversationTurns = [
+        seeded(1, old, conversation.id),
+        seeded(2, recent, conversation.id),
+      ];
+
+      const { turn } = await post('new', { expectedSequence: 2 });
+
+      expect(turn?.turn.sequence).toBe(4);
+      expect(store.conversationTurns.map((stored) => stored.sequence)).toEqual([2, 3, 4]);
+    });
+
+    it('keeps only the newest 100 turns', async () => {
+      const { post, store, conversation } = setupTurnApp({
+        steps: [finalStep(IntroId.AskForDetail)],
+      });
+      store.conversationTurns = Array.from({ length: 100 }, (_, index) =>
+        seeded(index + 1, TEST_NOW.toISOString(), conversation.id),
+      );
+
+      await post('new', { expectedSequence: 100 });
+
+      expect(store.conversationTurns).toHaveLength(100);
+      expect(store.conversationTurns[0]?.sequence).toBe(3);
+      expect(store.conversationTurns.at(-1)?.sequence).toBe(102);
+    });
   });
 });

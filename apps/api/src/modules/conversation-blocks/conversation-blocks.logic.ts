@@ -15,8 +15,9 @@ import {
   AssistantBlockKind,
   type AssistantBlockRef,
   MAX_TURN_BLOCKS,
+  NoticeCode,
   type PolicyRevisionRef,
-  type SpecialistTopic,
+  SpecialistTopic,
 } from '@caa/domain';
 
 /** An approved referral document for a topic and the instant it was judged to apply at. */
@@ -117,4 +118,57 @@ export function toBlockRef(block: AssistantBlock, shownAt: string): AssistantBlo
         templateVersion: block.templateVersion,
       };
   }
+}
+
+/** What the message detectors matched, as plain values. */
+export interface DetectorFacts {
+  /** Tier-1 crisis language. */
+  readonly isCrisisUnambiguous: boolean;
+  /** Tier-2 (ambiguous) crisis language. */
+  readonly isCrisisAmbiguous: boolean;
+  readonly specialistTopics: readonly SpecialistTopic[];
+  readonly isHypothetical: boolean;
+  readonly isOverride: boolean;
+  readonly isGradeDispute: boolean;
+}
+
+/** One detector block to build, in display order. */
+export type DetectorSlot =
+  | { readonly slot: 'CRISIS' }
+  | { readonly slot: 'CRISIS_SUPPORT' }
+  | { readonly slot: 'REFERRAL'; readonly topic: SpecialistTopic }
+  | { readonly slot: 'NOTICE'; readonly code: NoticeCode };
+
+/**
+ * Decides which detector blocks a message adds and their order: crisis first, then specialist
+ * referrals, then the hypothetical, override and grade notices.
+ *
+ * @param facts - What the detectors matched.
+ * @returns The slots in display order.
+ */
+export function planDetectorBlocks(facts: DetectorFacts): readonly DetectorSlot[] {
+  // SAFETY: a tier-1 turn shows only the crisis referral (Amendment 1).
+  if (facts.isCrisisUnambiguous) return [{ slot: 'CRISIS' }];
+  const slots: DetectorSlot[] = [];
+  if (facts.isCrisisAmbiguous) slots.push({ slot: 'CRISIS_SUPPORT' });
+  for (const topic of facts.specialistTopics) slots.push({ slot: 'REFERRAL', topic });
+  if (facts.isHypothetical) {
+    slots.push({ slot: 'NOTICE', code: NoticeCode.HypotheticalNotSupported });
+  }
+  if (facts.isOverride) slots.push({ slot: 'NOTICE', code: NoticeCode.OverrideProcess });
+  if (facts.isGradeDispute) slots.push({ slot: 'NOTICE', code: NoticeCode.GradeDispute });
+  return slots;
+}
+
+/**
+ * Lists the specialist topics a message needs a referral document for, crisis included.
+ *
+ * @param slots - The planned detector blocks.
+ * @returns The topics, crisis first.
+ */
+export function referralTopics(slots: readonly DetectorSlot[]): readonly SpecialistTopic[] {
+  return slots.flatMap((entry): readonly SpecialistTopic[] => {
+    if (entry.slot === 'REFERRAL') return [entry.topic];
+    return entry.slot === 'NOTICE' ? [] : [SpecialistTopic.Crisis];
+  });
 }

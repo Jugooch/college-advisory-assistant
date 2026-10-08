@@ -1,7 +1,6 @@
 /**
  * @file Builds the fixed blocks of a conversation turn from the assistant's templates: the
- * blocks the message detectors add (crisis, specialist referrals, hypothetical, override and
- * grade notices) and the notice that explains a non-answer status.
+ * blocks the message detectors add (rendered from the planned slots) and the notice that explains a non-answer status.
  * @module @caa/api/modules/conversation-blocks/conversation-blocks.mapper
  * @requirement FR-10
  * @requirement AC46
@@ -16,25 +15,33 @@ import {
   renderReferral,
   TEMPLATE_VERSION,
 } from '@caa/assistant';
-import { AssistantBlockKind, NoticeCode, SpecialistTopic } from '@caa/domain';
+import { AssistantBlockKind, type NoticeCode, SpecialistTopic } from '@caa/domain';
 
-import type { ReferralPolicies, ReferralPolicy } from './conversation-blocks.logic';
+import type {
+  DetectorFacts,
+  DetectorSlot,
+  ReferralPolicies,
+  ReferralPolicy,
+} from './conversation-blocks.logic';
 
 /** Template id of the tier-1 crisis referral. */
 export const CRISIS_TEMPLATE_ID = 'referral.crisis';
 
 /**
- * Lists the specialist topics a message needs a referral document for, crisis included.
+ * Reads the detectors' matches as plain facts for the block rules.
  *
  * @param matches - What the detectors matched.
- * @returns The topics, crisis first.
+ * @returns The facts.
  */
-export function referralTopics(matches: FixedResponseMatches): readonly SpecialistTopic[] {
-  // SAFETY: a tier-1 turn shows only the crisis referral (Amendment 1).
-  if (matches.crisis === CrisisTier.Unambiguous) return [SpecialistTopic.Crisis];
-  return matches.crisis === CrisisTier.None
-    ? matches.specialistTopics
-    : [SpecialistTopic.Crisis, ...matches.specialistTopics];
+export function detectorFacts(matches: FixedResponseMatches): DetectorFacts {
+  return {
+    isCrisisUnambiguous: matches.crisis === CrisisTier.Unambiguous,
+    isCrisisAmbiguous: matches.crisis === CrisisTier.Ambiguous,
+    specialistTopics: matches.specialistTopics,
+    isHypothetical: matches.hypothetical,
+    isOverride: matches.override,
+    isGradeDispute: matches.gradeDispute,
+  };
 }
 
 /**
@@ -73,39 +80,37 @@ const referral = (
 });
 
 /**
- * Builds the blocks the student's message adds, whatever the model does: crisis first, then
- * specialist referrals, then the hypothetical, override and grade notices.
+ * Renders the planned detector blocks, in plan order.
  *
- * @param matches - What the detectors matched.
+ * @param slots - The planned blocks (`planDetectorBlocks`).
  * @param referrals - Approved referral documents, by topic.
  * @param asOf - The instant to record when a topic has no document.
  * @returns The detector blocks in display order.
  */
 export function detectorBlocks(
-  matches: FixedResponseMatches,
+  slots: readonly DetectorSlot[],
   referrals: ReferralPolicies,
   asOf: string,
 ): readonly AssistantBlock[] {
-  const crisis = referrals.get(SpecialistTopic.Crisis);
-  const blocks: AssistantBlock[] = [];
-  if (matches.crisis === CrisisTier.Unambiguous) {
-    const content = {
-      topic: SpecialistTopic.Crisis,
-      templateId: CRISIS_TEMPLATE_ID,
-      text: renderReferral(SpecialistTopic.Crisis),
-    };
-    return [referral(content, crisis, asOf)];
-  }
-  if (matches.crisis === CrisisTier.Ambiguous) {
-    blocks.push(referral(CRISIS_SUPPORT_REFERRAL, crisis, asOf));
-  }
-  for (const topic of matches.specialistTopics) {
-    const templateId = `referral.${topic.toLowerCase().replaceAll('_', '-')}`;
-    const content = { topic, templateId, text: renderReferral(topic) };
-    blocks.push(referral(content, referrals.get(topic), asOf));
-  }
-  if (matches.hypothetical) blocks.push(fixedNotice(NoticeCode.HypotheticalNotSupported));
-  if (matches.override) blocks.push(fixedNotice(NoticeCode.OverrideProcess));
-  if (matches.gradeDispute) blocks.push(fixedNotice(NoticeCode.GradeDispute));
-  return blocks;
+  return slots.map((entry): AssistantBlock => {
+    switch (entry.slot) {
+      case 'CRISIS': {
+        const content = {
+          topic: SpecialistTopic.Crisis,
+          templateId: CRISIS_TEMPLATE_ID,
+          text: renderReferral(SpecialistTopic.Crisis),
+        };
+        return referral(content, referrals.get(SpecialistTopic.Crisis), asOf);
+      }
+      case 'CRISIS_SUPPORT':
+        return referral(CRISIS_SUPPORT_REFERRAL, referrals.get(SpecialistTopic.Crisis), asOf);
+      case 'REFERRAL': {
+        const templateId = `referral.${entry.topic.toLowerCase().replaceAll('_', '-')}`;
+        const content = { topic: entry.topic, templateId, text: renderReferral(entry.topic) };
+        return referral(content, referrals.get(entry.topic), asOf);
+      }
+      case 'NOTICE':
+        return fixedNotice(entry.code);
+    }
+  });
 }

@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { AssistantBlockKind, MAX_TURN_BLOCKS } from '@caa/domain';
+import { AssistantBlockKind, MAX_TURN_BLOCKS, NoticeCode, SpecialistTopic } from '@caa/domain';
 import {
   buildAssistantBlockOfEveryKind,
   buildNoticeBlock,
@@ -14,7 +14,14 @@ import {
   buildScheduleOptionsBlock,
 } from '@caa/test-kit';
 
-import { orderBlocks, policyRevisionsOf, toBlockRef } from './conversation-blocks.logic';
+import {
+  type DetectorFacts,
+  orderBlocks,
+  planDetectorBlocks,
+  policyRevisionsOf,
+  referralTopics,
+  toBlockRef,
+} from './conversation-blocks.logic';
 
 const AT = '2026-09-01T12:00:00.000Z';
 
@@ -66,5 +73,53 @@ describe('toBlockRef', () => {
       kind: AssistantBlockKind.ScheduleOptions,
       shownAt: AT,
     });
+  });
+});
+
+const NO_FACTS: DetectorFacts = {
+  isCrisisUnambiguous: false,
+  isCrisisAmbiguous: false,
+  specialistTopics: [],
+  isHypothetical: false,
+  isOverride: false,
+  isGradeDispute: false,
+};
+
+describe('planDetectorBlocks', () => {
+  it('plans only the crisis referral for tier 1, whatever else matched', () => {
+    const slots = planDetectorBlocks({
+      ...NO_FACTS,
+      isCrisisUnambiguous: true,
+      isCrisisAmbiguous: true,
+      specialistTopics: [SpecialistTopic.Immigration],
+      isGradeDispute: true,
+    });
+
+    expect(slots).toEqual([{ slot: 'CRISIS' }]);
+    expect(referralTopics(slots)).toEqual([SpecialistTopic.Crisis]);
+  });
+
+  it('orders crisis support, then topics, then notices for tier 2', () => {
+    const slots = planDetectorBlocks({
+      ...NO_FACTS,
+      isCrisisAmbiguous: true,
+      specialistTopics: [SpecialistTopic.Immigration],
+      isHypothetical: true,
+      isOverride: true,
+      isGradeDispute: true,
+    });
+
+    expect(slots).toEqual([
+      { slot: 'CRISIS_SUPPORT' },
+      { slot: 'REFERRAL', topic: SpecialistTopic.Immigration },
+      { slot: 'NOTICE', code: NoticeCode.HypotheticalNotSupported },
+      { slot: 'NOTICE', code: NoticeCode.OverrideProcess },
+      { slot: 'NOTICE', code: NoticeCode.GradeDispute },
+    ]);
+    expect(referralTopics(slots)).toEqual([SpecialistTopic.Crisis, SpecialistTopic.Immigration]);
+  });
+
+  it('plans nothing for a planning question', () => {
+    expect(planDetectorBlocks(NO_FACTS)).toEqual([]);
   });
 });

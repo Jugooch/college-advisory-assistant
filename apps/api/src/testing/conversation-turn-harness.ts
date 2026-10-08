@@ -103,7 +103,7 @@ export function setupTurnApp(options: TurnHarnessOptions = {}): TurnHarness {
       payload: {
         termId: TURN_TERM_ID,
         message,
-        expectedSequence: post.expectedSequence ?? store.conversationTurns?.length ?? 0,
+        expectedSequence: post.expectedSequence ?? store.lastSequences?.[conversation.id] ?? 0,
         ...(post.plannerInputs === undefined ? {} : { plannerInputs: post.plannerInputs }),
         ...post.extra,
       },

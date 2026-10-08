@@ -9,15 +9,19 @@ import { CrisisTier, detectFixedResponses } from '@caa/assistant';
 import { AssistantBlockKind, NoticeCode, SpecialistTopic } from '@caa/domain';
 import { buildPolicyHit } from '@caa/test-kit';
 
-import { detectorBlocks, fixedNotice, referralTopics } from './conversation-blocks.mapper';
+import { planDetectorBlocks } from './conversation-blocks.logic';
+import { detectorBlocks, detectorFacts, fixedNotice } from './conversation-blocks.mapper';
 
 const AT = '2026-09-22T15:00:00.000Z';
+
+const render = (message: string, referrals = new Map<SpecialistTopic, never>()) =>
+  detectorBlocks(planDetectorBlocks(detectorFacts(detectFixedResponses(message))), referrals, AT);
 
 describe('detectorBlocks', () => {
   it('shows only the crisis referral for tier 1', () => {
     const matches = detectFixedResponses('I want to kill myself and need financial aid');
 
-    const blocks = detectorBlocks(matches, new Map(), AT);
+    const blocks = render('I want to kill myself and need financial aid');
 
     expect(matches.crisis).toBe(CrisisTier.Unambiguous);
     expect(blocks).toHaveLength(1);
@@ -25,7 +29,6 @@ describe('detectorBlocks', () => {
       topic: SpecialistTopic.Crisis,
       templateId: 'referral.crisis',
     });
-    expect(referralTopics(matches)).toEqual([SpecialistTopic.Crisis]);
   });
 
   it('puts the crisis-support card first for tier 2, then topics and notices', () => {
@@ -34,29 +37,28 @@ describe('detectorBlocks', () => {
     );
     const policy = { hit: buildPolicyHit(), asOf: AT };
 
-    const blocks = detectorBlocks(matches, new Map([[SpecialistTopic.Crisis, policy]]), AT);
+    const blocks = detectorBlocks(
+      planDetectorBlocks(detectorFacts(matches)),
+      new Map([[SpecialistTopic.Crisis, policy]]),
+      AT,
+    );
 
     expect(blocks[0]).toMatchObject({ templateId: 'referral.crisis-support', policy: policy.hit });
     expect(blocks.slice(1).map((block) => block.kind)).toEqual([
       AssistantBlockKind.Notice,
       AssistantBlockKind.Notice,
     ]);
-    expect(referralTopics(matches)[0]).toBe(SpecialistTopic.Crisis);
   });
 
   it('adds a specialist referral and a grade-dispute notice', () => {
-    const matches = detectFixedResponses('My visa is a problem and my grade is wrong');
-
-    const blocks = detectorBlocks(matches, new Map(), AT);
+    const blocks = render('My visa is a problem and my grade is wrong');
 
     expect(blocks[0]).toMatchObject({ topic: SpecialistTopic.Immigration, policy: null, asOf: AT });
     expect(blocks.at(-1)).toMatchObject({ code: NoticeCode.GradeDispute });
   });
 
   it('adds nothing for a planning question', () => {
-    expect(detectorBlocks(detectFixedResponses('What classes are open?'), new Map(), AT)).toEqual(
-      [],
-    );
+    expect(render('What classes are open?')).toEqual([]);
   });
 });
 

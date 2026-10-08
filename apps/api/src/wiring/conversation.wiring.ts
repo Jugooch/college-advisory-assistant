@@ -16,6 +16,8 @@ import {
   createConversationController,
 } from '../modules/conversation/conversation.controller';
 import { createConversationService } from '../modules/conversation/conversation.service';
+import { createConversationAnswerService } from '../modules/conversation-answer/conversation-answer.service';
+import { createConversationBlocksService } from '../modules/conversation-blocks/conversation-blocks.service';
 import { createConversationLoopService } from '../modules/conversation-loop/conversation-loop.service';
 import {
   type ConversationStoreController,
@@ -23,6 +25,7 @@ import {
 } from '../modules/conversation-store/conversation-store.controller';
 import { createConversationStoreService } from '../modules/conversation-store/conversation-store.service';
 import type { ConversationToolsService } from '../modules/conversation-tools/conversation-tools.service';
+import { createConversationTurnStoreService } from '../modules/conversation-turn-store/conversation-turn-store.service';
 import type { PolicySearchService } from '../modules/policy-search/policy-search.service';
 
 /** The model id recorded when a test injects a model. */
@@ -118,16 +121,21 @@ export function wireConversation(
     conversation: createConversationController(
       createConversationService({
         access,
-        conversations: repositories.conversations,
-        loop:
-          chosen === null
-            ? null
-            : createConversationLoopService({ model: chosen.model, tools: sources.tools, now }),
-        modelId: chosen?.modelId ?? null,
-        policySearch: sources.policySearch,
+        store: createConversationTurnStoreService({
+          conversations: repositories.conversations,
+          now,
+          rateLimit: env.CONVERSATION_RATE_LIMIT,
+        }),
+        blocks: createConversationBlocksService({ policySearch: sources.policySearch }),
+        answers: createConversationAnswerService({
+          loop:
+            chosen === null
+              ? null
+              : createConversationLoopService({ model: chosen.model, tools: sources.tools, now }),
+          modelId: chosen?.modelId ?? null,
+          historyTurns: env.CONVERSATION_HISTORY_TURNS,
+        }),
         now,
-        historyTurns: env.CONVERSATION_HISTORY_TURNS,
-        rateLimit: env.CONVERSATION_RATE_LIMIT,
       }),
     ),
   };
