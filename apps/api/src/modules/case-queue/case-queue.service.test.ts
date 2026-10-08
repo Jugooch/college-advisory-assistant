@@ -163,3 +163,80 @@ describe('CaseQueueService.listQueue for an admin', () => {
     expect(reviewing.cases).toEqual([]);
   });
 });
+
+describe('CaseQueueService.listQueue across advisors (#471)', () => {
+  const rival = buildActor({ roles: [Role.Advisor] }, 6);
+  const rivalStudent = StudentIdSchema.parse(syntheticId('student', 3));
+  const rivalCase = buildInReviewAdvisingCase(
+    { studentId: rivalStudent, ownerUserId: rival.userId, createdAt: '2026-09-01T06:00:00.000Z' },
+    4,
+  );
+  const adminOwned = buildInReviewAdvisingCase(
+    {
+      studentId: strangerStudent,
+      ownerUserId: admin.userId,
+      createdAt: '2026-09-01T05:00:00.000Z',
+    },
+    5,
+  );
+
+  /**
+   * Builds the service over the shared cases plus the rival advisor's and the admin's.
+   *
+   * @returns The service and the logger.
+   */
+  function setupAcross() {
+    const store = {
+      cases: [assigned, unrouted, rivalCase, adminOwned],
+      assignments: [
+        buildAdvisorAssignment({ advisorUserId: advisor.userId, studentId: assignedStudent }, 1),
+        buildAdvisorAssignment({ advisorUserId: rival.userId, studentId: rivalStudent }, 2),
+      ],
+    };
+    const service = createCaseQueueService({
+      cases: createInMemoryCaseRepository(store),
+      now: () => NOW,
+    });
+    return { service, logger: createRecordingLogger() };
+  }
+
+  it('shows an admin a case claimed by another advisor, marked routed', async () => {
+    const { service, logger } = setupAcross();
+
+    const queue = await service.listQueue(admin, {}, { logger });
+
+    expect(queue.cases.find((row) => row.caseId === rivalCase.id)).toMatchObject({
+      routed: true,
+      ownerIsYou: false,
+    });
+  });
+
+  it('keeps showing an admin the unrouted case they claimed, now in review', async () => {
+    const { service, logger } = setupAcross();
+
+    const queue = await service.listQueue(admin, { status: CaseStatus.InReview }, { logger });
+
+    expect(queue.cases.find((row) => row.caseId === adminOwned.id)).toMatchObject({
+      status: CaseStatus.InReview,
+      routed: false,
+      ownerIsYou: true,
+    });
+  });
+
+  it('hides unrouted cases from an admin with unrouted=false', async () => {
+    const { service, logger } = setupAcross();
+
+    const queue = await service.listQueue(admin, { unrouted: false }, { logger });
+
+    expect(queue.cases.every((row) => row.routed)).toBe(true);
+    expect(queue.cases).toHaveLength(2);
+  });
+
+  it('shows an advisor only the cases of the students they are assigned to', async () => {
+    const { service, logger } = setupAcross();
+
+    const queue = await service.listQueue(advisor, {}, { logger });
+
+    expect(queue.cases.map((row) => row.caseId)).toEqual([assigned.id]);
+  });
+});

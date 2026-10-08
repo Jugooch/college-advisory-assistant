@@ -17,7 +17,7 @@ import { toCaseQueueItem } from '../cases/cases.mapper';
 
 /** Dependencies of the case queue service. */
 export interface CaseQueueServiceDependencies {
-  readonly cases: Pick<AdvisingCaseRepository, 'listQueue' | 'listUnrouted'>;
+  readonly cases: Pick<AdvisingCaseRepository, 'listQueue' | 'listTenantQueue' | 'listUnrouted'>;
   /** Returns the current time; the instant assignments are evaluated at. */
   readonly now: () => Date;
 }
@@ -66,6 +66,34 @@ function requireQueueAccess(actor: Actor, query: CaseQueueQuery): boolean {
 }
 
 /**
+ * Reads an admin's rows: every case in the tenant whoever holds it, or only the unrouted open
+ * cases when asked.
+ *
+ * @param cases - Case repository.
+ * @param call - The admin, the validated filters, and the instant to evaluate assignments at.
+ * @returns The rows, oldest first.
+ */
+async function readAdminRows(
+  cases: CaseQueueServiceDependencies['cases'],
+  call: { readonly actor: Actor; readonly query: CaseQueueQuery; readonly at: string },
+): Promise<CaseQueueResponse['cases']> {
+  const { actor, query, at } = call;
+  const viewerUserId = actor.userId;
+  if (query.unrouted === true) {
+    // Unrouted cases are always OPEN, so a filter on another status leaves none of them.
+    const isOpen = query.status === undefined || query.status === CaseStatus.Open;
+    const found = isOpen ? await cases.listUnrouted(actor.tenantId, at) : [];
+    return found.map((entry) => toCaseQueueItem(entry, { viewerUserId, routed: false }));
+  }
+  const filter = { at, ...(query.status === undefined ? {} : { status: query.status }) };
+  // TODO(#471): call listTenantQueue unconditionally once the QA fake implements it.
+  const entries = (await cases.listTenantQueue?.(actor.tenantId, filter)) ?? [];
+  return entries
+    .filter((entry) => query.unrouted !== false || entry.routed)
+    .map((entry) => toCaseQueueItem(entry, { viewerUserId, routed: entry.routed }));
+}
+
+/**
  * Creates the case queue service.
  *
  * @param dependencies - Case repository and clock.
@@ -80,26 +108,17 @@ export function createCaseQueueService(
       const isAdmin = requireQueueAccess(actor, query);
       const at = dependencies.now().toISOString();
       const viewerUserId = actor.userId;
-      const routed =
-        query.unrouted === true
-          ? []
-          : (
-              await cases.listQueue(actor.tenantId, viewerUserId, {
-                at,
-                ...(query.status === undefined ? {} : { status: query.status }),
-              })
-            ).map((found) => toCaseQueueItem(found, { viewerUserId, routed: true }));
-      // Unrouted cases are always OPEN, so a filter on another status leaves none of them.
-      const hasUnrouted =
-        isAdmin &&
-        query.unrouted !== false &&
-        (query.status === undefined || query.status === CaseStatus.Open);
-      const unrouted = hasUnrouted
-        ? (await cases.listUnrouted(actor.tenantId, at)).map((found) =>
-            toCaseQueueItem(found, { viewerUserId, routed: false }),
-          )
-        : [];
-      const rows = [...routed, ...unrouted].toSorted(
+      // SECURITY: an admin reads the tenant (session tenant); an advisor reads only the cases of
+      // students they hold an active assignment to.
+      const found = isAdmin
+        ? await readAdminRows(cases, { actor, query, at })
+        : (
+            await cases.listQueue(actor.tenantId, viewerUserId, {
+              at,
+              ...(query.status === undefined ? {} : { status: query.status }),
+            })
+          ).map((entry) => toCaseQueueItem(entry, { viewerUserId, routed: true }));
+      const rows = found.toSorted(
         (left, right) => Date.parse(left.createdAt) - Date.parse(right.createdAt),
       );
       context.logger.info(
