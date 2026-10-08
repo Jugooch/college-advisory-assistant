@@ -3,10 +3,13 @@
  * @module @caa/test-kit
  */
 export * from './builders/academic-policy.builder';
+export * from './builders/academic-summary-response.builder';
 export * from './builders/actor.builder';
 export * from './builders/advising-case.builder';
 export * from './builders/advisor-assignment.builder';
+export * from './builders/assistant-block.builder';
 export * from './builders/assistant-block-ref.builder';
+export * from './builders/assistant-turn-view.builder';
 export * from './builders/audit-snapshot.builder';
 export * from './builders/campus.builder';
 export * from './builders/campus-transition-policy.builder';
