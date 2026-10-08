@@ -41,6 +41,8 @@ import {
 
 import type { ApiEnv } from './config/env';
 import type { AcademicSummaryController } from './modules/academic-summary/academic-summary.controller';
+import type { CaseActionsController } from './modules/case-actions/case-actions.controller';
+import type { CaseQueueController } from './modules/case-queue/case-queue.controller';
 import type { CasesController } from './modules/cases/cases.controller';
 import type { CourseChecksController } from './modules/course-checks/course-checks.controller';
 import { createHealthController, type HealthController } from './modules/health/health.controller';
@@ -71,6 +73,8 @@ export interface Controllers {
   readonly planRevalidation: PlanRevalidationController;
   readonly planViews: PlanViewsController;
   readonly cases: CasesController;
+  readonly caseQueue: CaseQueueController;
+  readonly caseActions: CaseActionsController;
 }
 
 /** Every repository the API reads through. Tests pass in-memory fakes. */
@@ -119,6 +123,7 @@ export function createContainer(options: ContainerOptions): AppDependencies {
   const access = wireAccess(options);
   const academic = wireAcademic(options, access.studentsService, access.access);
   const plans = wirePlans(options, access.access, academic.scheduleOptionsService);
+  const cases = wireCases(options, access.access, plans.views);
   return {
     controllers: {
       health: createHealthController(
@@ -133,7 +138,7 @@ export function createContainer(options: ContainerOptions): AppDependencies {
       planDrafts: plans.planDrafts,
       planRevalidation: plans.planRevalidation,
       planViews: plans.planViews,
-      cases: wireCases(options, access.access, plans.views),
+      ...cases,
     },
     sessionResolver: access.sessionResolver,
   };

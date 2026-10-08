@@ -12,21 +12,21 @@
  * @see docs/adr/0013-plan-drafts-staleness-and-advisor-cases.md
  */
 import type { CaseListResponse, CaseView, CreateCaseRequest } from '@caa/api-contract';
-import type { AdvisingCaseRepository, StudentRepository } from '@caa/db';
-import type { Actor, AdvisingCase, CaseEvent, CaseId, StudentId } from '@caa/domain';
+import type { AdvisingCaseRepository } from '@caa/db';
+import type { Actor, AdvisingCase, CaseId, StudentId } from '@caa/domain';
 
 import { NotFoundError, OpenCaseExistsError } from '../../shared/domain-errors';
 import type { RequestContext } from '../../shared/request-context';
 import type { AccessService } from '../access/access.service';
 import type { CaseContextService } from '../case-context/case-context.service';
-import { allowedCaseActions, CaseActor } from './cases.logic';
-import { toCaseSummary, toCaseView } from './cases.mapper';
+import type { CaseViewer } from '../case-viewer/case-viewer.service';
+import { toCaseSummary } from './cases.mapper';
 
 /** Dependencies of the cases service. */
 export interface CasesServiceDependencies {
   readonly access: Pick<AccessService, 'canOpenCase' | 'canViewStudent'>;
   readonly cases: AdvisingCaseRepository;
-  readonly students: Pick<StudentRepository, 'findById'>;
+  readonly viewCase: CaseViewer;
   readonly caseContext: CaseContextService;
   /** Returns the current time; the only clock a case time comes from. */
   readonly now: () => Date;
@@ -83,53 +83,6 @@ export interface CasesService {
   getCase(actor: Actor, caseId: CaseId, context: RequestContext): Promise<CaseView>;
 }
 
-/** A case with its events, as read from the repository. */
-interface StoredCase {
-  readonly advisingCase: AdvisingCase;
-  readonly events: readonly CaseEvent[];
-}
-
-/**
- * Creates the function that shows a stored case to the signed-in actor.
- *
- * @param dependencies - Student repository and context reader.
- * @returns A function from the actor and a stored case to the case view.
- * @throws {NotFoundError} From the returned function, when the frozen revision is missing.
- */
-function createCaseViewer(
-  dependencies: Pick<CasesServiceDependencies, 'students' | 'caseContext'>,
-) {
-  const { students, caseContext } = dependencies;
-  return async (actor: Actor, stored: StoredCase, context: RequestContext): Promise<CaseView> => {
-    const { advisingCase } = stored;
-    const student = await students.findById(actor.tenantId, advisingCase.studentId);
-    const studentUserId = student?.userId ?? null;
-    // SECURITY: the actor's relationship to the case comes from the session and the stored
-    // case only, never from the request.
-    let kind: CaseActor = CaseActor.Reviewer;
-    if (studentUserId === actor.userId) {
-      kind = CaseActor.Student;
-    } else if (advisingCase.ownerUserId === actor.userId) {
-      kind = CaseActor.Owner;
-    }
-    return toCaseView({
-      advisingCase,
-      events: stored.events,
-      studentUserId,
-      viewer: actor,
-      context:
-        advisingCase.planRevisionId === null
-          ? null
-          : await caseContext.contextOf(
-              actor,
-              { studentId: advisingCase.studentId, planRevisionId: advisingCase.planRevisionId },
-              context,
-            ),
-      allowedActions: allowedCaseActions(advisingCase.status, kind),
-    });
-  };
-}
-
 /**
  * Logs a created case.
  *
@@ -160,7 +113,7 @@ function logCreated(actor: Actor, created: AdvisingCase, context: RequestContext
  */
 export function createCasesService(dependencies: CasesServiceDependencies): CasesService {
   const { access, cases, caseContext } = dependencies;
-  const viewOf = createCaseViewer(dependencies);
+  const viewOf = dependencies.viewCase;
 
   return {
     async createCase(actor, command, context) {

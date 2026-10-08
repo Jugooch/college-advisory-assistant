@@ -54,6 +54,8 @@ describe('createRuntimeDependencies', () => {
 
     expect(Object.keys(dependencies.controllers).sort()).toEqual([
       'academicSummary',
+      'caseActions',
+      'caseQueue',
       'cases',
       'courseChecks',
       'health',

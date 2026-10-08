@@ -144,3 +144,38 @@ export async function createAsStudent(app: FastifyInstance): Promise<CaseView> {
   });
   return readCase(response);
 }
+
+/**
+ * Posts a case action.
+ *
+ * @param app - The app under test.
+ * @param call - The case, token (null for none), and body.
+ * @returns The injected response.
+ */
+export function postEvent(
+  app: FastifyInstance,
+  call: { readonly caseId: string; readonly token: string | null; readonly body: unknown },
+): Promise<LightMyRequestResponse> {
+  return app.inject({
+    method: 'POST',
+    url: `/v1/cases/${call.caseId}/events`,
+    headers: call.token === null ? {} : bearer(call.token),
+    payload: call.body as object,
+  });
+}
+
+/**
+ * Builds an action body.
+ *
+ * @param action - The action.
+ * @param expectedSequence - The `lastSequence` the caller saw.
+ * @param extra - Resolution, note, or any other field to add.
+ * @returns The body.
+ */
+export function eventBody(
+  action: string,
+  expectedSequence: number,
+  extra: object = {},
+): Record<string, unknown> {
+  return { action, expectedSequence, ...extra };
+}

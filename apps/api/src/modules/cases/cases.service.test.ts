@@ -26,6 +26,7 @@ import { NotFoundError, OpenCaseExistsError } from '../../shared/domain-errors';
 import { createInMemoryCaseRepository } from '../../testing/in-memory-case-repositories';
 import { createRecordingLogger } from '../../testing/in-memory-repositories';
 import type { CaseContextService } from '../case-context/case-context.service';
+import { createCaseViewer } from '../case-viewer/case-viewer.service';
 import { createCasesService } from './cases.service';
 
 const NOW = new Date('2026-09-01T12:00:00.000Z');
@@ -68,7 +69,10 @@ function setup(options: { hasRevision?: boolean; canOpen?: boolean; canView?: bo
       canViewStudent: () => Promise.resolve(options.canView ?? true),
     },
     cases: createInMemoryCaseRepository(store),
-    students: { findById: () => Promise.resolve(student) },
+    viewCase: createCaseViewer({
+      students: { findById: () => Promise.resolve(student) },
+      caseContext,
+    }),
     caseContext,
     now: () => NOW,
   };
@@ -136,7 +140,7 @@ describe('CasesService.createCase', () => {
       'caseContext',
       'cases',
       'now',
-      'students',
+      'viewCase',
     ]);
   });
 });

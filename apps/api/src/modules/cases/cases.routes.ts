@@ -12,7 +12,7 @@ import type { CasesController } from './cases.controller';
 
 /**
  * Registers create, list, and read. Cases are app-owned data: no route sends anything outside
- * the app or writes to an institutional system. The advisor queue and actions are #412.
+ * the app or writes to an institutional system. The advisor queue and actions have their own modules.
  *
  * @param app - The authenticated route scope.
  * @param controller - The case handlers.
