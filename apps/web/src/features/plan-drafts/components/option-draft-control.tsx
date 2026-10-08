@@ -14,7 +14,8 @@ import type {
   ScheduleOptionsResponse,
 } from '@caa/api-contract';
 
-import { optionSectionIds } from '../utils/save-draft-form';
+import { optionSectionIds } from '@/shared/utils/option-section-ids';
+
 import type { SaveDraftState } from '../utils/save-draft-state';
 import { SaveDraftForm } from './save-draft-form';
 

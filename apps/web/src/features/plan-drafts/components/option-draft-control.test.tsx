@@ -13,7 +13,8 @@ import {
   syntheticId,
 } from '@caa/test-kit';
 
-import { optionSectionIds } from '../utils/save-draft-form';
+import { optionSectionIds } from '@/shared/utils/option-section-ids';
+
 import { bindOptionDraftControl, OptionDraftControl } from './option-draft-control';
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }));

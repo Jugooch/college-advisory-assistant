@@ -56,8 +56,8 @@ export default async function MyPlansPage({
         <ApiErrorNotice error={plans} />
       ) : (
         <PlanList
-          plans={plans.plans}
           studentId={query.studentId}
+          plans={plans.plans}
           terms={terms instanceof ApiError ? null : terms.terms}
           plannerHref={`/next-term-planner?studentId=${query.studentId}`}
         />
