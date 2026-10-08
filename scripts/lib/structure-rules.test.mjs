@@ -163,3 +163,60 @@ describe('api wiring files (ADR-0014)', () => {
     expect(checkStructure('apps/api/src/plans.wiring.ts')).toContain('container.ts');
   });
 });
+
+describe('assistant folders and the model adapter (ADR-0015 §1, §9)', () => {
+  it('accepts each assistant role and its test', () => {
+    const paths = [
+      'packages/assistant/src/tools/get-plan.tool.ts',
+      'packages/assistant/src/tools/tool-catalog.ts',
+      'packages/assistant/src/tools/tool-catalog.test.ts',
+      'packages/assistant/src/prompts/system.prompt.ts',
+      'packages/assistant/src/templates/claim.template.ts',
+      'packages/assistant/src/guards/claim.guard.test.ts',
+      'packages/assistant/src/ports/model.port.ts',
+      'packages/assistant/src/fakes/model.fake.ts',
+      'packages/assistant/src/index.ts',
+    ];
+
+    expect(paths.map(checkStructure)).toEqual(paths.map(() => null));
+  });
+
+  it.each([
+    ['packages/assistant/src/tools/get-plan.ts', '*.tool.ts'],
+    ['packages/assistant/src/prompts/system.ts', '*.prompt.ts'],
+    ['packages/assistant/src/templates/claim.ts', '*.template.ts'],
+    ['packages/assistant/src/guards/claim.ts', '*.guard.ts'],
+    ['packages/assistant/src/ports/model.ts', '*.port.ts'],
+    ['packages/assistant/src/fakes/model.ts', '*.fake.ts'],
+    ['packages/assistant/src/helpers/util.ts', 'tools/'],
+    ['packages/assistant/src/prompts/nested/system.prompt.ts', 'no other assistant folders'],
+  ])('rejects %s', (path, expected) => {
+    expect(checkStructure(path)).toContain(expected);
+  });
+
+  it('accepts adapters and rejects other names there', () => {
+    expect(checkStructure('apps/api/src/adapters/anthropic-model.adapter.ts')).toBeNull();
+    expect(checkStructure('apps/api/src/adapters/anthropic-model.adapter.test.ts')).toBeNull();
+    expect(checkStructure('apps/api/src/adapters/anthropic-model.ts')).toContain('*.adapter.ts');
+    expect(checkStructure('apps/api/src/adapters/anthropic.service.ts')).toContain('*.adapter.ts');
+  });
+
+  it('names adapters/ in the api src-root message', () => {
+    expect(checkStructure('apps/api/src/model.adapter.ts')).toContain('adapters/');
+  });
+});
+
+describe('eval tests (ADR-0015 §9)', () => {
+  it('accepts t06 eval files', () => {
+    expect(checkStructure('tests/evals/t06-refusal-cases.eval.test.ts')).toBeNull();
+  });
+
+  it.each([
+    'tests/evals/refusal.eval.test.ts',
+    'tests/evals/t06-refusal.test.ts',
+    'tests/evals/t06-Refusal.eval.test.ts',
+    'tests/evals/support.ts',
+  ])('rejects %s', (path) => {
+    expect(checkStructure(path)).toContain('t06-<slug>.eval.test.ts');
+  });
+});
