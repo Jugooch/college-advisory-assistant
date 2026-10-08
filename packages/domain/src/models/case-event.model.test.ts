@@ -12,6 +12,7 @@ const CREATE: CaseEventInput = {
   sequence: 1,
   action: 'CREATE',
   actorUserId: '1a2b3c4d-0000-4000-8000-000000000002',
+  actorRole: 'STUDENT',
   at: '2026-10-07T09:00:00.000-05:00',
   fromStatus: null,
   toStatus: 'OPEN',
@@ -68,8 +69,11 @@ describe('CaseEvent actorRole', () => {
     expect(createCaseEvent({ ...CREATE, actorRole: role }).actorRole).toBe(role);
   });
 
-  it('accepts the field being absent', () => {
-    expect(createCaseEvent(CREATE).actorRole).toBeUndefined();
+  it('rejects an event without actorRole', () => {
+    const withoutRole = Object.fromEntries(
+      Object.entries(CREATE).filter(([key]) => key !== 'actorRole'),
+    );
+    expect(() => createCaseEvent(withoutRole as never)).toThrow();
   });
 
   it('rejects an unknown role', () => {
