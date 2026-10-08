@@ -170,6 +170,6 @@ Files over 250 lines or functions over 60 lines fail lint. Split by responsibili
 
 A size exception needs a recorded owner approval, an ADR entry naming the file, its cap, and the issue that removes it, and a per-file override in `eslint.config.mjs` at the smallest cap that works. Current exceptions:
 
-| File                        | Cap       | Removed by                                            | Approval                                                                                                 |
-| --------------------------- | --------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `apps/api/src/container.ts` | 260 lines | #443's composition-root split, before #412 (ADR-0014) | [#443 comment](https://github.com/Jugooch/college-advisory-assistant/issues/443#issuecomment-6050030916) |
+| File                        | Cap                                      | Removed by                                            | Approval                                                                                                 |
+| --------------------------- | ---------------------------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `apps/api/src/container.ts` | 260 lines; takes effect when #455 merges | #443's composition-root split, before #412 (ADR-0014) | [#443 comment](https://github.com/Jugooch/college-advisory-assistant/issues/443#issuecomment-6050030916) |
