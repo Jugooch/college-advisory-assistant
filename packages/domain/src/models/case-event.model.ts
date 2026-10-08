@@ -32,8 +32,7 @@ export const CaseEventSchema = z
     action: CaseActionSchema,
     actorUserId: UserIdSchema,
     /** Role the actor held when acting (ADR-0013 Amendment 1). */
-    // TODO(#449): make required once all writers set it.
-    actorRole: RoleSchema.optional(),
+    actorRole: RoleSchema,
     /** ISO 8601 with offset. */
     at: z.iso.datetime({ offset: true }),
     /** Status before the action. `null` only for CREATE. */

@@ -84,7 +84,7 @@ function toEventView(event: CaseEvent, source: CaseViewSource): CaseEventView {
     id: event.id,
     sequence: event.sequence,
     action: event.action,
-    actorRole: event.actorRole ?? roleOf(event.actorUserId, source),
+    actorRole: event.actorRole,
     isYou: event.actorUserId === source.viewer.userId,
     at: event.at,
     fromStatus: event.fromStatus,
