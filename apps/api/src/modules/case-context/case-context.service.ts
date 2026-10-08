@@ -17,7 +17,7 @@ import type { PlanViewsService } from '../plan-views/plan-views.service';
 
 /** Dependencies of the case context service. */
 export interface CaseContextServiceDependencies {
-  readonly plans: Pick<PlanRepository, 'listForStudent' | 'findRevision'>;
+  readonly plans: Pick<PlanRepository, 'findPlan' | 'findRevisionById'>;
   readonly views: Pick<PlanViewsService, 'getRevision'>;
 }
 
@@ -75,20 +75,20 @@ export function createCaseContextService(
     const { studentId, planRevisionId } = target;
     // SECURITY: only this student's plans in the actor's tenant are searched, so another
     // student's or tenant's revision ID is simply not found.
-    const owned = await plans.listForStudent(actor.tenantId, studentId);
-    // NOTE: PlanRepository has no lookup by revision ID, and a plan's history is short (one
-    // revision per save), so every revision of the student's plans is read.
-    const candidates = owned.flatMap(({ plan, latest }) =>
-      Array.from({ length: latest.revision.revision }, (_unused, index) => ({
-        planId: plan.id,
-        revision: index + 1,
-      })),
-    );
-    const stored = await Promise.all(
-      candidates.map((place) => plans.findRevision(actor.tenantId, place.planId, place.revision)),
-    );
-    const index = stored.findIndex((entry) => entry?.revision.id === planRevisionId);
-    return candidates[index] ?? null;
+    // TODO(#468): the interface method becomes required in step 3 of the adoption.
+    if (plans.findRevisionById === undefined) {
+      // Fail closed: reporting "not found" would hide a frozen revision from its case.
+      throw new Error('the plan repository does not implement findRevisionById');
+    }
+    const stored = await plans.findRevisionById(actor.tenantId, planRevisionId);
+    if (stored === null) {
+      return null;
+    }
+    const plan = await plans.findPlan(actor.tenantId, stored.revision.planId);
+    // SECURITY: a revision of another student's plan is simply not found.
+    return plan?.studentId === studentId
+      ? { planId: plan.id, revision: stored.revision.revision }
+      : null;
   };
 
   return {
