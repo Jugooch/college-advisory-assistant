@@ -26,6 +26,7 @@ import {
   claimedCase,
   createCase,
   INVALID,
+  nonCaseData,
   NOT_FOUND,
   openCase,
   planReviewBody,
@@ -46,13 +47,6 @@ const RESOLVE_REVIEWED: CaseActionBody = {
   resolution: 'PLAN_REVIEWED',
   note: 'The plan fits your program.',
 };
-
-/** Everything but the case rows, as plain data, to compare before and after an action. */
-function nonCaseData(): string {
-  return JSON.stringify(world, (key, value: unknown) =>
-    key === 'cases' || key === 'caseEvents' ? undefined : value,
-  );
-}
 
 describe('AC36 an advisor resolves a case', () => {
   beforeEach(() => {
@@ -189,13 +183,13 @@ describe('AC36 an advisor resolves a case', () => {
       const { caseId, planId } = await claimedCase(app);
       const revisionBefore = await readPlanAt(app, `/${planId}/revisions/1`);
       const planBefore = await readPlanAt(app, `/${planId}`);
-      const dataBefore = nonCaseData();
+      const dataBefore = nonCaseData(world);
 
       await actOnCase(app, caseId, RESOLVE_REVIEWED);
 
       expect(await readPlanAt(app, `/${planId}/revisions/1`)).toEqual(revisionBefore);
       expect(await readPlanAt(app, `/${planId}`)).toEqual(planBefore);
-      expect(nonCaseData()).toBe(dataBefore);
+      expect(nonCaseData(world)).toBe(dataBefore);
     });
   });
 

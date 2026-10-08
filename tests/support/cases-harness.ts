@@ -29,6 +29,21 @@ export type CasesWorld = AcceptanceWorld & CaseWorld;
 /** A student note the cases use. */
 export const STUDENT_NOTE = 'Please check my plan before I register.';
 
+/** Effective-to timestamp that ends the default assignment before the harness clock. */
+export const REVOKED_AT = '2026-08-30T00:00:00.000-05:00';
+
+/**
+ * Serializes everything in the world except the case rows, to compare before and after actions.
+ *
+ * @param world - The world.
+ * @returns The world as JSON text without `cases` and `caseEvents`.
+ */
+export function nonCaseData(world: CasesWorld): string {
+  return JSON.stringify(world, (key, value: unknown) =>
+    key === 'cases' || key === 'caseEvents' ? undefined : value,
+  );
+}
+
 /**
  * Resets the world to the plan draft one with no cases.
  *
@@ -263,6 +278,3 @@ export async function claimedCase(app: AcceptanceApp): Promise<{
   const claimed = await actOnCase(app, opened.caseId, { action: 'CLAIM', expectedSequence: 1 });
   return { planId: opened.planId, revisionId: opened.revisionId, caseId: opened.caseId, claimed };
 }
-
-/** The first assignment of the default world, ended before the harness clock. */
-export const REVOKED_AT = '2026-08-30T00:00:00.000-05:00';

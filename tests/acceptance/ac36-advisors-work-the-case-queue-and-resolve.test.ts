@@ -29,6 +29,7 @@ import {
   readCase,
   readQueue,
   resetCasesWorld,
+  STUDENT_NOTE,
 } from '../support/cases-harness';
 import { acceptanceIt } from '../support/known-findings';
 import { dataOf } from '../support/plan-drafts-harness';
@@ -121,16 +122,11 @@ describe('AC36 advisors work the case queue', () => {
 
       const queue = await readQueue(app);
 
-      const rows = dataOf(queue).cases as Record<string, unknown>[];
-      expect(Object.keys(rows[0] ?? {}).sort()).toEqual([
-        'caseId',
-        'createdAt',
-        'ownerIsYou',
-        'reason',
-        'routed',
-        'status',
-        'studentId',
-      ]);
+      const body = JSON.stringify(dataOf(queue));
+      expect(body).not.toContain(STUDENT_NOTE);
+      for (const identity of Object.values(ACADEMIC_ACTORS)) {
+        expect(body).not.toContain(identity.id);
+      }
     });
   });
 
@@ -159,8 +155,9 @@ describe('AC36 advisors work the case queue', () => {
       ]);
 
       expect(results.map((result) => result.statusCode).toSorted()).toEqual([201, 409]);
-      const loser = results.find((result) => result.statusCode === 409);
-      expect(summarizeError(loser as never)).toMatchObject({ code: 'REVISION_CONFLICT' });
+      const [first, second] = results;
+      const loser = first.statusCode === 409 ? first : second;
+      expect(summarizeError(loser)).toMatchObject({ code: 'REVISION_CONFLICT' });
     });
 
     acceptanceIt(

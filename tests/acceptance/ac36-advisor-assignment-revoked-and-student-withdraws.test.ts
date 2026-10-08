@@ -30,6 +30,7 @@ import {
   claimedCase,
   createCase,
   INVALID,
+  nonCaseData,
   NOT_FOUND,
   openCase,
   planReviewBody,
@@ -60,13 +61,6 @@ function readQueueAsAdmin(query: string) {
 }
 
 const RESOLVE = { action: 'RESOLVE', expectedSequence: 2, resolution: 'PLAN_REVIEWED' } as const;
-
-/** Everything but the case rows, as plain data, to compare before and after the actions. */
-function otherData(): string {
-  return JSON.stringify(world, (key, value: unknown) =>
-    key === 'cases' || key === 'caseEvents' ? undefined : value,
-  );
-}
 
 /** Ends the advisor's assignment before the harness clock. */
 function revokeAssignment(): void {
@@ -220,7 +214,7 @@ describe('AC36 the assignment is revoked and the student withdraws', () => {
           vi.spyOn(https, 'request'),
         ];
         const { caseId, revisionId } = await openCase(app);
-        const othersBefore = otherData();
+        const othersBefore = nonCaseData(world);
         await actOnCase(app, caseId, { action: 'CLAIM', expectedSequence: 1 });
         await actOnCase(app, caseId, { action: 'RELEASE', expectedSequence: 2 });
         await actOnCase(app, caseId, { action: 'CLAIM', expectedSequence: 3 });
@@ -231,7 +225,7 @@ describe('AC36 the assignment is revoked and the student withdraws', () => {
 
         expect(world.cases?.map((entry) => entry.status)).toEqual(['RESOLVED', 'WITHDRAWN']);
         expect(outbound.map((spy) => spy.mock.calls.length)).toEqual([0, 0, 0]);
-        expect(otherData()).toBe(othersBefore);
+        expect(nonCaseData(world)).toBe(othersBefore);
       },
     );
 
