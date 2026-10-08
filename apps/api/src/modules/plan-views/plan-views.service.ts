@@ -8,19 +8,22 @@
  * @see docs/adr/0013-plan-drafts-staleness-and-advisor-cases.md
  */
 import type { PlanListResponse, PlanRevisionView, PlanView } from '@caa/api-contract';
-import type { PlanRepository, StoredPlanRevision } from '@caa/db';
+import type { AdvisingCaseRepository, PlanRepository, StoredPlanRevision } from '@caa/db';
 import type { Actor, Plan, PlanId, StudentId } from '@caa/domain';
 
 import { NotFoundError } from '../../shared/domain-errors';
 import type { RequestContext } from '../../shared/request-context';
 import type { AccessService } from '../access/access.service';
+import { isLiveCaseStatus, type LiveCaseStatus } from '../cases/cases.logic';
 import type { PlanFreshnessService } from '../plan-freshness/plan-freshness.service';
+import { openCaseStatusOf } from './plan-views.logic';
 import { toRevisionView } from './plan-views.mapper';
 
 /** Dependencies of the plan views service. */
 export interface PlanViewsServiceDependencies {
   readonly access: Pick<AccessService, 'canViewStudent'>;
   readonly plans: PlanRepository;
+  readonly cases: Pick<AdvisingCaseRepository, 'listForStudent'>;
   readonly freshness: PlanFreshnessService;
 }
 
@@ -178,6 +181,41 @@ function createViewHelpers(dependencies: PlanViewsServiceDependencies): ViewHelp
 }
 
 /**
+ * Builds a function that tells a plan's open case status, reading the student's cases once and
+ * a plan's revisions only when the student has a live case.
+ *
+ * @param dependencies - Plan and case repositories.
+ * @param actor - Authenticated actor from the session.
+ * @param studentId - The student, already authorized by the caller.
+ * @returns A function from a plan ID and its latest revision number to OPEN, IN_REVIEW, or null.
+ * @throws {z.ZodError} When a stored case or revision row fails its domain schema.
+ */
+async function openCaseStatusLookup(
+  dependencies: PlanViewsServiceDependencies,
+  actor: Actor,
+  studentId: StudentId,
+): Promise<(planId: PlanId, latestRevision: number) => Promise<LiveCaseStatus | null>> {
+  const { plans, cases } = dependencies;
+  // SECURITY: both reads are scoped to the session tenant and the already-authorized student.
+  const live = (await cases.listForStudent(actor.tenantId, studentId)).filter(({ status }) =>
+    isLiveCaseStatus(status),
+  );
+  return async (planId, latestRevision) => {
+    if (live.length === 0) {
+      return null;
+    }
+    // TODO(#462): replace this revision scan with a plan-keyed case lookup in @caa/db.
+    const stored = await Promise.all(
+      Array.from({ length: latestRevision }, (_unused, index) =>
+        plans.findRevision(actor.tenantId, planId, index + 1),
+      ),
+    );
+    const ids = new Set(stored.flatMap((entry) => (entry === null ? [] : [entry.revision.id])));
+    return openCaseStatusOf(live, ids);
+  };
+}
+
+/**
  * Creates the plan views service.
  *
  * @param dependencies - Access rule, plan repository, and freshness service.
@@ -192,6 +230,7 @@ export function createPlanViewsService(
     async listPlans(actor, studentId, context) {
       await assertCanView(actor, studentId, context);
       const found = await plans.listForStudent(actor.tenantId, studentId);
+      const openStatusOf = await openCaseStatusLookup(dependencies, actor, studentId);
       const summaries = await Promise.all(
         found.map(async ({ plan, latest }) => ({
           id: plan.id,
@@ -204,8 +243,7 @@ export function createPlanViewsService(
             { studentId, revision: latest.revision },
             context,
           ),
-          // NOTE: advisor cases arrive with #411; until then no case is open.
-          openCaseStatus: null,
+          openCaseStatus: await openStatusOf(plan.id, latest.revision.revision),
         })),
       );
       return { plans: summaries };

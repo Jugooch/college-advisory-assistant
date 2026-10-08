@@ -117,6 +117,7 @@ export function setupPlanServices(initial: Setup = {}): PlanServices {
   const views = createPlanViewsService({
     access: { canViewStudent: () => Promise.resolve(true) },
     plans,
+    cases: { listForStudent: () => Promise.resolve([]) },
     freshness: {
       assess: () =>
         Promise.resolve({
