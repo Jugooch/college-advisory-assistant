@@ -62,7 +62,7 @@ export function createPlanDraftsController(drafts: PlanDraftsService): PlanDraft
         throw new InvalidRequestError();
       }
       const plan = await drafts.savePlan(actor, { studentId, body: body.data }, contextOf(request));
-      return sendData(reply, PlanViewSchema, plan);
+      return sendData(reply.code(201), PlanViewSchema, plan);
     },
   };
 }

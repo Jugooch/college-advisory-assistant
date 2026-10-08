@@ -62,7 +62,7 @@ describe('POST /v1/students/:studentId/plans', () => {
 
     const response = await saveAsStudent();
 
-    expect(response.statusCode).toBe(200);
+    expect(response.statusCode).toBe(201);
     const plan = readPlan(response);
     expect(plan.latest.revision).toBe(1);
     expect(plan.latest.cause).toBe(PlanRevisionCause.Saved);
