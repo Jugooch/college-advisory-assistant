@@ -16,6 +16,10 @@ import {
   type InMemoryCaseStore,
 } from './in-memory-case-repositories';
 import {
+  createInMemoryConversationRepository,
+  type InMemoryConversationStore,
+} from './in-memory-conversation-repositories';
+import {
   createInMemoryPlanRepository,
   type InMemoryPlanStore,
 } from './in-memory-plan-repositories';
@@ -35,6 +39,7 @@ export interface InMemoryStore
     InMemoryScheduleStore,
     InMemoryPlanStore,
     InMemoryCaseStore,
+    InMemoryConversationStore,
     InMemoryPolicyStore {
   identities: readonly UserIdentity[];
   students: readonly Student[];
@@ -97,6 +102,7 @@ export function createInMemoryRepositories(store: InMemoryStore): Repositories {
     ...createInMemoryScheduleRepositories(store),
     plans: createInMemoryPlanRepository(store),
     cases: createInMemoryCaseRepository(store),
+    conversations: createInMemoryConversationRepository(store),
     policyDocuments: createInMemoryPolicyRepository(store),
     advisorAssignments: {
       findActive: (tenantId, { advisorUserId, studentId, at }) => {

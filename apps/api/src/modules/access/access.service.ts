@@ -59,6 +59,18 @@ export interface AccessService {
    * @returns True only when the student is in the actor's tenant and linked to the actor's user.
    */
   canOpenCase(actor: Actor, studentId: StudentId, context: RequestContext): Promise<boolean>;
+
+  /**
+   * Tells whether the actor may read, post to or clear the student's conversation. Only the
+   * student themself: staff get no access, because the transcript is not shared (ADR-0015
+   * section 7).
+   *
+   * @param actor - Authenticated actor from the session.
+   * @param studentId - Internal student ID from the path.
+   * @param context - Request-scoped values; the logger records the decision.
+   * @returns True only for the student's own record.
+   */
+  canConverse(actor: Actor, studentId: StudentId, context: RequestContext): Promise<boolean>;
 }
 
 /**
@@ -146,6 +158,15 @@ export function createAccessService(dependencies: AccessServiceDependencies): Ac
       context.logger.info(
         { actorUserId: actor.userId, tenantId: actor.tenantId, studentId, isAllowed },
         'case open access decision',
+      );
+      return isAllowed;
+    },
+    async canConverse(actor, studentId, context) {
+      // SECURITY: only the student, for their own record; advisors and admins are refused.
+      const isAllowed = await isOwnRecord(dependencies.students, actor, studentId);
+      context.logger.info(
+        { actorUserId: actor.userId, tenantId: actor.tenantId, studentId, isAllowed },
+        'conversation access decision',
       );
       return isAllowed;
     },
