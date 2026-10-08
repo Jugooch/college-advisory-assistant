@@ -71,6 +71,19 @@ describe('PolicyDocumentRepository.listApplicable', () => {
         effectiveFrom: new Date('2026-12-01T00:00:00.000Z'),
       }),
       document(tenantId, 'j-everyone', { audience: 'ALL' }),
+      document(tenantId, 'k-narrowed', { revision: 1, body: 'Old student text.' }),
+      document(tenantId, 'k-narrowed', {
+        revision: 2,
+        audience: 'ADVISOR',
+        body: 'Advisor only.',
+        effectiveFrom: new Date('2026-09-01T00:00:00.000Z'),
+      }),
+      document(tenantId, 'l-widened', { revision: 1, audience: 'ADVISOR' }),
+      document(tenantId, 'l-widened', {
+        revision: 2,
+        audience: 'STUDENT',
+        effectiveFrom: new Date('2026-09-01T00:00:00.000Z'),
+      }),
       document(otherTenantId, 'z-other-tenant'),
     ]);
   });
@@ -94,6 +107,7 @@ describe('PolicyDocumentRepository.listApplicable', () => {
       'h-starts-at-as-of',
       'i-revised',
       'j-everyone',
+      'l-widened',
     ]);
   });
 
@@ -119,7 +133,7 @@ describe('PolicyDocumentRepository.listApplicable', () => {
   });
 
   it('excludes documents for audiences that were not asked for', async () => {
-    expect(await keysFor(['ADVISOR'])).toEqual(['f-advisor']);
+    expect(await keysFor(['ADVISOR'])).toEqual(['f-advisor', 'k-narrowed']);
     expect(await keysFor([])).toEqual([]);
   });
 
@@ -132,6 +146,34 @@ describe('PolicyDocumentRepository.listApplicable', () => {
 
     const revised = documents.filter((doc) => doc.documentKey === 'i-revised');
     expect(revised.map((doc) => [doc.revision, doc.body])).toEqual([[2, 'New text.']]);
+  });
+
+  it('returns nothing to a student when the current revision is advisor-only', async () => {
+    const keys = await keysFor(['STUDENT', 'ALL']);
+
+    expect(keys).not.toContain('k-narrowed');
+  });
+
+  it('returns the advisor-only current revision, not the older student one, to advisors', async () => {
+    const documents = await createPolicyDocumentRepository(testDatabase.db).listApplicable({
+      tenantId,
+      audiences: ['ADVISOR'],
+      asOf: AS_OF,
+    });
+
+    const narrowed = documents.filter((doc) => doc.documentKey === 'k-narrowed');
+    expect(narrowed.map((doc) => [doc.revision, doc.body])).toEqual([[2, 'Advisor only.']]);
+  });
+
+  it('returns a student the current revision when an advisor-only revision was widened', async () => {
+    const documents = await createPolicyDocumentRepository(testDatabase.db).listApplicable({
+      tenantId,
+      audiences: ['STUDENT'],
+      asOf: AS_OF,
+    });
+
+    const widened = documents.filter((doc) => doc.documentKey === 'l-widened');
+    expect(widened.map((doc) => doc.revision)).toEqual([2]);
   });
 
   it("never returns another tenant's document", async () => {

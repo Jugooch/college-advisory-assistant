@@ -4,7 +4,7 @@
  * @requirement FR-16
  * @see docs/adr/0015-conversation-orchestration-and-policy-corpus.md
  */
-import { and, asc, desc, eq, gt, inArray, isNull, lte, or } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, isNull, lte, or } from 'drizzle-orm';
 
 import type { InstitutionId, PolicyAudience, PolicyDocument } from '@caa/domain';
 
@@ -27,7 +27,9 @@ export interface PolicyDocumentRepository {
   /**
    * Lists the documents that apply to the audiences at the instant: approved only, with
    * `effectiveFrom <= asOf` and (`effectiveTo` is null or `asOf < effectiveTo`), and only the
-   * highest such revision of each document key. Draft and withdrawn revisions never appear.
+   * highest such revision of each document key. That revision is chosen first; the audience
+   * filter is applied to it afterwards, so a key whose current revision is for another audience
+   * returns nothing rather than an older revision. Draft and withdrawn revisions never appear.
    *
    * @param query - Tenant, audiences, and instant.
    * @returns The applicable documents ordered by `documentKey`; empty when no audience is given.
@@ -61,14 +63,15 @@ export function createPolicyDocumentRepository(db: Database): PolicyDocumentRepo
             eq(table.tenantId, tenantId),
             // SAFETY: only approved text is ever searchable; drafts and withdrawn never leave.
             eq(table.approvalStatus, 'APPROVED'),
-            inArray(table.audience, [...audiences]),
             // SAFETY: start is inclusive and end is exclusive, so a document ends exactly at effectiveTo.
             lte(table.effectiveFrom, instant),
             or(isNull(table.effectiveTo), gt(table.effectiveTo, instant)),
           ),
         )
         .orderBy(asc(table.documentKey), desc(table.revision));
-      return rows.map(toPolicyDocument);
+      // SAFETY: audience is applied only after the current revision is chosen, so a revision
+      // narrowed to another audience never lets an older, broader revision through.
+      return rows.filter((row) => audiences.includes(row.audience)).map(toPolicyDocument);
     },
   };
 }
