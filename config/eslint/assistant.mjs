@@ -24,11 +24,11 @@ import {
 const NODE_BUILTIN_MESSAGE =
   'assistant is pure (ADR-0015 §1): no Node built-ins, so no I/O, clock, or randomness. Reach the model through a port.';
 
-/** The network global the assistant must not call; the API adapter owns the model call. */
-const FETCH_BAN = {
-  name: 'fetch',
+/** The network globals the assistant must not use; the API adapter owns the model call. */
+const NETWORK_BANS = ['fetch', 'WebSocket', 'XMLHttpRequest', 'EventSource'].map((name) => ({
+  name,
   message: 'The assistant makes no network calls; the model is behind a port (ADR-0015 §1).',
-};
+}));
 
 /**
  * Removes the SDK restriction from a `forbid` result, for the one folder allowed to import it.
@@ -50,14 +50,23 @@ export const assistantRules = [
     files: ['packages/assistant/src/**'],
     rules: {
       'no-restricted-imports': forbid(
-        ['@caa/db', '@caa/engine', '@caa/api-contract', 'drizzle-orm', 'pg', ...FRAMEWORKS],
+        [
+          '@caa/*',
+          '!@caa/domain',
+          'drizzle-orm',
+          'pg',
+          'undici',
+          'axios',
+          'node-fetch',
+          ...FRAMEWORKS,
+        ],
         'assistant depends only on @caa/domain; data and the model come in through injected ports.',
         { paths: NODE_BUILTINS, regex: '^node:', message: NODE_BUILTIN_MESSAGE },
       ),
       ...determinismBans(
         LANGUAGE_SYNTAX_BANS,
         'new Date() reads the clock; pass the time in as an argument (NFR-01).',
-        [FETCH_BAN],
+        NETWORK_BANS,
       ),
     },
   },

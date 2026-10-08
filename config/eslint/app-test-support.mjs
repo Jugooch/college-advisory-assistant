@@ -41,3 +41,19 @@ export function testSupport(app, names, message) {
     },
   };
 }
+
+/**
+ * Adds restrictions every file carries, such as the model SDK ban, to a test-support block,
+ * because its rule replaces the production block's rule.
+ *
+ * @param {{ rules: Record<string, [string, { patterns: object[] }]> }} block - A `testSupport` result.
+ * @param {object[]} extra - Restriction patterns to add.
+ * @returns {object} The block with the extra patterns.
+ */
+export function withBlockPatterns(block, extra) {
+  const [severity, options] = block.rules['no-restricted-imports'];
+  return {
+    ...block,
+    rules: { 'no-restricted-imports': [severity, { patterns: [...options.patterns, ...extra] }] },
+  };
+}

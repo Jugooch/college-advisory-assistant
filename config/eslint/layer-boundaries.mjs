@@ -6,7 +6,11 @@
  */
 import { builtinModules } from 'node:module';
 
-import { APP_TEST_SUPPORT_RESTRICTION, testSupport } from './app-test-support.mjs';
+import {
+  APP_TEST_SUPPORT_RESTRICTION,
+  testSupport,
+  withBlockPatterns,
+} from './app-test-support.mjs';
 import { determinismBans } from './determinism.mjs';
 
 /** Packages that only the API and worker may import. */
@@ -325,10 +329,12 @@ export const layerBoundaries = [
       ),
     },
   },
-  testSupport('api', otherApps('api'), 'The API does not import other apps.'),
-  testSupport(
-    'worker',
-    ['@caa/api-contract', ...otherApps('worker'), ...FRAMEWORKS],
-    'The worker has no HTTP or UI code and does not import other apps.',
-  ),
+  ...[
+    testSupport('api', otherApps('api'), 'The API does not import other apps.'),
+    testSupport(
+      'worker',
+      ['@caa/api-contract', ...otherApps('worker'), ...FRAMEWORKS],
+      'The worker has no HTTP or UI code and does not import other apps.',
+    ),
+  ].map((block) => withBlockPatterns(block, [SDK_RESTRICTION])),
 ];

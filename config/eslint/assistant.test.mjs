@@ -29,6 +29,13 @@ describe('the model SDK stays under api adapters', () => {
     'packages/engine/src/verification/example.ts',
     'packages/db/src/client.ts',
     'packages/test-kit/src/index.ts',
+    'apps/api/src/testing.ts',
+    'apps/api/src/testing/fixtures.ts',
+    'apps/worker/src/testing.ts',
+    'apps/worker/src/testing/x.ts',
+    'apps/api/src/modules/chat/chat.service.test.ts',
+    'tests/evals/t06-example.eval.test.ts',
+    'tests/support/model.ts',
   ])('forbids the SDK in %s', async (path) => {
     for (const specifier of [SDK, `${SDK}/resources`]) {
       const messages = await lintImport(path, specifier);
@@ -56,6 +63,9 @@ describe('assistant production code is pure (ADR-0015 §1)', () => {
     ['new Date()', 'new Date() reads the clock'],
     ['process.env.X', 'no environment'],
     ["fetch('https://example.test')", 'no network calls'],
+    ["new WebSocket('wss://example.test')", 'no network calls'],
+    ['new XMLHttpRequest()', 'no network calls'],
+    ["new EventSource('https://example.test')", 'no network calls'],
   ])('forbids %s', async (expression, message) => {
     const messages = await lintWithRules(ASSISTANT_FILE, `export const x = ${expression};`, RULES);
 
@@ -72,14 +82,24 @@ describe('assistant production code is pure (ADR-0015 §1)', () => {
     expect(messages.join('\n')).toContain('assistant is pure');
   });
 
-  it.each(['@caa/db', '@caa/engine', '@caa/api-contract', 'fastify', 'pg'])(
-    'forbids %s',
-    async (specifier) => {
-      const messages = await lintImport(ASSISTANT_FILE, specifier);
+  it.each([
+    '@caa/db',
+    '@caa/engine',
+    '@caa/api-contract',
+    '@caa/test-kit',
+    '@caa/api',
+    '@caa/worker',
+    '@caa/web',
+    'fastify',
+    'pg',
+    'undici',
+    'axios',
+    'node-fetch',
+  ])('forbids %s', async (specifier) => {
+    const messages = await lintImport(ASSISTANT_FILE, specifier);
 
-      expect(messages.join('\n')).toContain('depends only on @caa/domain');
-    },
-  );
+    expect(messages.join('\n')).toContain('depends only on @caa/domain');
+  });
 
   it('allows @caa/domain and zod', async () => {
     expect(await lintImport(ASSISTANT_FILE, '@caa/domain')).toEqual([]);
