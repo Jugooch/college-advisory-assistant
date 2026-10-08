@@ -11,6 +11,7 @@ import {
   type AuditSnapshotRepository,
   type CampusRepository,
   type CampusTransitionRepository,
+  type ConversationRepository,
   type CourseCatalogRepository,
   createAcademicPolicyRepository,
   createAdvisingCaseRepository,
@@ -18,6 +19,7 @@ import {
   createAuditSnapshotRepository,
   createCampusRepository,
   createCampusTransitionRepository,
+  createConversationRepository,
   createCourseCatalogRepository,
   createDatabase,
   createPlanRepository,
@@ -46,6 +48,7 @@ import type { AcademicSummaryController } from './modules/academic-summary/acade
 import type { CaseActionsController } from './modules/case-actions/case-actions.controller';
 import type { CaseQueueController } from './modules/case-queue/case-queue.controller';
 import type { CasesController } from './modules/cases/cases.controller';
+import type { ConversationStoreController } from './modules/conversation-store/conversation-store.controller';
 import type { CourseChecksController } from './modules/course-checks/course-checks.controller';
 import { createHealthController, type HealthController } from './modules/health/health.controller';
 import { createHealthService } from './modules/health/health.service';
@@ -61,6 +64,7 @@ import type { StudentsController } from './modules/students/students.controller'
 import { wireAcademic } from './wiring/academic.wiring';
 import { wireAccess } from './wiring/access.wiring';
 import { wireCases } from './wiring/cases.wiring';
+import { wireConversation } from './wiring/conversation.wiring';
 import { wirePlans } from './wiring/plans.wiring';
 import { wirePolicy } from './wiring/policy.wiring';
 
@@ -79,6 +83,7 @@ export interface Controllers {
   readonly cases: CasesController;
   readonly caseQueue: CaseQueueController;
   readonly caseActions: CaseActionsController;
+  readonly conversationStore: ConversationStoreController;
   readonly policySearch: PolicySearchController;
 }
 
@@ -101,6 +106,7 @@ export interface Repositories {
   readonly campuses: CampusRepository;
   readonly plans: PlanRepository;
   readonly cases: AdvisingCaseRepository;
+  readonly conversations: ConversationRepository;
   readonly policyDocuments: PolicyDocumentRepository;
 }
 
@@ -130,6 +136,7 @@ export function createContainer(options: ContainerOptions): AppDependencies {
   const academic = wireAcademic(options, access.studentsService, access.access);
   const plans = wirePlans(options, access.access, academic.scheduleOptionsService);
   const cases = wireCases(options, access.access, plans.views);
+  const conversation = wireConversation(options, access.access);
   const policy = wirePolicy(options);
   return {
     controllers: {
@@ -146,6 +153,7 @@ export function createContainer(options: ContainerOptions): AppDependencies {
       planRevalidation: plans.planRevalidation,
       planViews: plans.planViews,
       ...cases,
+      ...conversation,
       policySearch: policy.policySearch,
     },
     sessionResolver: access.sessionResolver,
@@ -179,6 +187,7 @@ export function createRuntimeDependencies(env: ApiEnv): AppDependencies {
     campuses: createCampusRepository(db),
     plans: createPlanRepository(db),
     cases: createAdvisingCaseRepository(db),
+    conversations: createConversationRepository(db),
     policyDocuments: createPolicyDocumentRepository(db),
   };
   return createContainer({ env, repositories, now: () => new Date() });

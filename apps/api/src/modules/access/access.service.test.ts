@@ -262,3 +262,24 @@ describe('AccessService.canOpenCase', () => {
     ]);
   });
 });
+
+describe('AccessService.canConverse', () => {
+  const canConverse = (actor: Actor, studentId: StudentId) => {
+    const { service } = setup();
+    return service.canConverse(actor, studentId, { logger: createRecordingLogger() });
+  };
+
+  it('allows a student their own conversation', async () => {
+    expect(await canConverse(studentActor, ownStudent.id)).toBe(true);
+  });
+
+  it.each([
+    ['an assigned advisor', advisorActor, ownStudent.id],
+    ['an admin of the same tenant', adminActor, ownStudent.id],
+    ['another student', studentActor, otherStudent.id],
+    ['an actor viewing a student of another tenant', adminActor, tenantBStudent.id],
+    ['a student that does not exist', studentActor, buildStudent({}, 99).id],
+  ])('denies %s', async (_case, actor, studentId) => {
+    expect(await canConverse(actor, studentId)).toBe(false);
+  });
+});
