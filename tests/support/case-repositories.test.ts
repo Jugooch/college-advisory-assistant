@@ -45,6 +45,7 @@ const NEW_CASE: NewAdvisingCase = {
   discrepancySubject: null,
   studentNote: 'Please check this plan.',
   actorUserId: UserIdSchema.parse(syntheticId('user', 1)),
+  actorRole: Role.Student,
   createdAt: '2026-09-22T10:00:00.000-05:00',
 };
 
@@ -72,6 +73,7 @@ function claim(actorUserId: typeof ADVISOR) {
   return {
     action: CaseAction.Claim,
     actorUserId,
+    actorRole: Role.Advisor,
     at: AT,
     toStatus: CaseStatus.InReview,
     resolution: null,
@@ -90,30 +92,23 @@ describe('case repository fake', () => {
     expect(await cases.create(TENANT_A, NEW_CASE)).toEqual({ status: 'OPEN_CASE_EXISTS' });
   });
 
-  it('keeps actorRole from the create and append requests, and omits it when absent', async () => {
+  it('keeps actorRole from the create and append requests', async () => {
     const { cases } = createCaseRepositories(world());
-    const plain = await cases.create(TENANT_A, NEW_CASE);
-    expect(plain.status === 'CREATED' && plain.event.actorRole).toBeUndefined();
-    expect(plain.status === 'CREATED' && 'actorRole' in plain.event).toBe(false);
-    if (plain.status !== 'CREATED') {
+    const created = await cases.create(TENANT_A, NEW_CASE);
+    expect(created.status === 'CREATED' && created.event.actorRole).toBe('STUDENT');
+    if (created.status !== 'CREATED') {
       throw new Error('expected CREATED');
     }
-    const staff = await cases.appendEvent(TENANT_A, plain.case.id, {
+    const advisor = await cases.appendEvent(TENANT_A, created.case.id, {
       expectedSequence: 1,
-      event: { ...claim(ADVISOR), actorRole: Role.Admin },
+      event: claim(ADVISOR),
+    });
+    expect(advisor.status === 'APPENDED' && advisor.event.actorRole).toBe('ADVISOR');
+    const staff = await cases.appendEvent(TENANT_A, created.case.id, {
+      expectedSequence: 2,
+      event: { ...claim(ADVISOR), actorRole: Role.Admin, toStatus: CaseStatus.Open },
     });
     expect(staff.status === 'APPENDED' && staff.event.actorRole).toBe('ADMIN');
-    const bare = await cases.appendEvent(TENANT_A, plain.case.id, {
-      expectedSequence: 2,
-      event: { ...claim(ADVISOR), toStatus: CaseStatus.Open },
-    });
-    expect(bare.status === 'APPENDED' && 'actorRole' in bare.event).toBe(false);
-  });
-
-  it('records the student role on the CREATE event when the request has one', async () => {
-    const { cases } = createCaseRepositories({ ...world() });
-    const created = await cases.create(TENANT_A, { ...NEW_CASE, actorRole: Role.Student });
-    expect(created.status === 'CREATED' && created.event.actorRole).toBe('STUDENT');
   });
 
   it('refuses an unknown student and a revision that is not the student plan', async () => {
@@ -147,6 +142,7 @@ describe('case repository fake', () => {
       event: {
         action: CaseAction.Resolve,
         actorUserId: ADVISOR,
+        actorRole: Role.Advisor,
         at: AT,
         toStatus: CaseStatus.Resolved,
         resolution: CaseResolution.PlanReviewed,
@@ -235,6 +231,7 @@ describe('case repository fake', () => {
       event: {
         action: CaseAction.Resolve,
         actorUserId: ADVISOR,
+        actorRole: Role.Advisor,
         at: AT,
         toStatus: CaseStatus.Resolved,
         resolution: CaseResolution.PlanReviewed,
