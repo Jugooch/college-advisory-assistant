@@ -14,7 +14,9 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "0.128.0",
     "@caa/api-contract": "workspace:*",
+    "@caa/assistant": "workspace:*",
     "@caa/db": "workspace:*",
     "@caa/domain": "workspace:*",
     "@caa/engine": "workspace:*",

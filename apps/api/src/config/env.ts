@@ -4,7 +4,10 @@
  * @requirement FR-01
  * @requirement FR-04
  * @requirement NFR-07
+ * @requirement FR-14
+ * @requirement NFR-05
  * @see docs/adr/0010-deterministic-bounded-schedule-solver.md
+ * @see docs/adr/0015-conversation-orchestration-and-policy-corpus.md
  * @see docs/standards/09-errors-logging-and-security.md
  * @see docs/planning/07-system-architecture-and-design.md
  */
@@ -107,6 +110,28 @@ function parseJson(raw: string, context: z.RefinementCtx): unknown {
   }
 }
 
+/** `CONVERSATION_MODEL`: which model answers a conversation turn; `off` is the kill switch (ADR-0015 §1). */
+export const ConversationModelMode = { Off: 'off', Demo: 'demo', Claude: 'claude' } as const;
+
+/** Union of every {@link ConversationModelMode} value. */
+export type ConversationModelMode =
+  (typeof ConversationModelMode)[keyof typeof ConversationModelMode];
+
+/** The only model ids the Claude adapter may call; any other value is refused (ADR-0015 §1). */
+export const CONVERSATION_MODEL_IDS = ['claude-haiku-5-5', 'claude-sonnet-5-5'] as const;
+
+/** Default `CONVERSATION_MODEL_ID`. */
+export const DEFAULT_CONVERSATION_MODEL_ID = 'claude-haiku-5-5';
+
+/** The conversation model variables, shared by the API schema and the manual eval helper. */
+const ConversationModelFields = {
+  CONVERSATION_MODEL: z.enum(ConversationModelMode).default(ConversationModelMode.Off),
+  CONVERSATION_MODEL_ID: z.enum(CONVERSATION_MODEL_IDS).default(DEFAULT_CONVERSATION_MODEL_ID),
+  /** A secret: read here and nowhere else, and never logged. */
+  ANTHROPIC_API_KEY: z.string().trim().min(1).optional(),
+  CONVERSATION_PROVIDER_APPROVAL_REF: z.string().trim().min(1).optional(),
+};
+
 /** Schema for the API's environment variables. */
 const ApiEnvSchema = z
   .object({
@@ -126,6 +151,7 @@ const ApiEnvSchema = z
     ACTIVE_RULESET_VERSION: z.string().trim().min(1).optional(),
     ACADEMIC_SOURCE_MAX_AGE_MS: AcademicSourceMaxAgeSchema,
     SCHEDULE_SOLVER_WORK_CAP: ScheduleSolverWorkCapSchema,
+    ...ConversationModelFields,
   })
   // SECURITY: dev tokens are guessable shortcuts, so production refuses to start with them.
   .refine((env) => !(env.NODE_ENV === 'production' && env.AUTH_MODE === AuthMode.Dev), {
@@ -144,6 +170,40 @@ const ApiEnvSchema = z
     message: 'ACADEMIC_SOURCE_MAX_AGE_MS is required when NODE_ENV=production',
     path: ['ACADEMIC_SOURCE_MAX_AGE_MS'],
   })
+  // SAFETY: the demo model is a scripted stand-in, so production never serves it as an advisor.
+  .refine(
+    (env) =>
+      !(env.NODE_ENV === 'production' && env.CONVERSATION_MODEL === ConversationModelMode.Demo),
+    {
+      message: 'CONVERSATION_MODEL=demo is not allowed when NODE_ENV=production',
+      path: ['CONVERSATION_MODEL'],
+    },
+  )
+  // SAFETY: the claude model needs its key to run at all.
+  .refine(
+    (env) =>
+      env.CONVERSATION_MODEL !== ConversationModelMode.Claude ||
+      env.ANTHROPIC_API_KEY !== undefined,
+    {
+      message: 'ANTHROPIC_API_KEY is required when CONVERSATION_MODEL=claude',
+      path: ['ANTHROPIC_API_KEY'],
+    },
+  )
+  // SAFETY: sending records to a provider needs a recorded approval (planning/10), so production
+  // refuses `claude` until the approval record is named.
+  .refine(
+    (env) =>
+      !(
+        env.NODE_ENV === 'production' &&
+        env.CONVERSATION_MODEL === ConversationModelMode.Claude &&
+        env.CONVERSATION_PROVIDER_APPROVAL_REF === undefined
+      ),
+    {
+      message:
+        'CONVERSATION_PROVIDER_APPROVAL_REF is required when CONVERSATION_MODEL=claude in production',
+      path: ['CONVERSATION_PROVIDER_APPROVAL_REF'],
+    },
+  )
   .transform((env) => ({
     ...env,
     ACADEMIC_SOURCE_MAX_AGE_MS: env.ACADEMIC_SOURCE_MAX_AGE_MS ?? DEV_ACADEMIC_SOURCE_MAX_AGE_MS,
@@ -163,4 +223,27 @@ export type ApiEnv = z.infer<typeof ApiEnvSchema>;
  */
 export function loadApiEnv(source: NodeJS.ProcessEnv): ApiEnv {
   return ApiEnvSchema.parse(source);
+}
+
+/** The settings the Claude adapter needs. */
+export interface ClaudeModelEnv {
+  readonly apiKey: string;
+  readonly modelId: (typeof CONVERSATION_MODEL_IDS)[number];
+}
+
+/**
+ * Reads only the Claude settings, for the manual live eval, which has no database.
+ *
+ * @param source - Raw environment, usually `process.env`.
+ * @returns The API key and model id.
+ * @throws {z.ZodError} When the key is missing or the model id isn't allowed.
+ */
+export function loadClaudeModelEnv(source: NodeJS.ProcessEnv): ClaudeModelEnv {
+  const parsed = z
+    .object({
+      ...ConversationModelFields,
+      ANTHROPIC_API_KEY: ConversationModelFields.ANTHROPIC_API_KEY.unwrap(),
+    })
+    .parse(source);
+  return { apiKey: parsed.ANTHROPIC_API_KEY, modelId: parsed.CONVERSATION_MODEL_ID };
 }
