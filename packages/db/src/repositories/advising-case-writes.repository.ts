@@ -18,6 +18,7 @@ import {
   type DiscrepancySubject,
   type InstitutionId,
   type PlanRevisionId,
+  type Role,
   type StudentId,
   type UserId,
 } from '@caa/domain';
@@ -49,6 +50,8 @@ export interface NewAdvisingCase {
   readonly studentNote: string;
   /** The student creating the case; recorded on the CREATE event. */
   readonly actorUserId: UserId;
+  /** The role the student acted as; optional until #448. */
+  readonly actorRole?: Role;
   /** ISO 8601 with offset, from the caller's clock. */
   readonly createdAt: string;
 }
@@ -57,7 +60,8 @@ export interface NewAdvisingCase {
 export type NewCaseEvent = Pick<
   CaseEvent,
   'action' | 'actorUserId' | 'at' | 'toStatus' | 'resolution' | 'note'
->;
+> &
+  Partial<Pick<CaseEvent, 'actorRole'>>;
 
 /** What an append states: the sequence the caller saw, and the event to add after it. */
 export interface AppendCaseEventRequest {
@@ -155,7 +159,7 @@ async function insertCaseAndCreateEvent(
   placement: { readonly newCase: NewAdvisingCase; readonly planId: string | null },
 ): Promise<CreateCaseResult> {
   const { newCase, planId } = placement;
-  const { actorUserId, createdAt, ...fields } = newCase;
+  const { actorUserId, actorRole, createdAt, ...fields } = newCase;
   const caseRows = await tx
     .insert(advisingCaseTable)
     .values({
@@ -177,6 +181,7 @@ async function insertCaseAndCreateEvent(
       sequence: 1,
       action: CaseAction.Create,
       actorUserId,
+      actorRole: actorRole ?? null,
       at: new Date(createdAt),
       fromStatus: null,
       toStatus: CaseStatus.Open,
@@ -282,6 +287,7 @@ export const appendCaseEvent =
           .insert(caseEventTable)
           .values({
             ...event,
+            actorRole: event.actorRole ?? null,
             tenantId,
             caseId,
             sequence: expectedSequence + 1,
