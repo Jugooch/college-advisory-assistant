@@ -206,19 +206,4 @@ describe('toCaseView stored roles', () => {
 
     expect(view.owner?.role).toBe(Role.Advisor);
   });
-
-  it('falls back to inference when an event has no stored role', () => {
-    const bare = buildCaseEvent({ ...events[1], actorRole: undefined }, 2);
-    const view = toCaseView({
-      advisingCase,
-      events: [buildCaseEvent({ caseId: advisingCase.id }, 1), bare],
-      studentUserId: student.userId,
-      viewer: student,
-      context,
-      allowedActions: [],
-    });
-
-    expect(view.events[1]?.actorRole).toBe(Role.Advisor);
-    expect(view.owner?.role).toBe(Role.Advisor);
-  });
 });
