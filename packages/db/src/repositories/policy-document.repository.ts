@@ -71,9 +71,9 @@ export function createPolicyDocumentRepository(db: Database): PolicyDocumentRepo
           ),
         )
         .orderBy(asc(table.documentKey), desc(table.revision));
-      // SAFETY: the current revision is chosen above, before any other filter. Retraction,
-      // expiry (end is exclusive) and audience apply to it afterwards, so none of them lets an
-      // older revision through.
+      // SAFETY (ADR-0015 Amendment 2): the current revision is chosen above, before any other
+      // filter. Retraction, expiry (end is exclusive) and audience apply to it afterwards, so
+      // none of them lets an older revision through.
       const current = rows.filter(
         (row) =>
           row.approvalStatus === 'APPROVED' &&

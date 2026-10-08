@@ -1,14 +1,16 @@
 /**
- * @file Synthetic policy document rows for integration tests.
+ * @file Synthetic policy document rows for integration tests. Test code only.
+ * @module @caa/db/testing/policy-document-fixtures
+ * @requirement FR-16
  */
 import type { InstitutionId } from '@caa/domain';
 
 import type { policyDocumentTable } from '../tables/policy-document.table';
 
-export /**
- *
+/**
+ * A well-formed synthetic content hash.
  */
-const POLICY_HASH = `sha256:${'b'.repeat(64)}`;
+export const POLICY_HASH = `sha256:${'b'.repeat(64)}`;
 
 /**
  * A policy document row as it is inserted.

@@ -1,7 +1,7 @@
 -- Migration for #546 (FR-16, ADR-0015 Amendment 2). The generated column and check change are
 -- followed by a hand-written backfill and trigger. An approved policy revision may be retracted
 -- once (APPROVED to WITHDRAWN, setting withdrawn_at); nothing else about it may change, and
--- WITHDRAWN is final. Drafts stay editable. The refusal matches reject_published_row_change()
+-- WITHDRAWN is final. SAFETY (ADR-0015 Amendment 2): retraction is the only permitted change. Drafts stay editable. The refusal matches reject_published_row_change()
 -- from migration 0003 (SQLSTATE restrict_violation, same message shape).
 ALTER TABLE "policy_document" DROP CONSTRAINT "policy_document_approved_at_matches_status";--> statement-breakpoint
 ALTER TABLE "policy_document" ADD COLUMN "withdrawn_at" timestamp with time zone;--> statement-breakpoint
