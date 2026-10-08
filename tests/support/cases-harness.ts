@@ -184,3 +184,85 @@ export function withoutFreshness(view: unknown): Record<string, unknown> {
     Object.entries(view as Record<string, unknown>).filter(([key]) => key !== 'freshness'),
   );
 }
+
+/** A case action body: the action, the sequence the caller saw, and a resolution on RESOLVE. */
+export interface CaseActionBody {
+  readonly action: 'CLAIM' | 'RELEASE' | 'RESOLVE' | 'WITHDRAW';
+  readonly expectedSequence: number;
+  readonly resolution?: 'PLAN_REVIEWED' | 'STUDENT_ACTION_NEEDED' | 'REFERRED_OUTSIDE_APP';
+  readonly note?: string;
+}
+
+/**
+ * Takes an action on a case through `POST /v1/cases/:caseId/events` as the assigned advisor.
+ *
+ * @param app - App under test.
+ * @param caseId - The case.
+ * @param payload - The JSON body; any object, so a test can send a forbidden field.
+ * @returns The response.
+ */
+export function actOnCase(
+  app: AcceptanceApp,
+  caseId: string,
+  payload: CaseActionBody | Record<string, unknown>,
+): Promise<AcceptanceResponse> {
+  return actAs(app, 'advisor')(caseId, payload);
+}
+
+/**
+ * Builds the case action request for one actor.
+ *
+ * @param app - App under test.
+ * @param actor - Who acts.
+ * @returns A function that takes an action on a case and returns the response.
+ */
+export function actAs(
+  app: AcceptanceApp,
+  actor: AcademicActor,
+): (
+  caseId: string,
+  payload: CaseActionBody | Record<string, unknown>,
+) => Promise<AcceptanceResponse> {
+  return (caseId, payload) =>
+    postAs(app, {
+      url: `/v1/cases/${caseId}/events`,
+      authorization: `Bearer academic-${actor}`,
+      payload,
+    });
+}
+
+/**
+ * Reads the advisor queue.
+ *
+ * @param app - App under test.
+ * @param query - Query string including the `?`, or empty.
+ * @param actor - Who reads; the assigned advisor by default.
+ * @returns The response.
+ */
+export function readQueue(
+  app: AcceptanceApp,
+  query = '',
+  actor: AcademicActor = 'advisor',
+): Promise<AcceptanceResponse> {
+  return getAs(app, `/v1/advisor/cases${query}`, `Bearer academic-${actor}`);
+}
+
+/**
+ * Opens a case as the student and claims it as the assigned advisor.
+ *
+ * @param app - App under test.
+ * @returns The ids of the open case and the claim response.
+ */
+export async function claimedCase(app: AcceptanceApp): Promise<{
+  planId: string;
+  revisionId: string;
+  caseId: string;
+  claimed: AcceptanceResponse;
+}> {
+  const opened = await openCase(app);
+  const claimed = await actOnCase(app, opened.caseId, { action: 'CLAIM', expectedSequence: 1 });
+  return { planId: opened.planId, revisionId: opened.revisionId, caseId: opened.caseId, claimed };
+}
+
+/** The first assignment of the default world, ended before the harness clock. */
+export const REVOKED_AT = '2026-08-30T00:00:00.000-05:00';
