@@ -5,15 +5,23 @@
  * @requirement FR-11
  * @requirement AC14
  */
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
 import { PlanListResponseSchema } from '@caa/api-contract';
-import { CaseStatus, createPlan, createPlanRevision } from '@caa/domain';
-import { SYNTHETIC_TENANTS, syntheticId } from '@caa/test-kit';
+import { CaseStatus, createPlan, createPlanRevision, Role } from '@caa/domain';
+import {
+  buildActor,
+  buildPlan,
+  buildPlanRevision,
+  SYNTHETIC_TENANTS,
+  syntheticId,
+} from '@caa/test-kit';
 
 import { buildCasesWorld, createAsStudent } from '../../testing/cases-harness';
+import { createRecordingLogger } from '../../testing/in-memory-repositories';
 import { getPlans } from '../../testing/plan-drafts-harness';
+import { createPlanViewsService } from './plan-views.service';
 
 const { app, store, reset } = buildCasesWorld();
 
@@ -137,5 +145,48 @@ describe('plan list: open case status', () => {
     ];
 
     expect(await listedStatus()).toBe('OPEN');
+  });
+});
+
+describe('plan list: case lookup', () => {
+  /**
+   * Builds the service over stub plans, access, and freshness with the given case repository.
+   *
+   * @param cases - The case repository fake.
+   * @returns The service and the plans it reads.
+   */
+  function serviceOver(cases: Parameters<typeof createPlanViewsService>[0]['cases']) {
+    const plan = buildPlan();
+    const listForStudent = vi.fn(() =>
+      Promise.resolve([
+        { plan, latest: { revision: buildPlanRevision({ planId: plan.id }), result: {} } },
+      ]),
+    );
+    const service = createPlanViewsService({
+      access: { canViewStudent: () => Promise.resolve(true) },
+      plans: { listForStudent } as never,
+      cases,
+      freshness: { assess: () => Promise.resolve({ state: 'FRESH' }) } as never,
+    });
+    return { service, plan };
+  }
+
+  const actor = buildActor({ roles: [Role.Student] }, 1);
+
+  it('reads every plan live case in one findLiveByPlanIds call, never per revision', async () => {
+    const findLiveByPlanIds = vi.fn(() => Promise.resolve(new Map()));
+    const { service, plan } = serviceOver({ findLiveByPlanIds });
+
+    await service.listPlans(actor, plan.studentId, { logger: createRecordingLogger() });
+
+    expect(findLiveByPlanIds).toHaveBeenCalledExactlyOnceWith(actor.tenantId, [plan.id]);
+  });
+
+  it('fails closed when the repository has no findLiveByPlanIds', async () => {
+    const { service, plan } = serviceOver({});
+
+    await expect(
+      service.listPlans(actor, plan.studentId, { logger: createRecordingLogger() }),
+    ).rejects.toThrow('findLiveByPlanIds');
   });
 });
