@@ -80,9 +80,9 @@ describe('plan repository fake', () => {
       throw new Error('expected CREATED');
     }
     const revisionId = created.revision.revision.id;
-    expect((await plans.findRevisionById?.(TENANT_A, revisionId))?.revision.id).toBe(revisionId);
-    expect(await plans.findRevisionById?.(TENANT_B, revisionId)).toBeNull();
+    expect((await plans.findRevisionById(TENANT_A, revisionId))?.revision.id).toBe(revisionId);
+    expect(await plans.findRevisionById(TENANT_B, revisionId)).toBeNull();
     const absent = PlanRevisionIdSchema.parse(syntheticId('planRevision', 99));
-    expect(await plans.findRevisionById?.(TENANT_A, absent)).toBeNull();
+    expect(await plans.findRevisionById(TENANT_A, absent)).toBeNull();
   });
 });
