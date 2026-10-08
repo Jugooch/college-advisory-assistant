@@ -16,14 +16,13 @@ import type { RequestContext } from '../../shared/request-context';
 import type { AccessService } from '../access/access.service';
 import { isLiveCaseStatus, type LiveCaseStatus } from '../cases/cases.logic';
 import type { PlanFreshnessService } from '../plan-freshness/plan-freshness.service';
-import { openCaseStatusOf } from './plan-views.logic';
 import { toRevisionView } from './plan-views.mapper';
 
 /** Dependencies of the plan views service. */
 export interface PlanViewsServiceDependencies {
   readonly access: Pick<AccessService, 'canViewStudent'>;
   readonly plans: PlanRepository;
-  readonly cases: Pick<AdvisingCaseRepository, 'listForStudent'>;
+  readonly cases: Pick<AdvisingCaseRepository, 'findLiveByPlanIds'>;
   readonly freshness: PlanFreshnessService;
 }
 
@@ -181,38 +180,36 @@ function createViewHelpers(dependencies: PlanViewsServiceDependencies): ViewHelp
 }
 
 /**
- * Builds a function that tells a plan's open case status, reading the student's cases once and
- * a plan's revisions only when the student has a live case.
+ * Finds the status of each plan's live case in one query.
  *
  * @param dependencies - Plan and case repositories.
  * @param actor - Authenticated actor from the session.
- * @param studentId - The student, already authorized by the caller.
- * @returns A function from a plan ID and its latest revision number to OPEN, IN_REVIEW, or null.
- * @throws {z.ZodError} When a stored case or revision row fails its domain schema.
+ * @param planIds - The student's plans, already authorized by the caller.
+ * @returns A map from plan ID to OPEN or IN_REVIEW; a plan with no live case has no entry.
+ * @throws {Error} When the case repository does not implement `findLiveByPlanIds`.
+ * @throws {z.ZodError} When a stored case row fails its domain schema.
  */
-async function openCaseStatusLookup(
+async function openCaseStatuses(
   dependencies: PlanViewsServiceDependencies,
   actor: Actor,
-  studentId: StudentId,
-): Promise<(planId: PlanId, latestRevision: number) => Promise<LiveCaseStatus | null>> {
-  const { plans, cases } = dependencies;
-  // SECURITY: both reads are scoped to the session tenant and the already-authorized student.
-  const live = (await cases.listForStudent(actor.tenantId, studentId)).filter(({ status }) =>
-    isLiveCaseStatus(status),
-  );
-  return async (planId, latestRevision) => {
-    if (live.length === 0) {
-      return null;
+  planIds: readonly PlanId[],
+): Promise<ReadonlyMap<PlanId, LiveCaseStatus>> {
+  const { cases } = dependencies;
+  // TODO(#468): the interface method becomes required in step 3 of the adoption.
+  if (cases.findLiveByPlanIds === undefined) {
+    // Fail closed: an empty map would hide an open case from the student who must see it.
+    throw new Error('the case repository does not implement findLiveByPlanIds');
+  }
+  // SECURITY: the read is scoped to the session tenant, and the plans are already the
+  // authorized student's own.
+  const live = await cases.findLiveByPlanIds(actor.tenantId, planIds);
+  const statuses = new Map<PlanId, LiveCaseStatus>();
+  for (const [planId, { status }] of live) {
+    if (isLiveCaseStatus(status)) {
+      statuses.set(planId, status);
     }
-    // TODO(#462): replace this revision scan with a plan-keyed case lookup in @caa/db.
-    const stored = await Promise.all(
-      Array.from({ length: latestRevision }, (_unused, index) =>
-        plans.findRevision(actor.tenantId, planId, index + 1),
-      ),
-    );
-    const ids = new Set(stored.flatMap((entry) => (entry === null ? [] : [entry.revision.id])));
-    return openCaseStatusOf(live, ids);
-  };
+  }
+  return statuses;
 }
 
 /**
@@ -230,7 +227,11 @@ export function createPlanViewsService(
     async listPlans(actor, studentId, context) {
       await assertCanView(actor, studentId, context);
       const found = await plans.listForStudent(actor.tenantId, studentId);
-      const openStatusOf = await openCaseStatusLookup(dependencies, actor, studentId);
+      const openStatuses = await openCaseStatuses(
+        dependencies,
+        actor,
+        found.map(({ plan }) => plan.id),
+      );
       const summaries = await Promise.all(
         found.map(async ({ plan, latest }) => ({
           id: plan.id,
@@ -243,7 +244,7 @@ export function createPlanViewsService(
             { studentId, revision: latest.revision },
             context,
           ),
-          openCaseStatus: await openStatusOf(plan.id, latest.revision.revision),
+          openCaseStatus: openStatuses.get(plan.id) ?? null,
         })),
       );
       return { plans: summaries };

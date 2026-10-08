@@ -53,7 +53,7 @@ function setup(
   const views = createPlanViewsService({
     access: { canViewStudent: () => Promise.resolve(true) },
     plans,
-    cases: { listForStudent: () => Promise.resolve([]) },
+    cases: { findLiveByPlanIds: () => Promise.resolve(new Map()) },
     freshness: {
       assess: () =>
         Promise.resolve({
