@@ -64,6 +64,7 @@ describe('createRuntimeDependencies', () => {
       'planRevalidation',
       'planViews',
       'plannableTerms',
+      'policySearch',
       'scheduleOptions',
       'session',
       'students',

@@ -3,7 +3,7 @@
  * @module @caa/api/wiring/conversation
  * @see docs/adr/0014-api-composition-root-wiring-files.md
  */
-import { ConversationProvider } from '../config/env';
+import { ConversationModelMode } from '../config/env';
 import type { ContainerOptions } from '../container';
 import type { AccessService } from '../modules/access/access.service';
 import {
@@ -36,7 +36,7 @@ export function wireConversation(
         conversations: repositories.conversations,
         now,
         // SAFETY: `off` is the kill switch; the transcript still reads, and says chat is off.
-        isAvailable: env.CONVERSATION_MODEL !== ConversationProvider.Off,
+        isAvailable: env.CONVERSATION_MODEL !== ConversationModelMode.Off,
       }),
     ),
   };

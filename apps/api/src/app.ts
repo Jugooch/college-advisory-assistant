@@ -16,6 +16,7 @@ import { registerPlanDraftsRoutes } from './modules/plan-drafts/plan-drafts.rout
 import { registerPlanRevalidationRoutes } from './modules/plan-revalidation/plan-revalidation.routes';
 import { registerPlanViewsRoutes } from './modules/plan-views/plan-views.routes';
 import { registerPlannableTermsRoutes } from './modules/plannable-terms/plannable-terms.routes';
+import { registerPolicySearchRoutes } from './modules/policy-search/policy-search.routes';
 import { registerScheduleOptionsRoutes } from './modules/schedule-options/schedule-options.routes';
 import { registerSessionRoutes } from './modules/session/session.routes';
 import { registerStudentsRoutes } from './modules/students/students.routes';
@@ -57,6 +58,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
       registerCaseQueueRoutes(scope, controllers.caseQueue);
       registerCaseActionsRoutes(scope, controllers.caseActions);
       registerConversationStoreRoutes(scope, controllers.conversationStore);
+      registerPolicySearchRoutes(scope, controllers.policySearch);
     },
   });
   return app;

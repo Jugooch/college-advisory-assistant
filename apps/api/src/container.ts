@@ -23,6 +23,7 @@ import {
   createCourseCatalogRepository,
   createDatabase,
   createPlanRepository,
+  createPolicyDocumentRepository,
   createPrerequisiteRuleRepository,
   createProgramRepository,
   createSectionSnapshotRepository,
@@ -31,6 +32,7 @@ import {
   createTermRepository,
   createUserIdentityRepository,
   type PlanRepository,
+  type PolicyDocumentRepository,
   type PrerequisiteRuleRepository,
   type ProgramRepository,
   type StudentRepository,
@@ -54,6 +56,7 @@ import type { PlanDraftsController } from './modules/plan-drafts/plan-drafts.con
 import type { PlanRevalidationController } from './modules/plan-revalidation/plan-revalidation.controller';
 import type { PlanViewsController } from './modules/plan-views/plan-views.controller';
 import type { PlannableTermsController } from './modules/plannable-terms/plannable-terms.controller';
+import type { PolicySearchController } from './modules/policy-search/policy-search.controller';
 import type { ScheduleOptionsController } from './modules/schedule-options/schedule-options.controller';
 import type { SessionController } from './modules/session/session.controller';
 import type { SessionResolver } from './modules/session/session.service';
@@ -63,6 +66,7 @@ import { wireAccess } from './wiring/access.wiring';
 import { wireCases } from './wiring/cases.wiring';
 import { wireConversation } from './wiring/conversation.wiring';
 import { wirePlans } from './wiring/plans.wiring';
+import { wirePolicy } from './wiring/policy.wiring';
 
 /** Every controller the app registers. */
 export interface Controllers {
@@ -80,6 +84,7 @@ export interface Controllers {
   readonly caseQueue: CaseQueueController;
   readonly caseActions: CaseActionsController;
   readonly conversationStore: ConversationStoreController;
+  readonly policySearch: PolicySearchController;
 }
 
 /** Every repository the API reads through. Tests pass in-memory fakes. */
@@ -102,6 +107,7 @@ export interface Repositories {
   readonly plans: PlanRepository;
   readonly cases: AdvisingCaseRepository;
   readonly conversations: ConversationRepository;
+  readonly policyDocuments: PolicyDocumentRepository;
 }
 
 /** What {@link createContainer} needs. */
@@ -131,6 +137,7 @@ export function createContainer(options: ContainerOptions): AppDependencies {
   const plans = wirePlans(options, access.access, academic.scheduleOptionsService);
   const cases = wireCases(options, access.access, plans.views);
   const conversation = wireConversation(options, access.access);
+  const policy = wirePolicy(options);
   return {
     controllers: {
       health: createHealthController(
@@ -147,6 +154,7 @@ export function createContainer(options: ContainerOptions): AppDependencies {
       planViews: plans.planViews,
       ...cases,
       ...conversation,
+      policySearch: policy.policySearch,
     },
     sessionResolver: access.sessionResolver,
   };
@@ -180,6 +188,7 @@ export function createRuntimeDependencies(env: ApiEnv): AppDependencies {
     plans: createPlanRepository(db),
     cases: createAdvisingCaseRepository(db),
     conversations: createConversationRepository(db),
+    policyDocuments: createPolicyDocumentRepository(db),
   };
   return createContainer({ env, repositories, now: () => new Date() });
 }
