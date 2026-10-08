@@ -20,6 +20,19 @@ export const REFERRAL_TEMPLATES: Record<SpecialistTopic, string> = {
     'If you are in immediate danger, call your local emergency number now. You can also call or text 988 (the Suicide and Crisis Lifeline in the United States) or contact your campus counseling center. This chat is not monitored live and is not an emergency service, and no one will contact you because of this message.',
 };
 
+/** Template id recorded for the tier-2 crisis-support referral. */
+export const CRISIS_SUPPORT_TEMPLATE_ID = 'referral.crisis-support';
+
+/**
+ * Tier-2 crisis-support text (ADR-0015 Amendment 1): shown with the model's answer when the message is ambiguous.
+ * Names the same resources as the crisis referral and promises no contact.
+ */
+export const CRISIS_SUPPORT_REFERRAL = {
+  templateId: CRISIS_SUPPORT_TEMPLATE_ID,
+  topic: SpecialistTopic.Crisis,
+  text: 'If any part of your message is about your safety or how you are feeling, support is available. If you are in immediate danger, call your local emergency number now. You can also call or text 988 (the Suicide and Crisis Lifeline in the United States) or contact your campus counseling center. This chat is not monitored live and is not an emergency service, and no one will contact you because of this message.',
+} as const;
+
 /**
  * Renders the fixed text for a referral.
  *

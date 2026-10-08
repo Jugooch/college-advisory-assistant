@@ -3,7 +3,6 @@
  * @module @caa/assistant
  */
 export * from './guards/message.guard';
-export * from './guards/output.guard';
 export * from './ports/conversation-model.port';
 export * from './prompts/system.prompt';
 export * from './prompts/untrusted-data.prompt';

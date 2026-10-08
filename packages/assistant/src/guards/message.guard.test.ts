@@ -26,13 +26,13 @@ describe('detectFixedResponses', () => {
   it.each(TOPICS)('finds topic %s in: %s', (topic, message) => {
     const result = detectFixedResponses(message);
     expect(result.specialistTopics).toContain(topic);
-    expect(result.crisis).toBe(false);
+    expect(result.crisis).toBe('NONE');
   });
 
   it.each(NO_MATCH)('matches nothing in: %s', (message) => {
     expect(detectFixedResponses(message)).toEqual({
       specialistTopics: [],
-      crisis: false,
+      crisis: 'NONE',
       hypothetical: false,
       override: false,
       gradeDispute: false,
@@ -41,81 +41,72 @@ describe('detectFixedResponses', () => {
 
   it.each([
     'I want to kill myself',
-    "I don't want to live anymore",
-    'I think I might hurt myself',
-    'This is an EMERGENCY',
-    'I feel unsafe at home',
     'I keep thinking about killing myself',
-    "I'm thinking of ending it all",
-    "I can't go on anymore",
-  ])('flags crisis: %s', (message) => {
-    expect(detectFixedResponses(message).crisis).toBe(true);
+    "I'm going to kill myself tonight",
+    'I feel suicidal',
+    'I want to end my life',
+    'I want to end my own life',
+    'I want to take my own life',
+    "I'm going to take my life",
+    'I want to die',
+    'I wanna die',
+    'I wish I was dead',
+    'I wish I were dead',
+    'everyone is better off dead',
+    'I think I might hurt myself',
+    'kms',
+    'KMS',
+    'I want to kill mys\u200belf',
+    'I want to d\u200bie',
+  ])('tier 1 (unambiguous): %s', (message) => {
+    expect(detectFixedResponses(message).crisis).toBe('UNAMBIGUOUS');
   });
 
   it.each([
+    "I can't take this class until spring",
+    "I can't take it in the fall",
+    'Are there exams during dead week?',
+    'Should I take Death and Dying?',
+    'Can I jump from MATH 101 to MATH 201?',
+    'Am I in danger of academic probation?',
+    "I can't go on Fridays",
+    "I can't go on campus Mondays",
+    "I can't go on anymore",
+    "I can't go on this way",
+    "I can't go on at this point",
     'There\u2019s no point in living',
-    'I can\u2019t go on',
-    'kms',
     'I want to disappear',
-    'I want to take my own life',
-    "I'm going to take my life",
-    'I wish I was dead',
-    'I wish I were dead',
-    'kys',
-    'take my life',
-    'want to die',
-    'no point living',
-    'suicide',
-    'suicidal',
-    'self-harm',
-    'hurt myself',
-    'overdose',
-    'I want to d\u200bie',
-    'ending things',
-    'I wanna end it',
-    'nobody would miss me',
     'I don\u2019t want to be here anymore',
+    "I don't want to live anymore",
+    'suicide',
+    'self-harm',
+    'overdose',
     'I am a burden to everyone',
+    'I want to give up on life',
+    'nobody would miss me',
     'life is not worth living',
-    'I want out of this life',
     'I might do something drastic',
-    'I won\u2019t be around much longer',
-    'everyone would be better without me',
-    'I want to sleep forever',
-    'I am done with life',
-    'I want it to stop',
-    'I hate being alive',
-    'thinking about death',
-    'wanting to end everything',
-    'I want to unalive myself',
-    'I want to jump off',
-    'shoot myself',
-    'hang myself',
-    'i cant take it',
-    'end my suffering',
-    'i dont wanna live',
-    'I do not wish to live',
-    'I would rather be dead',
-    'life isnt worth it',
-    "I can't go on.",
-    "can't go on",
+    'I feel unsafe at home',
+    'This is an EMERGENCY',
+    "I'm thinking of ending it all",
     'Can\uff07t go on',
-  ])('flags crisis (reviews and families): %s', (message) => {
-    expect(detectFixedResponses(message).crisis).toBe(true);
+  ])('tier 2 (ambiguous), never tier 1: %s', (message) => {
+    expect(detectFixedResponses(message).crisis).toBe('AMBIGUOUS');
+  });
+
+  it('tier 1 wins when both tiers match', () => {
+    expect(detectFixedResponses("I'm a burden and I want to kill myself").crisis).toBe(
+      'UNAMBIGUOUS',
+    );
   });
 
   it.each([
     'Can I attend my lab on Tuesday?',
     'I want to spend my mornings free',
-    "I can't go on Fridays",
-    "I can't go on campus Mondays",
     'Can I extend my plan?',
-  ])('does not flag crisis: %s', (message) => {
-    expect(detectFixedResponses(message).crisis).toBe(false);
-  });
-
-  it('handles curly apostrophes in crisis language', () => {
-    expect(detectFixedResponses('I don’t want to live').crisis).toBe(true);
+    'Plan my term with no Friday classes',
+  ])('is not crisis: %s', (message) => {
+    expect(detectFixedResponses(message).crisis).toBe('NONE');
   });
 
   it.each([

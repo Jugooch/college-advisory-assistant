@@ -7,12 +7,22 @@
  */
 import { SpecialistTopic } from '@caa/domain';
 
+/** How strongly a message signals crisis. Tier 1 wins when both tiers match. */
+export const CrisisTier = {
+  None: 'NONE',
+  Ambiguous: 'AMBIGUOUS',
+  Unambiguous: 'UNAMBIGUOUS',
+} as const;
+
+/** Union of every {@link CrisisTier} value. */
+export type CrisisTier = (typeof CrisisTier)[keyof typeof CrisisTier];
+
 /** What the student's message matched. Crisis means the model must not be called. */
 export interface FixedResponseMatches {
   /** Non-crisis topics in a fixed order. */
   readonly specialistTopics: readonly SpecialistTopic[];
-  /** Crisis language: the model must not be called. */
-  readonly crisis: boolean;
+  /** Crisis tier. UNAMBIGUOUS means the model must not be called; AMBIGUOUS shows support resources. */
+  readonly crisis: CrisisTier;
   /** A what-if about grades or outcomes. */
   readonly hypothetical: boolean;
   /** A request to skip or waive a requirement. */
@@ -41,12 +51,27 @@ const TOPIC_PATTERNS: readonly (readonly [SpecialistTopic, RegExp])[] = [
   [SpecialistTopic.Appeals, /\bappeal|\bgrievance|\breinstat|\bpetition/],
 ];
 
-// SAFETY: over-inclusive on purpose (ADR-0015 §5): a false positive shows the referral, a false negative is unacceptable.
-const CRISIS_PATTERN = new RegExp(
+// SAFETY: tier 1 is first-person self-harm or suicide phrases only (ADR-0015 Amendment 1). It skips the model and shows the crisis referral.
+const TIER1_PATTERN = new RegExp(
+  [
+    '\\bkill(ing)? myself\\b',
+    '\\bsuicidal\\b',
+    '\\bend(ing)? my (own )?life\\b',
+    '\\b(take|taking|took) my (own )?life\\b',
+    '\\b(want to|wanna) die\\b',
+    '\\bwish i (was|were) dead\\b',
+    '\\bbetter off dead\\b',
+    '\\bhurt(ing)? myself\\b',
+    '\\bkms\\b',
+  ].join('|'),
+);
+
+// SAFETY: tier 2 is over-inclusive on purpose (ADR-0015 §5): a false positive shows support resources, a false negative is unacceptable. It never skips the model on its own.
+const TIER2_PATTERN = new RegExp(
   [
     'suicid',
-    '\\bkill(ing|s)? (myself|me|my ?self)\\b',
-    '\\b(kms|kys)\\b',
+    '\\bkill(ing|s)? (me|my ?self)\\b',
+    '\\bkys\\b',
     '\\bend(ing)? (my life|my own life|it all|it)\\b',
     '\\b(take|taking|took) (my|my own) (own )?life\\b',
     '\\btake my own life\\b',
@@ -55,7 +80,7 @@ const CRISIS_PATTERN = new RegExp(
     '\\bwant to (die|disappear|vanish|be dead|not exist)',
     'better off (dead|without me)',
     '\\bno (point|reason|purpose) (in |to )?(living|live|going on|go on|being alive|continuing|existing|life)',
-    "\\bcan'?t go on\\b(?! (on |to |in |at |campus|friday|monday|tuesday|wednesday|thursday|saturday|sunday|the |a |that |this |my |our ))",
+    "\\bcan'?t go on\\b",
     '\\bwant (it|this|everything) to (stop|end|be over)',
     "\\bcan'?t (keep going|do this anymore|take it anymore|take this anymore|take it any ?more)\\b",
     '\\bgive up on (life|living)\\b',
@@ -106,10 +131,17 @@ function normalize(message: string): string {
     .replace(/\s+/g, ' ');
 }
 
+function crisisTier(text: string): CrisisTier {
+  if (TIER1_PATTERN.test(text)) {
+    return CrisisTier.Unambiguous;
+  }
+  return TIER2_PATTERN.test(text) ? CrisisTier.Ambiguous : CrisisTier.None;
+}
+
 /**
  * Finds the fixed responses a student's message calls for.
  *
- * Over-inclusive on purpose (ADR-0015 §5). Case-insensitive; same message, same matches.
+ * Tier 2 is over-inclusive on purpose (ADR-0015 §5, Amendment 1). Case-insensitive; same message, same matches.
  *
  * @param message - The student's raw message.
  * @returns The matched topics and flags.
@@ -120,8 +152,7 @@ export function detectFixedResponses(message: string): FixedResponseMatches {
     specialistTopics: TOPIC_PATTERNS.filter(([, pattern]) => pattern.test(text)).map(
       ([topic]) => topic,
     ),
-    // SAFETY: crisis language must skip the model entirely and show the fixed referral (ADR-0015 §5).
-    crisis: CRISIS_PATTERN.test(text),
+    crisis: crisisTier(text),
     hypothetical: HYPOTHETICAL_PATTERN.test(text),
     override: OVERRIDE_PATTERN.test(text),
     gradeDispute: GRADE_DISPUTE_PATTERN.test(text),
