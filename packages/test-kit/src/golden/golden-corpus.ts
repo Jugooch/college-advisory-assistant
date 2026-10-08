@@ -25,6 +25,7 @@ import { LINKED_SECTION_CREDIT_CASES } from './cases/linked-section-credits.case
 import { MEETING_OVERLAP_CASES } from './cases/meeting-overlap.cases';
 import { MEETING_TIME_UNKNOWN_CASES } from './cases/meeting-time-unknown.cases';
 import { MINIMUM_GRADE_CASES } from './cases/minimum-grade.cases';
+import { MULTI_MEETING_CASES } from './cases/multi-meeting.cases';
 import { NO_PREREQUISITE_CASES } from './cases/no-prerequisite.cases';
 import { PASSING_CUTOFF_CASES } from './cases/passing-cutoff.cases';
 import { PENDING_TRANSFER_REPEAT_CASES } from './cases/pending-transfer-repeats.cases';
@@ -37,6 +38,8 @@ import { REPEAT_CASES } from './cases/repeats.cases';
 import { REQUIREMENT_ANCESTOR_CASES } from './cases/requirement-ancestors.cases';
 import { RETAKE_AND_EQUIVALENCY_CASES } from './cases/retakes-and-equivalency.cases';
 import { SOLVER_CAP_AND_MISSING_DATA_CASES } from './cases/solver-cap-and-missing-data.cases';
+import { SOLVER_CONFLICT_SET_CAP_CASES } from './cases/solver-conflict-set-cap.cases';
+import { SOLVER_CREDIT_SELECTION_CASES } from './cases/solver-credit-selection.cases';
 import { SOLVER_OUTCOME_CASES } from './cases/solver-outcome.cases';
 import { SOLVER_TRAVEL_AND_TBA_CASES } from './cases/solver-travel-and-tba.cases';
 import { TERM_DATE_OVERLAP_CASES } from './cases/term-date-overlap.cases';
@@ -76,6 +79,7 @@ export const GOLDEN_DEVELOPMENT_CORPUS: readonly GoldenCase[] = defineGoldenCorp
   ...TERM_DATE_OVERLAP_CASES,
   ...TRANSITION_TIME_CASES,
   ...MEETING_TIME_UNKNOWN_CASES,
+  ...MULTI_MEETING_CASES,
 ]);
 
 /**
@@ -92,6 +96,8 @@ export const GOLDEN_DEVELOPMENT_SCHEDULE_CORPUS: readonly GoldenScheduleCase[] =
     ...SOLVER_OUTCOME_CASES,
     ...SOLVER_CAP_AND_MISSING_DATA_CASES,
     ...SOLVER_TRAVEL_AND_TBA_CASES,
+    ...SOLVER_CONFLICT_SET_CAP_CASES,
+    ...SOLVER_CREDIT_SELECTION_CASES,
   ],
 );
 
