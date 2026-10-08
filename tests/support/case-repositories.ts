@@ -141,7 +141,7 @@ function refusal(world: CaseWorld, tenantId: string, newCase: NewAdvisingCase) {
  * @returns The created result.
  */
 function store(world: CaseWorld, tenantId: string, newCase: NewAdvisingCase): CreateCaseResult {
-  const { actorUserId, createdAt, ...fields } = newCase;
+  const { actorUserId, actorRole, createdAt, ...fields } = newCase;
   const created = createAdvisingCase({
     ...fields,
     id: syntheticId('advisingCase', (world.cases ?? []).length + 1),
@@ -157,6 +157,7 @@ function store(world: CaseWorld, tenantId: string, newCase: NewAdvisingCase): Cr
     sequence: 1,
     action: CaseAction.Create,
     actorUserId,
+    ...(actorRole === undefined ? {} : { actorRole }),
     at: createdAt,
     fromStatus: null,
     toStatus: CaseStatus.Open,

@@ -15,6 +15,7 @@ import {
   CaseStatus,
   PlanIdSchema,
   PlanRevisionIdSchema,
+  Role,
   StudentIdSchema,
   UserIdSchema,
 } from '@caa/domain';
@@ -87,6 +88,32 @@ describe('case repository fake', () => {
       null,
     ]);
     expect(await cases.create(TENANT_A, NEW_CASE)).toEqual({ status: 'OPEN_CASE_EXISTS' });
+  });
+
+  it('keeps actorRole from the create and append requests, and omits it when absent', async () => {
+    const { cases } = createCaseRepositories(world());
+    const plain = await cases.create(TENANT_A, NEW_CASE);
+    expect(plain.status === 'CREATED' && plain.event.actorRole).toBeUndefined();
+    expect(plain.status === 'CREATED' && 'actorRole' in plain.event).toBe(false);
+    if (plain.status !== 'CREATED') {
+      throw new Error('expected CREATED');
+    }
+    const staff = await cases.appendEvent(TENANT_A, plain.case.id, {
+      expectedSequence: 1,
+      event: { ...claim(ADVISOR), actorRole: Role.Admin },
+    });
+    expect(staff.status === 'APPENDED' && staff.event.actorRole).toBe('ADMIN');
+    const bare = await cases.appendEvent(TENANT_A, plain.case.id, {
+      expectedSequence: 2,
+      event: { ...claim(ADVISOR), toStatus: CaseStatus.Open },
+    });
+    expect(bare.status === 'APPENDED' && 'actorRole' in bare.event).toBe(false);
+  });
+
+  it('records the student role on the CREATE event when the request has one', async () => {
+    const { cases } = createCaseRepositories({ ...world() });
+    const created = await cases.create(TENANT_A, { ...NEW_CASE, actorRole: Role.Student });
+    expect(created.status === 'CREATED' && created.event.actorRole).toBe('STUDENT');
   });
 
   it('refuses an unknown student and a revision that is not the student plan', async () => {
