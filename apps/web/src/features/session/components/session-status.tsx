@@ -10,6 +10,7 @@ import type { ApiError, MeResponse } from '@caa/api-contract';
 import { ErrorCode } from '@caa/domain';
 
 import { ApiErrorNotice } from '@/shared/components/api-error-notice';
+import { canReviewCases } from '@/shared/utils/session-roles';
 
 /** The outcome of asking the API who is signed in. */
 export type SessionOutcome =
@@ -55,6 +56,11 @@ export function SessionStatus({ session, devSignInHref }: SessionStatusProps): R
             : 'You are not signed in.'}
         </p>
       )}
+      {session.kind === 'signed-in' && canReviewCases(session.me.roles) ? (
+        <p>
+          <Link href="/advisor/queue">Open the review queue</Link>
+        </p>
+      ) : null}
       {signInLink}
     </section>
   );
