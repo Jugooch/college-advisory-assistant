@@ -14,7 +14,8 @@ import {
 } from '@caa/domain';
 
 import { parseCreditText } from '@/shared/utils/credit-choice';
-import { formatCredits } from '@/shared/utils/format-display';
+
+import { creditText } from './credit-text';
 
 /** What the student can edit on a chip, as typed. */
 export interface ChipDraft {
@@ -29,22 +30,21 @@ export interface ChipDraft {
   readonly rank: string;
 }
 
+/** Props shared by the chip edit field groups. */
+export interface ChipFieldsProps {
+  readonly id: string;
+  readonly draft: ChipDraft;
+  /** The id of the error message shown for this edit, or `null` when there is none. */
+  readonly errorId: string | null;
+  readonly onChange: (change: Partial<ChipDraft>) => void;
+}
+
 /** The outcome of applying an edit. */
 export type DraftResult =
   | { readonly kind: 'valid'; readonly constraint: ScheduleConstraint }
   | { readonly kind: 'invalid'; readonly message: string };
 
 const INVALID = 'These values don’t make a valid limit. Check the fields and try again.';
-
-/**
- * Formats an optional credit bound.
- *
- * @param hundredths - The bound, or null.
- * @returns The text, blank for none.
- */
-function creditText(hundredths: number | null): string {
-  return hundredths === null ? '' : formatCredits(hundredths);
-}
 
 /**
  * Starts an edit from a constraint.

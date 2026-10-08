@@ -6,7 +6,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ConstraintStrength } from '@caa/domain';
+import { ConstraintStrength, Weekday } from '@caa/domain';
 import {
   buildAllowedModalities,
   buildCreditRange,
@@ -95,7 +95,6 @@ describe('ConstraintProposal', () => {
     );
     fireEvent.click(screen.getByRole('radio', { name: 'Required (hard)' }));
     expect(screen.getByRole('radio', { name: 'Required (hard)' })).toHaveProperty('checked', true);
-    expect(screen.getByText(/Currently: Required/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
     expect(sentQuery().get('modality-strength')).toBe(ConstraintStrength.Hard);
   });
@@ -110,6 +109,11 @@ describe('ConstraintProposal', () => {
     fireEvent.change(screen.getByLabelText(/Most credits/), { target: { value: 'lots' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
     expect(screen.getByRole('alert').textContent).toContain('valid limit');
+    const max = screen.getByLabelText(/Most credits/);
+    expect(max.getAttribute('aria-invalid')).toBe('true');
+    expect(max.getAttribute('aria-describedby')).toContain(screen.getByRole('alert').id);
+    expect(max.getAttribute('aria-describedby')).toContain(`${max.id}-hint`);
+    expect(document.activeElement).toBe(screen.getByLabelText(/Fewest credits/));
     fireEvent.change(screen.getByLabelText(/Most credits/), { target: { value: '12.5' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
     expect(screen.getByText(/and 12.5 credits/)).toBeTruthy();
@@ -131,12 +135,91 @@ describe('ConstraintProposal', () => {
     expect(screen.getByRole('button', { name: 'Confirm' })).toBeTruthy();
   });
 
-  it('keeps a Friday block in its own slot beside other chips', () => {
+  it('puts a Friday block in the next free slot when the form already has another day', () => {
+    search.set('block1-day', 'MONDAY');
+    render(<ConstraintProposal constraints={[buildProposedConstraint()]} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+    const query = sentQuery();
+    expect(query.getAll('block1-day')).toEqual(['MONDAY']);
+    expect(query.getAll('block2-day')).toEqual(['FRIDAY']);
+  });
+
+  it('keeps values typed on the form but not yet sent', () => {
+    render(
+      <>
+        <form id="planner-form">
+          <input type="checkbox" name="block1-day" value="MONDAY" defaultChecked />
+          <input name="block1-start" defaultValue="09:00" />
+        </form>
+        <ConstraintProposal constraints={[buildProposedConstraint()]} />
+      </>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+    const query = sentQuery();
+    expect(query.getAll('block1-day')).toEqual(['MONDAY']);
+    expect(query.get('block1-start')).toBe('09:00');
+    expect(query.getAll('block2-day')).toEqual(['FRIDAY']);
+  });
+
+  it('applies two quick Confirms before the page URL has caught up', () => {
     render(
       <ConstraintProposal
-        constraints={[buildProposedConstraint({ constraint: buildUnavailableTime() })]}
+        constraints={[
+          buildProposedConstraint(),
+          buildProposedConstraint({ constraint: buildCreditRange() }),
+          buildProposedConstraint({
+            constraint: buildUnavailableTime({ weekdays: [Weekday.Monday] }),
+          }),
+        ]}
       />,
     );
-    expect(screen.getByRole('status')).toBeTruthy();
+    screen.getAllByRole('button', { name: 'Confirm' }).forEach((button) => {
+      fireEvent.click(button);
+    });
+    expect(replace).toHaveBeenCalledTimes(3);
+    const last = new URL(String(replace.mock.calls[2]?.[0]), 'http://localhost').searchParams;
+    expect(last.getAll('block1-day')).toEqual(['FRIDAY']);
+    expect(last.getAll('block2-day')).toEqual(['MONDAY']);
+    expect(last.has('credit-range-max')).toBe(true);
+  });
+
+  it('shows a chip as added when the form already holds it, and adds nothing twice', () => {
+    search.append('block1-day', 'FRIDAY');
+    render(<ConstraintProposal constraints={[buildProposedConstraint()]} />);
+    expect(screen.getByText(/added to the form/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Confirm' })).toBeNull();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it('moves focus to the outcome after Confirm and after Dismiss', () => {
+    render(
+      <ConstraintProposal
+        constraints={[
+          buildProposedConstraint(),
+          buildProposedConstraint({ constraint: buildCreditRange() }),
+        ]}
+      />,
+    );
+    screen
+      .getAllByRole('button', { name: 'Confirm' })
+      .slice(0, 1)
+      .forEach((button) => {
+        fireEvent.click(button);
+      });
+    expect(document.activeElement?.textContent).toContain('added to the form');
+    expect(document.activeElement?.getAttribute('tabindex')).toBe('-1');
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+    expect(document.activeElement?.textContent).toContain('dismissed');
+  });
+
+  it('returns focus to Edit after a valid edit is saved', () => {
+    render(
+      <ConstraintProposal
+        constraints={[buildProposedConstraint({ constraint: buildCreditRange() })]}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Edit' }));
   });
 });

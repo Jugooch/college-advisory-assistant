@@ -15,6 +15,7 @@ import { CourseChoice } from '@/shared/components/course-choice';
 import type { CandidateCourse } from '@/shared/utils/candidate-courses';
 import type { CourseLookup } from '@/shared/utils/course-display';
 import type { CreditChoices } from '@/shared/utils/credit-choice';
+import { PLANNER_FORM_ID } from '@/shared/utils/planner-form-id';
 
 import {
   plannerFieldId,
@@ -176,7 +177,7 @@ export function PlannerForm(props: PlannerFormProps): ReactElement {
   }
   const [block1, block2, block3] = TIME_BLOCK_SLOTS;
   return (
-    <form action="/next-term-planner" method="get">
+    <form id={PLANNER_FORM_ID} action="/next-term-planner" method="get">
       <input type="hidden" name="studentId" value={studentId} />
       <TermField terms={terms} value={values.termId} error={errors.get('term')} />
       <CourseChoices {...props} />

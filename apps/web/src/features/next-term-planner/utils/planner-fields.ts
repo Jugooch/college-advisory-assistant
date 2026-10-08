@@ -5,6 +5,8 @@
  * @requirement FR-08
  * @see docs/planning/11-ux-and-accessibility-design.md
  */
+import { slotFieldName } from '@/shared/utils/slot-field-name';
+import { TIME_BLOCK_SLOTS } from '@/shared/utils/time-block-slots';
 
 /** Which step of the planner a submission asks for. */
 export const PlannerStep = {
@@ -19,8 +21,7 @@ export const PlannerStep = {
 /** Union of every {@link PlannerStep} value. */
 export type PlannerStep = (typeof PlannerStep)[keyof typeof PlannerStep];
 
-/** The unavailable-time block slots the form offers, in form order. */
-export const TIME_BLOCK_SLOTS = ['block1', 'block2', 'block3'] as const;
+export { TIME_BLOCK_SLOTS };
 
 /** One constraint slot of the form; each slot states at most one constraint. */
 export type ConstraintSlot =
@@ -64,16 +65,7 @@ export interface PlannerFormValues {
   readonly campus: StrengthInput & { readonly text: string };
 }
 
-/**
- * Names the query field of one part of a slot.
- *
- * @param slot - The constraint slot.
- * @param part - The part, for example `strength` or `start`.
- * @returns For example `block1-start`.
- */
-export function slotFieldName(slot: ConstraintSlot, part: string): string {
-  return `${slot}-${part}`;
-}
+export { slotFieldName };
 
 /**
  * Names the element id of one field, so errors can link to it.

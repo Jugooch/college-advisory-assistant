@@ -15,9 +15,11 @@ import { PolicyHitList } from '@/shared/components/policy-hit-list';
 import { Timestamp } from '@/shared/components/timestamp';
 
 import { type StudentLinks, studentLinks } from '../utils/student-links';
+import { AcademicSummaryBlock } from './academic-summary-block';
 import { CasePreviewBlock } from './case-preview-block';
 import { ConstraintProposal } from './constraint-proposal';
-import { AcademicSummaryBlock, PlanEvidenceBlock, ScheduleOptionsBlock } from './verified-blocks';
+import { PlanEvidenceBlock } from './plan-evidence-block';
+import { ScheduleOptionsBlock } from './schedule-options-block';
 
 /** Props for {@link AssistantBlocks}. */
 export interface AssistantBlocksProps {

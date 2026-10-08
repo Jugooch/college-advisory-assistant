@@ -11,9 +11,8 @@ import { useState } from 'react';
 import type { ProposedConstraint } from '@caa/api-contract';
 import type { ConstraintStrength, ScheduleConstraint } from '@caa/domain';
 
-import type { FillResult } from '@/shared/utils/constraint-fill';
-
 import { withStrength } from '../utils/chip-draft';
+import type { PlannerFill } from './use-fill-planner';
 
 /** One chip's state. */
 export interface Chip {
@@ -39,26 +38,40 @@ export interface ConstraintChips {
 }
 
 /**
+ * Starts the chips. A constraint the form already holds shows as added, so a reload does not
+ * offer it again.
+ *
+ * @param proposed - The proposal's constraints.
+ * @param planner - Tells whether the form already holds a constraint.
+ * @returns One chip per constraint.
+ */
+function startChips(
+  proposed: readonly ProposedConstraint[],
+  planner: PlannerFill,
+): readonly Chip[] {
+  return proposed.map(({ constraint }, id) => ({
+    id,
+    constraint,
+    rank: constraint.priorityRank ?? 1,
+    status: planner.isFilled(constraint) ? 'confirmed' : 'pending',
+    isEditing: false,
+    problem: null,
+  }));
+}
+
+/**
  * Holds the chips.
  *
  * @param proposed - The proposal's constraints, all preferred.
- * @param fill - Writes one confirmed constraint into the planner form.
+ * @param planner - Fills a confirmed constraint into the planner form and tells whether the
+ * form already holds one.
  * @returns The chips and their handlers.
  */
 export function useConstraintChips(
   proposed: readonly ProposedConstraint[],
-  fill: (constraint: ScheduleConstraint) => FillResult,
+  planner: PlannerFill,
 ): ConstraintChips {
-  const [chips, setChips] = useState<readonly Chip[]>(() =>
-    proposed.map(({ constraint }, id) => ({
-      id,
-      constraint,
-      rank: constraint.priorityRank ?? 1,
-      status: 'pending',
-      isEditing: false,
-      problem: null,
-    })),
-  );
+  const [chips, setChips] = useState<readonly Chip[]>(() => startChips(proposed, planner));
   const [announcement, setAnnouncement] = useState('');
   const patch = (id: number, change: Partial<Chip>): void => {
     setChips((all) => all.map((chip) => (chip.id === id ? { ...chip, ...change } : chip)));
@@ -92,10 +105,14 @@ export function useConstraintChips(
       if (chip === undefined) {
         return;
       }
-      const result = fill(chip.constraint);
-      if (result.kind === 'filled') {
+      const result = planner.fill(chip.constraint);
+      if (result.kind === 'filled' || result.kind === 'present') {
         patch(id, { status: 'confirmed', problem: null });
-        setAnnouncement('Added to the form. Review it, then confirm the search.');
+        setAnnouncement(
+          result.kind === 'filled'
+            ? 'Added to the form. Review it, then confirm the search.'
+            : 'Already on the form. Nothing was added twice.',
+        );
       } else {
         patch(id, { problem: result.message });
         setAnnouncement(result.message);
