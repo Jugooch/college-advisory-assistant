@@ -11,13 +11,15 @@ import type { ReactElement } from 'react';
 
 import type { PlannableTerm, PlanSummary } from '@caa/api-contract';
 
+import { PlanFreshness } from '@/shared/components/plan-freshness';
 import { Timestamp } from '@/shared/components/timestamp';
 
 import { describeOpenCase } from '../utils/plan-wording';
-import { PlanFreshness } from './plan-freshness';
 
 /** Props for {@link PlanList}. */
 export interface PlanListProps {
+  /** Internal student ID, carried in the links to ask an advisor and to Help and cases. */
+  readonly studentId: string;
   readonly plans: readonly PlanSummary[];
   /** Terms the planner knows, used only to name each plan's term; `null` when unavailable. */
   readonly terms: readonly PlannableTerm[] | null;
@@ -31,10 +33,10 @@ const UNNAMED_TERM = 'Term (code not available)';
 /**
  * Renders the student's plans, or the empty state.
  *
- * @param props - The plans, the term names, and the planner link.
+ * @param props - The student, the plans, the term names, and the planner link.
  * @returns The plans section.
  */
-export function PlanList({ plans, terms, plannerHref }: PlanListProps): ReactElement {
+export function PlanList({ studentId, plans, terms, plannerHref }: PlanListProps): ReactElement {
   if (plans.length === 0) {
     return (
       <p>
@@ -65,7 +67,20 @@ export function PlanList({ plans, terms, plannerHref }: PlanListProps): ReactEle
             <td>
               <PlanFreshness freshness={plan.freshness} />
             </td>
-            <td>{describeOpenCase(plan.openCaseStatus)}</td>
+            <td>
+              {describeOpenCase(plan.openCaseStatus)}{' '}
+              {plan.openCaseStatus === null ? (
+                <Link
+                  href={`/ask-an-advisor?${new URLSearchParams({ studentId, planId: plan.id })}`}
+                >
+                  Ask an advisor<span className="visually-hidden"> about this draft</span>
+                </Link>
+              ) : (
+                <Link href={`/help-and-cases?${new URLSearchParams({ studentId })}`}>
+                  See your case
+                </Link>
+              )}
+            </td>
           </tr>
         ))}
       </tbody>

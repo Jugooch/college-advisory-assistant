@@ -6,6 +6,7 @@
  * @see docs/adr/0013-plan-drafts-staleness-and-advisor-cases.md
  */
 import {
+  getPlanEndpoint,
   listPlansEndpoint,
   type PlanListResponse,
   type PlanView,
@@ -42,4 +43,17 @@ export async function savePlanDraft(
  */
 export async function listPlans(studentId: string): Promise<PlanListResponse> {
   return apiClient.call(listPlansEndpoint, { params: { studentId } });
+}
+
+/**
+ * Reads one plan with its latest revision in full.
+ *
+ * @param studentId - Internal student ID from the page URL.
+ * @param planId - The plan's ID from the page URL.
+ * @returns The plan, its latest revision with freshness, and its revision index, as returned.
+ * @throws {ApiError} When the API responds with an error envelope, such as 404 when the plan is
+ *   missing or not permitted.
+ */
+export async function getPlan(studentId: string, planId: string): Promise<PlanView> {
+  return apiClient.call(getPlanEndpoint, { params: { studentId, planId } });
 }

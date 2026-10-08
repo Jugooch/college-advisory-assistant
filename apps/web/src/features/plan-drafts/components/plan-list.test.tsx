@@ -55,6 +55,7 @@ function summary(seed: number, fields: Partial<PlanSummary> = {}): PlanSummary {
 function renderList(plans: readonly PlanSummary[], terms: readonly PlannableTerm[] | null = TERMS) {
   return render(
     <PlanList
+      studentId={STUDENT_ID}
       plans={plans}
       terms={terms}
       plannerHref={`/next-term-planner?studentId=${STUDENT_ID}`}
@@ -114,6 +115,25 @@ describe('PlanList', () => {
     expect(container.textContent).toContain('ask your advisor to review this draft');
     expect(container.textContent).toContain('Something this draft was built on has changed');
     expect(container.textContent).toContain('Plan next term again');
+  });
+
+  it('offers Ask an advisor for a plan with no open case, linking to that plan', () => {
+    const container = renderList([summary(1)]);
+
+    const link = container.querySelector('tbody a');
+    expect(link?.textContent).toBe('Ask an advisor about this draft');
+    const url = new URL(link?.getAttribute('href') ?? '', 'http://x');
+    expect(url.pathname).toBe('/ask-an-advisor');
+    expect(url.searchParams.get('studentId')).toBe(STUDENT_ID);
+    expect(url.searchParams.get('planId')).toBe(syntheticId('plan', 1));
+  });
+
+  it('links to the open case instead of offering a second one', () => {
+    const container = renderList([summary(1, { openCaseStatus: 'OPEN' })]);
+
+    const link = container.querySelector('tbody a');
+    expect(link?.textContent).toBe('See your case');
+    expect(link?.getAttribute('href')).toBe(`/help-and-cases?studentId=${STUDENT_ID}`);
   });
 
   it('labels the table and its headers for screen readers', () => {

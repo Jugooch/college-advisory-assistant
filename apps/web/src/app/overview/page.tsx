@@ -13,9 +13,11 @@ import type { ReactElement } from 'react';
 import { ApiError } from '@caa/api-contract';
 
 import { getAcademicSummary } from '@/api/academic-summary.api';
+import { listStudentCases } from '@/api/cases.api';
 import { AuditFreshness } from '@/features/academic-summary/components/audit-freshness';
 import { RecordDetails } from '@/features/academic-summary/components/record-details';
 import { RequirementOverview } from '@/features/academic-summary/components/requirement-overview';
+import { OpenCaseSummary } from '@/features/advisor-cases/components/open-case-summary';
 import { StudentLookupForm } from '@/features/session/components/student-lookup-form';
 import { StudentNav } from '@/features/student-navigation/components/student-nav';
 import { ApiErrorNotice } from '@/shared/components/api-error-notice';
@@ -49,6 +51,7 @@ export default async function OverviewPage({
     );
   }
   const summary = await keepApiError(getAcademicSummary(query.studentId));
+  const cases = await keepApiError(listStudentCases(query.studentId));
   return (
     <>
       <StudentNav studentId={query.studentId} current="overview" />
@@ -61,6 +64,15 @@ export default async function OverviewPage({
           <RecordDetails summary={summary} />
           <AuditFreshness summary={summary} />
           <RequirementOverview summary={summary} />
+          {cases instanceof ApiError ? (
+            <ApiErrorNotice error={cases} headingId="cases-error-heading" />
+          ) : (
+            <OpenCaseSummary
+              cases={cases.cases}
+              casesHref={`/help-and-cases?studentId=${query.studentId}`}
+              reportHref={`/report-a-problem?studentId=${query.studentId}`}
+            />
+          )}
         </>
       )}
     </>
