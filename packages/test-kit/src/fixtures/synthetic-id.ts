@@ -24,11 +24,14 @@ export type SyntheticIdKind =
   | 'plan'
   | 'planRevision'
   | 'advisingCase'
-  | 'caseEvent';
+  | 'caseEvent'
+  | 'policyDocument'
+  | 'conversation'
+  | 'conversationTurn';
 
 /**
  * First UUID group per kind, so the kind is visible when an ID shows up in a failing test. The
- * section kinds share the `c` range (`c0`, `c1`, `c2`) and leave `e` and `f` free; the plan kinds use `e0` and `e1`, the case kinds `f0` and `f1`.
+ * section kinds share the `c` range (`c0`, `c1`, `c2`) and leave `e` and `f` free; the plan kinds use `e0` and `e1`, the case kinds `f0` and `f1`; the conversation kinds use `11`, `12` and `13`.
  */
 const KIND_PREFIX: Readonly<Record<SyntheticIdKind, string>> = {
   tenant: '10000000',
@@ -50,6 +53,9 @@ const KIND_PREFIX: Readonly<Record<SyntheticIdKind, string>> = {
   planRevision: 'e1000000',
   advisingCase: 'f0000000',
   caseEvent: 'f1000000',
+  policyDocument: '11000000',
+  conversation: '12000000',
+  conversationTurn: '13000000',
 };
 
 /** Largest seed that fits the 12-hex-digit final UUID group. */
