@@ -14,13 +14,13 @@ import { ApiError } from '@caa/api-contract';
 import { getPlan } from '@/api/plan-drafts.api';
 import { createCaseAction } from '@/features/advisor-cases/actions/create-case.action';
 import { AskAdvisorForm } from '@/features/advisor-cases/components/ask-advisor-form';
+import { readPlanIdQuery } from '@/features/advisor-cases/utils/plan-id-query';
 import { StudentLookupForm } from '@/features/session/components/student-lookup-form';
 import { StudentNav } from '@/features/student-navigation/components/student-nav';
 import { ApiErrorNotice } from '@/shared/components/api-error-notice';
 import { PlanFreshness } from '@/shared/components/plan-freshness';
 import { Timestamp } from '@/shared/components/timestamp';
 import { keepApiError } from '@/shared/utils/keep-api-error';
-import { readPlanIdQuery } from '@/shared/utils/plan-id-query';
 import { readStudentIdQuery } from '@/shared/utils/student-id-query';
 
 /** Page title. */

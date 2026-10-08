@@ -77,6 +77,14 @@ describe('PlanList', () => {
     expect(container.querySelector('table')).toBeNull();
   });
 
+  it('links each term to its plan detail for the student', () => {
+    const container = renderList([summary(1)]);
+
+    expect(container.querySelector('tbody th a')?.getAttribute('href')).toBe(
+      `/my-plans/${syntheticId('plan', 1)}?studentId=${STUDENT_ID}`,
+    );
+  });
+
   it('shows one row per term with revision, time, freshness text, and case status', () => {
     const container = renderList([
       summary(1, { openCaseStatus: 'IN_REVIEW' }),
@@ -121,7 +129,7 @@ describe('PlanList', () => {
   it('offers Ask an advisor for a plan with no open case, linking to that plan', () => {
     const container = renderList([summary(1)]);
 
-    const link = container.querySelector('tbody a');
+    const link = container.querySelector('tbody td a');
     expect(link?.textContent).toBe(`Ask an advisor about the ${FALL_CODE} draft`);
     const url = new URL(link?.getAttribute('href') ?? '', 'http://x');
     expect(url.pathname).toBe('/ask-an-advisor');
@@ -132,7 +140,7 @@ describe('PlanList', () => {
   it('links to the open case instead of offering a second one', () => {
     const container = renderList([summary(1, { openCaseStatus: 'OPEN' })]);
 
-    const link = container.querySelector('tbody a');
+    const link = container.querySelector('tbody td a');
     expect(link?.textContent).toBe(`See your case about the ${FALL_CODE} draft`);
     expect(link?.getAttribute('href')).toBe(`/help-and-cases?studentId=${STUDENT_ID}`);
   });
@@ -145,7 +153,7 @@ describe('PlanList', () => {
       summary(4, { termId: SPRING }),
     ]);
 
-    const names = [...container.querySelectorAll('tbody a')].map((a) => a.textContent);
+    const names = [...container.querySelectorAll('tbody td a')].map((a) => a.textContent);
     expect(new Set(names).size).toBe(4);
   });
 

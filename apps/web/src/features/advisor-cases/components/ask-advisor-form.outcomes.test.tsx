@@ -122,6 +122,18 @@ describe('AskAdvisorForm outcomes', () => {
     expect(confirmation?.textContent).not.toMatch(/approved|granted|registered/i);
   });
 
+  it('removes the send button after a case is created, so a second click sends nothing', async () => {
+    const { createAction } = renderForm(CREATED);
+    typeNote('Please review this.');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Send to my advisor' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Send to my advisor' })).toBeNull();
+    });
+    expect(createAction).toHaveBeenCalledTimes(1);
+  });
+
   it('explains the open-case 409 with a link to the case, in the live region', async () => {
     renderForm({ kind: 'duplicate' });
     typeNote('Again.');

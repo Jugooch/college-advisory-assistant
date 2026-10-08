@@ -18,7 +18,7 @@ import { describeOpenCase } from '../utils/plan-wording';
 
 /** Props for {@link PlanList}. */
 export interface PlanListProps {
-  /** Internal student ID, carried in the links to ask an advisor and to Help and cases. */
+  /** Internal student ID, carried in the plan detail, ask-an-advisor and Help and cases links. */
   readonly studentId: string;
   readonly plans: readonly PlanSummary[];
   /** Terms the planner knows, used only to name each plan's term; `null` when unavailable. */
@@ -33,10 +33,10 @@ const UNNAMED_TERM = 'Term (code not available)';
 /**
  * Renders the student's plans, or the empty state.
  *
- * @param props - The student, the plans, the term names, and the planner link.
+ * @param props - The plans, the term names, the student, and the planner link.
  * @returns The plans section.
  */
-export function PlanList({ studentId, plans, terms, plannerHref }: PlanListProps): ReactElement {
+export function PlanList({ plans, terms, studentId, plannerHref }: PlanListProps): ReactElement {
   if (plans.length === 0) {
     return (
       <p>
@@ -62,7 +62,9 @@ export function PlanList({ studentId, plans, terms, plannerHref }: PlanListProps
           const termName = codes.get(plan.termId) ?? UNNAMED_TERM;
           return (
             <tr key={plan.id}>
-              <th scope="row">{termName}</th>
+              <th scope="row">
+                <Link href={`/my-plans/${plan.id}?studentId=${studentId}`}>{termName}</Link>
+              </th>
               <td>
                 Revision {plan.latestRevision}, saved <Timestamp iso={plan.createdAt} />
               </td>

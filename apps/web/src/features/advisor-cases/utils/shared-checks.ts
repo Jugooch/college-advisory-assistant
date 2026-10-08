@@ -8,7 +8,15 @@
  * @see docs/adr/0013-plan-drafts-staleness-and-advisor-cases.md
  */
 import type { PlanRevisionView, ScheduleOption } from '@caa/api-contract';
-import { type CheckKind, type CheckResult, CheckState, type ReasonCode } from '@caa/domain';
+import {
+  type CheckKind,
+  type CheckResult,
+  CheckState,
+  type ReasonCode,
+  ScheduleOutcome,
+} from '@caa/domain';
+
+import { optionSectionIds } from '@/shared/utils/option-section-ids';
 
 /** One check that did not pass, with the course it concerns when it has one. */
 export interface SharedCheck {
@@ -24,7 +32,14 @@ export interface SharedCheck {
 /** What the preview can say about a revision's checks. */
 export type SharedChecks =
   | { readonly kind: 'unavailable' }
-  | { readonly kind: 'listed'; readonly checks: readonly SharedCheck[] };
+  | {
+      readonly kind: 'listed';
+      readonly checks: readonly SharedCheck[];
+      /** Conflicts the result left out of its list; `0` when none were. */
+      readonly omittedCount: number;
+    }
+  // SAFETY: a search that did not finish decided nothing, so it is never shown as "no failures".
+  | { readonly kind: 'incomplete'; readonly checks: readonly SharedCheck[] };
 
 const KIND_LABELS: Readonly<Record<CheckKind, string>> = {
   REQUIREMENT_APPLICABILITY: 'Requirement applicability',
@@ -52,14 +67,11 @@ export function describeCheckKind(kind: CheckKind): string {
  * Returns whether an option is the one the revision saved.
  *
  * @param option - A schedule option from the stored result.
- * @param selected - The revision's chosen section IDs, sorted.
+ * @param selected - The revision's chosen section IDs, as saved.
  * @returns `true` when the option's distinct section IDs are exactly the chosen ones.
  */
 function isSavedOption(option: ScheduleOption, selected: readonly string[]): boolean {
-  const ids = [
-    ...new Set(option.bundles.flatMap((bundle) => bundle.sections.map((s) => s.sectionId))),
-  ].sort();
-  return ids.join(',') === selected.join(',');
+  return optionSectionIds(option).join(',') === [...selected].join(',');
 }
 
 /**
@@ -106,12 +118,43 @@ function toSharedChecks(
 }
 
 /**
+ * Lists the checks of a revision that saved no option, by the outcome the result recorded.
+ *
+ * @param result - The stored result.
+ * @returns The listed conflicts, the unresolved checks, or `incomplete` / `unavailable` when the
+ *   outcome decided nothing or its evidence is missing.
+ */
+function listNoOptionChecks(result: NonNullable<PlanRevisionView['result']>): SharedChecks {
+  const unresolved = toSharedChecks(result.unresolved.map((check) => ({ courseId: null, check })));
+  switch (result.outcome) {
+    case ScheduleOutcome.NoFeasiblePlan:
+      // SAFETY: the contract gives this outcome a conflict set and no unresolved checks.
+      return result.conflictSet === null
+        ? { kind: 'unavailable' }
+        : {
+            kind: 'listed',
+            checks: toSharedChecks(
+              result.conflictSet.items.map((check) => ({ courseId: null, check })),
+            ),
+            omittedCount: result.conflictSet.omittedCount,
+          };
+    case ScheduleOutcome.NeedsVerification:
+      return unresolved.length === 0
+        ? { kind: 'unavailable' }
+        : { kind: 'listed', checks: unresolved, omittedCount: 0 };
+    case ScheduleOutcome.SearchTimeout:
+      return { kind: 'incomplete', checks: unresolved };
+    default:
+      return { kind: 'unavailable' };
+  }
+}
+
+/**
  * Lists the checks that did not pass on a revision.
  *
  * @param revision - The revision as the API returned it.
  * @returns `unavailable` when its stored result can't be read, so the preview never guesses;
- *   otherwise the saved option's non-passing checks, or the unresolved schedule checks when the
- *   revision saved no option.
+ *   the saved option's non-passing checks; or, when no option was saved, what the outcome recorded.
  */
 export function listSharedChecks(revision: PlanRevisionView): SharedChecks {
   const { result, selectedSectionIds } = revision;
@@ -119,14 +162,11 @@ export function listSharedChecks(revision: PlanRevisionView): SharedChecks {
     return { kind: 'unavailable' };
   }
   if (selectedSectionIds === null) {
-    return {
-      kind: 'listed',
-      checks: toSharedChecks(result.unresolved.map((check) => ({ courseId: null, check }))),
-    };
+    return listNoOptionChecks(result);
   }
   const saved = result.options.find((option) => isSavedOption(option, selectedSectionIds));
   // SAFETY: if the saved option can't be found, say so; an empty list would read as "all passed".
   return saved === undefined
     ? { kind: 'unavailable' }
-    : { kind: 'listed', checks: listOptionChecks(saved) };
+    : { kind: 'listed', checks: listOptionChecks(saved), omittedCount: 0 };
 }

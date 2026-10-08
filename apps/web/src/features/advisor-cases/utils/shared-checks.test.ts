@@ -40,7 +40,11 @@ function revisionWithUnknownPrerequisite() {
 
 describe('listSharedChecks', () => {
   it('lists nothing when every check of the saved option passed', () => {
-    expect(listSharedChecks(buildPlanRevisionView())).toEqual({ kind: 'listed', checks: [] });
+    expect(listSharedChecks(buildPlanRevisionView())).toEqual({
+      kind: 'listed',
+      checks: [],
+      omittedCount: 0,
+    });
   });
 
   it('lists an UNKNOWN check with its dimension, course, state, and reason, never as passed', () => {
@@ -98,6 +102,68 @@ describe('listSharedChecks', () => {
     expect(shared.kind === 'listed' ? shared.checks.map((check) => check.kind) : []).toEqual([
       CheckKind.ScheduleFeasibility,
     ]);
+  });
+
+  it('lists the conflict set of a search that found no feasible plan, with the omitted count', () => {
+    const option = buildScheduleOption();
+    const conflict = buildCheckResult({
+      kind: CheckKind.CreditLoad,
+      state: CheckState.Fail,
+      reasonCode: ReasonCode.CreditLimitExceeded,
+      evidence: {
+        rulesetVersion: null,
+        decisiveLeaves: [],
+        creditLoad: {
+          totalCreditsHundredths: 1800,
+          minCreditsHundredths: 1200,
+          maxCreditsHundredths: 1500,
+        },
+      },
+    });
+    const revision = buildPlanRevisionView({
+      outcome: ScheduleOutcome.NoFeasiblePlan,
+      selectedSectionIds: null,
+      result: buildScheduleOptionsResponse({
+        outcome: ScheduleOutcome.NoFeasiblePlan,
+        searchComplete: true,
+        options: [],
+        courseIds: option.bundles.map((bundle) => bundle.courseId),
+        unresolved: [],
+        conflictSet: { items: [conflict], isMinimal: false, omittedCount: 0 },
+      }),
+    });
+
+    expect(listSharedChecks(revision)).toEqual({
+      kind: 'listed',
+      checks: [
+        {
+          key: '0-CREDIT_LOAD-set',
+          kind: CheckKind.CreditLoad,
+          courseId: null,
+          state: CheckState.Fail,
+          reasonCode: ReasonCode.CreditLimitExceeded,
+        },
+      ],
+      omittedCount: 0,
+    });
+  });
+
+  it('never says an unfinished search has no failures', () => {
+    const option = buildScheduleOption();
+    const revision = buildPlanRevisionView({
+      outcome: ScheduleOutcome.SearchTimeout,
+      selectedSectionIds: null,
+      result: buildScheduleOptionsResponse({
+        outcome: ScheduleOutcome.SearchTimeout,
+        searchComplete: false,
+        options: [],
+        courseIds: option.bundles.map((bundle) => bundle.courseId),
+        unresolved: [],
+        conflictSet: null,
+      }),
+    });
+
+    expect(listSharedChecks(revision)).toEqual({ kind: 'incomplete', checks: [] });
   });
 });
 

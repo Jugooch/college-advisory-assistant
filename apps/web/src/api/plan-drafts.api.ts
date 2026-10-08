@@ -1,5 +1,5 @@
 /**
- * @file API calls for saving plan drafts and listing a student's plans.
+ * @file API calls for saving, listing, reading, and revalidating a student's plan drafts.
  * @module @caa/web/api/plan-drafts
  * @requirement FR-11
  * @requirement NFR-02
@@ -7,9 +7,13 @@
  */
 import {
   getPlanEndpoint,
+  getPlanRevisionEndpoint,
   listPlansEndpoint,
   type PlanListResponse,
+  type PlanRevisionView,
   type PlanView,
+  revalidatePlanEndpoint,
+  type RevalidatePlanRequest,
   savePlanEndpoint,
   type SavePlanRequest,
 } from '@caa/api-contract';
@@ -46,14 +50,55 @@ export async function listPlans(studentId: string): Promise<PlanListResponse> {
 }
 
 /**
- * Reads one plan with its latest revision in full.
+ * Reads one plan: its latest revision in full and the index of every revision. A stale or
+ * unknown revision is still returned, as history.
  *
  * @param studentId - Internal student ID from the page URL.
  * @param planId - The plan's ID from the page URL.
- * @returns The plan, its latest revision with freshness, and its revision index, as returned.
- * @throws {ApiError} When the API responds with an error envelope, such as 404 when the plan is
- *   missing or not permitted.
+ * @returns The plan, exactly as the API returned it.
+ * @throws {ApiError} When the API responds with an error envelope, such as 404.
  */
 export async function getPlan(studentId: string, planId: string): Promise<PlanView> {
   return apiClient.call(getPlanEndpoint, { params: { studentId, planId } });
+}
+
+/**
+ * Reads one earlier (or the latest) revision of a plan, in full and read-only.
+ *
+ * @param studentId - Internal student ID from the page URL.
+ * @param planId - The plan's ID from the page URL.
+ * @param revision - The revision number, from 1.
+ * @returns The revision with its freshness, exactly as the API returned it.
+ * @throws {ApiError} When the API responds with an error envelope, such as 404.
+ */
+export async function getPlanRevision(
+  studentId: string,
+  planId: string,
+  revision: number,
+): Promise<PlanRevisionView> {
+  return apiClient.call(getPlanRevisionEndpoint, {
+    params: { studentId, planId, revision: String(revision) },
+  });
+}
+
+/**
+ * Asks the server to replay the latest revision's inputs on current records and append a new
+ * revision. Read-only toward institutional systems: it registers nothing.
+ *
+ * @param studentId - Internal student ID. The API allows this only for the session's own record.
+ * @param planId - The plan's ID.
+ * @param request - The revision the student was looking at.
+ * @returns The plan with its new latest revision.
+ * @throws {ApiError} 409 `REVISION_CONFLICT` when a newer revision exists; 409 `STALE_SOURCE` or
+ *   503 `SOURCE_UNAVAILABLE` when current records can't be used. Nothing is written in those cases.
+ */
+export async function revalidatePlan(
+  studentId: string,
+  planId: string,
+  request: RevalidatePlanRequest,
+): Promise<PlanView> {
+  return apiClient.call(revalidatePlanEndpoint, {
+    params: { studentId, planId },
+    body: request,
+  });
 }

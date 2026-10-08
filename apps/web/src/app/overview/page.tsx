@@ -64,16 +64,16 @@ export default async function OverviewPage({
           <RecordDetails summary={summary} />
           <AuditFreshness summary={summary} />
           <RequirementOverview summary={summary} />
-          {cases instanceof ApiError ? (
-            <ApiErrorNotice error={cases} headingId="cases-error-heading" />
-          ) : (
-            <OpenCaseSummary
-              cases={cases.cases}
-              casesHref={`/help-and-cases?studentId=${query.studentId}`}
-              reportHref={`/report-a-problem?studentId=${query.studentId}`}
-            />
-          )}
         </>
+      )}
+      {cases instanceof ApiError ? (
+        <ApiErrorNotice error={cases} headingId="cases-error-heading" />
+      ) : (
+        <OpenCaseSummary
+          cases={cases.cases}
+          casesHref={`/help-and-cases?studentId=${query.studentId}`}
+          reportHref={`/report-a-problem?studentId=${query.studentId}`}
+        />
       )}
     </>
   );

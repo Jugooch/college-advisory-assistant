@@ -31,6 +31,20 @@ export const CHECKS_UNAVAILABLE =
 export const NO_FAILING_CHECKS =
   'No failing or unknown checks on this revision. Passed checks are not a registration or an approval.';
 
+/** Shown when the search behind the revision did not finish. */
+export const SEARCH_INCOMPLETE =
+  'The search for this plan did not finish, so the result is undecided. Passed checks cannot be assumed.';
+
+/**
+ * Says how many conflicts the result left out.
+ *
+ * @param count - The omitted count from the result.
+ * @returns A sentence.
+ */
+function omittedSentence(count: number): string {
+  return `${String(count)} more ${count === 1 ? 'conflict is' : 'conflicts are'} not listed here.`;
+}
+
 /**
  * Renders the list, or the reason it can't be shown.
  *
@@ -41,27 +55,35 @@ export function SharedChecksList({ checks, courses }: SharedChecksListProps): Re
   if (checks.kind === 'unavailable') {
     return <p>{CHECKS_UNAVAILABLE}</p>;
   }
+  const isIncomplete = checks.kind === 'incomplete';
+  const omittedCount = checks.kind === 'listed' ? checks.omittedCount : 0;
   if (checks.checks.length === 0) {
-    return <p>{NO_FAILING_CHECKS}</p>;
+    return <p>{isIncomplete ? SEARCH_INCOMPLETE : NO_FAILING_CHECKS}</p>;
   }
   return (
-    <ul>
-      {checks.checks.map((check) => {
-        const state = describeCheckState(check.state, '');
-        return (
-          <li key={check.key}>
-            {describeCheckKind(check.kind)}
-            {check.courseId === null ? null : (
-              <>
-                {' for '}
-                <CourseLabel courseId={check.courseId} courses={courses} />
-              </>
-            )}
-            : <StatusBadge label={state.label} tone={state.tone} />
-            {check.reasonCode === null ? null : ` ${describeReason(check.reasonCode).explanation}`}
-          </li>
-        );
-      })}
-    </ul>
+    <>
+      {isIncomplete ? <p>{SEARCH_INCOMPLETE}</p> : null}
+      <ul>
+        {checks.checks.map((check) => {
+          const state = describeCheckState(check.state, '');
+          return (
+            <li key={check.key}>
+              {describeCheckKind(check.kind)}
+              {check.courseId === null ? null : (
+                <>
+                  {' for '}
+                  <CourseLabel courseId={check.courseId} courses={courses} />
+                </>
+              )}
+              : <StatusBadge label={state.label} tone={state.tone} />
+              {check.reasonCode === null
+                ? null
+                : ` ${describeReason(check.reasonCode).explanation}`}
+            </li>
+          );
+        })}
+      </ul>
+      {omittedCount > 0 ? <p>{omittedSentence(omittedCount)}</p> : null}
+    </>
   );
 }

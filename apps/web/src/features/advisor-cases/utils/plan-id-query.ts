@@ -1,6 +1,6 @@
 /**
  * @file Parses the `planId` query parameter before it becomes part of an API path.
- * @module @caa/web/shared/utils/plan-id-query
+ * @module @caa/web/features/advisor-cases/utils/plan-id-query
  * @requirement FR-11
  * @see docs/standards/09-errors-logging-and-security.md
  */

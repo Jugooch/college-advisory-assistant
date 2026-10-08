@@ -21,7 +21,7 @@ export interface SubmitControlProps {
 }
 
 /**
- * Renders the button and the live region. The confirmation is not here: it takes focus, so it
+ * Renders the button and the live region. After a case is created the button is removed, so a second click can't open a second case. The confirmation is not here: it takes focus, so it
  * sits outside the region and is read once.
  *
  * @param props - The label, the pending flag, the state, and the Help and cases link.
@@ -35,17 +35,19 @@ export function SubmitControl({
 }: SubmitControlProps): ReactElement {
   return (
     <>
-      <button
-        type="submit"
-        aria-disabled={isPending}
-        onClick={(event) => {
-          if (isPending) {
-            event.preventDefault();
-          }
-        }}
-      >
-        {label}
-      </button>
+      {state.kind === 'created' ? null : (
+        <button
+          type="submit"
+          aria-disabled={isPending}
+          onClick={(event) => {
+            if (isPending) {
+              event.preventDefault();
+            }
+          }}
+        >
+          {label}
+        </button>
+      )}
       <div role="status" aria-live="polite" aria-label="Submission result">
         {state.kind === 'idle' || state.kind === 'created' ? null : (
           <CaseSubmitResult state={state} casesHref={casesHref} />
