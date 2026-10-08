@@ -21,8 +21,9 @@ import { PlanList } from './plan-list';
 const STUDENT_ID = syntheticId('student', 1);
 const FALL = TermIdSchema.parse(syntheticId('term', 1));
 const SPRING = TermIdSchema.parse(syntheticId('term', 2));
+const FALL_CODE = 'FA-SYN';
 const TERMS: readonly PlannableTerm[] = [
-  { id: FALL, termCode: 'FA-SYN', startsOn: '2027-01-11', endsOn: '2027-05-07' },
+  { id: FALL, termCode: FALL_CODE, startsOn: '2027-01-11', endsOn: '2027-05-07' },
 ];
 
 /**
@@ -121,7 +122,7 @@ describe('PlanList', () => {
     const container = renderList([summary(1)]);
 
     const link = container.querySelector('tbody a');
-    expect(link?.textContent).toBe('Ask an advisor about this draft');
+    expect(link?.textContent).toBe(`Ask an advisor about the ${FALL_CODE} draft`);
     const url = new URL(link?.getAttribute('href') ?? '', 'http://x');
     expect(url.pathname).toBe('/ask-an-advisor');
     expect(url.searchParams.get('studentId')).toBe(STUDENT_ID);
@@ -132,8 +133,20 @@ describe('PlanList', () => {
     const container = renderList([summary(1, { openCaseStatus: 'OPEN' })]);
 
     const link = container.querySelector('tbody a');
-    expect(link?.textContent).toBe('See your case about this draft');
+    expect(link?.textContent).toBe(`See your case about the ${FALL_CODE} draft`);
     expect(link?.getAttribute('href')).toBe(`/help-and-cases?studentId=${STUDENT_ID}`);
+  });
+
+  it('gives each row’s case link a different accessible name', () => {
+    const container = renderList([
+      summary(1, { openCaseStatus: 'OPEN' }),
+      summary(2, { termId: SPRING, openCaseStatus: 'OPEN' }),
+      summary(3),
+      summary(4, { termId: SPRING }),
+    ]);
+
+    const names = [...container.querySelectorAll('tbody a')].map((a) => a.textContent);
+    expect(new Set(names).size).toBe(4);
   });
 
   it('labels the table and its headers for screen readers', () => {

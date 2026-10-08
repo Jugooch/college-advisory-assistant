@@ -58,31 +58,36 @@ export function PlanList({ studentId, plans, terms, plannerHref }: PlanListProps
         </tr>
       </thead>
       <tbody>
-        {plans.map((plan) => (
-          <tr key={plan.id}>
-            <th scope="row">{codes.get(plan.termId) ?? UNNAMED_TERM}</th>
-            <td>
-              Revision {plan.latestRevision}, saved <Timestamp iso={plan.createdAt} />
-            </td>
-            <td>
-              <PlanFreshness freshness={plan.freshness} />
-            </td>
-            <td>
-              {describeOpenCase(plan.openCaseStatus)}{' '}
-              {plan.openCaseStatus === null ? (
-                <Link
-                  href={`/ask-an-advisor?${new URLSearchParams({ studentId, planId: plan.id })}`}
-                >
-                  Ask an advisor<span className="visually-hidden"> about this draft</span>
-                </Link>
-              ) : (
-                <Link href={`/help-and-cases?${new URLSearchParams({ studentId })}`}>
-                  See your case<span className="visually-hidden"> about this draft</span>
-                </Link>
-              )}
-            </td>
-          </tr>
-        ))}
+        {plans.map((plan) => {
+          const termName = codes.get(plan.termId) ?? UNNAMED_TERM;
+          return (
+            <tr key={plan.id}>
+              <th scope="row">{termName}</th>
+              <td>
+                Revision {plan.latestRevision}, saved <Timestamp iso={plan.createdAt} />
+              </td>
+              <td>
+                <PlanFreshness freshness={plan.freshness} />
+              </td>
+              <td>
+                {describeOpenCase(plan.openCaseStatus)}{' '}
+                {plan.openCaseStatus === null ? (
+                  <Link
+                    href={`/ask-an-advisor?${new URLSearchParams({ studentId, planId: plan.id })}`}
+                  >
+                    Ask an advisor
+                    <span className="visually-hidden"> about the {termName} draft</span>
+                  </Link>
+                ) : (
+                  <Link href={`/help-and-cases?${new URLSearchParams({ studentId })}`}>
+                    See your case
+                    <span className="visually-hidden"> about the {termName} draft</span>
+                  </Link>
+                )}
+              </td>
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   );
