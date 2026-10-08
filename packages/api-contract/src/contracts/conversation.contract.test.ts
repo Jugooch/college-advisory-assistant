@@ -218,29 +218,14 @@ describe('ConversationTurnResponseSchema', () => {
       false,
     );
   });
-});
 
-describe('lastSequence', () => {
-  const conv = { available: true, unavailableReason: null, turns: [] };
-  const bodies = [
-    (v: unknown) => ConversationTurnResponseSchema.safeParse({ turn: ANSWER, lastSequence: v }),
-    (v: unknown) => ConversationResponseSchema.safeParse({ ...conv, lastSequence: v }),
-  ];
-
-  it('is accepted when present and when absent', () => {
-    for (const parse of bodies) {
-      expect(parse(0).success).toBe(true);
-      expect(parse(2).success).toBe(true);
-    }
-    expect(ConversationResponseSchema.safeParse(conv).success).toBe(true);
-    expect(ConversationTurnResponseSchema.safeParse({ turn: ANSWER }).success).toBe(true);
-  });
-
-  it('is rejected when negative or not an integer', () => {
-    for (const parse of bodies) {
-      expect(parse(-1).success).toBe(false);
-      expect(parse(1.5).success).toBe(false);
-    }
+  it('accepts lastSequence when present or absent and rejects negative or fractional', () => {
+    const parse = (v: unknown) =>
+      ConversationTurnResponseSchema.safeParse({ turn: ANSWER, lastSequence: v }).success;
+    expect(parse(0)).toBe(true);
+    expect(parse(2)).toBe(true);
+    expect(parse(-1)).toBe(false);
+    expect(parse(1.5)).toBe(false);
   });
 });
 
@@ -290,5 +275,14 @@ describe('ConversationResponseSchema', () => {
   it('rejects ids and metadata on a turn view', () => {
     const leaky = { ...ASSISTANT_TURN, id: STUDENT_ID, metadata: {} };
     expect(accepts({ ...ok, turns: [leaky] })).toBe(false);
+  });
+
+  it('accepts lastSequence when present or absent and rejects negative or fractional', () => {
+    const parse = (v: unknown) => accepts({ ...ok, lastSequence: v });
+    expect(accepts(ok)).toBe(true);
+    expect(parse(0)).toBe(true);
+    expect(parse(2)).toBe(true);
+    expect(parse(-1)).toBe(false);
+    expect(parse(1.5)).toBe(false);
   });
 });
