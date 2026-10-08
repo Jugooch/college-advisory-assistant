@@ -54,8 +54,17 @@ describe('PlanRevisionSchema', () => {
     expect(accepts({ outcome: 'NO_FEASIBLE_PLAN' })).toBe(false);
   });
 
-  it('rejects a missing selection on OPTIONS_FOUND', () => {
-    expect(accepts({ selectedSectionIds: null })).toBe(false);
+  it('rejects a missing selection on a SAVED OPTIONS_FOUND revision', () => {
+    expect(accepts({ cause: 'SAVED', selectedSectionIds: null })).toBe(false);
+  });
+
+  it('accepts a REVALIDATED OPTIONS_FOUND revision with a null or a chosen selection', () => {
+    expect(accepts({ cause: 'REVALIDATED', selectedSectionIds: null })).toBe(true);
+    expect(accepts({ cause: 'REVALIDATED' })).toBe(true);
+  });
+
+  it('rejects a selection on a REVALIDATED revision without options', () => {
+    expect(accepts({ cause: 'REVALIDATED', outcome: 'NO_FEASIBLE_PLAN' })).toBe(false);
   });
 
   it('rejects an unsorted or repeated section set', () => {

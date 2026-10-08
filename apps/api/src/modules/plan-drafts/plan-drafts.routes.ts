@@ -11,7 +11,7 @@ import { savePlanEndpoint } from '@caa/api-contract';
 import type { PlanDraftsController } from './plan-drafts.controller';
 
 /**
- * Registers the save endpoint for plan drafts. Revalidation is a separate issue (#410).
+ * Registers the save endpoint for plan drafts. Revalidation is in the plan revalidation module.
  * App-owned data only: no route writes to an institutional system.
  *
  * @param app - The authenticated route scope.

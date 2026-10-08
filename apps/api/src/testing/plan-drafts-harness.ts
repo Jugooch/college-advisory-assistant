@@ -1,7 +1,9 @@
 /**
  * @file Shared helpers for the plan draft HTTP tests: view options as the student would, build
- * the save body from them, and post and read plan endpoints. Test code only.
+ * the save body from them, and post and read plan endpoints, revalidate included. Test code only.
  * @module @caa/api/testing/plan-drafts-harness
+ * @requirement FR-02
+ * @requirement FR-11
  */
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { z } from 'zod';
@@ -92,6 +94,31 @@ export function postSave(
     method: 'POST',
     url: `/v1/students/${call.studentId}/plans`,
     headers: call.token === null ? {} : bearer(call.token),
+    payload: call.body,
+  });
+}
+
+/**
+ * Posts a revalidate request.
+ *
+ * @param app - The app under test.
+ * @param call - The path student and plan, the token (null for none), and the body.
+ * @returns The injected response.
+ */
+export function postRevalidate(
+  app: FastifyInstance,
+  call: {
+    readonly studentId?: string;
+    readonly planId: string;
+    readonly token?: string | null;
+    readonly body: object;
+  },
+): Promise<LightMyRequestResponse> {
+  const { studentId = STUDENTS.own.id, token = TOKENS.student } = call;
+  return app.inject({
+    method: 'POST',
+    url: `/v1/students/${studentId}/plans/${call.planId}/revalidate`,
+    headers: token === null ? {} : bearer(token),
     payload: call.body,
   });
 }

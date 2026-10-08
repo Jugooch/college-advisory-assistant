@@ -9,12 +9,14 @@
  */
 import type { PlanListResponse, PlanRevisionView, PlanView } from '@caa/api-contract';
 import type { AdvisingCaseRepository, PlanRepository, StoredPlanRevision } from '@caa/db';
-import { type Actor, CaseStatus, type Plan, type PlanId, type StudentId } from '@caa/domain';
+import type { Actor, Plan, PlanId, StudentId } from '@caa/domain';
 
 import { NotFoundError } from '../../shared/domain-errors';
 import type { RequestContext } from '../../shared/request-context';
 import type { AccessService } from '../access/access.service';
+import { isLiveCaseStatus, type LiveCaseStatus } from '../cases/cases.logic';
 import type { PlanFreshnessService } from '../plan-freshness/plan-freshness.service';
+import { openCaseStatusOf } from './plan-views.logic';
 import { toRevisionView } from './plan-views.mapper';
 
 /** Dependencies of the plan views service. */
@@ -178,50 +180,38 @@ function createViewHelpers(dependencies: PlanViewsServiceDependencies): ViewHelp
   return { assertCanView, findPlan, viewRevision, viewOf };
 }
 
-/** Which plans of which student to look up open cases for. */
-interface OpenCaseLookup {
-  readonly studentId: StudentId;
-  readonly planIds: readonly PlanId[];
-}
-
 /**
  * Builds a function that tells a plan's open case status, reading the student's cases once and
- * the plans' revisions only when a live case exists.
+ * a plan's revisions only when the student has a live case.
  *
  * @param dependencies - Plan and case repositories.
  * @param actor - Authenticated actor from the session.
- * @param lookup - The authorized student and the IDs of their plans.
+ * @param studentId - The student, already authorized by the caller.
  * @returns A function from a plan ID and its latest revision number to OPEN, IN_REVIEW, or null.
  * @throws {z.ZodError} When a stored case or revision row fails its domain schema.
  */
 async function openCaseStatusLookup(
   dependencies: PlanViewsServiceDependencies,
   actor: Actor,
-  lookup: OpenCaseLookup,
-): Promise<(planId: PlanId, latestRevision: number) => Promise<'OPEN' | 'IN_REVIEW' | null>> {
+  studentId: StudentId,
+): Promise<(planId: PlanId, latestRevision: number) => Promise<LiveCaseStatus | null>> {
   const { plans, cases } = dependencies;
   // SECURITY: both reads are scoped to the session tenant and the already-authorized student.
-  const live = (await cases.listForStudent(actor.tenantId, lookup.studentId)).filter(
-    ({ status }) => status === CaseStatus.Open || status === CaseStatus.InReview,
+  const live = (await cases.listForStudent(actor.tenantId, studentId)).filter(({ status }) =>
+    isLiveCaseStatus(status),
   );
   return async (planId, latestRevision) => {
-    if (live.length === 0 || !lookup.planIds.includes(planId)) {
+    if (live.length === 0) {
       return null;
     }
-    // NOTE: PlanRepository has no lookup by revision ID, and a plan's history is short.
+    // TODO(#462): replace this revision scan with a plan-keyed case lookup in @caa/db.
     const stored = await Promise.all(
       Array.from({ length: latestRevision }, (_unused, index) =>
         plans.findRevision(actor.tenantId, planId, index + 1),
       ),
     );
     const ids = new Set(stored.flatMap((entry) => (entry === null ? [] : [entry.revision.id])));
-    // NOTE: at most one live case per plan is enforced by the repository.
-    const found = live.find(
-      ({ planRevisionId }) => planRevisionId !== null && ids.has(planRevisionId),
-    );
-    return found?.status === CaseStatus.Open || found?.status === CaseStatus.InReview
-      ? found.status
-      : null;
+    return openCaseStatusOf(live, ids);
   };
 }
 
@@ -240,10 +230,7 @@ export function createPlanViewsService(
     async listPlans(actor, studentId, context) {
       await assertCanView(actor, studentId, context);
       const found = await plans.listForStudent(actor.tenantId, studentId);
-      const openStatusOf = await openCaseStatusLookup(dependencies, actor, {
-        studentId,
-        planIds: found.map(({ plan }) => plan.id),
-      });
+      const openStatusOf = await openCaseStatusLookup(dependencies, actor, studentId);
       const summaries = await Promise.all(
         found.map(async ({ plan, latest }) => ({
           id: plan.id,

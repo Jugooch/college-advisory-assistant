@@ -179,11 +179,14 @@ export const planRevisionTable = pgTable(
         AND ${table.cause} IN ('SAVED', 'REVALIDATED') AND ${table.outcome} IN
         ('OPTIONS_FOUND', 'NO_FEASIBLE_PLAN', 'SEARCH_TIMEOUT', 'NEEDS_VERIFICATION')`,
     ),
-    // SAFETY: a selection exactly when the outcome has options, so a revision never shows a
-    // schedule the engine didn't produce.
+    // SAFETY: only a revision with options has a selection, and a saved one always does (the
+    // student chose it); a revalidated one may lose it when the chosen sections no longer
+    // appear among the new options (ADR-0013 §4). A revision never shows an unproduced schedule.
     check(
       'plan_revision_selection_matches_outcome',
-      sql`(${table.outcome} = 'OPTIONS_FOUND') = (${table.selectedSectionIds} IS NOT NULL)`,
+      sql`CASE WHEN ${table.outcome} <> 'OPTIONS_FOUND' THEN ${table.selectedSectionIds} IS NULL
+        WHEN ${table.cause} = 'SAVED' THEN ${table.selectedSectionIds} IS NOT NULL
+        ELSE true END`,
     ),
     check(
       'plan_revision_json_shape',

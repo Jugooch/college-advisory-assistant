@@ -1,6 +1,6 @@
 # ADR-0013: Plan drafts, their staleness, and advisor cases
 
-- **Status:** Accepted 2026-10-07. The repo owner accepted all seven product defaults on #399, with no overrides.
+- **Status:** Accepted 2026-10-07. The repo owner accepted all seven product defaults on #399, with no overrides. Amended 2026-10-07 (Amendment 1).
 - **Date:** 2026-10-07
 - **Deciders:** Tech lead; repo owner (product decisions 1–7 on #399)
 - **Related:** FR-02, FR-11, FR-12, FR-14, FR-15, FR-17, NFR-01, NFR-04, NFR-05, AC14, AC15, AC16, new AC32–AC37, T07, planning ADR-02, ADR-06, ADR-08, planning/07 §Request lifecycle and §Consistency model, planning/09 §Canonical entities and §Logical app interfaces, planning/11 §Core screens, ADR-0008 Amendment 1, ADR-0010, ADR-0011, issues #399–#418
@@ -156,3 +156,42 @@ No new error code is needed: `REVISION_CONFLICT`, `STALE_SOURCE` and `SOURCE_UNA
 - A notification channel is authorized (planning ADR-08). That is a new decision, not an extension of this one.
 - Freshness reads become a measured latency problem. Then consider a precomputed dependency index, still derived and never trusted over a live comparison.
 - A historical view of the academic summary is designed. It can reuse this marker (ADR-0008 Amendment 1).
+
+## Amendment 1 (2026-10-07, issue #439): each case event records the role its actor acted as
+
+**Related:** #411, PR #437, #412, #439, #444–#450. Section 6 (Objects, Frozen context). Standard 08 §Required-field ripple (staged rollout). FR-02, FR-12, FR-14.
+
+**Context.** Section 6 shows event actors and the owner as a role plus `isYou`, but a `CaseEvent` stores only `actorUserId`. PR #437 infers the role at read time: the student's user is `STUDENT`, the viewer's own events show the viewer's staff role, and every other staff user shows as `ADVISOR`. So an admin's `CLAIM` reads as `ADVISOR` to the student and to other staff, and the same event can read differently to different viewers. Options:
+
+- (a) keep inferring, and look up the actor's current roles at read time;
+- (b) record the role on the event when it is written.
+
+(a) reports today's roles, not the role used, and a user can hold both `ADVISOR` and `ADMIN`. **Option (b).** An event is append-only history, so the role it was taken in belongs on it.
+
+**Decision.**
+
+- **Field.** `CaseEvent.actorRole`, of the existing `Role` enum in `@caa/domain` (`STUDENT`, `ADVISOR`, `ADMIN`). No new enum. Column `case_event.actor_role`, text, with a check on those three values.
+- **Set from the session at write time, never from the body.** The cases service sets it when it writes the event. The events request has no role field. The rule:
+  - `CREATE` and `WITHDRAW`: `STUDENT`, since only the student may take them.
+  - `CLAIM`, `RELEASE` and `RESOLVE`: `ADVISOR` when the session holds `ADVISOR` and an active `AdvisorAssignment` for the student at the request time. Otherwise `ADMIN`, the only other role that can reach the case.
+- **Views read the stored role.** An event's `actorRole` is its stored `actorRole`, the same for every viewer. The owner's role is the `actorRole` of the case's latest `CLAIM` event. `isYou` is unchanged. The view still carries no user ID or name.
+- **Backfill.** Existing rows get a role in the migration that adds the column: `CREATE` and `WITHDRAW` get `STUDENT`. Every other action gets `ADVISOR` when the actor's `user_identity.roles` contains `ADVISOR`, otherwise `ADMIN`. The migration lifts the append-only trigger only for this `UPDATE`, inside the same transaction. The rule uses roles because assignment history isn't kept per event. It can only differ for a dual-role user acting without an assignment.
+- **Rows this affects.** There is no production data. The dev seed writes no cases, so the only rows are cases made by hand in a local database. The backfill covers those. Test databases are built fresh. Builders and harness fakes default the role by the same rule: `STUDENT` for the student's actions, `ADVISOR` for staff.
+
+**Order.** Standard 08's staged rollout. Each step keeps `main` green, and nothing becomes required until every writer, builder and fake sets the field (the S4 lesson). The domain step comes first because a builder can only name a field the domain type has. It changes nothing else, since the field is optional.
+
+1. Domain (#444): `actorRole: RoleSchema.optional()`, with `TODO(#449)`.
+2. Data (#445), after #444: a migration that adds the nullable column and backfills it. Repository writes and reads carry the field, and a `NULL` maps to an omitted field.
+3. QA (#446), after #445: builders set `actorRole`. The case repository fakes in `tests/support` store whatever the request carries.
+4. API (#447), after #445 and #446: the service writes `actorRole` on every event by the rule above. The mapper prefers the stored role and falls back to the inference only when it is absent. #412 writes it on the events it adds, whichever of the two merges second.
+5. Data (#448), after #447 and #412: a migration that reruns the backfill for any `NULL` row, then sets `NOT NULL`. The repository types make the field required.
+6. Domain (#449), after #448: `actorRole` required, and the `TODO` is removed.
+7. API (#450), after #449: the mapper drops `roleOf` and reads the stored role for events and the owner.
+
+**Consequences.**
+
+- An admin's actions read as `ADMIN` to everyone, and each event reads the same to every viewer.
+- The contract doesn't change, because `CaseEventView.actorRole` and `owner.role` already exist.
+- No new file role, so devops has nothing to add.
+
+**Revisit when** a role is added to `Role`, or an action can be taken by someone other than the student, the owner, or an assigned advisor or admin.

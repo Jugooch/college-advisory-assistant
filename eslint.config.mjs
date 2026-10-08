@@ -152,6 +152,15 @@ export default tseslint.config(
   // ---- Next.js web app (standards/06) ----
   ...webRules,
 
+  // ---- Temporary exceptions ----
+  {
+    // TODO(#443): temporary exception recorded in standard 01 §Size; remove when the composition root is split.
+    files: ['apps/api/src/container.ts'],
+    rules: {
+      'max-lines': ['error', { max: 260, skipBlankLines: true, skipComments: true }],
+    },
+  },
+
   // ---- Tests: longer bodies are fine; everything else still applies ----
   {
     files: ['**/*.test.ts', '**/*.test.tsx', '**/*.test.mjs'],

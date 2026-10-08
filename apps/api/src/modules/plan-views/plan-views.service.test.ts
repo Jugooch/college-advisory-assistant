@@ -1,13 +1,16 @@
 /**
  * @file HTTP-level tests for the open case status in the plan list: OPEN for a new case,
- * IN_REVIEW once claimed, null once resolved or withdrawn, and a case of another tenant ignored.
+ * IN_REVIEW once claimed, null once resolved or withdrawn, a case of another tenant ignored, the
+ * case shown only on its own plan, and a case on an earlier revision still shown after a re-save.
  * @requirement FR-11
  * @requirement AC14
  */
 import { beforeEach, describe, expect, it } from 'vitest';
+import { z } from 'zod';
 
-import { CaseStatus } from '@caa/domain';
-import { SYNTHETIC_TENANTS } from '@caa/test-kit';
+import { PlanListResponseSchema } from '@caa/api-contract';
+import { CaseStatus, createPlan, createPlanRevision } from '@caa/domain';
+import { SYNTHETIC_TENANTS, syntheticId } from '@caa/test-kit';
 
 import { buildCasesWorld, createAsStudent } from '../../testing/cases-harness';
 import { getPlans } from '../../testing/plan-drafts-harness';
@@ -17,15 +20,25 @@ const { app, store, reset } = buildCasesWorld();
 beforeEach(reset);
 
 /**
+ * Reads the open case status of each listed plan.
+ *
+ * @returns The statuses by plan ID.
+ */
+async function listedStatuses(): Promise<Map<string, string | null>> {
+  const response = await getPlans(app, '');
+  expect(response.statusCode).toBe(200);
+  const { data } = z.object({ data: PlanListResponseSchema }).parse(response.json());
+  return new Map(data.plans.map((plan) => [plan.id, plan.openCaseStatus]));
+}
+
+/**
  * Reads the open case status of the student's only listed plan.
  *
  * @returns The status shown in the list.
  */
 async function listedStatus(): Promise<unknown> {
-  const response = await getPlans(app, '');
-  expect(response.statusCode).toBe(200);
-  const body = response.json<{ data: { plans: { openCaseStatus: unknown }[] } }>();
-  return body.data.plans[0]?.openCaseStatus;
+  const [only] = (await listedStatuses()).values();
+  return only;
 }
 
 /**
@@ -73,5 +86,56 @@ describe('plan list: open case status', () => {
     }));
 
     expect(await listedStatus()).toBeNull();
+  });
+
+  it('shows the case only on its own plan when the student has two plans', async () => {
+    const created = await createAsStudent(app);
+    const [plan] = store.plans ?? [];
+    const [stored] = store.planRevisions ?? [];
+    if (plan === undefined || stored === undefined) {
+      throw new Error('Expected a saved plan');
+    }
+    const otherPlan = createPlan({
+      ...plan,
+      id: syntheticId('plan', 90),
+      termId: syntheticId('term', 90),
+    });
+    const otherRevision = {
+      ...stored,
+      revision: createPlanRevision({
+        ...stored.revision,
+        id: syntheticId('planRevision', 90),
+        planId: otherPlan.id,
+      }),
+    };
+    store.plans = [...(store.plans ?? []), otherPlan];
+    store.planRevisions = [...(store.planRevisions ?? []), otherRevision];
+
+    const statuses = await listedStatuses();
+
+    expect(created.planRevisionId).toBe(stored.revision.id);
+    expect(statuses.get(plan.id)).toBe('OPEN');
+    expect(statuses.get(otherPlan.id)).toBeNull();
+  });
+
+  it('still shows the case after the plan is re-saved as a later revision', async () => {
+    await createAsStudent(app);
+    const [stored] = store.planRevisions ?? [];
+    if (stored === undefined) {
+      throw new Error('Expected a saved revision');
+    }
+    store.planRevisions = [
+      ...(store.planRevisions ?? []),
+      {
+        ...stored,
+        revision: createPlanRevision({
+          ...stored.revision,
+          id: syntheticId('planRevision', 91),
+          revision: 2,
+        }),
+      },
+    ];
+
+    expect(await listedStatus()).toBe('OPEN');
   });
 });

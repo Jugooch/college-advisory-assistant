@@ -103,3 +103,16 @@ export function allowedCaseActions(status: CaseStatus, actor: CaseActor): readon
     (row) => row.action,
   );
 }
+
+/** The statuses in which a case holds its plan's single open slot. */
+export type LiveCaseStatus = typeof CaseStatus.Open | typeof CaseStatus.InReview;
+
+/**
+ * Tells whether a case in this status still holds its plan's single open slot.
+ *
+ * @param status - The case's status.
+ * @returns True for OPEN and IN_REVIEW; false for RESOLVED and WITHDRAWN.
+ */
+export function isLiveCaseStatus(status: CaseStatus): status is LiveCaseStatus {
+  return status === CaseStatus.Open || status === CaseStatus.InReview;
+}

@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 
 import { CaseAction, CaseStatus } from '@caa/domain';
 
-import { allowedCaseActions, CaseActor, nextCaseStatus } from './cases.logic';
+import { allowedCaseActions, CaseActor, isLiveCaseStatus, nextCaseStatus } from './cases.logic';
 
 const STATUSES = Object.values(CaseStatus);
 const ACTIONS = Object.values(CaseAction);
@@ -93,5 +93,13 @@ describe('allowedCaseActions', () => {
       CaseAction.Release,
       CaseAction.Resolve,
     ]);
+  });
+});
+
+describe('isLiveCaseStatus', () => {
+  it.each(STATUSES)('is true only for OPEN and IN_REVIEW: %s', (status) => {
+    expect(isLiveCaseStatus(status)).toBe(
+      status === CaseStatus.Open || status === CaseStatus.InReview,
+    );
   });
 });

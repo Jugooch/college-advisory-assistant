@@ -1,6 +1,6 @@
 /**
  * @file A plan revision's freshness as text: the state label, why, and when it was checked.
- * @module @caa/web/features/plan-drafts/components/plan-freshness
+ * @module @caa/web/shared/components/plan-freshness
  * @requirement FR-11
  * @requirement NFR-02
  * @see docs/adr/0013-plan-drafts-staleness-and-advisor-cases.md
@@ -11,8 +11,7 @@ import type { PlanFreshnessView } from '@caa/api-contract';
 
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Timestamp } from '@/shared/components/timestamp';
-
-import { describeFreshness, describeStaleReason } from '../utils/plan-wording';
+import { describeFreshness, describeStaleReason } from '@/shared/utils/freshness-wording';
 
 /** Props for {@link PlanFreshness}. */
 export interface PlanFreshnessProps {
