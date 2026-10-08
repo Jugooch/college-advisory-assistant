@@ -57,3 +57,14 @@ describe('isNoteSendable', () => {
     expect(isNoteSendable('x'.repeat(501))).toBe(false);
   });
 });
+
+describe('a field with its own limit', () => {
+  it('counts and warns against the limit it is given', () => {
+    expect(describeNoteCount('abc', 1000)).toBe('3 of 1000 characters used');
+    expect(describeNoteWarning('a'.repeat(900), 1000)).toBeNull();
+    expect(describeNoteWarning('a'.repeat(960), 1000)).toBe('40 characters left.');
+    expect(describeNoteWarning('a'.repeat(1000), 1000)).toBe(
+      'You’ve reached the 1000-character limit.',
+    );
+  });
+});
