@@ -11,6 +11,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
   type CaseId,
+  CaseStatus,
   IdentityStatus,
   type InstitutionId,
   Role,
@@ -19,6 +20,7 @@ import {
 } from '@caa/domain';
 
 import type { Database } from '../client';
+import { advisingCaseTable } from '../tables/advising-case.table';
 import { caseEventTable } from '../tables/case-event.table';
 import { userIdentityTable } from '../tables/user-identity.table';
 import { buildClaim, buildNewCase, buildResolve, insertCaseWorld } from '../testing/case-fixtures';
@@ -26,6 +28,9 @@ import { immutableRowRejectionOf } from '../testing/catalog-fixtures';
 import { insertTenant, TEST_ISSUER, type TestDatabase } from '../testing/integration-fixtures';
 import { openIsolatedTestDatabase } from '../testing/isolated-database';
 import { createAdvisingCaseRepository } from './advising-case.repository';
+
+/** Postgres SQLSTATE for a NOT NULL violation. */
+const NOT_NULL_VIOLATION = '23502';
 
 const MIGRATION = fileURLToPath(
   new URL('../../migrations/0017_case_event_actor_role_required.sql', import.meta.url),
@@ -134,18 +139,23 @@ describe('case event actor role', () => {
       throw new Error('expected the case to be created');
     }
 
-    const bare = db.insert(caseEventTable).values({
-      tenantId: world.tenantId,
-      caseId: created.case.id,
-      sequence: 2,
-      action: 'CLAIM',
-      actorUserId: world.userId,
-      at: new Date('2026-10-02T10:00:00.000Z'),
-      fromStatus: 'OPEN',
-      toStatus: 'IN_REVIEW',
-    } as never);
+    // NOTE: the case row moves to the event's state first, so the case-state trigger (0014) passes
+    // and the only thing wrong with the raw insert is the missing role.
+    const bare = db.transaction(async (tx) => {
+      await tx
+        .update(advisingCaseTable)
+        .set({ status: CaseStatus.InReview, ownerUserId: world.userId, lastSequence: 2 })
+        .where(eq(advisingCaseTable.id, created.case.id));
+      await tx.execute(sql`
+        INSERT INTO "case_event"
+          ("tenant_id", "case_id", "sequence", "action", "actor_user_id", "at", "from_status", "to_status")
+        VALUES (${world.tenantId}, ${created.case.id}, 2, 'CLAIM', ${world.userId},
+          '2026-10-02T10:00:00.000Z', 'OPEN', 'IN_REVIEW')`);
+    });
 
-    await expect(bare).rejects.toThrow();
+    await expect(bare).rejects.toMatchObject({
+      cause: { code: NOT_NULL_VIOLATION, column: 'actor_role' },
+    });
     expect(await readRoles(created.case.id)).toEqual(['CREATE:STUDENT']);
   });
 

@@ -22,7 +22,7 @@ export function toCaseEvent(row: CaseEventRow): CaseEvent {
     sequence: row.sequence,
     action: row.action,
     actorUserId: row.actorUserId,
-    // NOTE: NULL (not yet recorded) is an omitted field, not a value.
+    // SAFETY: the column is NOT NULL (migration 0017), so the role is always present; no fallback is applied.
     actorRole: row.actorRole,
     at: row.at.toISOString(),
     fromStatus: row.fromStatus,
