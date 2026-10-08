@@ -120,6 +120,13 @@
       "when": 1791466784866,
       "tag": "0016_case_event_actor_role",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1791473106158,
+      "tag": "0017_case_event_actor_role_required",
+      "breakpoints": true
     }
   ]
 }

@@ -28,13 +28,13 @@ import { openIsolatedTestDatabase } from '../testing/isolated-database';
 import { createAdvisingCaseRepository } from './advising-case.repository';
 
 const MIGRATION = fileURLToPath(
-  new URL('../../migrations/0016_case_event_actor_role.sql', import.meta.url),
+  new URL('../../migrations/0017_case_event_actor_role_required.sql', import.meta.url),
 );
 
-/** The backfill is the last statement of the migration, after the column and check. */
+/** The backfill is the first statement of the migration, before the column becomes required. */
 function backfillStatement(): string {
   const statements = readFileSync(MIGRATION, 'utf8').split('--> statement-breakpoint');
-  return statements[statements.length - 1] ?? '';
+  return statements[0] ?? '';
 }
 
 describe('case event actor role', () => {
@@ -71,10 +71,10 @@ describe('case event actor role', () => {
       .from(caseEventTable)
       .where(eq(caseEventTable.caseId, caseId))
       .orderBy(caseEventTable.sequence);
-    return rows.map((row) => `${row.action}:${String(row.actorRole)}`);
+    return rows.map((row) => `${row.action}:${row.actorRole}`);
   };
 
-  it('stores a given role and reads an unrecorded one as an omitted field', async () => {
+  it('stores the given role on every event', async () => {
     const { db } = testDatabase;
     const world = await newWorld(db, 'write');
     const repo = createAdvisingCaseRepository(db);
@@ -96,11 +96,11 @@ describe('case event actor role', () => {
 
     expect(created.event.actorRole).toBe('STUDENT');
     expect(claimed.status === 'APPENDED' && claimed.event.actorRole).toBe('ADMIN');
-    expect(resolved.status === 'APPENDED' && resolved.event.actorRole).toBeUndefined();
+    expect(resolved.status === 'APPENDED' && resolved.event.actorRole).toBe('ADVISOR');
     expect(await readRoles(created.case.id)).toEqual([
       'CREATE:STUDENT',
       'CLAIM:ADMIN',
-      'RESOLVE:null',
+      'RESOLVE:ADVISOR',
     ]);
   });
 
@@ -123,7 +123,33 @@ describe('case event actor role', () => {
     await expect(bad).rejects.toThrow();
   });
 
-  it('backfills rows written without a role, then still refuses UPDATE', async () => {
+  it('refuses an event written without a role', async () => {
+    const { db } = testDatabase;
+    const world = await newWorld(db, 'required');
+    const created = await createAdvisingCaseRepository(db).create(
+      world.tenantId,
+      buildNewCase(world),
+    );
+    if (created.status !== 'CREATED') {
+      throw new Error('expected the case to be created');
+    }
+
+    const bare = db.insert(caseEventTable).values({
+      tenantId: world.tenantId,
+      caseId: created.case.id,
+      sequence: 2,
+      action: 'CLAIM',
+      actorUserId: world.userId,
+      at: new Date('2026-10-02T10:00:00.000Z'),
+      fromStatus: 'OPEN',
+      toStatus: 'IN_REVIEW',
+    } as never);
+
+    await expect(bare).rejects.toThrow();
+    expect(await readRoles(created.case.id)).toEqual(['CREATE:STUDENT']);
+  });
+
+  it('backfills leftover NULL roles before requiring the column, then still refuses UPDATE', async () => {
     const { db } = testDatabase;
     const advisorWorld = await newWorld(db, 'backfill-advisor');
     const adminWorld = await newWorld(db, 'backfill-admin');
@@ -145,12 +171,14 @@ describe('case event actor role', () => {
     // NOTE: simulate rows written before the migration by clearing the role, as the migration
     // itself would find them.
     await db.transaction(async (tx) => {
+      await tx.execute(sql`ALTER TABLE "case_event" ALTER COLUMN "actor_role" DROP NOT NULL`);
       await tx.execute(sql`ALTER TABLE "case_event" DISABLE TRIGGER "case_event_immutable_row"`);
       await tx.execute(sql`UPDATE "case_event" SET "actor_role" = NULL`);
       await tx.execute(sql`ALTER TABLE "case_event" ENABLE TRIGGER "case_event_immutable_row"`);
     });
 
     await db.execute(sql.raw(backfillStatement()));
+    await db.execute(sql`ALTER TABLE "case_event" ALTER COLUMN "actor_role" SET NOT NULL`);
 
     expect((await readRoles(advisorCase))[0]).toBe('CREATE:STUDENT');
     expect((await readRoles(advisorCase))[1]).toBe('CLAIM:ADVISOR');

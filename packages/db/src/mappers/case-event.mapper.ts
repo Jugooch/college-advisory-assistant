@@ -23,7 +23,7 @@ export function toCaseEvent(row: CaseEventRow): CaseEvent {
     action: row.action,
     actorUserId: row.actorUserId,
     // NOTE: NULL (not yet recorded) is an omitted field, not a value.
-    actorRole: row.actorRole ?? undefined,
+    actorRole: row.actorRole,
     at: row.at.toISOString(),
     fromStatus: row.fromStatus,
     toStatus: row.toStatus,

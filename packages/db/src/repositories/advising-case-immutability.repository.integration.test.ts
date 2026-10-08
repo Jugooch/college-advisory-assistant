@@ -105,6 +105,7 @@ describe('advising case immutability', () => {
       sequence: 2,
       action: 'CLAIM',
       actorUserId: world.userId,
+      actorRole: 'ADVISOR',
       at: new Date('2026-10-02T10:00:00.000Z'),
       fromStatus: 'OPEN',
       toStatus: 'IN_REVIEW',

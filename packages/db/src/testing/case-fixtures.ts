@@ -12,6 +12,7 @@ import {
   type InstitutionId,
   type PlanRevisionId,
   PlanRevisionIdSchema,
+  Role,
   type UserId,
 } from '@caa/domain';
 import { buildAdvisingCase, buildCaseEvent } from '@caa/test-kit';
@@ -94,6 +95,7 @@ export function buildNewCase(
     discrepancySubject: null,
     studentNote: built.studentNote,
     actorUserId: world.userId,
+    actorRole: Role.Student,
     createdAt: built.createdAt,
     ...overrides,
   };
@@ -116,6 +118,7 @@ export function buildClaim(actorUserId: UserId): NewCaseEvent {
   return {
     action: built.action,
     actorUserId,
+    actorRole: Role.Advisor,
     at: built.at,
     toStatus: built.toStatus,
     resolution: null,
