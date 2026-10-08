@@ -85,21 +85,20 @@ interface NamedResult {
 }
 
 /**
- * Turns a thrown error into a result. Domain errors carry client-safe wording and a code;
- * anything else gets the fixed text and INTERNAL_ERROR.
+ * Turns a thrown error into a result. The notice always renders from the fixed TOOL_FAILED
+ * template, so a stored notice re-renders to the same text; the specific cause is only the
+ * error code. A domain error keeps its code, and anything else is INTERNAL_ERROR.
  *
  * @param error - What the tool threw.
  * @returns A result with a TOOL_FAILED notice.
  */
 function toFailure(error: unknown): ToolResult {
-  const isDomain = error instanceof DomainError;
-  const text = isDomain ? error.message : renderNotice(NoticeCode.ToolFailed);
   return failedResult(
-    isDomain ? error.code : ErrorCode.InternalError,
+    error instanceof DomainError ? error.code : ErrorCode.InternalError,
     buildNotice(NoticeCode.ToolFailed, {
       id: TOOL_FAILED_TEMPLATE_ID,
       version: TEMPLATE_VERSION,
-      text,
+      text: renderNotice(NoticeCode.ToolFailed),
     }),
   );
 }

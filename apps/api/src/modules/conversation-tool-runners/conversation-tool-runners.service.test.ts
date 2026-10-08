@@ -24,7 +24,7 @@ import {
 } from '@caa/domain';
 import { buildUnavailableTime } from '@caa/test-kit';
 
-import { SourceUnavailableError, StaleSourceError } from '../../shared/domain-errors';
+import { SourceUnavailableError } from '../../shared/domain-errors';
 import {
   otherPlanId,
   ownPlan,
@@ -55,7 +55,8 @@ describe('get_academic_summary', () => {
     expect(outcome.notice).toMatchObject({
       kind: AssistantBlockKind.Notice,
       code: NoticeCode.ToolFailed,
-      text: new SourceUnavailableError().message,
+      text: 'Something went wrong while looking that up, so no result is shown. Please try again.',
+      templateId: 'notice.tool-failed',
     });
   });
 
@@ -63,7 +64,9 @@ describe('get_academic_summary', () => {
     const outcome = await setupTools({ staleRecord: true }).run(ToolName.GetAcademicSummary, {});
 
     expect(outcome.errorCode).toBe(ErrorCode.StaleSource);
-    expect(outcome.notice).toMatchObject({ text: new StaleSourceError().message });
+    expect(outcome.notice).toMatchObject({
+      text: 'Something went wrong while looking that up, so no result is shown. Please try again.',
+    });
   });
 });
 
@@ -125,6 +128,31 @@ describe('propose_constraints', () => {
     ]);
     expect(constraints.map((proposed) => proposed.constraint.priorityRank)).toEqual([1, 2]);
     expect(constraints.map((proposed) => proposed.confirmed)).toEqual([false, false]);
+  });
+
+  it('fails when the downgraded set breaks the one-credit-range rule', async () => {
+    const { run } = setupTools();
+    const hardRange = {
+      kind: 'CREDIT_RANGE',
+      strength: 'HARD',
+      priorityRank: null,
+      minCreditsHundredths: 1200,
+      maxCreditsHundredths: null,
+    };
+    const preferredRange = {
+      kind: 'CREDIT_RANGE',
+      strength: 'PREFERRED',
+      priorityRank: 1,
+      minCreditsHundredths: null,
+      maxCreditsHundredths: 1500,
+    };
+
+    const outcome = await run(ToolName.ProposeConstraints, {
+      constraints: [hardRange, preferredRange],
+    });
+
+    expect(outcome.errorCode).toBe('INVALID_ARGUMENTS');
+    expect(outcome.block).toBeNull();
   });
 
   it('refuses an empty or oversized list without a service call', async () => {

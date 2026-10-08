@@ -15,15 +15,21 @@ import type { z } from 'zod';
 
 import { type ScheduleOptionsRequest, ScheduleOptionsRequestSchema } from '@caa/api-contract';
 import {
-  type DraftCaseContextArgsSchema,
-  type GetValidationEvidenceArgsSchema,
-  type ProposeConstraintsArgsSchema,
+  DraftCaseContextArgsSchema,
+  GetValidationEvidenceArgsSchema,
+  ProposeConstraintsArgsSchema,
   renderNotice,
-  type SearchApprovedPolicyArgsSchema,
+  SearchApprovedPolicyArgsSchema,
   TEMPLATE_VERSION,
   ToolName,
 } from '@caa/assistant';
-import { type Actor, AssistantBlockKind, NoticeCode, type StudentId } from '@caa/domain';
+import {
+  type Actor,
+  AssistantBlockKind,
+  NoticeCode,
+  ScheduleConstraintSetSchema,
+  type StudentId,
+} from '@caa/domain';
 
 import type { RequestContext } from '../../shared/request-context';
 import { toAcademicSummaryResponse } from '../academic-summary/academic-summary.mapper';
@@ -52,6 +58,7 @@ import {
 import type { PlanViewsService } from '../plan-views/plan-views.service';
 import type { PolicySearchService } from '../policy-search/policy-search.service';
 import type { ScheduleOptionsService } from '../schedule-options/schedule-options.service';
+import { type ParsedToolRun, withArgs as parseArgs } from './conversation-tool-runners.logic';
 
 /** The read services the tools call. */
 export interface ToolRunnersDependencies {
@@ -67,13 +74,28 @@ export interface ToolRun {
   readonly studentId: StudentId;
   /** The planner form's confirmed state, if any. */
   readonly plannerInputs: ScheduleOptionsRequest | undefined;
-  /** The arguments, already validated against the tool's schema. */
+  /** The model's arguments; each runner parses them with its own tool's schema. */
   readonly args: unknown;
   readonly context: RequestContext;
 }
 
 /** Runs one tool. */
 export type ToolRunner = (run: ToolRun) => Promise<ToolResult>;
+
+/**
+ * Types a runner body by its tool's schema: the arguments are parsed inside the runner, so the
+ * body cannot read fields the schema lacks.
+ *
+ * @param schema - The tool's argument schema.
+ * @param body - The runner body, given the parsed arguments.
+ * @returns A runner.
+ */
+function withArgs<Schema extends z.ZodType>(
+  schema: Schema,
+  body: (run: ParsedToolRun<ToolRun, z.output<Schema>>) => Promise<ToolResult>,
+): ToolRunner {
+  return parseArgs<ToolRun, Schema>(schema, body);
+}
 
 /**
  * Builds a successful result with one block and no notice.
@@ -114,14 +136,14 @@ function academicSummaryRunner(deps: ToolRunnersDependencies): ToolRunner {
  * @returns The runner.
  */
 function policyRunner(deps: ToolRunnersDependencies): ToolRunner {
-  return async ({ actor, args, context }) => {
-    const { query, topic } = args as z.infer<typeof SearchApprovedPolicyArgsSchema>;
+  return withArgs(SearchApprovedPolicyArgsSchema, async ({ actor, args, context }) => {
+    const { query, topic } = args;
     const results = await deps.policySearch.search(actor, { q: query, topic }, context);
     return succeeded(projectPolicyResults(results), {
       kind: AssistantBlockKind.PolicyResults,
       results,
     });
-  };
+  });
 }
 
 /**
@@ -131,16 +153,20 @@ function policyRunner(deps: ToolRunnersDependencies): ToolRunner {
  * @returns The runner.
  */
 function proposeConstraintsRunner(): ToolRunner {
-  return ({ args }) => {
-    const { constraints } = args as z.infer<typeof ProposeConstraintsArgsSchema>;
-    const proposed = toProposals(constraints);
+  return withArgs(ProposeConstraintsArgsSchema, ({ args }) => {
+    const proposed = toProposals(args.constraints);
+    // SAFETY: the set rules (one credit range per strength, distinct ranks) are not checked
+    // per item, and downgrading every item to PREFERRED can break them. A set the block
+    // contract would reject is a failure, never a block the student's chip could not confirm.
+    const set = ScheduleConstraintSetSchema.safeParse(proposed.map((item) => item.constraint));
+    if (!set.success) return Promise.resolve(failedResult(INVALID_ARGUMENTS, null));
     return Promise.resolve(
       succeeded(projectConstraintProposal(proposed), {
         kind: AssistantBlockKind.ConstraintProposal,
         constraints: proposed,
       }),
     );
-  };
+  });
 }
 
 /**
@@ -185,8 +211,8 @@ function requestPlanRunner(deps: ToolRunnersDependencies): ToolRunner {
  * @returns The runner.
  */
 function evidenceRunner(deps: ToolRunnersDependencies): ToolRunner {
-  return async ({ actor, studentId, args, context }) => {
-    const { planId, revision } = args as z.infer<typeof GetValidationEvidenceArgsSchema>;
+  return withArgs(GetValidationEvidenceArgsSchema, async ({ actor, studentId, args, context }) => {
+    const { planId, revision } = args;
     // SECURITY: the plan is read under the session's student, so another student's plan is
     // NOT_FOUND.
     const plan =
@@ -194,7 +220,7 @@ function evidenceRunner(deps: ToolRunnersDependencies): ToolRunner {
         ? (await deps.planViews.getPlan(actor, { studentId, planId }, context)).latest
         : await deps.planViews.getRevision(actor, { studentId, planId, revision }, context);
     return succeeded(projectPlanEvidence(plan), { kind: AssistantBlockKind.PlanEvidence, plan });
-  };
+  });
 }
 
 /**
@@ -204,10 +230,8 @@ function evidenceRunner(deps: ToolRunnersDependencies): ToolRunner {
  * @returns The runner.
  */
 function draftCaseRunner(deps: ToolRunnersDependencies): ToolRunner {
-  return async ({ actor, studentId, args, context }) => {
-    const { reason, planId, discrepancySubject } = args as z.infer<
-      typeof DraftCaseContextArgsSchema
-    >;
+  return withArgs(DraftCaseContextArgsSchema, async ({ actor, studentId, args, context }) => {
+    const { reason, planId, discrepancySubject } = args;
     if (!isValidCaseDraft(reason, planId, discrepancySubject)) {
       return failedResult(INVALID_ARGUMENTS, null);
     }
@@ -222,7 +246,7 @@ function draftCaseRunner(deps: ToolRunnersDependencies): ToolRunner {
       projectCasePreview(reason, plan !== null),
       buildCasePreviewBlock(reason, plan, discrepancySubject),
     );
-  };
+  });
 }
 
 /** One runner per tool, each reading through an existing service. */
