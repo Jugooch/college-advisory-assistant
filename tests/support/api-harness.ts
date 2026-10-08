@@ -22,24 +22,15 @@ import type { StudentUserLinkRepository } from '@caa/db';
 import type { AdvisorAssignment, Student, UserIdentity } from '@caa/domain';
 
 import { type AcademicWorld, createAcademicRepositories } from './academic-repositories';
-import { type CaseRepositories, createCaseRepositories } from './case-repositories';
+import { createCaseRepositories } from './case-repositories';
 import {
-  type ConversationRepositories,
   type ConversationWorld,
   createConversationRepositories,
 } from './conversation-repositories';
-import { createPlanRepositories, type PlanRepositories, type PlanWorld } from './plan-repositories';
+import { createPlanRepositories, type PlanWorld } from './plan-repositories';
 import { createPolicyRepositories, type PolicyDocumentWorld } from './policy-repositories';
-import {
-  createProgramRepositories,
-  type ProgramRepositories,
-  type ProgramWorld,
-} from './program-repositories';
-import {
-  createScheduleRepositories,
-  type ScheduleRepositories,
-  type ScheduleWorld,
-} from './schedule-repositories';
+import { createProgramRepositories, type ProgramWorld } from './program-repositories';
+import { createScheduleRepositories, type ScheduleWorld } from './schedule-repositories';
 
 /** Fixed instant every API acceptance case runs at. */
 export const ACCEPTANCE_NOW = new Date('2026-09-01T12:00:00.000Z');
@@ -234,16 +225,7 @@ export function buildAcceptanceApp(
     AUDIT_RECORD_MAX_SKEW_MS: String(ACCEPTANCE_AUDIT_SKEW_MS),
     SCHEDULE_SOLVER_WORK_CAP: String(options.solverWorkCap ?? ACCEPTANCE_SOLVER_WORK_CAP),
   });
-  // NOTE: the intersection lets the harness provide repositories before the API adds them to
-  // `Repositories`: `studentUserLinks` (#151), the schedule ones (#221), and `programs` (#187), and `plans` (#409), and `cases` (#411), and and `conversations` (#507). Once they're there,
-  // the intersection is redundant and can go.
-  const repositories: Repositories & {
-    studentUserLinks: StudentUserLinkRepository;
-  } & ScheduleRepositories &
-    ProgramRepositories &
-    PlanRepositories &
-    CaseRepositories &
-    ConversationRepositories = {
+  const repositories: Repositories = {
     userIdentities: createIdentities(world),
     students: createStudents(world),
     studentUserLinks: createStudentUserLinks(world),
