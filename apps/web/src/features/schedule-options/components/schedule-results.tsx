@@ -8,9 +8,9 @@
  * @requirement NFR-02
  * @see docs/planning/11-ux-and-accessibility-design.md
  */
-import type { ReactElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 
-import type { ScheduleOptionsResponse } from '@caa/api-contract';
+import type { ScheduleOption, ScheduleOptionsResponse } from '@caa/api-contract';
 
 import { indexCampuses } from '@/shared/utils/campus-display';
 import { type CourseLookup, indexCourses } from '@/shared/utils/course-display';
@@ -31,15 +31,24 @@ export interface ScheduleResultsProps {
   readonly result: ScheduleOptionsResponse;
   /** Course names the page already has; the response's own entries are added to them. */
   readonly courses: CourseLookup;
+  /**
+   * Builds the save-as-draft control for one option, or for the whole result when it has no
+   * options (`null`). The page supplies it, so this feature knows nothing about drafts.
+   */
+  readonly renderSaveDraft?: (option: ScheduleOption | null) => ReactNode;
 }
 
 /**
  * Renders a finished search. Nothing here implies a registration or open seats.
  *
- * @param props - The response and course names.
+ * @param props - The response, course names, and the optional save control.
  * @returns The results section.
  */
-export function ScheduleResults({ result, courses }: ScheduleResultsProps): ReactElement {
+export function ScheduleResults({
+  result,
+  courses,
+  renderSaveDraft,
+}: ScheduleResultsProps): ReactElement {
   const names = indexCourses(result.courses, [...courses.values()]);
   const campuses = indexCampuses(result.campuses);
   const asOf = describeAsOf(result.pinnedInputs);
@@ -76,10 +85,17 @@ export function ScheduleResults({ result, courses }: ScheduleResultsProps): Reac
               asOf={asOf}
               courses={names}
               campuses={campuses}
+              actions={renderSaveDraft?.(option)}
             />
           ))}
         </section>
       )}
+      {result.options.length === 0 && renderSaveDraft !== undefined ? (
+        <section aria-labelledby="save-result-heading">
+          <h3 id="save-result-heading">Keep this result</h3>
+          {renderSaveDraft(null)}
+        </section>
+      ) : null}
       <PinnedInputs pinned={result.pinnedInputs} searchComplete={result.searchComplete} />
     </section>
   );

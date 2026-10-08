@@ -197,3 +197,44 @@ describe('ScheduleResults limits and safety wording', () => {
     }
   });
 });
+
+describe('ScheduleResults save controls', () => {
+  /**
+   * Renders the results with a save control that names its option.
+   *
+   * @param result - The response.
+   * @returns The markup.
+   */
+  function renderWithSave(result: ScheduleOptionsResponse): string {
+    return renderToStaticMarkup(
+      <ScheduleResults
+        result={result}
+        courses={indexCourses([])}
+        renderSaveDraft={(option) => (
+          <button type="button">
+            {option === null ? 'save-none' : `save-${String(option.rank)}`}
+          </button>
+        )}
+      />,
+    );
+  }
+
+  it('puts one save control in each option card', () => {
+    const html = renderWithSave(response());
+
+    expect(html).toContain('>save-1</button>');
+    expect(html).not.toContain('save-none');
+  });
+
+  it('offers one save control for a result with no options', () => {
+    const html = renderWithSave(response(NEEDS_VERIFICATION));
+
+    expect(html).toContain('>save-none</button>');
+    expect(html).toContain('Keep this result');
+  });
+
+  it('shows no save control when the page supplies none', () => {
+    expect(render(response())).not.toContain('Keep this option');
+    expect(render(response(NEEDS_VERIFICATION))).not.toContain('Keep this result');
+  });
+});
