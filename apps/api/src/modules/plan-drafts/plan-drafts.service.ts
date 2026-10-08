@@ -10,43 +10,20 @@
  * @requirement NFR-04
  * @see docs/adr/0013-plan-drafts-staleness-and-advisor-cases.md
  */
-import type { PlanView, SavePlanRequest, ScheduleOptionsResponse } from '@caa/api-contract';
-import type { AuditSnapshotRepository, NewPlanRevision, PlanRepository } from '@caa/db';
-import {
-  type Actor,
-  type AuditSnapshotId,
-  type Plan,
-  PlanRevisionCause,
-  type SectionId,
-  type StudentId,
-} from '@caa/domain';
+import type { PlanView, SavePlanRequest } from '@caa/api-contract';
+import { type Actor, PlanRevisionCause, type StudentId } from '@caa/domain';
 
-import {
-  InvalidRequestError,
-  NotFoundError,
-  RevisionConflictError,
-} from '../../shared/domain-errors';
+import { NotFoundError } from '../../shared/domain-errors';
 import type { RequestContext } from '../../shared/request-context';
 import type { AccessService } from '../access/access.service';
-import type { PlanViewsService } from '../plan-views/plan-views.service';
-import type { ScheduleOptionsService } from '../schedule-options/schedule-options.service';
-import {
-  auditMatchesPins,
-  buildNewRevision,
-  pinnedInputsMatch,
-  resolveSelection,
-} from './plan-drafts.logic';
+import type { PlanRevisionsService } from '../plan-revisions/plan-revisions.service';
+import { resolveSelection } from './plan-drafts.logic';
 
 /** Dependencies of the plan drafts service. */
 export interface PlanDraftsServiceDependencies {
   readonly access: Pick<AccessService, 'canSavePlan'>;
-  /** The existing schedule options service, freshness gate included. */
-  readonly scheduleOptions: Pick<ScheduleOptionsService, 'findOptions'>;
-  readonly auditSnapshots: Pick<AuditSnapshotRepository, 'findLatest'>;
-  readonly plans: PlanRepository;
-  readonly views: PlanViewsService;
-  /** The injected clock. */
-  readonly now: () => Date;
+  /** Replays schedule options and records the verified revision. */
+  readonly revisions: PlanRevisionsService;
 }
 
 /** What a save is for: the path student and the validated body. Identity is never part of it. */
@@ -55,7 +32,7 @@ export interface SavePlanQuery {
   readonly body: SavePlanRequest;
 }
 
-/** Saves plan drafts. Reads are in {@link PlanViewsService}. */
+/** Saves plan drafts. Reads are in the plan views service; revalidation in its own service. */
 export interface PlanDraftsService {
   /**
    * Replays schedule options for the student's own record and stores the result as the term's
@@ -77,152 +54,45 @@ export interface PlanDraftsService {
   savePlan(actor: Actor, query: SavePlanQuery, context: RequestContext): Promise<PlanView>;
 }
 
-/** What a verified replay yields: the result to store, the chosen sections, and the audit ID. */
-interface VerifiedReplay {
-  readonly result: ScheduleOptionsResponse;
-  readonly selectedSectionIds: readonly SectionId[] | null;
-  readonly auditSnapshotId: AuditSnapshotId;
-}
-
-/**
- * Replays schedule options and checks the replay against what the client was shown.
- *
- * @param dependencies - Schedule options and the audit repository.
- * @param call - The actor and the path student with the body.
- * @param context - Request-scoped values.
- * @returns The verified replay.
- * @throws {RevisionConflictError} When the pinned inputs or the audit differ from the client's.
- * @throws {InvalidRequestError} When the chosen sections aren't one of the replayed options.
- */
-async function replayAndVerify(
-  dependencies: PlanDraftsServiceDependencies,
-  call: { readonly actor: Actor; readonly query: SavePlanQuery },
-  context: RequestContext,
-): Promise<VerifiedReplay> {
-  const { actor, query } = call;
-  const { studentId, body } = query;
-  // SECURITY: the replay applies the access rule, the freshness gate, and the tenant filter
-  // again, and nothing the client sent as a result is read.
-  const result = await dependencies.scheduleOptions.findOptions(
-    actor,
-    { studentId, ...body.request },
-    context,
-  );
-  // SAFETY: a replay on other inputs than the client saw is a conflict, so the student never
-  // saves a plan from options they were not shown.
-  if (!pinnedInputsMatch(result.pinnedInputs, body.expectedPinnedInputs)) {
-    throw new RevisionConflictError();
-  }
-  const selectedSectionIds = resolveSelection(result, body.selectedSectionIds);
-  if (selectedSectionIds === 'INVALID') {
-    throw new InvalidRequestError();
-  }
-  const latestAudit = await dependencies.auditSnapshots.findLatest(actor.tenantId, studentId);
-  // SAFETY: the stored audit ID must be the audit the replay pinned; if it moved in between,
-  // nothing is written (ADR-0013 §2).
-  if (
-    latestAudit?.status !== 'FOUND' ||
-    !auditMatchesPins(latestAudit.audit, result.pinnedInputs)
-  ) {
-    throw new RevisionConflictError();
-  }
-  return { result, selectedSectionIds, auditSnapshotId: latestAudit.audit.id };
-}
-
-/** A revision written to a plan. */
-interface WrittenRevision {
-  readonly plan: Plan;
-  readonly revision: number;
-}
-
-/**
- * Creates the term's plan with revision 1, or appends the next revision to the existing plan.
- *
- * @param plans - The plan repository.
- * @param call - The tenant, student, and term, and the revision to write.
- * @returns The plan and the number written.
- * @throws {RevisionConflictError} When another save won the race.
- * @throws {NotFoundError} When the plan vanished.
- */
-async function writeRevision(
-  plans: PlanRepository,
-  call: {
-    readonly tenantId: Actor['tenantId'];
-    readonly studentId: StudentId;
-    readonly revision: NewPlanRevision;
-  },
-): Promise<WrittenRevision> {
-  const { tenantId, studentId, revision } = call;
-  const existing = (await plans.listForStudent(tenantId, studentId)).find(
-    ({ plan }) => plan.termId === revision.termId,
-  );
-  if (existing === undefined) {
-    const created = await plans.createWithFirstRevision(
-      tenantId,
-      { studentId, termId: revision.termId, createdAt: revision.createdAt },
-      revision,
-    );
-    // SAFETY: a plan created by a racing save is a conflict, never a second plan for the term.
-    if (created.status !== 'CREATED') {
-      throw new RevisionConflictError();
-    }
-    return { plan: created.plan, revision: created.revision.revision.revision };
-  }
-  const appended = await plans.appendRevision(tenantId, existing.plan.id, {
-    expectedRevision: existing.latest.revision.revision,
-    revision,
-  });
-  if (appended.status === 'PLAN_NOT_FOUND') {
-    throw new NotFoundError();
-  }
-  if (appended.status !== 'APPENDED') {
-    throw new RevisionConflictError();
-  }
-  return { plan: existing.plan, revision: appended.revision.revision.revision };
-}
-
 /**
  * Creates the plan drafts service.
  *
- * @param dependencies - Access rule, schedule options, audit and plan repositories, and the clock.
+ * @param dependencies - The access rule and the plan revisions service.
  * @returns A {@link PlanDraftsService}.
  */
 export function createPlanDraftsService(
   dependencies: PlanDraftsServiceDependencies,
 ): PlanDraftsService {
+  const { access, revisions } = dependencies;
   return {
     async savePlan(actor, query, context) {
       const { studentId, body } = query;
       // SECURITY: only the student's own record may be saved to; an assigned advisor, an admin,
       // another student, and another tenant all get the same NOT_FOUND (ADR-0013 §5).
-      if (!(await dependencies.access.canSavePlan(actor, studentId, context))) {
+      if (!(await access.canSavePlan(actor, studentId, context))) {
         throw new NotFoundError();
       }
-      const replay = await replayAndVerify(dependencies, { actor, query }, context);
-      const revision = buildNewRevision({
-        request: body.request,
-        ...replay,
-        cause: PlanRevisionCause.Saved,
-        createdBy: actor.userId,
-        createdAt: dependencies.now().toISOString(),
-      });
-      const written = await writeRevision(dependencies.plans, {
-        tenantId: actor.tenantId,
-        studentId,
-        revision,
-      });
-      context.logger.info(
+      const replay = await revisions.replay(
         {
-          actorUserId: actor.userId,
-          tenantId: actor.tenantId,
+          actor,
           studentId,
-          planId: written.plan.id,
-          revision: written.revision,
-          outcome: replay.result.outcome,
+          request: body.request,
+          expectedPins: body.expectedPinnedInputs,
+          choose: (result) => resolveSelection(result, body.selectedSectionIds),
         },
-        'plan draft saved',
+        context,
       );
-      return dependencies.views.viewOf(actor, written.plan, context);
+      return revisions.record(
+        {
+          actor,
+          request: body.request,
+          replay,
+          cause: PlanRevisionCause.Saved,
+          message: 'plan draft saved',
+          target: { kind: 'TERM_PLAN', studentId },
+        },
+        context,
+      );
     },
   };
 }
