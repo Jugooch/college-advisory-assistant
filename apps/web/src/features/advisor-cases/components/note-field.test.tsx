@@ -88,4 +88,24 @@ describe('NoteField', () => {
 
     expect(results.violations.map((violation) => violation.id)).toEqual([]);
   });
+
+  it('takes its own limit and field name', () => {
+    render(
+      <NoteField
+        label="Note"
+        hint="Hint"
+        value=""
+        onChange={() => undefined}
+        hasError={false}
+        fieldRef={createRef<HTMLTextAreaElement>()}
+        maxLength={1000}
+        name="note"
+      />,
+    );
+
+    const field = screen.getByRole('textbox', { name: 'Note' });
+    expect(field.getAttribute('maxlength')).toBe('1000');
+    expect(field.getAttribute('name')).toBe('note');
+    expect(screen.getByText('0 of 1000 characters used')).toBeTruthy();
+  });
 });

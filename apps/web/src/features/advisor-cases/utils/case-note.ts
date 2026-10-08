@@ -17,10 +17,11 @@ export const NOTE_WARNING_AT = 50;
  * Describes how much of the note is used, for the visible counter.
  *
  * @param note - The text typed so far.
+ * @param maxLength - The field's limit. Defaults to the student's note limit.
  * @returns For example `120 of 500 characters used`.
  */
-export function describeNoteCount(note: string): string {
-  return `${String(note.length)} of ${String(NOTE_MAX_LENGTH)} characters used`;
+export function describeNoteCount(note: string, maxLength: number = NOTE_MAX_LENGTH): string {
+  return `${String(note.length)} of ${String(maxLength)} characters used`;
 }
 
 /**
@@ -28,12 +29,16 @@ export function describeNoteCount(note: string): string {
  * so typing isn't announced character by character.
  *
  * @param note - The text typed so far.
+ * @param maxLength - The field's limit. Defaults to the student's note limit.
  * @returns A sentence, or `null` while the note is comfortably under the limit.
  */
-export function describeNoteWarning(note: string): string | null {
-  const remaining = NOTE_MAX_LENGTH - note.length;
+export function describeNoteWarning(
+  note: string,
+  maxLength: number = NOTE_MAX_LENGTH,
+): string | null {
+  const remaining = maxLength - note.length;
   if (remaining <= 0) {
-    return `You’ve reached the ${String(NOTE_MAX_LENGTH)}-character limit.`;
+    return `You’ve reached the ${String(maxLength)}-character limit.`;
   }
   if (remaining > NOTE_WARNING_AT) {
     return null;
