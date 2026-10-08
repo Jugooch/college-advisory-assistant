@@ -2,6 +2,7 @@
  * @file Tests for the typed API client.
  */
 import { describe, expect, expectTypeOf, it } from 'vitest';
+import { z } from 'zod';
 
 import { ErrorCode } from '@caa/domain';
 
@@ -148,5 +149,77 @@ describe('createApiClient', () => {
         },
       ]
     >();
+  });
+
+  describe('query', () => {
+    const listEndpoint = defineEndpoint({
+      method: 'GET',
+      path: '/v1/things',
+      query: z.strictObject({
+        status: z.enum(['open', 'closed']).optional(),
+        flag: z.stringbool({ truthy: ['true'], falsy: ['false'] }).optional(),
+      }),
+      response: z.array(z.string()),
+    });
+
+    it('validates the query and encodes it with URLSearchParams', async () => {
+      const { fetchFn, requests } = recordingFetch([]);
+      const client = createApiClient({ baseUrl: 'http://api', fetchFn });
+
+      await client.call(listEndpoint, { query: { status: 'open', flag: 'true' } });
+
+      expect(requests[0]?.url).toBe('http://api/v1/things?status=open&flag=true');
+    });
+
+    it('omits undefined values and sends no "?" when nothing remains', async () => {
+      const { fetchFn, requests } = recordingFetch([]);
+      const client = createApiClient({ baseUrl: 'http://api', fetchFn });
+
+      await client.call(listEndpoint, { query: { status: undefined } });
+
+      expect(requests[0]?.url).toBe('http://api/v1/things');
+    });
+
+    it('sends no query string when none is given', async () => {
+      const { fetchFn, requests } = recordingFetch([]);
+      const client = createApiClient({ baseUrl: 'http://api', fetchFn });
+
+      await client.call(listEndpoint);
+
+      expect(requests[0]?.url).toBe('http://api/v1/things');
+    });
+
+    it('rejects an invalid query before any request is sent', async () => {
+      const { fetchFn, requests } = recordingFetch([]);
+      const client = createApiClient({ baseUrl: 'http://api', fetchFn });
+
+      const call = client.call(listEndpoint, { query: { status: 'bogus' as 'open' } });
+
+      await expect(call).rejects.toBeInstanceOf(z.ZodError);
+      expect(requests).toHaveLength(0);
+    });
+
+    it('rejects a query on an endpoint without a query schema', async () => {
+      const { fetchFn, requests } = recordingFetch(STUDENT);
+      const client = createApiClient({ baseUrl: 'http://api', fetchFn });
+
+      // @ts-expect-error endpoints without a query schema do not accept one
+      const call = client.call(getHealthEndpoint, { query: { a: 'b' } });
+
+      await expect(call).rejects.toThrow('takes no query');
+      expect(requests).toHaveLength(0);
+    });
+
+    it('types the query from the schema input', () => {
+      expectTypeOf<
+        CallArgs<'/v1/things', (typeof listEndpoint)['query'] & z.ZodType>
+      >().toEqualTypeOf<
+        [
+          options?: { readonly body?: unknown } & {
+            readonly query?: { status?: 'open' | 'closed' | undefined; flag?: string | undefined };
+          },
+        ]
+      >();
+    });
   });
 });
