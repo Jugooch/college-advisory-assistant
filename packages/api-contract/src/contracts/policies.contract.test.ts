@@ -2,6 +2,7 @@
  * @file Tests for the approved policy search contract.
  */
 import { describe, expect, it } from 'vitest';
+import { z } from 'zod';
 
 import { createApiClient } from '../client/create-api-client';
 import {
@@ -46,10 +47,17 @@ describe('searchPoliciesEndpoint', () => {
   });
 
   it('refuses a query with neither q nor topic before sending a request', async () => {
-    const fetchImpl = (): Promise<Response> => Promise.reject(new Error('must not be called'));
+    let calls = 0;
+    const fetchImpl = (): Promise<Response> => {
+      calls += 1;
+      return Promise.reject(new Error('must not be called'));
+    };
     const client = createApiClient({ baseUrl: 'http://api.test', fetchFn: fetchImpl });
 
-    await expect(client.call(searchPoliciesEndpoint, { query: {} })).rejects.toThrow();
+    await expect(client.call(searchPoliciesEndpoint, { query: {} })).rejects.toBeInstanceOf(
+      z.ZodError,
+    );
+    expect(calls).toBe(0);
   });
 });
 
@@ -98,12 +106,12 @@ describe('PolicyHitSchema', () => {
   });
 
   it('compares interval ends as instants across offsets', () => {
-    const sameInstantsOtherOffset = {
+    const laterInstantEarlierText = {
       ...HIT,
       effectiveFrom: '2026-08-01T00:00:00+00:00',
       effectiveTo: '2026-07-31T20:00:00-05:00',
     };
-    expect(PolicyHitSchema.safeParse(sameInstantsOtherOffset).success).toBe(true);
+    expect(PolicyHitSchema.safeParse(laterInstantEarlierText).success).toBe(true);
     const wrong = { ...HIT, effectiveTo: '2026-07-31T23:00:00+00:00' };
     expect(PolicyHitSchema.safeParse(wrong).success).toBe(false);
   });
@@ -138,6 +146,28 @@ describe('PolicySearchResponseSchema', () => {
   it('rejects two revisions of the same document', () => {
     const hits = [HIT, { ...HIT, revision: 1 }];
     expect(PolicySearchResponseSchema.safeParse({ hits, asOf: AS_OF }).success).toBe(false);
+  });
+
+  describe('applicability at asOf', () => {
+    const parse = (hit: object): boolean =>
+      PolicySearchResponseSchema.safeParse({ hits: [{ ...HIT, ...hit }], asOf: AS_OF }).success;
+
+    it('rejects an expired hit', () => {
+      expect(parse({ effectiveTo: '2026-01-01T00:00:00Z' })).toBe(false);
+    });
+
+    it('rejects a hit that is not yet effective', () => {
+      expect(parse({ effectiveFrom: '2027-01-01T00:00:00Z' })).toBe(false);
+    });
+
+    it('rejects a hit whose effectiveTo equals asOf (end is exclusive)', () => {
+      expect(parse({ effectiveTo: '2026-10-08T14:00:00Z' })).toBe(false);
+    });
+
+    it('accepts a hit whose effectiveFrom equals asOf, and an open-ended hit', () => {
+      expect(parse({ effectiveFrom: '2026-10-08T14:00:00Z' })).toBe(true);
+      expect(parse({ effectiveTo: null })).toBe(true);
+    });
   });
 
   it('requires asOf as an instant with an offset', () => {

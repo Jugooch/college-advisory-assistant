@@ -3,7 +3,7 @@
  * @module @caa/api-contract/contracts/policies
  * @requirement FR-16
  * @requirement NFR-02
- * @see docs/adr/0015-conversational-planning-assistant.md (sections 6 and 10)
+ * @see docs/adr/0015-conversation-orchestration-and-policy-corpus.md (sections 6 and 10)
  */
 import { z } from 'zod';
 
@@ -29,7 +29,8 @@ export const PolicySearchQuerySchema = z
     q: z.string().trim().min(1).max(200).optional(),
     topic: PolicyTopicSchema.optional(),
   })
-  // SAFETY: a search with no text and no topic would match everything, so it is refused.
+  // SAFETY: a search with no text and no topic would match everything, so it is refused
+  // (ADR-0015 §6).
   .refine((query) => query.q !== undefined || query.topic !== undefined, {
     message: 'q or topic is required',
     path: ['q'],
@@ -60,7 +61,8 @@ export const PolicyHitSchema = z
     approvedAt: z.iso.datetime({ offset: true }),
     conflict: z.boolean(),
   })
-  // SAFETY: an interval that is empty or reversed would never apply, or apply wrongly.
+  // SAFETY: an interval that is empty or reversed would never apply, or apply wrongly
+  // (ADR-0015 §6, AC42).
   // NOTE: compared as instants, because strings with different offsets don't sort lexically.
   .refine(
     (hit) =>
@@ -84,11 +86,25 @@ export const PolicySearchResponseSchema = z
     asOf: z.iso.datetime({ offset: true }),
   })
   // SAFETY: the search returns one revision per document, so a repeated key would show a
-  // superseded revision next to the current one.
+  // superseded revision next to the current one (ADR-0015 §6, AC42).
   .refine((body) => new Set(body.hits.map((hit) => hit.documentKey)).size === body.hits.length, {
     message: 'hits must not repeat a document key',
     path: ['hits'],
   })
+  // SAFETY: an expired or not-yet-effective revision must never show as current policy. A hit
+  // applies when effectiveFrom <= asOf < effectiveTo (null = open), compared as instants
+  // (ADR-0015 §6, AC42).
+  .refine(
+    (body) => {
+      const asOf = Date.parse(body.asOf);
+      return body.hits.every(
+        (hit) =>
+          Date.parse(hit.effectiveFrom) <= asOf &&
+          (hit.effectiveTo === null || asOf < Date.parse(hit.effectiveTo)),
+      );
+    },
+    { message: 'every hit must apply at asOf', path: ['hits'] },
+  )
   .readonly();
 
 /** Response body for `GET /v1/policies`. */
