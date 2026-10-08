@@ -1,5 +1,5 @@
 /**
- * @file Tests for the plan draft save rules: pinned-input comparison, selection checks against
+ * @file Tests for the plan revision rules: pinned-input comparison, selection checks against
  * the replayed options, audit agreement, and the revision built from the replay.
  * @requirement FR-02
  * @requirement FR-11
@@ -28,7 +28,7 @@ import {
   buildNewRevision,
   pinnedInputsMatch,
   resolveSelection,
-} from './plan-drafts.logic';
+} from './plan-revisions.logic';
 
 const pins = SYNTHETIC_SCHEDULE_PINNED_INPUTS;
 const response = buildScheduleOptionsResponse();

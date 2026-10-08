@@ -1,7 +1,7 @@
 /**
- * @file Pure rules for saving a plan draft by replay: comparing pinned inputs, checking the chosen
- * sections against the replayed options, and building the revision to store.
- * @module @caa/api/modules/plan-drafts/plan-drafts.logic
+ * @file Pure rules for recording a plan revision by replay: comparing pinned inputs, checking the
+ * chosen sections against the replayed options, and building the revision to store.
+ * @module @caa/api/modules/plan-revisions/plan-revisions.logic
  * @requirement FR-02
  * @requirement FR-11
  * @requirement NFR-01

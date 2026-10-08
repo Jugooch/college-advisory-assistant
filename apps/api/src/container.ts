@@ -64,6 +64,12 @@ import {
 import { createPlanDraftsService } from './modules/plan-drafts/plan-drafts.service';
 import { createPlanFreshnessService } from './modules/plan-freshness/plan-freshness.service';
 import {
+  createPlanRevalidationController,
+  type PlanRevalidationController,
+} from './modules/plan-revalidation/plan-revalidation.controller';
+import { createPlanRevalidationService } from './modules/plan-revalidation/plan-revalidation.service';
+import { createPlanRevisionsService } from './modules/plan-revisions/plan-revisions.service';
+import {
   createPlanViewsController,
   type PlanViewsController,
 } from './modules/plan-views/plan-views.controller';
@@ -107,6 +113,7 @@ export interface Controllers {
   readonly scheduleOptions: ScheduleOptionsController;
   readonly plannableTerms: PlannableTermsController;
   readonly planDrafts: PlanDraftsController;
+  readonly planRevalidation: PlanRevalidationController;
   readonly planViews: PlanViewsController;
   readonly cases: CasesController;
 }
@@ -173,7 +180,7 @@ function createPlanControllers(
   options: ContainerOptions,
   access: AccessService,
   scheduleOptions: ScheduleOptionsService,
-): Pick<Controllers, 'planDrafts' | 'planViews' | 'cases'> {
+): Pick<Controllers, 'planDrafts' | 'planRevalidation' | 'planViews' | 'cases'> {
   const { env, repositories, now } = options;
   const freshness = createPlanFreshnessService({
     ...repositories,
@@ -182,10 +189,12 @@ function createPlanControllers(
     rulesetVersion: env.ACTIVE_RULESET_VERSION ?? null,
   });
   const views = createPlanViewsService({ ...repositories, access, freshness });
-  const drafts = createPlanDraftsService({ ...repositories, access, scheduleOptions, views, now });
+  const revisions = createPlanRevisionsService({ ...repositories, scheduleOptions, views, now });
+  const revalidation = createPlanRevalidationService({ ...repositories, access, revisions });
   const caseContext = createCaseContextService({ plans: repositories.plans, views });
   return {
-    planDrafts: createPlanDraftsController(drafts),
+    planDrafts: createPlanDraftsController(createPlanDraftsService({ access, revisions })),
+    planRevalidation: createPlanRevalidationController(revalidation),
     planViews: createPlanViewsController(views),
     cases: createCasesController(createCasesService({ ...repositories, access, caseContext, now })),
   };
@@ -204,10 +213,7 @@ function createAcademicControllers(
   options: ContainerOptions,
   studentsService: StudentsService,
   access: AccessService,
-): Pick<
-  Controllers,
-  'academicSummary' | 'courseChecks' | 'scheduleOptions' | 'planDrafts' | 'planViews' | 'cases'
-> {
+): Omit<Controllers, 'health' | 'session' | 'students' | 'plannableTerms'> {
   const { env, repositories, now } = options;
   const pinnedRecords = createPinnedRecordsService({
     ...repositories,
@@ -215,11 +221,10 @@ function createAcademicControllers(
     maxSourceAgeMs: env.ACADEMIC_SOURCE_MAX_AGE_MS,
   });
   const academicSummaryService = createAcademicSummaryService({
+    ...repositories,
     students: studentsService,
     pinnedRecords,
     maxSkewMs: env.AUDIT_RECORD_MAX_SKEW_MS,
-    courseCatalog: repositories.courseCatalog,
-    programs: repositories.programs,
   });
   const courseSetInputs = createCourseSetInputsService({
     ...repositories,
