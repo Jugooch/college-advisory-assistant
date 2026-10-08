@@ -2,13 +2,14 @@
 /**
  * @file The withdraw control for one case. It is offered only when the case view lists `WITHDRAW`
  * in `allowedActions`; this component never decides that itself. The result is reported in a
- * polite live region, and focus stays where the student left it.
+ * polite live region. After a successful withdraw the button disappears, so focus moves to the
+ * confirmation message (outside the live region) instead of falling to the page body.
  * @module @caa/web/features/advisor-cases/components/withdraw-case-form
  * @requirement FR-12
  * @requirement NFR-02
  * @see docs/adr/0013-plan-drafts-staleness-and-advisor-cases.md
  */
-import { type ReactElement, useActionState } from 'react';
+import { type ReactElement, useActionState, useEffect, useRef } from 'react';
 
 import { describeError } from '@/shared/utils/error-code-wording';
 
@@ -48,6 +49,12 @@ export function WithdrawCaseForm({
   lastSequence,
 }: WithdrawCaseFormProps): ReactElement {
   const [state, formAction, isPending] = useActionState(withdrawAction, IDLE_WITHDRAW_STATE);
+  const withdrawnRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (state.kind === 'withdrawn') {
+      withdrawnRef.current?.focus();
+    }
+  }, [state.kind]);
   return (
     <form action={formAction}>
       <input type="hidden" name={WITHDRAW_CASE_FIELD} value={caseId} />
@@ -65,9 +72,13 @@ export function WithdrawCaseForm({
           Withdraw this case
         </button>
       )}
+      {state.kind === 'withdrawn' ? (
+        <p ref={withdrawnRef} tabIndex={-1}>
+          {WITHDRAWN_MESSAGE}
+        </p>
+      ) : null}
       <div role="status" aria-live="polite">
         {isPending ? <p>Withdrawing…</p> : null}
-        {state.kind === 'withdrawn' ? <p>{WITHDRAWN_MESSAGE}</p> : null}
         {state.kind === 'changed' ? (
           <div className="notice notice--caution">
             <p>{CASE_CHANGED}</p>
@@ -78,20 +89,35 @@ export function WithdrawCaseForm({
             <p>{FORM_REJECTED}</p>
           </div>
         ) : null}
-        {state.kind === 'failed' ? (
-          <div className="notice notice--problem">
-            <p>
-              <strong>{describeError(state.code).heading}.</strong> {state.message}
-            </p>
-            <p>{describeError(state.code).nextStep}</p>
-            {state.requestId === null ? null : (
-              <p>
-                Support reference: <code>{state.requestId}</code>
-              </p>
-            )}
-          </div>
-        ) : null}
+        {state.kind === 'failed' ? <FailedNotice state={state} /> : null}
       </div>
     </form>
+  );
+}
+
+/**
+ * Explains a failed withdraw with its next step and support reference.
+ *
+ * @param props - The failed state.
+ * @param props.state - The failure to explain.
+ * @returns The notice.
+ */
+function FailedNotice({
+  state,
+}: {
+  readonly state: Extract<WithdrawCaseState, { kind: 'failed' }>;
+}): ReactElement {
+  return (
+    <div className="notice notice--problem">
+      <p>
+        <strong>{describeError(state.code).heading}.</strong> {state.message}
+      </p>
+      <p>{describeError(state.code).nextStep}</p>
+      {state.requestId === null ? null : (
+        <p>
+          Support reference: <code>{state.requestId}</code>
+        </p>
+      )}
+    </div>
   );
 }

@@ -69,6 +69,17 @@ describe('CaseList', () => {
     ]);
   });
 
+  it('ties a detail-unavailable article to its heading', () => {
+    const view = buildCaseView();
+
+    const container = renderList([{ summary: summaryOf(view), view: null }]);
+
+    const article = container.querySelector('article');
+    const heading = container.querySelector('article > h3');
+    expect(article?.getAttribute('aria-labelledby')).toBe(heading?.id);
+    expect(heading?.id).not.toBe('');
+  });
+
   it('still shows the status from the list when a case’s detail couldn’t load', () => {
     const view = buildCaseView();
 

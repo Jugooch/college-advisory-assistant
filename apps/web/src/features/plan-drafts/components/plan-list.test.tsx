@@ -132,7 +132,7 @@ describe('PlanList', () => {
     const container = renderList([summary(1, { openCaseStatus: 'OPEN' })]);
 
     const link = container.querySelector('tbody a');
-    expect(link?.textContent).toBe('See your case');
+    expect(link?.textContent).toBe('See your case about this draft');
     expect(link?.getAttribute('href')).toBe(`/help-and-cases?studentId=${STUDENT_ID}`);
   });
 

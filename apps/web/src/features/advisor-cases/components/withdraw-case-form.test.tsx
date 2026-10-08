@@ -55,14 +55,17 @@ describe('WithdrawCaseForm', () => {
     expect(data.get(WITHDRAW_SEQUENCE_FIELD)).toBe('2');
   });
 
-  it('reports the withdrawal in the live region and removes the button', async () => {
+  it('confirms the withdrawal, removes the button, and moves focus to the message', async () => {
     renderForm({ kind: 'withdrawn' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Withdraw this case' }));
 
+    const message = await screen.findByText(WITHDRAWN_MESSAGE);
     await waitFor(() => {
-      expect(screen.getByRole('status').textContent).toContain(WITHDRAWN_MESSAGE);
+      expect(document.activeElement).toBe(message);
     });
+    expect(message.closest('[aria-live]')).toBeNull();
+    expect(document.activeElement).not.toBe(document.body);
     expect(screen.queryByRole('button', { name: 'Withdraw this case' })).toBeNull();
     expect(screen.getByRole('status').getAttribute('aria-live')).toBe('polite');
   });

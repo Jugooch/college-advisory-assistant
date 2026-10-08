@@ -77,7 +77,7 @@ export function PlanList({ studentId, plans, terms, plannerHref }: PlanListProps
                 </Link>
               ) : (
                 <Link href={`/help-and-cases?${new URLSearchParams({ studentId })}`}>
-                  See your case
+                  See your case<span className="visually-hidden"> about this draft</span>
                 </Link>
               )}
             </td>

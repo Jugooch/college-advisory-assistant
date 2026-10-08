@@ -62,8 +62,8 @@ export function CaseList({ entries, withdrawAction, plansHref }: CaseListProps):
     <>
       {entries.map(({ summary, view }) =>
         view === null ? (
-          <article key={summary.id} aria-label={describeCaseReason(summary.reason)}>
-            <h3>{describeCaseReason(summary.reason)}</h3>
+          <article key={summary.id} aria-labelledby={`case-${summary.id}-heading`}>
+            <h3 id={`case-${summary.id}-heading`}>{describeCaseReason(summary.reason)}</h3>
             <p>
               <StatusBadge
                 label={describeCaseStatus(summary.status).label}
