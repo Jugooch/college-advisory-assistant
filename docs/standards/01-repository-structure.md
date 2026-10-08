@@ -125,7 +125,7 @@ The API's composition root is `apps/api/src/container.ts` plus the files in `app
 - **`container.ts`** keeps `createContainer`, `createRuntimeDependencies`, and the graph types (`Controllers`, `Repositories`, `ContainerOptions`, `AppDependencies`). It's the only file that opens the database and builds repositories, and it calls each `wire<Area>` function once.
 - **`wiring/<area>.wiring.ts`** builds the services and controllers of one area, a cohesive group of modules such as `plans` or `academic-reads`. It exports one function, `wire<Area>`, plus its parameter and return types. Only `container.ts` and the file's own test import it.
 - **May:** call module `create*` factories; pass them repositories by name, other services, the clock function, and validated configuration; choose an implementation from a configuration value, with a `// SECURITY:` or `// SAFETY:` comment when the choice affects either; import types from `container.ts`.
-- **May not:** hold logic (loops, transformation, validation, business rules), do I/O beyond construction (no database, repositories, `process.env`, clock calls, or logging), keep module state, or import another wiring file, routes, plugins, Fastify, Drizzle, or `pg`. `container.ts` passes in any service that two areas share. Factories get the repositories they use by name, never a spread of the whole `repositories` object.
+- **May not:** hold logic (loops, transformation, validation, business rules), do I/O beyond construction (no database, repositories, `process.env`, clock calls, or logging), keep module state, or import another wiring file, routes, plugins, Fastify, Drizzle, or `pg`. A service two areas share is built once, in `container.ts` or the owning area's `wire<Area>`, and `container.ts` passes it to the other area. Factories get the repositories they use by name, never a spread of the whole `repositories` object.
 - Every composition-root file stays under the 250-line cap. When an area nears it, split the area.
 
 ## File naming
@@ -167,3 +167,9 @@ The API's composition root is `apps/api/src/container.ts` plus the files in `app
 ## Size
 
 Files over 250 lines or functions over 60 lines fail lint. Split by responsibility, not arbitrarily: extract a helper, a sub-component, or a new module.
+
+A size exception needs a recorded owner approval, an ADR entry naming the file, its cap, and the issue that removes it, and a per-file override in `eslint.config.mjs` at the smallest cap that works. Current exceptions:
+
+| File                        | Cap       | Removed by                                            | Approval                                                                                                 |
+| --------------------------- | --------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `apps/api/src/container.ts` | 260 lines | #443's composition-root split, before #412 (ADR-0014) | [#443 comment](https://github.com/Jugooch/college-advisory-assistant/issues/443#issuecomment-6050030916) |

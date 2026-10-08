@@ -11,7 +11,7 @@ Standards 01, 02, and 05 say `apps/api/src/container.ts` is the only place that 
 
 The last two modules worked around the cap instead of fixing it. PR #442 (#410) and PR #437 (#411) spread the whole `repositories` object into factories and built `Pick`/`Omit` return types so helper functions could share the work. That hides which repositories each service actually uses, and #412 (advisor actions) still has to add wiring.
 
-The repo owner approved two steps: a temporary per-file `max-lines` override of 300 for `container.ts` (devops, part of #443), and then a real split under a standards change, with the override removed before #412.
+The repo owner [approved](https://github.com/Jugooch/college-advisory-assistant/issues/443#issuecomment-6050030916) two steps: a temporary per-file `max-lines` override for `container.ts` (devops, PR #455, part of #443), and then a real split under a standards change, with the override removed before #412.
 
 The options were:
 
@@ -20,6 +20,12 @@ The options were:
 3. **Split the composition root into a few area files** in one folder, called only by `container.ts`. Construction stays in one place, and `container.ts` still shows how the areas connect.
 
 ## Decision
+
+### Temporary size exception
+
+Until #443's split lands, `apps/api/src/container.ts` may be up to **260 lines**, the smallest cap that #442 needs. The cap is set by a per-file `max-lines` override in `eslint.config.mjs` and listed in standard 01 §Size. No other file gets it. The devops-engineer removes the override as soon as the split merges, before #412 starts. #412 must not add wiring to `container.ts` while the override exists.
+
+### Composition root
 
 **Option 3.** The API composition root is `apps/api/src/container.ts` plus the files in `apps/api/src/wiring/`. "Only the composition root constructs services and repositories" stays true under that definition (standard 01 §Composition root).
 
@@ -39,7 +45,7 @@ The options were:
 - **No logic.** No loops, data transformation, validation, or business rules. Code that decides something goes in a service or a `.logic.ts` file (ADR-0008).
 - **No I/O beyond construction.** It doesn't construct the database or repositories, query anything, read `process.env`, call the clock, or log. `createRuntimeDependencies` in `container.ts` stays the only place that opens the database and builds repositories.
 - **No module state.** No singletons, caches, or module-level variables. Every call builds a new graph.
-- **No imports from** another wiring file, `routes`, `plugins`, `app.ts`, `server.ts`, Fastify, Drizzle, or `pg`. A service that two areas share is built once, in `container.ts` or in the area that owns it, and passed in as an argument. That way `container.ts` shows every connection between areas.
+- **No imports from** another wiring file, `routes`, `plugins`, `app.ts`, `server.ts`, Fastify, Drizzle, or `pg`. A service two areas share is built once, in `container.ts` or the owning area's `wire<Area>`, and `container.ts` passes it to the other area as an argument. That way `container.ts` shows every connection between areas.
 - **Pass narrow dependencies.** Each factory gets the repositories it uses by name, not a spread of the whole `repositories` object. The api-engineer removes the spreads and `Omit` types from #437 and #442 as part of the split.
 
 ### Who imports it
@@ -59,7 +65,7 @@ Every composition-root file stays under the standard 250-line cap with no overri
 - Tooling (devops-engineer, #443):
   - `scripts/lib/structure-rules.mjs`: allow `apps/api/src/wiring/*.wiring.ts` and its `.test.ts`, and nothing else in that folder.
   - `config/eslint/layer-boundaries.mjs`: forbid importing `**/*.wiring` outside `apps/api/src/container.ts` and wiring tests. In `*.wiring.ts`, forbid other `**/*.wiring`, `**/*.routes`, `**/plugins/*`, `**/app`, `**/server`, `fastify`, `drizzle-orm`, `pg`, value imports from `**/container`, and runtime imports from `@caa/db` (types only). Apply the clock and environment determinism bans.
-  - Remove the temporary 300-line override for `container.ts` from `eslint.config.mjs` right after the api-engineer's split merges, before #412. The override lives in a devops-owned file, so the api-engineer can't remove it in the split PR.
+  - Remove the temporary 260-line override for `container.ts` from `eslint.config.mjs` right after the api-engineer's split merges, before #412. The override lives in a devops-owned file, so the api-engineer can't remove it in the split PR.
 - Until the tooling lands, review enforces this ADR.
 
 ## Revisit when
