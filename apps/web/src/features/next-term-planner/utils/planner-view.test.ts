@@ -12,7 +12,7 @@ import { indexCourses } from '@/shared/utils/course-display';
 import { PlannerStep } from './planner-fields';
 import { planScheduleRequest } from './planner-plan';
 import { readPlannerQuery } from './planner-query';
-import { isSearchRequested, planPlannerView } from './planner-view';
+import { confirmedRequest, isSearchRequested, planPlannerView } from './planner-view';
 
 const VALID = readPlannerQuery({
   studentId: syntheticId('student', 1),
@@ -43,6 +43,13 @@ describe('planPlannerView', () => {
 
   it('searches only on the confirm step with a valid request', () => {
     expect(isSearchRequested(PlannerStep.Search, GOOD)).toBe(true);
+  });
+
+  it('shares the request with chat only once it is confirmed', () => {
+    expect(confirmedRequest(PlannerStep.Search, GOOD)).toBe(GOOD.request);
+    expect(confirmedRequest(PlannerStep.Review, GOOD)).toBeNull();
+    expect(confirmedRequest(PlannerStep.Edit, GOOD)).toBeNull();
+    expect(confirmedRequest(PlannerStep.Search, BAD)).toBeNull();
   });
 
   it('keeps the confirmed constraints when the search fails', () => {

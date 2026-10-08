@@ -43,6 +43,18 @@ export function isSearchRequested(step: PlannerStep, plan: PlannerPlan): boolean
 }
 
 /**
+ * The request the student confirmed, for the chat panel to pass along. Unconfirmed form values
+ * are never shared.
+ *
+ * @param step - The requested step.
+ * @param plan - The plan of the typed values.
+ * @returns The request once the student confirmed a valid search, otherwise `null`.
+ */
+export function confirmedRequest(step: PlannerStep, plan: PlannerPlan): PlannerPlan['request'] {
+  return step === PlannerStep.Search ? plan.request : null;
+}
+
+/**
  * Plans the view.
  *
  * @param step - The requested step.
