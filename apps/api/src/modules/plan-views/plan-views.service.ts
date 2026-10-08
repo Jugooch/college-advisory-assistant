@@ -186,7 +186,6 @@ function createViewHelpers(dependencies: PlanViewsServiceDependencies): ViewHelp
  * @param actor - Authenticated actor from the session.
  * @param planIds - The student's plans, already authorized by the caller.
  * @returns A map from plan ID to OPEN or IN_REVIEW; a plan with no live case has no entry.
- * @throws {Error} When the case repository does not implement `findLiveByPlanIds`.
  * @throws {z.ZodError} When a stored case row fails its domain schema.
  */
 async function openCaseStatuses(
@@ -195,11 +194,6 @@ async function openCaseStatuses(
   planIds: readonly PlanId[],
 ): Promise<ReadonlyMap<PlanId, LiveCaseStatus>> {
   const { cases } = dependencies;
-  // TODO(#468): the interface method becomes required in step 3 of the adoption.
-  if (cases.findLiveByPlanIds === undefined) {
-    // Fail closed: an empty map would hide an open case from the student who must see it.
-    throw new Error('the case repository does not implement findLiveByPlanIds');
-  }
   // SECURITY: the read is scoped to the session tenant, and the plans are already the
   // authorized student's own.
   const live = await cases.findLiveByPlanIds(actor.tenantId, planIds);

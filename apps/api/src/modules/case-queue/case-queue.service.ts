@@ -88,11 +88,6 @@ async function readAdminRows(
     return found.map((entry) => toCaseQueueItem(entry, { viewerUserId, routed: false }));
   }
   const filter = { at, ...(query.status === undefined ? {} : { status: query.status }) };
-  // TODO(#468): the interface method becomes required once the QA fake implements it.
-  if (cases.listTenantQueue === undefined) {
-    // Fail closed: an empty queue would hide cases from the admin who must see them.
-    throw new Error('the case repository does not implement listTenantQueue');
-  }
   const entries = await cases.listTenantQueue(actor.tenantId, filter);
   return entries
     .filter((entry) => query.unrouted !== false || entry.routed)

@@ -240,20 +240,3 @@ describe('CaseQueueService.listQueue across advisors (#471)', () => {
     expect(queue.cases.map((row) => row.caseId)).toEqual([assigned.id]);
   });
 });
-
-describe('CaseQueueService.listQueue without a tenant-wide read', () => {
-  it('fails closed for an admin instead of returning an empty queue', async () => {
-    const repository = createInMemoryCaseRepository({});
-    const service = createCaseQueueService({
-      cases: {
-        listQueue: (...args) => repository.listQueue(...args),
-        listUnrouted: (...args) => repository.listUnrouted(...args),
-      },
-      now: () => NOW,
-    });
-
-    await expect(service.listQueue(admin, {}, { logger: createRecordingLogger() })).rejects.toThrow(
-      'listTenantQueue',
-    );
-  });
-});
