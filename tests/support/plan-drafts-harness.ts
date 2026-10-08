@@ -70,6 +70,7 @@ export const NEWER_SOURCE_AT = '2026-09-01T08:00:00.000Z';
 export function resetPlanWorld(world: AcceptanceWorld): void {
   resetScheduleWorld(world);
   publishSections(world, [MATH_MWF, PHYS_TTH]);
+  // NOTE: the table exists at save time so a later table is a change, not a first table.
   publishTransitions(world, []);
   world.plans = [];
   world.planRevisions = [];

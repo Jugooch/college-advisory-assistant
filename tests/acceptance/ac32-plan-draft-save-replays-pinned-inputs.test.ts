@@ -20,7 +20,6 @@ import { acceptanceIt } from '../support/known-findings';
 import {
   dataOf,
   DEFAULT_OPTION_SECTIONS,
-  expectSaved,
   MATH_MWF,
   resetPlanWorld,
   saveBody,
@@ -55,7 +54,7 @@ describe('AC32 plan draft save replays the pinned inputs', () => {
 
       const saved = await savePlan(app, saveBody(shown, DEFAULT_OPTION_SECTIONS));
 
-      expectSaved(saved);
+      expect(saved.statusCode).toBe(201);
       expect(dataOf(saved)).toMatchObject({
         revisions: [{ revision: 1, cause: 'SAVED' }],
         latest: {
@@ -81,7 +80,7 @@ describe('AC32 plan draft save replays the pinned inputs', () => {
 
       const saved = await savePlan(app, saveBody(shown, null));
 
-      expectSaved(saved);
+      expect(saved.statusCode).toBe(201);
       expect(dataOf(saved)).toMatchObject({
         latest: {
           revision: 1,

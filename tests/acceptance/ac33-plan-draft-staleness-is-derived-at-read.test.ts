@@ -29,7 +29,6 @@ import {
   supersedeStudentRecord,
   supersedeTransitionTable,
 } from '../support/plan-drafts-harness';
-import { publishTransitions } from '../support/schedule-options-harness';
 
 const world = createAcademicWorld();
 
@@ -55,8 +54,6 @@ async function savedPlanReadBy(reader: AcceptanceApp): Promise<AcceptanceRespons
 describe('AC33 plan draft staleness is derived at read time', () => {
   beforeEach(() => {
     resetPlanWorld(world);
-    // NOTE: the table must exist at save time so a later table is a change, not a first table.
-    publishTransitions(world, []);
   });
 
   acceptanceIt(
@@ -183,6 +180,18 @@ describe('AC33 plan draft staleness is derived at read time', () => {
 
     const { keys, strings } = keysAndStrings(read.body);
     expect(latestFreshness(read)).toMatchObject({ state: 'STALE' });
+    expect(strings).not.toContain('CURRENT');
+    expect(keys.filter((key) => /^(is)?(current|valid)(now|ity)?$/i.test(key))).toEqual([]);
+  });
+
+  acceptanceIt('AC33', 'claims current validity nowhere in an UNKNOWN draft response', async () => {
+    const saved = await saveDefaultOption(app);
+    world.sectionSnapshots = [];
+
+    const read = await readPlanAt(app, `/${String(dataOf(saved).id)}`);
+
+    const { keys, strings } = keysAndStrings(read.body);
+    expect(latestFreshness(read)).toMatchObject({ state: 'UNKNOWN' });
     expect(strings).not.toContain('CURRENT');
     expect(keys.filter((key) => /^(is)?(current|valid)(now|ity)?$/i.test(key))).toEqual([]);
   });
