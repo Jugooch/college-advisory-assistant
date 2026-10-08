@@ -84,15 +84,12 @@ export async function addCaseEvent(caseId: string, request: CaseEventRequest): P
  *   student.
  */
 export async function listAdvisorCases(query: CaseQueueQuery = {}): Promise<CaseQueueResponse> {
-  const search = new URLSearchParams();
-  if (query.status !== undefined) {
-    search.set('status', query.status);
-  }
-  if (query.unrouted !== undefined) {
-    search.set('unrouted', String(query.unrouted));
-  }
-  const suffix = search.size === 0 ? '' : `?${search.toString()}`;
-  // NOTE: the shared client has no query option yet, so the query rides on the endpoint's path.
-  // Only enum values and booleans reach it, so nothing a user typed becomes part of the URL.
-  return apiClient.call({ ...listAdvisorCasesEndpoint, path: `/v1/advisor/cases${suffix}` });
+  // The endpoint's query schema takes the string form of the flag, as it appears in the URL.
+  const wire = {
+    ...(query.status === undefined ? {} : { status: query.status }),
+    ...(query.unrouted === undefined
+      ? {}
+      : { unrouted: query.unrouted ? ('true' as const) : ('false' as const) }),
+  };
+  return apiClient.call(listAdvisorCasesEndpoint, { query: wire });
 }
