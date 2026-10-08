@@ -181,12 +181,4 @@ describe('plan list: case lookup', () => {
 
     expect(findLiveByPlanIds).toHaveBeenCalledExactlyOnceWith(actor.tenantId, [plan.id]);
   });
-
-  it('fails closed when the repository has no findLiveByPlanIds', async () => {
-    const { service, plan } = serviceOver({});
-
-    await expect(
-      service.listPlans(actor, plan.studentId, { logger: createRecordingLogger() }),
-    ).rejects.toThrow('findLiveByPlanIds');
-  });
 });

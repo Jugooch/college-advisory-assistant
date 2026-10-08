@@ -75,11 +75,6 @@ export function createCaseContextService(
     const { studentId, planRevisionId } = target;
     // SECURITY: only this student's plans in the actor's tenant are searched, so another
     // student's or tenant's revision ID is simply not found.
-    // TODO(#468): the interface method becomes required in step 3 of the adoption.
-    if (plans.findRevisionById === undefined) {
-      // Fail closed: reporting "not found" would hide a frozen revision from its case.
-      throw new Error('the plan repository does not implement findRevisionById');
-    }
     const stored = await plans.findRevisionById(actor.tenantId, planRevisionId);
     if (stored === null) {
       return null;

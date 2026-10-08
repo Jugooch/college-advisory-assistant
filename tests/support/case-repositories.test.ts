@@ -217,12 +217,10 @@ describe('case repository fake', () => {
     }
     const planId = buildPlan().id;
     const other = PlanIdSchema.parse(syntheticId('plan', 9));
-    const found = await cases.findLiveByPlanIds?.(TENANT_A, [planId, other]);
-    expect([...(found ?? [])].map(([key, value]) => [key, value.id])).toEqual([
-      [planId, created.case.id],
-    ]);
-    expect(await cases.findLiveByPlanIds?.(TENANT_B, [planId])).toEqual(new Map());
-    expect(await cases.findLiveByPlanIds?.(TENANT_A, [])).toEqual(new Map());
+    const found = await cases.findLiveByPlanIds(TENANT_A, [planId, other]);
+    expect([...found].map(([key, value]) => [key, value.id])).toEqual([[planId, created.case.id]]);
+    expect(await cases.findLiveByPlanIds(TENANT_B, [planId])).toEqual(new Map());
+    expect(await cases.findLiveByPlanIds(TENANT_A, [])).toEqual(new Map());
   });
 
   it('stops finding a case by plan once it is resolved', async () => {
@@ -243,24 +241,24 @@ describe('case repository fake', () => {
         note: 'Done.',
       },
     });
-    expect(await cases.findLiveByPlanIds?.(TENANT_A, [planId])).toEqual(new Map());
+    expect(await cases.findLiveByPlanIds(TENANT_A, [planId])).toEqual(new Map());
   });
 
   it('lists every tenant case oldest first, flagged routed, filtered by status', async () => {
     const routed = createCaseRepositories(world());
     await routed.cases.create(TENANT_A, NEW_CASE);
-    expect(await routed.cases.listTenantQueue?.(TENANT_A, { at: AT })).toEqual([
+    expect(await routed.cases.listTenantQueue(TENANT_A, { at: AT })).toEqual([
       expect.objectContaining({ studentId: STUDENT, routed: true }),
     ]);
-    expect(await routed.cases.listTenantQueue?.(TENANT_B, { at: AT })).toEqual([]);
+    expect(await routed.cases.listTenantQueue(TENANT_B, { at: AT })).toEqual([]);
     expect(
-      await routed.cases.listTenantQueue?.(TENANT_A, { at: AT, status: CaseStatus.Resolved }),
+      await routed.cases.listTenantQueue(TENANT_A, { at: AT, status: CaseStatus.Resolved }),
     ).toEqual([]);
 
     const unrouted = createCaseRepositories({ ...world(), assignments: [] });
     await unrouted.cases.create(TENANT_A, NEW_CASE);
-    expect((await unrouted.cases.listTenantQueue?.(TENANT_A, { at: AT }))?.[0]?.routed).toBe(false);
-    expect(() => unrouted.cases.listTenantQueue?.(TENANT_A, { at: 'not a date' })).toThrow(
+    expect((await unrouted.cases.listTenantQueue(TENANT_A, { at: AT }))[0]?.routed).toBe(false);
+    expect(() => unrouted.cases.listTenantQueue(TENANT_A, { at: 'not a date' })).toThrow(
       RangeError,
     );
   });

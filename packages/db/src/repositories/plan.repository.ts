@@ -120,8 +120,7 @@ export interface PlanRepository {
    *   student was deleted by the source.
    * @throws {z.ZodError} When the stored row fails the domain schema.
    */
-  // TODO(#440): make this required once the QA and api in-memory fakes implement it.
-  findRevisionById?(
+  findRevisionById(
     tenantId: InstitutionId,
     revisionId: PlanRevisionId,
   ): Promise<StoredPlanRevision | null>;
@@ -199,11 +198,9 @@ async function readRevisionRow(
  * Creates the plan repository.
  *
  * @param db - Typed database handle.
- * @returns A {@link PlanRepository} that always implements `findRevisionById`.
+ * @returns A {@link PlanRepository}.
  */
-export function createPlanRepository(db: Database): PlanRepository & {
-  readonly findRevisionById: NonNullable<PlanRepository['findRevisionById']>;
-} {
+export function createPlanRepository(db: Database): PlanRepository {
   return {
     createWithFirstRevision: (tenantId, newPlan, firstRevision) =>
       createPlanWithRevision(db)(tenantId, newPlan, firstRevision),

@@ -30,10 +30,9 @@ const second = buildPlanRevision({ revision: 2 }, 2);
  * Builds the service over a plan with two revisions, recording which revision was shown.
  *
  * @param plan - Overrides for the plan, for example another tenant.
- * @param options - `withoutLookup` drops `findRevisionById` from the repository.
  * @returns The service, the revisions shown, and the repository calls made.
  */
-function setup(plan: Parameters<typeof buildPlan>[0] = {}, options: { withoutLookup?: true } = {}) {
+function setup(plan: Parameters<typeof buildPlan>[0] = {}) {
   const shown: number[] = [];
   const real = createInMemoryPlanRepository({
     plans: [buildPlan(plan)],
@@ -45,9 +44,9 @@ function setup(plan: Parameters<typeof buildPlan>[0] = {}, options: { withoutLoo
   const calls = { byId: 0, scans: 0 };
   const repository = {
     ...real,
-    findRevisionById: (...args: Parameters<NonNullable<typeof real.findRevisionById>>) => {
+    findRevisionById: (...args: Parameters<typeof real.findRevisionById>) => {
       calls.byId += 1;
-      return real.findRevisionById?.(...args) ?? Promise.resolve(null);
+      return real.findRevisionById(...args);
     },
     findRevision: (...args: Parameters<typeof real.findRevision>) => {
       calls.scans += 1;
@@ -59,10 +58,7 @@ function setup(plan: Parameters<typeof buildPlan>[0] = {}, options: { withoutLoo
     },
   };
   const service = createCaseContextService({
-    plans:
-      options.withoutLookup === true
-        ? { findPlan: (...args) => repository.findPlan(...args) }
-        : repository,
+    plans: repository,
     views: {
       getRevision: (_actor, query) => {
         shown.push(query.revision);
@@ -121,13 +117,5 @@ describe('CaseContextService', () => {
     await service.hasRevision(actor, { studentId, planRevisionId: second.id });
 
     expect(calls).toEqual({ byId: 1, scans: 0 });
-  });
-
-  it('fails closed when the repository has no lookup by revision ID', async () => {
-    const { service } = setup({}, { withoutLookup: true });
-
-    await expect(
-      service.hasRevision(actor, { studentId, planRevisionId: first.id }),
-    ).rejects.toThrow('findRevisionById');
   });
 });
