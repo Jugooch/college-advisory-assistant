@@ -15,7 +15,8 @@ import { institutionTable } from './institution.table';
 /**
  * The `policy_document` table. An approved revision is immutable: a change is a new revision.
  * The database enforces this: migration `0019_policy_document_immutable` rejects UPDATE, DELETE
- * and TRUNCATE of an approved row (FR-16).
+ * and TRUNCATE of an approved row (FR-16). Migration `0022_policy_document_withdrawal` allows
+ * one change: retracting an approved row (APPROVED to WITHDRAWN, setting `withdrawn_at`).
  */
 export const policyDocumentTable = pgTable(
   'policy_document',
@@ -36,8 +37,10 @@ export const policyDocumentTable = pgTable(
     /** End of applicability, exclusive, or null when open-ended. */
     effectiveTo: timestamp('effective_to', { withTimezone: true }),
     approvalStatus: text('approval_status').notNull().$type<PolicyApprovalStatus>(),
-    /** Present exactly when the status is APPROVED. */
+    /** Set once a revision is approved; kept on a retracted revision, null on a withdrawn draft. */
     approvedAt: timestamp('approved_at', { withTimezone: true }),
+    /** Set exactly when the status is WITHDRAWN: the instant the revision was retracted. */
+    withdrawnAt: timestamp('withdrawn_at', { withTimezone: true }),
     sourceLabel: text('source_label').notNull(),
     contentHash: text('content_hash').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -74,10 +77,13 @@ export const policyDocumentTable = pgTable(
       'policy_document_effective_range',
       sql`${table.effectiveTo} IS NULL OR ${table.effectiveTo} > ${table.effectiveFrom}`,
     ),
-    // SAFETY: approved exactly when it carries an approval time.
+    // SAFETY: a draft has no times, an approved row has only an approval time, and a withdrawn
+    // row has a withdrawal time (and an approval time unless it was a withdrawn draft).
     check(
-      'policy_document_approved_at_matches_status',
-      sql`(${table.approvalStatus} = 'APPROVED') = (${table.approvedAt} IS NOT NULL)`,
+      'policy_document_times_match_status',
+      sql`(${table.approvalStatus} = 'DRAFT' AND ${table.approvedAt} IS NULL AND ${table.withdrawnAt} IS NULL)
+      OR (${table.approvalStatus} = 'APPROVED' AND ${table.approvedAt} IS NOT NULL AND ${table.withdrawnAt} IS NULL)
+      OR (${table.approvalStatus} = 'WITHDRAWN' AND ${table.withdrawnAt} IS NOT NULL)`,
     ),
     check(
       'policy_document_content_hash_format',
