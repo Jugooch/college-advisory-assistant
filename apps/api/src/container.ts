@@ -1,5 +1,7 @@
 /**
- * @file Composition root. The only file that constructs repositories, services, and controllers.
+ * @file Composition root entry point: builds the dependency graph from the per-area
+ * `wiring/*.wiring.ts` files. Together they are the only code that constructs repositories,
+ * services, and controllers (ADR-0014).
  * @module @caa/api/container
  */
 import {
