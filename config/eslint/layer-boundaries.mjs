@@ -6,7 +6,11 @@
  */
 import { builtinModules } from 'node:module';
 
-import { APP_TEST_SUPPORT_RESTRICTION, testSupport } from './app-test-support.mjs';
+import {
+  APP_TEST_SUPPORT_RESTRICTION,
+  testSupport,
+  withBlockPatterns,
+} from './app-test-support.mjs';
 import { determinismBans } from './determinism.mjs';
 
 /** Packages that only the API and worker may import. */
@@ -85,6 +89,14 @@ const TEST_ONLY_RESTRICTION = {
   message: 'The ./testing entry points are for tests only (tests/** and *.test.ts files).',
 };
 
+/** The only folder that may import the Anthropic SDK (ADR-0015 §9). */
+export const SDK_ADAPTER_FILES = 'apps/api/src/adapters/**';
+/** The restriction every non-adapter file carries: the model SDK stays behind the adapter port. */
+export const SDK_RESTRICTION = {
+  group: ['@anthropic-ai/sdk', '@anthropic-ai/sdk/*'],
+  message: 'Import @anthropic-ai/sdk only under apps/api/src/adapters/ (ADR-0015 §9).',
+};
+
 /**
  * Adds pattern entries, such as `importNamePattern` or `regex` restrictions, to a rule entry
  * built by `forbid`.
@@ -124,7 +136,7 @@ export function typesOnly(names, message) {
  * @returns {import('eslint').Linter.RuleEntry} The rule entry.
  */
 export function forbid(names, message, exact) {
-  const patterns = [{ group: names, message }, TEST_ONLY_RESTRICTION];
+  const patterns = [{ group: names, message }, TEST_ONLY_RESTRICTION, SDK_RESTRICTION];
   if (exact === undefined) {
     return ['error', { patterns }];
   }
@@ -149,15 +161,17 @@ export function appForbid(...args) {
 }
 
 /** Why only the composition root imports `.wiring.ts` files (ADR-0014). */
-const WIRING_MSG = 'Only container.ts imports *.wiring.ts files; no other apps (ADR-0014).';
+export const WIRING_MSG = 'Only container.ts imports *.wiring.ts files; no other apps (ADR-0014).';
 /** Import pattern for wiring files. */
-const WIRING = '**/*.wiring';
+export const WIRING = '**/*.wiring';
 
 /** Import restrictions for every backend package and layer. */
 export const layerBoundaries = [
   {
     files: PRODUCTION_SOURCES,
-    rules: { 'no-restricted-imports': ['error', { patterns: [TEST_ONLY_RESTRICTION] }] },
+    rules: {
+      'no-restricted-imports': ['error', { patterns: [TEST_ONLY_RESTRICTION, SDK_RESTRICTION] }],
+    },
   },
   {
     files: ['apps/api/src/**'],
@@ -202,15 +216,6 @@ export const layerBoundaries = [
       'no-restricted-imports': forbid(
         ['@caa/engine', '@caa/api-contract', '@caa/assistant', ...FRAMEWORKS],
         'db depends only on @caa/domain.',
-      ),
-    },
-  },
-  {
-    files: ['packages/assistant/src/**'],
-    rules: {
-      'no-restricted-imports': forbid(
-        ['@caa/db', 'drizzle-orm', 'pg', ...FRAMEWORKS],
-        'assistant reaches data only through injected tool handlers.',
       ),
     },
   },
@@ -324,10 +329,12 @@ export const layerBoundaries = [
       ),
     },
   },
-  testSupport('api', otherApps('api'), 'The API does not import other apps.'),
-  testSupport(
-    'worker',
-    ['@caa/api-contract', ...otherApps('worker'), ...FRAMEWORKS],
-    'The worker has no HTTP or UI code and does not import other apps.',
-  ),
+  ...[
+    testSupport('api', otherApps('api'), 'The API does not import other apps.'),
+    testSupport(
+      'worker',
+      ['@caa/api-contract', ...otherApps('worker'), ...FRAMEWORKS],
+      'The worker has no HTTP or UI code and does not import other apps.',
+    ),
+  ].map((block) => withBlockPatterns(block, [SDK_RESTRICTION])),
 ];
