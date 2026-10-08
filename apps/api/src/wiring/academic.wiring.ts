@@ -9,7 +9,10 @@ import {
   type AcademicSummaryController,
   createAcademicSummaryController,
 } from '../modules/academic-summary/academic-summary.controller';
-import { createAcademicSummaryService } from '../modules/academic-summary/academic-summary.service';
+import {
+  type AcademicSummaryService,
+  createAcademicSummaryService,
+} from '../modules/academic-summary/academic-summary.service';
 import type { AccessService } from '../modules/access/access.service';
 import {
   type CourseChecksController,
@@ -42,6 +45,8 @@ export interface AcademicWiring {
   readonly plannableTerms: PlannableTermsController;
   /** The service plan saves replay, built once here. */
   readonly scheduleOptionsService: ScheduleOptionsService;
+  /** The academic summary service, shared with the conversation tools. */
+  readonly academicSummaryService: AcademicSummaryService;
 }
 
 /**
@@ -85,16 +90,15 @@ export function wireAcademic(
     now,
     workCap: env.SCHEDULE_SOLVER_WORK_CAP,
   });
+  const academicSummaryService = createAcademicSummaryService({
+    students: studentsService,
+    pinnedRecords,
+    maxSkewMs: env.AUDIT_RECORD_MAX_SKEW_MS,
+    courseCatalog: repositories.courseCatalog,
+    programs: repositories.programs,
+  });
   return {
-    academicSummary: createAcademicSummaryController(
-      createAcademicSummaryService({
-        students: studentsService,
-        pinnedRecords,
-        maxSkewMs: env.AUDIT_RECORD_MAX_SKEW_MS,
-        courseCatalog: repositories.courseCatalog,
-        programs: repositories.programs,
-      }),
-    ),
+    academicSummary: createAcademicSummaryController(academicSummaryService),
     courseChecks: createCourseChecksController(createCourseChecksService({ courseSetInputs })),
     scheduleOptions: createScheduleOptionsController(scheduleOptionsService),
     plannableTerms: createPlannableTermsController(
@@ -106,5 +110,6 @@ export function wireAcademic(
       }),
     ),
     scheduleOptionsService,
+    academicSummaryService,
   };
 }

@@ -1,0 +1,239 @@
+/**
+ * @file The body of each of the assistant's six tools. Each runner reads through an existing
+ * service for the session's student and returns a minimized projection plus the verified block.
+ * Every dependency is a read; no case, plan, or institutional write is reachable from here.
+ * @module @caa/api/modules/conversation-tool-runners/conversation-tool-runners.service
+ * @requirement FR-01
+ * @requirement FR-02
+ * @requirement FR-08
+ * @requirement FR-10
+ * @requirement FR-14
+ * @requirement FR-16
+ * @see docs/adr/0015-conversation-orchestration-and-policy-corpus.md (section 4, Amendment 1)
+ */
+import type { z } from 'zod';
+
+import { type ScheduleOptionsRequest, ScheduleOptionsRequestSchema } from '@caa/api-contract';
+import {
+  type DraftCaseContextArgsSchema,
+  type GetValidationEvidenceArgsSchema,
+  type ProposeConstraintsArgsSchema,
+  renderNotice,
+  type SearchApprovedPolicyArgsSchema,
+  TEMPLATE_VERSION,
+  ToolName,
+} from '@caa/assistant';
+import { type Actor, AssistantBlockKind, NoticeCode, type StudentId } from '@caa/domain';
+
+import type { RequestContext } from '../../shared/request-context';
+import { toAcademicSummaryResponse } from '../academic-summary/academic-summary.mapper';
+import type { AcademicSummaryService } from '../academic-summary/academic-summary.service';
+import {
+  buildCasePreviewBlock,
+  buildNotice,
+  failedResult,
+  INVALID_ARGUMENTS,
+  isValidCaseDraft,
+  PLANNER_INPUT_TEMPLATE_ID,
+  type PreviewPlan,
+  projectAcademicSummary,
+  projectCasePreview,
+  projectConstraintProposal,
+  projectPlanEvidence,
+  projectPolicyResults,
+  projectScheduleOptions,
+  type ToolResult,
+  toProposals,
+} from '../conversation-tools/conversation-tools.logic';
+import type { PlanViewsService } from '../plan-views/plan-views.service';
+import type { PolicySearchService } from '../policy-search/policy-search.service';
+import type { ScheduleOptionsService } from '../schedule-options/schedule-options.service';
+
+/** The read services the tools call. */
+export interface ToolRunnersDependencies {
+  readonly academicSummary: Pick<AcademicSummaryService, 'getAcademicSummary'>;
+  readonly policySearch: Pick<PolicySearchService, 'search'>;
+  readonly scheduleOptions: Pick<ScheduleOptionsService, 'findOptions'>;
+  readonly planViews: Pick<PlanViewsService, 'getPlan' | 'getRevision'>;
+}
+
+/** What a runner gets once access is settled. The student is the session's, never the model's. */
+export interface ToolRun {
+  readonly actor: Actor;
+  readonly studentId: StudentId;
+  /** The planner form's confirmed state, if any. */
+  readonly plannerInputs: ScheduleOptionsRequest | undefined;
+  /** The arguments, already validated against the tool's schema. */
+  readonly args: unknown;
+  readonly context: RequestContext;
+}
+
+/** Runs one tool. */
+export type ToolRunner = (run: ToolRun) => Promise<ToolResult>;
+
+/**
+ * Builds a successful result with one block and no notice.
+ *
+ * @param projection - The minimized result for the model.
+ * @param block - The verified block for the student.
+ * @returns The result.
+ */
+function succeeded(
+  projection: ToolResult['projection'],
+  block: NonNullable<ToolResult['block']>,
+): ToolResult {
+  return { projection, block, notice: null, errorCode: null };
+}
+
+/**
+ * Builds the runner for `get_academic_summary`.
+ *
+ * @param deps - The summary service.
+ * @returns The runner.
+ */
+function academicSummaryRunner(deps: ToolRunnersDependencies): ToolRunner {
+  return async ({ actor, studentId, context }) => {
+    const summary = toAcademicSummaryResponse(
+      await deps.academicSummary.getAcademicSummary(actor, studentId, context),
+    );
+    return succeeded(projectAcademicSummary(summary), {
+      kind: AssistantBlockKind.AcademicSummary,
+      summary,
+    });
+  };
+}
+
+/**
+ * Builds the runner for `search_approved_policy`.
+ *
+ * @param deps - The policy search service.
+ * @returns The runner.
+ */
+function policyRunner(deps: ToolRunnersDependencies): ToolRunner {
+  return async ({ actor, args, context }) => {
+    const { query, topic } = args as z.infer<typeof SearchApprovedPolicyArgsSchema>;
+    const results = await deps.policySearch.search(actor, { q: query, topic }, context);
+    return succeeded(projectPolicyResults(results), {
+      kind: AssistantBlockKind.PolicyResults,
+      results,
+    });
+  };
+}
+
+/**
+ * Builds the runner for `propose_constraints`. It calls no service: it downgrades the model's
+ * constraints to unconfirmed PREFERRED proposals.
+ *
+ * @returns The runner.
+ */
+function proposeConstraintsRunner(): ToolRunner {
+  return ({ args }) => {
+    const { constraints } = args as z.infer<typeof ProposeConstraintsArgsSchema>;
+    const proposed = toProposals(constraints);
+    return Promise.resolve(
+      succeeded(projectConstraintProposal(proposed), {
+        kind: AssistantBlockKind.ConstraintProposal,
+        constraints: proposed,
+      }),
+    );
+  };
+}
+
+/**
+ * Builds the runner for `request_plan`.
+ *
+ * @param deps - The schedule options service.
+ * @returns The runner.
+ */
+function requestPlanRunner(deps: ToolRunnersDependencies): ToolRunner {
+  return async ({ actor, studentId, plannerInputs, context }) => {
+    // SECURITY: only the form's confirmed state is used; the model supplies no inputs.
+    const inputs = ScheduleOptionsRequestSchema.safeParse(plannerInputs);
+    if (!inputs.success) {
+      const text = renderNotice(NoticeCode.PlannerInputNeeded);
+      return {
+        projection: { plannerInputNeeded: true },
+        block: null,
+        notice: buildNotice(NoticeCode.PlannerInputNeeded, {
+          id: PLANNER_INPUT_TEMPLATE_ID,
+          version: TEMPLATE_VERSION,
+          text,
+        }),
+        errorCode: null,
+      };
+    }
+    const result = await deps.scheduleOptions.findOptions(
+      actor,
+      { ...inputs.data, studentId },
+      context,
+    );
+    return succeeded(projectScheduleOptions(result), {
+      kind: AssistantBlockKind.ScheduleOptions,
+      result,
+    });
+  };
+}
+
+/**
+ * Builds the runner for `get_validation_evidence`.
+ *
+ * @param deps - The plan views service.
+ * @returns The runner.
+ */
+function evidenceRunner(deps: ToolRunnersDependencies): ToolRunner {
+  return async ({ actor, studentId, args, context }) => {
+    const { planId, revision } = args as z.infer<typeof GetValidationEvidenceArgsSchema>;
+    // SECURITY: the plan is read under the session's student, so another student's plan is
+    // NOT_FOUND.
+    const plan =
+      revision === undefined
+        ? (await deps.planViews.getPlan(actor, { studentId, planId }, context)).latest
+        : await deps.planViews.getRevision(actor, { studentId, planId, revision }, context);
+    return succeeded(projectPlanEvidence(plan), { kind: AssistantBlockKind.PlanEvidence, plan });
+  };
+}
+
+/**
+ * Builds the runner for `draft_case_context`: a preview only.
+ *
+ * @param deps - The plan views service, to find the revision a preview would freeze.
+ * @returns The runner.
+ */
+function draftCaseRunner(deps: ToolRunnersDependencies): ToolRunner {
+  return async ({ actor, studentId, args, context }) => {
+    const { reason, planId, discrepancySubject } = args as z.infer<
+      typeof DraftCaseContextArgsSchema
+    >;
+    if (!isValidCaseDraft(reason, planId, discrepancySubject)) {
+      return failedResult(INVALID_ARGUMENTS, null);
+    }
+    let plan: PreviewPlan | null = null;
+    if (planId !== undefined) {
+      // SECURITY: the plan is read under the session's student; another student's is NOT_FOUND.
+      const view = await deps.planViews.getPlan(actor, { studentId, planId }, context);
+      plan = { planId, revision: view.latest.revision };
+    }
+    // SAFETY: a preview only. Nothing is created; the student submits through the case flow.
+    return succeeded(
+      projectCasePreview(reason, plan !== null),
+      buildCasePreviewBlock(reason, plan, discrepancySubject),
+    );
+  };
+}
+
+/**
+ * Builds every tool's runner.
+ *
+ * @param deps - The read services.
+ * @returns One runner per tool.
+ */
+export function createToolRunners(deps: ToolRunnersDependencies): Record<ToolName, ToolRunner> {
+  return {
+    [ToolName.GetAcademicSummary]: academicSummaryRunner(deps),
+    [ToolName.SearchApprovedPolicy]: policyRunner(deps),
+    [ToolName.ProposeConstraints]: proposeConstraintsRunner(),
+    [ToolName.RequestPlan]: requestPlanRunner(deps),
+    [ToolName.GetValidationEvidence]: evidenceRunner(deps),
+    [ToolName.DraftCaseContext]: draftCaseRunner(deps),
+  };
+}
