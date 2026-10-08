@@ -21,7 +21,8 @@ export interface PolicyHitListProps {
 }
 
 /**
- * Renders each hit. Text is rendered as React text, so no HTML, Markdown or link in it is
+ * Shows each approved policy hit as structured fields so a student sees where a rule came from
+ * and when it applies. Text is rendered as React text, so no HTML, Markdown or link in it is
  * interpreted. The excerpt is never summarized or turned into an academic claim.
  *
  * @param props - The hits and heading level.
@@ -30,18 +31,18 @@ export interface PolicyHitListProps {
 export function PolicyHitList({ hits, headingLevel }: PolicyHitListProps): ReactElement {
   const Heading = headingLevel === 3 ? 'h3' : 'h4';
   return (
-    <ul className="policy-hits">
+    <ul className="policy-hit-list">
       {hits.map((hit) => (
-        <li key={hit.documentKey}>
-          <Heading>{hit.title}</Heading>
+        <li key={hit.documentKey} className="policy-hit">
+          <Heading className="policy-hit__title">{hit.title}</Heading>
           {hit.conflict ? (
-            <p role="note">
+            <p role="note" className="notice notice--caution policy-hit__conflict">
               <strong>Possible conflict:</strong> another result on this page covers the same
               subject and may disagree. Ask your advising office which applies.
             </p>
           ) : null}
-          <p style={{ whiteSpace: 'pre-wrap' }}>{hit.excerpt}</p>
-          <dl>
+          <p className="policy-hit__excerpt">{hit.excerpt}</p>
+          <dl className="facts policy-hit__source">
             <dt>Source</dt>
             <dd>{hit.sourceLabel}</dd>
             <dt>Revision</dt>

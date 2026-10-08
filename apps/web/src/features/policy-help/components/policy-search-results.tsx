@@ -22,18 +22,18 @@ export interface PolicySearchResultsProps {
 }
 
 /**
- * Renders the outcome of a search. The region stays in the page so a screen reader announces
- * the change; an outage is shown as an error, never as "no results".
+ * Shows the outcome of a search. The status region is in the page from the start, and
+ * `role="status"` already implies a polite live region; an outage is shown as an error, never as "no results".
  *
  * @param props - The text searched and the outcome.
  * @returns The live region.
  */
 export function PolicySearchResults({ text, result }: PolicySearchResultsProps): ReactElement {
   return (
-    <div role="status" aria-live="polite" aria-atomic="false">
+    <div role="status" className="policy-results">
       {result === null || text === null ? null : 'hits' in result ? (
         result.hits.length === 0 ? (
-          <p>
+          <p className="policy-results__empty">
             No approved policy matched “{text}”. Try other words, or ask your advising office; you
             can open a case below.
           </p>
