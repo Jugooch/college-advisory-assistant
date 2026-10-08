@@ -12,7 +12,8 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import { ToolName } from '@caa/assistant';
-import { ErrorCode } from '@caa/domain';
+import { CaseReason, ErrorCode } from '@caa/domain';
+import { buildUnavailableTime } from '@caa/test-kit';
 
 import {
   advisorActor,
@@ -26,16 +27,20 @@ import { scheduleRequest } from '../../testing/schedule-options-harness';
 describe('identity and access', () => {
   it("refuses an identity field smuggled into any tool's arguments, with no service call", async () => {
     const { run, getAcademicSummary, search, getPlan } = setupTools();
+    const validArgs: Record<ToolName, unknown> = {
+      [ToolName.GetAcademicSummary]: {},
+      [ToolName.SearchApprovedPolicy]: { query: 'late' },
+      [ToolName.ProposeConstraints]: { constraints: [buildUnavailableTime()] },
+      [ToolName.RequestPlan]: {},
+      [ToolName.GetValidationEvidence]: { planId: ownPlan.id },
+      [ToolName.DraftCaseContext]: { reason: CaseReason.PlanReview, planId: ownPlan.id },
+    };
     const smuggled = { studentId: otherStudent.id, tenantId: 'x', userId: 'y', role: 'ADMIN' };
 
     for (const name of Object.values(ToolName)) {
-      for (const extra of Object.entries(smuggled)) {
-        const outcome = await run(name, {
-          planId: ownPlan.id,
-          query: 'q',
-          reason: 'PLAN_REVIEW',
-          [extra[0]]: extra[1],
-        });
+      for (const [key, value] of Object.entries(smuggled)) {
+        const args = { ...(validArgs[name] as object), [key]: value };
+        const outcome = await run(name, args, { plannerInputs: scheduleRequest() });
         expect(outcome.errorCode).toBe('INVALID_ARGUMENTS');
       }
     }
@@ -66,7 +71,7 @@ describe('identity and access', () => {
     const { run } = setupTools();
 
     for (const actor of [otherTenantActor, advisorActor]) {
-      const outcome = await run(ToolName.GetAcademicSummary, {}, { actor: actor });
+      const outcome = await run(ToolName.GetAcademicSummary, {}, { actor });
       expect(outcome.errorCode).toBe(ErrorCode.NotFound);
       expect(outcome.block).toBeNull();
     }
@@ -87,7 +92,7 @@ describe('identity and access', () => {
       '../conversation-tool-runners/conversation-tool-runners.service.ts',
     ]) {
       const source = readFileSync(new URL(file, import.meta.url), 'utf8');
-      const imports = [...source.matchAll(/from '(\.\.\/[^']+)'/g)].map((match) => match[1]);
+      const imports = [...source.matchAll(/from '([^']+)'/g)].map((match) => match[1]);
 
       expect(imports).not.toEqual([]);
       for (const path of imports) {

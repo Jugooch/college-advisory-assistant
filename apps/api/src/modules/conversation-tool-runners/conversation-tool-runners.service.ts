@@ -30,20 +30,24 @@ import { toAcademicSummaryResponse } from '../academic-summary/academic-summary.
 import type { AcademicSummaryService } from '../academic-summary/academic-summary.service';
 import {
   buildCasePreviewBlock,
-  buildNotice,
-  failedResult,
-  INVALID_ARGUMENTS,
   isValidCaseDraft,
-  PLANNER_INPUT_TEMPLATE_ID,
   type PreviewPlan,
-  projectAcademicSummary,
   projectCasePreview,
+} from '../conversation-tool-case-preview/conversation-tool-case-preview.logic';
+import {
+  projectAcademicSummary,
   projectConstraintProposal,
   projectPlanEvidence,
   projectPolicyResults,
   projectScheduleOptions,
+} from '../conversation-tool-projections/conversation-tool-projections.logic';
+import { toProposals } from '../conversation-tool-proposals/conversation-tool-proposals.logic';
+import {
+  buildNotice,
+  failedResult,
+  INVALID_ARGUMENTS,
+  PLANNER_INPUT_TEMPLATE_ID,
   type ToolResult,
-  toProposals,
 } from '../conversation-tools/conversation-tools.logic';
 import type { PlanViewsService } from '../plan-views/plan-views.service';
 import type { PolicySearchService } from '../policy-search/policy-search.service';
@@ -221,13 +225,18 @@ function draftCaseRunner(deps: ToolRunnersDependencies): ToolRunner {
   };
 }
 
+/** One runner per tool, each reading through an existing service. */
+export type ConversationToolRunnersService = Readonly<Record<ToolName, ToolRunner>>;
+
 /**
  * Builds every tool's runner.
  *
  * @param deps - The read services.
  * @returns One runner per tool.
  */
-export function createToolRunners(deps: ToolRunnersDependencies): Record<ToolName, ToolRunner> {
+export function createConversationToolRunnersService(
+  deps: ToolRunnersDependencies,
+): ConversationToolRunnersService {
   return {
     [ToolName.GetAcademicSummary]: academicSummaryRunner(deps),
     [ToolName.SearchApprovedPolicy]: policyRunner(deps),

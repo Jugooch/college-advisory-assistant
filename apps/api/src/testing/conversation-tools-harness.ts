@@ -19,7 +19,7 @@ import {
 
 import { createAcademicSummaryService } from '../modules/academic-summary/academic-summary.service';
 import { createAccessService } from '../modules/access/access.service';
-import { createToolRunners } from '../modules/conversation-tool-runners/conversation-tool-runners.service';
+import { createConversationToolRunnersService } from '../modules/conversation-tool-runners/conversation-tool-runners.service';
 import type { ToolOutcome } from '../modules/conversation-tools/conversation-tools.logic';
 import { createConversationToolsService } from '../modules/conversation-tools/conversation-tools.service';
 import { createPinnedRecordsService } from '../modules/pinned-records/pinned-records.service';
@@ -28,38 +28,25 @@ import { buildRecordAudit, buildRecordSnapshot } from './academic-fixtures';
 import { TEST_NOW } from './fixtures';
 import { createInMemoryRepositories, createRecordingLogger } from './in-memory-repositories';
 
-export /**
- *
- */
-const studentActor = buildActor({ roles: [Role.Student] }, 1);
-export /**
- *
- */
-const otherTenantActor = buildActor({ tenantId: SYNTHETIC_TENANTS.b.id, roles: [Role.Student] }, 1);
-export /**
- *
- */
-const advisorActor = buildActor({ roles: [Role.Advisor] }, 2);
-export /**
- *
- */
-const ownStudent = buildStudent({ userId: studentActor.userId }, 1);
-export /**
- *
- */
-const otherStudent = buildStudent({}, 2);
-export /**
- *
- */
-const ownPlan = buildPlanView({}, 1);
-export /**
- *
- */
-const otherPlanId = buildPlanView({}, 9).id;
-export /**
- *
- */
-const toolContext = { logger: createRecordingLogger() };
+/** The synthetic student who owns the record in every tool test. */
+export const studentActor = buildActor({ roles: [Role.Student] }, 1);
+/** A synthetic student in another tenant, who must see nothing. */
+export const otherTenantActor = buildActor(
+  { tenantId: SYNTHETIC_TENANTS.b.id, roles: [Role.Student] },
+  1,
+);
+/** A synthetic advisor, who is not a student and so cannot converse. */
+export const advisorActor = buildActor({ roles: [Role.Advisor] }, 2);
+/** The student record the session actor owns. */
+export const ownStudent = buildStudent({ userId: studentActor.userId }, 1);
+/** Another student's record, which the session actor must not reach. */
+export const otherStudent = buildStudent({}, 2);
+/** A plan that belongs to the session student. */
+export const ownPlan = buildPlanView({}, 1);
+/** The ID of a plan that does not belong to the session student. */
+export const otherPlanId = buildPlanView({}, 9).id;
+/** The request context every tool test passes to the services. */
+export const toolContext = { logger: createRecordingLogger() };
 
 /** How the record behaves. */
 export interface ToolsSetupOptions {
@@ -145,7 +132,7 @@ export function setupTools(options: ToolsSetupOptions = {}): ToolsHarness {
   const { search, findOptions, getPlan, getRevision } = buildFakes();
   const service = createConversationToolsService({
     access: createAccessService({ ...repositories, now: () => new Date(TEST_NOW) }),
-    runners: createToolRunners({
+    runners: createConversationToolRunnersService({
       academicSummary: { getAcademicSummary },
       policySearch: { search },
       scheduleOptions: { findOptions },

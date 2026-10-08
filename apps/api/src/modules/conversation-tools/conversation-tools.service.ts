@@ -30,7 +30,7 @@ import { type Actor, ErrorCode, NoticeCode, type StudentId } from '@caa/domain';
 import { DomainError, NotFoundError } from '../../shared/domain-errors';
 import type { RequestContext } from '../../shared/request-context';
 import type { AccessService } from '../access/access.service';
-import type { ToolRunner } from '../conversation-tool-runners/conversation-tool-runners.service';
+import type { ConversationToolRunnersService } from '../conversation-tool-runners/conversation-tool-runners.service';
 import {
   buildNotice,
   failedResult,
@@ -45,7 +45,7 @@ import {
 export interface ConversationToolsServiceDependencies {
   readonly access: Pick<AccessService, 'canConverse'>;
   /** One runner per tool; each reads through an existing service. */
-  readonly runners: Readonly<Record<ToolName, ToolRunner>>;
+  readonly runners: ConversationToolRunnersService;
 }
 
 /**

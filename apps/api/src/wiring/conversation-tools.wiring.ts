@@ -6,9 +6,11 @@
  */
 import type { AcademicSummaryService } from '../modules/academic-summary/academic-summary.service';
 import type { AccessService } from '../modules/access/access.service';
-import { createToolRunners } from '../modules/conversation-tool-runners/conversation-tool-runners.service';
-import type { ConversationToolsService } from '../modules/conversation-tools/conversation-tools.service';
-import { createConversationToolsService } from '../modules/conversation-tools/conversation-tools.service';
+import { createConversationToolRunnersService } from '../modules/conversation-tool-runners/conversation-tool-runners.service';
+import {
+  type ConversationToolsService,
+  createConversationToolsService,
+} from '../modules/conversation-tools/conversation-tools.service';
 import type { PlanViewsService } from '../modules/plan-views/plan-views.service';
 import type { PolicySearchService } from '../modules/policy-search/policy-search.service';
 import type { ScheduleOptionsService } from '../modules/schedule-options/schedule-options.service';
@@ -31,6 +33,6 @@ export interface ConversationToolsSources {
 export function wireConversationTools(sources: ConversationToolsSources): ConversationToolsService {
   return createConversationToolsService({
     access: sources.access,
-    runners: createToolRunners(sources),
+    runners: createConversationToolRunnersService(sources),
   });
 }
