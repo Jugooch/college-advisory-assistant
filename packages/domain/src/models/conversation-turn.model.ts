@@ -20,7 +20,7 @@ export type ConversationTurnId = z.infer<typeof ConversationTurnIdSchema>;
 /** Longest student message, in characters. */
 export const STUDENT_TURN_MAX_LENGTH = 1000;
 
-/** Longest assistant intro, in characters. A longer intro is replaced, never truncated. */
+/** Longest server-written assistant intro, in characters. */
 export const ASSISTANT_TURN_MAX_LENGTH = 600;
 
 /** Most blocks one assistant turn may carry. */
@@ -40,7 +40,7 @@ export const AssistantTurnMetadataSchema = z
     promptVersion: z.string().min(1).max(50),
     toolSchemaVersion: z.string().min(1).max(50),
     templateVersion: z.string().min(1).max(50),
-    /** Reason codes from the output guard. */
+    /** Intro and crisis outcome codes from `@caa/assistant`, not output guard codes. */
     guardReasons: z.array(z.string().min(1).max(100)).max(MAX_GUARD_REASONS).readonly(),
     /** Policy revisions the turn's tools read. */
     policyRevisions: z.array(PolicyRevisionRefSchema).max(MAX_TURN_POLICY_REVISIONS).readonly(),
