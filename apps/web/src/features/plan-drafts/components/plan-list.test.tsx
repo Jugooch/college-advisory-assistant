@@ -57,6 +57,7 @@ function renderList(plans: readonly PlanSummary[], terms: readonly PlannableTerm
     <PlanList
       plans={plans}
       terms={terms}
+      studentId={STUDENT_ID}
       plannerHref={`/next-term-planner?studentId=${STUDENT_ID}`}
     />,
   ).container;
@@ -73,6 +74,14 @@ describe('PlanList', () => {
       `/next-term-planner?studentId=${STUDENT_ID}`,
     );
     expect(container.querySelector('table')).toBeNull();
+  });
+
+  it('links each term to its plan detail for the student', () => {
+    const container = renderList([summary(1)]);
+
+    expect(container.querySelector('tbody th a')?.getAttribute('href')).toBe(
+      `/my-plans/${syntheticId('plan', 1)}?studentId=${STUDENT_ID}`,
+    );
   });
 
   it('shows one row per term with revision, time, freshness text, and case status', () => {
