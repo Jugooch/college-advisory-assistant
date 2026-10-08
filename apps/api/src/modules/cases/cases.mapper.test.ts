@@ -36,7 +36,6 @@ function viewFor(viewer: typeof student) {
   return toCaseView({
     advisingCase,
     events,
-    studentUserId: student.userId,
     viewer,
     context,
     allowedActions: [CaseAction.Release],
@@ -72,7 +71,6 @@ describe('toCaseView', () => {
         ...events.slice(0, 1),
         buildCaseEvent({ ...events[1], actorUserId: admin.userId, actorRole: Role.Admin }, 2),
       ],
-      studentUserId: student.userId,
       viewer: admin,
       context,
       allowedActions: [],
@@ -93,7 +91,6 @@ describe('toCaseView', () => {
     const open = toCaseView({
       advisingCase: { ...advisingCase, status: CaseStatus.Open, ownerUserId: null },
       events: events.slice(0, 1),
-      studentUserId: student.userId,
       viewer: student,
       context,
       allowedActions: [],
@@ -157,7 +154,6 @@ describe('toCaseView stored roles', () => {
       const view = toCaseView({
         advisingCase: { ...advisingCase, ownerUserId: admin.userId },
         events: adminClaim,
-        studentUserId: student.userId,
         viewer,
         context,
         allowedActions: [],
@@ -198,7 +194,6 @@ describe('toCaseView stored roles', () => {
     const view = toCaseView({
       advisingCase: { ...advisingCase, ownerUserId: advisor.userId },
       events: released,
-      studentUserId: student.userId,
       viewer: student,
       context,
       allowedActions: [],
@@ -212,7 +207,6 @@ describe('toCaseView stored roles', () => {
       toCaseView({
         advisingCase: { ...advisingCase, ownerUserId: admin.userId },
         events: adminClaim,
-        studentUserId: student.userId,
         viewer,
         context,
         allowedActions: [],
@@ -233,7 +227,6 @@ describe('toCaseView stored roles', () => {
       toCaseView({
         advisingCase: { ...advisingCase, ownerUserId: advisor.userId },
         events: adminClaim.slice(0, 1),
-        studentUserId: student.userId,
         viewer: advisor,
         context,
         allowedActions: [],

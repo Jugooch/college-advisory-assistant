@@ -1,0 +1,141 @@
+/**
+ * @file Reads and clears a student's conversation transcript. Only the student may; the stored
+ * turns hold block references, never past results.
+ * @module @caa/api/modules/conversation-store/conversation-store.service
+ * @requirement FR-01
+ * @requirement FR-02
+ * @requirement FR-14
+ * @requirement NFR-05
+ * @requirement NFR-08
+ * @see docs/adr/0015-conversation-orchestration-and-policy-corpus.md (sections 1 and 7)
+ */
+import {
+  type ConversationQuery,
+  type ConversationResponse,
+  MAX_TRANSCRIPT_TURNS,
+} from '@caa/api-contract';
+import type { ConversationRepository } from '@caa/db';
+import { type Actor, NoticeCode, type StudentId } from '@caa/domain';
+
+import { NotFoundError } from '../../shared/domain-errors';
+import type { RequestContext } from '../../shared/request-context';
+import type { AccessService } from '../access/access.service';
+import { toTranscriptTurns } from './conversation-store.logic';
+
+/** Dependencies of the conversation store service. */
+export interface ConversationStoreServiceDependencies {
+  readonly access: Pick<AccessService, 'canConverse'>;
+  readonly conversations: ConversationRepository;
+  /** Returns the current time. */
+  readonly now: () => Date;
+  /** True unless `CONVERSATION_MODEL=off`. */
+  readonly isAvailable: boolean;
+}
+
+/** Which conversation: the student from the path and the term from the query. */
+export interface ConversationTarget {
+  readonly studentId: StudentId;
+  readonly termId: ConversationQuery['termId'];
+}
+
+/** Transcript reads and clears. */
+export interface ConversationStoreService {
+  /**
+   * Returns availability and the newest stored turns of the student's conversation for a term.
+   *
+   * @param actor - Authenticated actor from the session.
+   * @param target - The student from the path and the term from the query.
+   * @param context - Request-scoped values.
+   * @returns The transcript; empty when nothing is stored.
+   * @throws {NotFoundError} When the actor isn't the student.
+   */
+  getConversation(
+    actor: Actor,
+    target: ConversationTarget,
+    context: RequestContext,
+  ): Promise<ConversationResponse>;
+
+  /**
+   * Deletes the stored turns. The rate-limit log is separate and is not reset.
+   *
+   * @param actor - Authenticated actor from the session.
+   * @param target - The student from the path and the term from the query.
+   * @param context - Request-scoped values.
+   * @throws {NotFoundError} When the actor isn't the student.
+   */
+  clearConversation(
+    actor: Actor,
+    target: ConversationTarget,
+    context: RequestContext,
+  ): Promise<void>;
+}
+
+/**
+ * Creates the conversation store service.
+ *
+ * @param dependencies - Access rule, conversation repository, clock, and availability.
+ * @returns A {@link ConversationStoreService}.
+ */
+export function createConversationStoreService(
+  dependencies: ConversationStoreServiceDependencies,
+): ConversationStoreService {
+  const { access, conversations, now, isAvailable } = dependencies;
+
+  const open = async (actor: Actor, target: ConversationTarget, context: RequestContext) => {
+    // SECURITY: students only; an advisor, admin, other student or other tenant gets the same
+    // NOT_FOUND as a missing student (ADR-0015 section 7).
+    if (!(await access.canConverse(actor, target.studentId, context))) {
+      throw new NotFoundError();
+    }
+    // SECURITY: tenant and student come from the session and path; the conversation is found
+    // by tenant, student and term.
+    return conversations.findOrCreate({
+      tenantId: actor.tenantId,
+      studentId: target.studentId,
+      termId: target.termId,
+      now: now().toISOString(),
+    });
+  };
+
+  return {
+    async getConversation(actor, target, context) {
+      const conversation = await open(actor, target, context);
+      const stored = await conversations.listRecent({
+        tenantId: actor.tenantId,
+        studentId: target.studentId,
+        conversationId: conversation.id,
+        limit: MAX_TRANSCRIPT_TURNS,
+      });
+      const { turns, unreadableSequences } = toTranscriptTurns(stored);
+      if (unreadableSequences.length > 0) {
+        // SECURITY: IDs and sequence numbers only; no turn text (FR-14).
+        context.logger.warn(
+          { tenantId: actor.tenantId, conversationId: conversation.id, unreadableSequences },
+          'stored conversation turns could not be read',
+        );
+      }
+      context.logger.info(
+        { tenantId: actor.tenantId, conversationId: conversation.id, turnCount: turns.length },
+        'conversation read',
+      );
+      return {
+        available: isAvailable,
+        unavailableReason: isAvailable ? null : NoticeCode.Disabled,
+        turns,
+      };
+    },
+
+    async clearConversation(actor, target, context) {
+      const conversation = await open(actor, target, context);
+      await conversations.clear({
+        tenantId: actor.tenantId,
+        studentId: target.studentId,
+        conversationId: conversation.id,
+      });
+      context.logger.info(
+        { tenantId: actor.tenantId, conversationId: conversation.id },
+        'conversation cleared',
+      );
+    },
+  };
+}

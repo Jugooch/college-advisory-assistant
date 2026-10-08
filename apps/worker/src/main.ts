@@ -4,7 +4,12 @@
  */
 import pino from 'pino';
 
-import { createDatabase, createImportBatchRepository, createRosterRepository } from '@caa/db';
+import {
+  createDatabase,
+  createImportBatchRepository,
+  createRosterRepository,
+  createStudentTurnLogRepository,
+} from '@caa/db';
 
 import { createJobRegistry } from './job-registry';
 import { loadWorkerEnv } from './shared/worker-env';
@@ -17,7 +22,10 @@ const db = createDatabase(env.DATABASE_URL);
 const jobs = createJobRegistry({
   importBatches: createImportBatchRepository(db),
   rosters: createRosterRepository(db),
+  turnLog: createStudentTurnLogRepository(db),
   logger,
+  now: () => new Date(),
+  turnLogRetentionMinutes: env.TURN_LOG_RETENTION_MINUTES,
   maxInvalidRowPercent: env.ROSTER_MAX_INVALID_ROW_PERCENT,
 });
 

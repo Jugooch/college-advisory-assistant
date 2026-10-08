@@ -3,10 +3,11 @@
  * @module @caa/worker/job-registry
  */
 import { createImportRosterJob, type ImportRosterJobDependencies } from './jobs/import-roster.job';
+import { createPruneTurnLogJob, type PruneTurnLogJobDependencies } from './jobs/prune-turn-log.job';
 import type { JobDefinition } from './shared/job-definition';
 
 /** Everything the registered jobs need. Constructed only in `main.ts`. */
-export type WorkerDependencies = ImportRosterJobDependencies;
+export type WorkerDependencies = ImportRosterJobDependencies & PruneTurnLogJobDependencies;
 
 /**
  * Builds the registered jobs.
@@ -17,5 +18,5 @@ export type WorkerDependencies = ImportRosterJobDependencies;
 export function createJobRegistry(
   dependencies: WorkerDependencies,
 ): readonly JobDefinition<unknown>[] {
-  return [createImportRosterJob(dependencies)];
+  return [createImportRosterJob(dependencies), createPruneTurnLogJob(dependencies)];
 }

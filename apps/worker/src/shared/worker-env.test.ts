@@ -12,6 +12,7 @@ describe('loadWorkerEnv', () => {
     expect(loadWorkerEnv({ DATABASE_URL })).toEqual({
       DATABASE_URL,
       ROSTER_MAX_INVALID_ROW_PERCENT: 5,
+      TURN_LOG_RETENTION_MINUTES: 60,
     });
   });
 
@@ -29,6 +30,19 @@ describe('loadWorkerEnv', () => {
 
   it.each(['101', '-1', '2.5', 'abc'])('rejects the threshold %s', (value) => {
     expect(() => loadWorkerEnv({ DATABASE_URL, ROSTER_MAX_INVALID_ROW_PERCENT: value })).toThrow();
+  });
+
+  it('reads the turn-log retention in whole minutes and treats empty as unset', () => {
+    expect(loadWorkerEnv({ DATABASE_URL, TURN_LOG_RETENTION_MINUTES: '30' })).toMatchObject({
+      TURN_LOG_RETENTION_MINUTES: 30,
+    });
+    expect(loadWorkerEnv({ DATABASE_URL, TURN_LOG_RETENTION_MINUTES: '' })).toMatchObject({
+      TURN_LOG_RETENTION_MINUTES: 60,
+    });
+  });
+
+  it.each(['0', '-5', '1.5', 'abc'])('rejects the turn-log retention %s', (value) => {
+    expect(() => loadWorkerEnv({ DATABASE_URL, TURN_LOG_RETENTION_MINUTES: value })).toThrow();
   });
 
   it('fails fast without a database URL', () => {
