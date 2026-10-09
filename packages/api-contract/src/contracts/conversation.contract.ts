@@ -11,6 +11,8 @@ import { z } from 'zod';
 
 import {
   ASSISTANT_TURN_MAX_LENGTH,
+  AssistantBlockKind,
+  type AssistantBlockRef,
   AssistantBlockRefSchema,
   MAX_TURN_BLOCKS,
   ModelStatus,
@@ -144,6 +146,38 @@ export const TemplateBlockEntrySchema = z
   })
   .readonly();
 
+type TemplateBlock = z.infer<typeof TemplateBlockEntrySchema>['block'];
+
+/**
+ * Returns whether two template-bearing values name the same template id and version.
+ *
+ * @param ref - The stored ref.
+ * @param block - The re-rendered block.
+ * @returns `true` when both match.
+ */
+const isSameTemplate = (
+  ref: { templateId: string; templateVersion: string },
+  block: { templateId: string; templateVersion: string },
+): boolean => ref.templateId === block.templateId && ref.templateVersion === block.templateVersion;
+
+/**
+ * Returns whether a re-rendered block matches the stored ref it points at: same kind, template
+ * id and version, and the same topic (REFERRAL) or code (NOTICE).
+ *
+ * @param ref - The stored ref at `refIndex`, or `undefined` when out of range.
+ * @param block - The re-rendered block.
+ * @returns `true` when the block was rendered from that ref.
+ */
+const isRenderedFrom = (ref: AssistantBlockRef | undefined, block: TemplateBlock): boolean => {
+  if (ref?.kind === AssistantBlockKind.Referral && block.kind === AssistantBlockKind.Referral) {
+    return ref.topic === block.topic && isSameTemplate(ref, block);
+  }
+  if (ref?.kind === AssistantBlockKind.Notice && block.kind === AssistantBlockKind.Notice) {
+    return ref.code === block.code && isSameTemplate(ref, block);
+  }
+  return false;
+};
+
 /**
  * One stored turn as the transcript shows it, discriminated by `role`. An assistant turn keeps
  * block references only: a past schedule or plan block has `shownAt` and no result, so a stored
@@ -169,19 +203,19 @@ export const ConversationTurnViewSchema = z.discriminatedUnion('role', [
       templateBlocks: z.array(TemplateBlockEntrySchema).max(MAX_TURN_BLOCKS).readonly().optional(),
     })
     // SAFETY: only template refs (REFERRAL, NOTICE) may carry a re-rendered block, once each, and
-    // the block kind must match its ref. An academic ref never gets a block, so a stored PASS is
-    // never shown as current (ADR-0015 Amendment 3, ADR-0013 §3).
+    // the block must match its ref in kind, templateId, templateVersion and topic or code, so a
+    // block can never be shown for a ref it was not rendered from. An academic ref never gets a
+    // block, so a stored PASS is never shown as current (ADR-0015 Amendment 3, ADR-0013 §3).
     .superRefine((turn, ctx) => {
       const seen = new Set<number>();
       (turn.templateBlocks ?? []).forEach((entry, i) => {
         const ref = turn.blockRefs[entry.refIndex];
-        const isValid =
-          ref !== undefined && !seen.has(entry.refIndex) && ref.kind === entry.block.kind;
+        const isMatch = !seen.has(entry.refIndex) && isRenderedFrom(ref, entry.block);
         seen.add(entry.refIndex);
-        if (!isValid) {
+        if (!isMatch) {
           ctx.addIssue({
             code: 'custom',
-            message: 'refIndex must point once at a template ref of the same kind',
+            message: 'refIndex must point once at the template ref this block was rendered from',
             path: ['templateBlocks', i, 'refIndex'],
           });
         }

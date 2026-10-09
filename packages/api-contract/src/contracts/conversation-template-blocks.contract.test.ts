@@ -3,6 +3,8 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import { buildRevisionView } from '../testing/plan-draft-fixtures';
+import { buildResponse } from '../testing/schedule-option-fixtures';
 import { ConversationResponseSchema } from './conversation.contract';
 
 const AT = '2026-10-08T09:00:00-05:00';
@@ -55,7 +57,7 @@ describe('templateBlocks on a stored assistant turn', () => {
     const ref = {
       kind: 'NOTICE',
       code: 'MODEL_UNAVAILABLE',
-      templateId: 'n',
+      templateId: 'notice.model-unavailable',
       templateVersion: '1',
     };
     expect(accepts(turn({ templateBlocks: [{ refIndex: 0, block: NOTICE }] }, [ref]))).toBe(true);
@@ -66,10 +68,37 @@ describe('templateBlocks on a stored assistant turn', () => {
     expect(accepts(turn({ templateBlocks: [] }))).toBe(true);
   });
 
-  it.each(['SCHEDULE_OPTIONS', 'PLAN_EVIDENCE', 'POLICY_RESULTS'])('rejects a %s block', (kind) => {
-    expect(accepts(turn({ templateBlocks: [{ refIndex: 0, block: { ...NOTICE, kind } }] }))).toBe(
-      false,
-    );
+  it.each([
+    ['SCHEDULE_OPTIONS', { kind: 'SCHEDULE_OPTIONS', result: buildResponse() }],
+    ['PLAN_EVIDENCE', { kind: 'PLAN_EVIDENCE', plan: buildRevisionView() }],
+    ['POLICY_RESULTS', { kind: 'POLICY_RESULTS', results: { hits: [], asOf: AT } }],
+  ])('rejects a well-formed %s block', (_name, block) => {
+    expect(accepts(turn({ templateBlocks: [{ refIndex: 0, block }] }))).toBe(false);
+  });
+
+  it('rejects a referral block of another topic than its ref', () => {
+    const block = { ...REFERRAL, topic: 'FINANCIAL_AID' };
+    expect(accepts(turn({ templateBlocks: [{ refIndex: 0, block }] }))).toBe(false);
+  });
+
+  it('rejects a notice block with another code than its ref', () => {
+    const ref = {
+      kind: 'NOTICE',
+      code: 'TOOL_FAILED',
+      templateId: 'notice.model-unavailable',
+      templateVersion: '1',
+    };
+    expect(accepts(turn({ templateBlocks: [{ refIndex: 0, block: NOTICE }] }, [ref]))).toBe(false);
+  });
+
+  it('rejects a block with another templateId than its ref', () => {
+    const block = { ...REFERRAL, templateId: 'referral.other' };
+    expect(accepts(turn({ templateBlocks: [{ refIndex: 0, block }] }))).toBe(false);
+  });
+
+  it('rejects a block with another templateVersion than its ref', () => {
+    const block = { ...REFERRAL, templateVersion: '2' };
+    expect(accepts(turn({ templateBlocks: [{ refIndex: 0, block }] }))).toBe(false);
   });
 
   it('rejects an out-of-range refIndex', () => {
