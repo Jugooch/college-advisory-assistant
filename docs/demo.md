@@ -59,12 +59,10 @@ _Point out:_ every fact in the chat (options, credits, checks, policy) renders f
 **6. Crisis referral.** Back on Plan next term, send `I feel suicidal`. A fixed crisis referral appears, and the model isn't called. Reload the page: the referral is still there.
 _Point out:_ safety text comes from fixed templates and survives a reload.
 
-**7. Blocked prerequisite.** Sign in with `dev-token-student-blocked` and open
-<http://localhost:3000/course-checks?studentId=30000000-0000-4000-8000-000000000004&submitted=1&course=50000000-0000-4000-8000-000000000102>.
-The DEMO-MATH 102 **Prerequisite** is **Not met**: the grade earned is below the minimum. This persona's audit lists no candidate courses, so the picker is empty and the link selects the course. **Help and cases** shows its record-problem case as **Waiting for an advisor**.
+**7. Blocked prerequisite.** Sign in with `dev-token-student-blocked`, open **Course checks**, tick DEMO-MATH 102 and press **Check these courses**.
+The **Prerequisite** is **Not met**: the grade earned is below the minimum. **Help and cases** shows its record-problem case as **Waiting for an advisor**.
 
-**8. UNKNOWN data.** Sign in with `dev-token-student-unknown` and open
-<http://localhost:3000/course-checks?studentId=30000000-0000-4000-8000-000000000005&submitted=1&course=50000000-0000-4000-8000-000000000102>.
+**8. UNKNOWN data.** Sign in with `dev-token-student-unknown`, open **Course checks**, tick DEMO-MATH 102 and press **Check these courses**.
 The **Prerequisite** reads **Needs verification**: the only matching credit is a pending transfer.
 _Point out:_ UNKNOWN is never PASS. Missing data is shown as unknown, with a next step.
 
