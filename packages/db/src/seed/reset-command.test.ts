@@ -39,6 +39,13 @@ describe('assertResetAllowed', () => {
     'postgres://caa:caa@localhost.example.com:5432/caa',
     'postgres://localhost@evil.example.com:5432/caa',
     'not a url',
+    'postgres://caa:caa@localhost:5432/caa?host=db.example.com',
+    'postgres://caa:caa@localhost/caa?host=/var/run/postgresql',
+    'postgres://caa:caa@localhost/caa?hostaddr=10.0.0.5',
+    'postgres://caa:caa@localhost/caa?HOST=db.example.com',
+    'postgres://caa:caa@localhost/caa?port=6543',
+    'postgres:///caa?host=localhost',
+    'postgres://caa:caa@%2Fvar%2Frun%2Fpostgresql/caa',
   ])('refuses %s', (url) => {
     expect(() => assertResetAllowed({ NODE_ENV: 'development', DATABASE_URL: url })).toThrow(
       ResetRefusedError,
@@ -81,6 +88,16 @@ describe('runDevReset', () => {
     await expect(runDevReset(remote.dependencies)).rejects.toBeInstanceOf(ResetRefusedError);
     await expect(runDevReset(production.dependencies)).rejects.toBeInstanceOf(ResetRefusedError);
     expect([...remote.opened, ...production.opened]).toEqual([]);
+  });
+
+  it('never opens the database for a host override in the query string', async () => {
+    const override = build({
+      NODE_ENV: 'development',
+      DATABASE_URL: 'postgres://u:p@localhost/caa?host=db.example.com',
+    });
+
+    await expect(runDevReset(override.dependencies)).rejects.toBeInstanceOf(ResetRefusedError);
+    expect(override.opened).toEqual([]);
   });
 
   it('opens the local database when allowed', async () => {

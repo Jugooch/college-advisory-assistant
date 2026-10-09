@@ -114,7 +114,10 @@ export function buildPersonaRevision(
     catalogYear: latest.catalogYear,
     sourceEffectiveAt: now.toISOString(),
     ingestedAt: now.toISOString(),
-    attemptIds: [...latest.attemptIds, attempt.id],
+    // NOTE: a repeat of the same run already lists its attempt; listing it twice is invalid.
+    attemptIds: latest.attemptIds.includes(attempt.id)
+      ? latest.attemptIds
+      : [...latest.attemptIds, attempt.id],
   });
   return { attempt, snapshot };
 }

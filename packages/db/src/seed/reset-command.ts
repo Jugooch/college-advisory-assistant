@@ -6,6 +6,7 @@
  * @see docs/adr/0016-browser-end-to-end-tests-and-local-demo.md
  * @see docs/standards/09-errors-logging-and-security.md
  */
+import { parse } from 'pg-connection-string';
 import { z } from 'zod';
 
 import type { SeedDatabase, SeedLogger } from './dev-seed-command';
@@ -53,13 +54,24 @@ export function assertResetAllowed(env: NodeJS.ProcessEnv): string {
     throw new ResetRefusedError('NODE_ENV is production');
   }
   const parsed = ResetEnvSchema.parse(env);
-  let host: string;
+  // SECURITY: the host is read with the parser `pg` itself uses, because that parser lets a `host`
+  // query parameter override the URL host. Query parameters that name the target are refused
+  // outright so the checked host is the host connected to.
+  let host: string | null;
   try {
-    host = new URL(parsed.DATABASE_URL).hostname;
-  } catch {
+    const url = new URL(parsed.DATABASE_URL);
+    const keys = [...url.searchParams.keys()].map((key) => key.toLowerCase());
+    if (keys.some((key) => key === 'host' || key === 'hostaddr' || key === 'port')) {
+      throw new ResetRefusedError('DATABASE_URL sets host, hostaddr or port as a query parameter');
+    }
+    host = parse(parsed.DATABASE_URL).host;
+  } catch (error) {
+    if (error instanceof ResetRefusedError) {
+      throw error;
+    }
     throw new ResetRefusedError('DATABASE_URL is not a valid URL, so its host cannot be checked');
   }
-  if (!LOCAL_HOSTS.has(host)) {
+  if (host === null || !LOCAL_HOSTS.has(host)) {
     throw new ResetRefusedError('DATABASE_URL host is not localhost or 127.0.0.1');
   }
   return parsed.DATABASE_URL;

@@ -5,6 +5,7 @@
  * @module @caa/db/seed/revise-slice-sources
  * @requirement FR-11
  * @requirement NFR-04
+ * @requirement NFR-05
  * @see docs/adr/0013-plan-drafts-staleness-and-advisor-cases.md
  * @see docs/planning/09-data-model-and-integration-contracts.md
  */
@@ -59,6 +60,24 @@ export class ReviseNotNewerError extends Error {
   }
 }
 
+/**
+ * Checks that a source student ID is a student the seed gives a record in the seed tenant.
+ *
+ * @param sourceStudentId - The ID asked for.
+ * @param now - The run time, which the seed plan derives its records from.
+ * @returns True only for seeded students in the seed tenant that have a student snapshot.
+ */
+function isRevisableStudent(sourceStudentId: string, now: Date): boolean {
+  const plan = buildDemoSeedPlan(now);
+  const withRecord = new Set<string>(plan.academic.snapshots.map((snapshot) => snapshot.studentId));
+  return plan.students.some(
+    (seeded) =>
+      seeded.tenantId === SEED_TENANT_ID &&
+      seeded.sourceStudentId === sourceStudentId &&
+      withRecord.has(seeded.id),
+  );
+}
+
 /** What a revise run did. Counts and flags only, safe to log. */
 export interface ReviseResult {
   readonly target: ReviseTarget;
@@ -67,7 +86,8 @@ export interface ReviseResult {
 }
 
 /**
- * Publishes the next revision of the chosen source for the slice student's tenant.
+ * Publishes the next revision of the chosen source: for `student`, the slice student's record or
+ * the named seeded student's; for `sections`, the planning term's sections.
  *
  * @param db - Typed database handle.
  * @param request - `student` for a grade change (of the slice student unless a source student ID
@@ -87,9 +107,7 @@ export async function reviseSliceSources(
   seedInstantMs(now);
   const { target, sourceStudentId = SLICE_SOURCE_STUDENT_ID } = request;
   // SAFETY: only seeded synthetic students can be revised, whatever the caller passes.
-  if (
-    !buildDemoSeedPlan(now).students.some((seeded) => seeded.sourceStudentId === sourceStudentId)
-  ) {
+  if (!isRevisableStudent(sourceStudentId, now)) {
     throw new ReviseUnknownStudentError();
   }
   const wasPublished =
@@ -137,21 +155,19 @@ async function reviseStudent(db: Database, now: Date, sourceStudentId: string): 
   if (latest === null) {
     throw new ReviseNotSeededError();
   }
+  // SAFETY: a tied head is never superseded; refused before a revision is even built.
+  if (latest.status === 'AMBIGUOUS') {
+    throw new ReviseNotNewerError();
+  }
   const { attempt, snapshot } =
     sourceStudentId === SLICE_SOURCE_STUDENT_ID
       ? buildStudentRevision(now, student.id)
       : buildPersonaRevision(
           now,
           { id: student.id, number: Number(sourceStudentId.slice('SYN-'.length)) },
-          // NOTE: an ambiguous head is refused by `isNewer` below, before anything is written.
-          latest.status === 'FOUND'
-            ? latest.revision.snapshot
-            : { programId: null, catalogYear: null, attemptIds: [] },
+          latest.revision.snapshot,
         );
-  const head =
-    latest.status === 'AMBIGUOUS'
-      ? 'AMBIGUOUS'
-      : { id: latest.revision.snapshot.id, at: latest.revision.snapshot.sourceEffectiveAt };
+  const head = { id: latest.revision.snapshot.id, at: latest.revision.snapshot.sourceEffectiveAt };
   if (!isNewer(head, snapshot.id, now)) {
     return false;
   }

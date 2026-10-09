@@ -20,7 +20,8 @@
   "dependencies": {
     "@caa/domain": "workspace:*",
     "drizzle-orm": "^0.45.3",
-    "pg": "^8.23.0"
+    "pg": "^8.23.0",
+    "pg-connection-string": "2.14.0"
   },
   "devDependencies": {
     "@caa/test-kit": "workspace:*",

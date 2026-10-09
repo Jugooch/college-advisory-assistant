@@ -15,7 +15,6 @@ import { studentSnapshotTable } from '../tables/student-snapshot.table';
 import type { TestDatabase } from '../testing/integration-fixtures';
 import { openIsolatedTestDatabase } from '../testing/isolated-database';
 import { buildDemoSeedPlan } from './dev-seed-demo-plan';
-import { buildPersonaRevision } from './dev-seed-revision-plan';
 import { resetDatabase } from './reset-database';
 import {
   ReviseNotSeededError,
@@ -58,6 +57,14 @@ describe('reviseSliceSources for a chosen student', () => {
     return rows.map((row) => row.id).sort();
   }
 
+  async function attemptIds(studentId: string): Promise<string[]> {
+    const rows = await testDatabase.db
+      .select({ id: courseAttemptTable.id })
+      .from(courseAttemptTable)
+      .where(eq(courseAttemptTable.studentId, studentId));
+    return rows.map((row) => row.id).sort();
+  }
+
   it('supersedes the chosen student record only, so a draft pinned to the old one reads stale', async () => {
     const snapshots = createStudentSnapshotRepository(testDatabase.db);
     const persona = studentIdOf(STALE_PERSONA);
@@ -81,7 +88,7 @@ describe('reviseSliceSources for a chosen student', () => {
     expect(latest.revision.snapshot.sourceEffectiveAt).toBe(FIRST.toISOString());
     expect(latest.revision.snapshot.attemptIds).toEqual([
       ...seeded.revision.snapshot.attemptIds,
-      buildPersonaRevision(FIRST, { id: persona, number: 6 }, seeded.revision.snapshot).attempt.id,
+      '60000000-1006-4000-8000-01a0f78ce080',
     ]);
     expect(await snapshots.findLatest(TENANT, studentIdOf(OTHER_PERSONA))).toEqual(otherBefore);
   });
@@ -94,10 +101,7 @@ describe('reviseSliceSources for a chosen student', () => {
       SECOND,
     );
     const snapshotsBefore = await snapshotIds(persona);
-    const attemptsBefore = await testDatabase.db
-      .select({ id: courseAttemptTable.id })
-      .from(courseAttemptTable)
-      .where(eq(courseAttemptTable.studentId, persona));
+    const attemptsBefore = await attemptIds(persona);
 
     const repeat = await reviseSliceSources(
       testDatabase.db,
@@ -107,12 +111,7 @@ describe('reviseSliceSources for a chosen student', () => {
 
     expect(repeat.published).toBe(false);
     expect(await snapshotIds(persona)).toEqual(snapshotsBefore);
-    expect(
-      await testDatabase.db
-        .select({ id: courseAttemptTable.id })
-        .from(courseAttemptTable)
-        .where(eq(courseAttemptTable.studentId, persona)),
-    ).toEqual(attemptsBefore);
+    expect(await attemptIds(persona)).toEqual(attemptsBefore);
   });
 
   it('refuses a student outside the seed and writes nothing', async () => {
@@ -125,6 +124,16 @@ describe('reviseSliceSources for a chosen student', () => {
         SECOND,
       ),
     ).rejects.toBeInstanceOf(ReviseUnknownStudentError);
+    // NOTE: seeded, but without a record (SYN-000003) or in another tenant (SYN-000101).
+    for (const unrecorded of ['SYN-000003', 'SYN-000101']) {
+      await expect(
+        reviseSliceSources(
+          testDatabase.db,
+          { target: 'student', sourceStudentId: unrecorded },
+          SECOND,
+        ),
+      ).rejects.toBeInstanceOf(ReviseUnknownStudentError);
+    }
     await expect(
       reviseSliceSources(
         testDatabase.db,

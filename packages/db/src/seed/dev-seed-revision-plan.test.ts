@@ -3,9 +3,11 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import { CourseAttemptIdSchema } from '@caa/domain';
+
 import { SEED_ATTEMPT_IDS, SEED_SLICE_STUDENT_ID } from './dev-seed-academic-plan';
 import { seedRecordTimes } from './dev-seed-record-times';
-import { buildStudentRevision } from './dev-seed-revision-plan';
+import { buildPersonaRevision, buildStudentRevision } from './dev-seed-revision-plan';
 import { buildDevSeedSectionPlan, buildWithdrawnSectionSnapshot } from './dev-seed-section-plan';
 
 const SEED_RUN = new Date('2026-10-01T12:00:00.000Z');
@@ -65,5 +67,53 @@ describe('buildWithdrawnSectionSnapshot', () => {
     const seededIds = new Set(seeded.sections.map((section) => section.id));
     expect(revised.sections.some((section) => seededIds.has(section.id))).toBe(false);
     expect(buildWithdrawnSectionSnapshot(REVISION_RUN)).toEqual(revised);
+  });
+});
+
+describe('buildPersonaRevision', () => {
+  const STUDENT = { id: '30000000-0000-4000-8000-000000000006', number: 6 };
+  const BASE = {
+    programId: null,
+    catalogYear: null,
+    attemptIds: [CourseAttemptIdSchema.parse('60000000-0000-4000-8000-000000000106')],
+  };
+
+  it('lists the earlier attempts plus one graded attempt, with literal IDs', () => {
+    const { attempt, snapshot } = buildPersonaRevision(REVISION_RUN, STUDENT, BASE);
+
+    expect(attempt.id).toBe('60000000-1006-4000-8000-01a1163c1a00');
+    expect(snapshot.id).toBe('a0000000-1006-4000-8000-01a1163c1a00');
+    expect(snapshot.attemptIds).toEqual([
+      '60000000-0000-4000-8000-000000000106',
+      '60000000-1006-4000-8000-01a1163c1a00',
+    ]);
+    expect(snapshot.sourceEffectiveAt).toBe(REVISION_RUN.toISOString());
+  });
+
+  it('can be built again from its own result for the same run without a duplicate attempt', () => {
+    const first = buildPersonaRevision(REVISION_RUN, STUDENT, BASE);
+
+    const again = buildPersonaRevision(REVISION_RUN, STUDENT, first.snapshot);
+
+    expect(again.snapshot.attemptIds).toEqual(first.snapshot.attemptIds);
+    expect(again.snapshot.id).toBe(first.snapshot.id);
+  });
+
+  it('uses different IDs for different students and rejects numbers outside 1 to 4095', () => {
+    const other = buildPersonaRevision(REVISION_RUN, { ...STUDENT, number: 4 }, BASE);
+
+    expect(other.snapshot.id).toBe('a0000000-1004-4000-8000-01a1163c1a00');
+    expect(() => buildPersonaRevision(REVISION_RUN, { ...STUDENT, number: 0 }, BASE)).toThrow(
+      RangeError,
+    );
+    expect(() => buildPersonaRevision(REVISION_RUN, { ...STUDENT, number: 4096 }, BASE)).toThrow(
+      RangeError,
+    );
+    expect(() => buildPersonaRevision(REVISION_RUN, { ...STUDENT, number: 1.5 }, BASE)).toThrow(
+      RangeError,
+    );
+    expect(buildPersonaRevision(REVISION_RUN, { ...STUDENT, number: 4095 }, BASE).snapshot.id).toBe(
+      'a0000000-1fff-4000-8000-01a1163c1a00',
+    );
   });
 });
