@@ -19,6 +19,34 @@ export const SOURCE_NOTICE_TEMPLATES = {
     'The information for this answer could not be reached right now, so nothing is shown as current. Use the planner and My plans for your saved work, and ask your advisor.',
 } as const satisfies Record<'STALE_SOURCE' | 'SOURCE_UNAVAILABLE', string>;
 
+/** Template id of the tool-failed notice. */
+export const TOOL_FAILED_TEMPLATE_ID = 'notice.tool-failed';
+
+/** Template id of the planner-input-needed notice. */
+export const PLANNER_INPUT_TEMPLATE_ID = 'notice.planner-input-needed';
+
+/** Template id of the stale-source notice. */
+export const STALE_SOURCE_TEMPLATE_ID = 'notice.stale-source';
+
+/** Template id of the source-unavailable notice. */
+export const SOURCE_UNAVAILABLE_TEMPLATE_ID = 'notice.source-unavailable';
+
+/** Template id recorded with each notice; the id never changes when its text does (the version does). */
+export const NOTICE_TEMPLATE_IDS: Record<NoticeCode, string> = {
+  [NoticeCode.HypotheticalNotSupported]: 'notice.hypothetical-not-supported',
+  [NoticeCode.OverrideProcess]: 'notice.override-process',
+  [NoticeCode.GradeDispute]: 'notice.grade-dispute',
+  [NoticeCode.PlannerInputNeeded]: PLANNER_INPUT_TEMPLATE_ID,
+  [NoticeCode.ToolFailed]: TOOL_FAILED_TEMPLATE_ID,
+  [NoticeCode.ModelUnavailable]: 'notice.model-unavailable',
+  [NoticeCode.BudgetExhausted]: 'notice.budget-exhausted',
+  [NoticeCode.RateLimited]: 'notice.rate-limited',
+  [NoticeCode.Disabled]: 'notice.disabled',
+  [NoticeCode.PolicyConflict]: 'notice.policy-conflict',
+  [NoticeCode.StaleSource]: STALE_SOURCE_TEMPLATE_ID,
+  [NoticeCode.SourceUnavailable]: SOURCE_UNAVAILABLE_TEMPLATE_ID,
+};
+
 /** Fixed text for each notice. No template states eligibility, credits, grades or dates. */
 export const NOTICE_TEMPLATES: Record<NoticeCode, string> = {
   [NoticeCode.HypotheticalNotSupported]:
