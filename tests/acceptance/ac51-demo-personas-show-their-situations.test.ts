@@ -32,6 +32,10 @@ import { dataOf, latestFreshness, saveBody } from '../support/plan-drafts-harnes
 const MATH_102 = '50000000-0000-4000-8000-000000000102';
 /** DEMO-ENGL 101 (no prerequisite). */
 const ENGL_101 = '50000000-0000-4000-8000-000000001101';
+/** DEMO-PHYS 301 (4.00; needs DEMO-PHYS 201 with at least a C). */
+const PHYS_301 = '50000000-0000-4000-8000-000000000301';
+/** DEMO-IND 390 (variable, 1.00 to 3.00 credits). */
+const IND_390 = '50000000-0000-4000-8000-000000000390';
 /** The 2027SP term the demo plans. */
 const TERM_2027SP = 'b0000000-0000-4000-8000-000000000004';
 
@@ -160,10 +164,12 @@ describe('AC51 the demo personas show their situations', () => {
     'reads the saved plan STALE with STUDENT_RECORD_SUPERSEDED after a newer record',
     async () => {
       const student = DEMO_STUDENT_IDS.stalePlan;
+      // NOTE: 3.00 + 3.00 + 4.00 + 2.00 = 12.00, the seed policy's minimum credit load (README
+      // scenario 3), so a plan can be saved. It needs the persona's record to hold DEMO-PHYS 201.
       const request = {
         termId: TERM_2027SP,
-        courseIds: [MATH_102, ENGL_101],
-        creditSelections: [],
+        courseIds: [MATH_102, ENGL_101, PHYS_301, IND_390],
+        creditSelections: [{ courseId: IND_390, selectedCreditsHundredths: 200 }],
         constraints: [],
       };
       const authorization = 'Bearer demo-stalePlan';
