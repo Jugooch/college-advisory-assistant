@@ -31,7 +31,7 @@ import {
   resetCasesWorld,
   STUDENT_NOTE,
 } from '../support/cases-harness';
-import { acceptanceIt } from '../support/known-findings';
+import { acceptanceIt } from '../support/known-findings-declarations';
 import { dataOf } from '../support/plan-drafts-harness';
 
 const world: CasesWorld = createAcademicWorld();

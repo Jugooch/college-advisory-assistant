@@ -7,12 +7,8 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import {
-  declaredAcceptanceKeys,
-  FINDING_KEY,
-  findingMode,
-  HARD_CODED_EXPECTED_FAILURE,
-} from './known-findings';
+import { FINDING_KEY, findingMode } from './known-findings';
+import { declaredAcceptanceKeys, HARD_CODED_EXPECTED_FAILURE } from './known-findings-declarations';
 
 const REGISTER: ReadonlyMap<string, number> = new Map([
   ['GC-PF-004', 183],
@@ -55,6 +51,12 @@ describe('declaredAcceptanceKeys', () => {
     ]);
   });
 
+  it('finds Playwright acceptanceTest declarations', () => {
+    expect(
+      declaredAcceptanceKeys("acceptanceTest('AC48', 'shows the plan', async () => {});"),
+    ).toEqual(['AC48: shows the plan']);
+  });
+
   it('ignores plain it calls', () => {
     expect(declaredAcceptanceKeys("it('keeps CONDITIONAL end to end', () => {});")).toEqual([]);
   });
@@ -64,6 +66,7 @@ describe('HARD_CODED_EXPECTED_FAILURE', () => {
   it.each([
     "it.fails('keeps CONDITIONAL', () => {});",
     "test.fails('keeps CONDITIONAL', () => {});",
+    "test.fail('keeps CONDITIONAL', async () => {});",
     "it.fails.each([1, 2])('case %s', () => {});",
     "test.fails.each([1, 2])('case %s', () => {});",
   ])('catches %s', (source) => {
