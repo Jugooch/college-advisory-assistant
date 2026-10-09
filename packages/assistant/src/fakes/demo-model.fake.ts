@@ -78,8 +78,26 @@ function callsFor(userText: string, turnKey: string): readonly ModelToolCall[] {
   }));
 }
 
-function introFor(calledTools: readonly string[], userText: string): IntroId {
-  const match = INTRO_BY_TOOL.find(([tool]) => calledTools.includes(tool));
+/**
+ * Whether request_plan came back as a planner-input notice, so no schedule block exists.
+ *
+ * @param turn - The messages after the student's latest message.
+ * @returns True when the plan result is the notice only.
+ */
+function isNoticeOnly(turn: readonly ModelMessage[]): boolean {
+  return turn.some(
+    (message) =>
+      message.role === 'tool' &&
+      message.toolName === ToolName.RequestPlan &&
+      message.content.includes('"plannerInputNeeded":true'),
+  );
+}
+
+function introFor(calledTools: readonly string[], userText: string, noticeOnly: boolean): IntroId {
+  // SAFETY: the intro must match the blocks that came back, so a notice-only plan gets no schedule intro.
+  const match = INTRO_BY_TOOL.find(
+    ([tool]) => calledTools.includes(tool) && !(noticeOnly && tool === ToolName.RequestPlan),
+  );
   if (match) {
     return match[1];
   }
@@ -108,7 +126,11 @@ export function createDemoModel(): ConversationModel {
       const reply: ModelReply =
         calls.length > 0
           ? { text: '', toolCalls: calls, stopReason: 'TOOL_USE' }
-          : { text: introFor(calledTools, userText), toolCalls: [], stopReason: 'END_TURN' };
+          : {
+              text: introFor(calledTools, userText, isNoticeOnly(turn)),
+              toolCalls: [],
+              stopReason: 'END_TURN',
+            };
       return Promise.resolve(reply);
     },
   };

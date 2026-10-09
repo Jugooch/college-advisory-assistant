@@ -106,4 +106,38 @@ describe('createDemoModel', () => {
     const b = await runTurn('options, no Fridays');
     expect(a).toEqual(b);
   });
+
+  describe('when request_plan returns only a notice', () => {
+    async function finalIntro(content: string): Promise<string> {
+      const model = createDemoModel();
+      const text = 'Show me my options, no Fridays';
+      const first = await model.respond({
+        system: 's',
+        messages: [{ role: 'user', text }],
+        tools: [],
+      });
+      const messages: ModelMessage[] = [
+        { role: 'user', text },
+        { role: 'assistant', text: '', toolCalls: first.toolCalls },
+        ...first.toolCalls.map((call): ModelMessage => ({
+          role: 'tool',
+          toolCallId: call.id,
+          toolName: call.name,
+          content: call.name === ToolName.RequestPlan ? content : '<untrusted-data/>',
+        })),
+      ];
+      return (await model.respond({ system: 's', messages, tools: [] })).text;
+    }
+
+    it('uses the constraint proposal intro, which resolves against the blocks returned', async () => {
+      const intro = await finalIntro('{"plannerInputNeeded":true}');
+      expect(intro).toBe('CONSTRAINT_PROPOSAL');
+      const resolved = resolveIntro(intro, [AssistantBlockKind.ConstraintProposal]);
+      expect(resolved.reasons).toEqual([]);
+    });
+
+    it('still uses the schedule options intro when options came back', async () => {
+      expect(await finalIntro('{"options":[]}')).toBe('SCHEDULE_OPTIONS');
+    });
+  });
 });
