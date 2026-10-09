@@ -15,6 +15,7 @@ import { createScriptedModel, type ScriptedModel, type ScriptedStep } from '@caa
 import type { Conversation } from '@caa/domain';
 import { buildConversation, SYNTHETIC_SCHEDULE_TERM } from '@caa/test-kit';
 
+import type { ConversationModelMode } from '../config/env';
 import { bearer, buildWorldApp, STUDENTS, TOKENS } from './fixtures';
 import type { InMemoryStore } from './in-memory-repositories';
 
@@ -25,6 +26,8 @@ export const TURN_TERM_ID = SYNTHETIC_SCHEDULE_TERM.termId;
 export interface TurnHarnessOptions {
   /** The script; omit it for an app with chat off. */
   readonly steps?: readonly ScriptedStep[];
+  /** `CONVERSATION_MODEL` for the wiring's own choice; ignored when `steps` inject a model. */
+  readonly mode?: ConversationModelMode;
   readonly rateLimit?: number;
   readonly historyTurns?: number;
 }
@@ -84,6 +87,7 @@ export function setupTurnApp(options: TurnHarnessOptions = {}): TurnHarness {
     {},
     {
       ...(model === undefined ? {} : { conversationModel: model }),
+      ...(options.mode === undefined ? {} : { conversationMode: options.mode }),
       ...(options.rateLimit === undefined ? {} : { conversationRateLimit: options.rateLimit }),
       ...(options.historyTurns === undefined
         ? {}

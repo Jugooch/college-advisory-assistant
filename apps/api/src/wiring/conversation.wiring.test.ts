@@ -1,51 +1,57 @@
 /**
- * @file Tests of the wiring's model choice: off, demo, Claude, and the test seam. The production refusals
- * are tested with the configuration in `config/env.test.ts`.
+ * @file Tests of the wiring's model choice, through the built app: off, demo, and the test seam.
+ * The production refusals are tested with the configuration in `config/env.test.ts`.
  * @requirement FR-01
  * @requirement NFR-05
  */
 import { describe, expect, it } from 'vitest';
+import { z } from 'zod';
 
-import { createScriptedModel } from '@caa/assistant';
+import { ConversationResponseSchema } from '@caa/api-contract';
+import { AssistantTurnMetadataSchema, ModelStatus, NoticeCode } from '@caa/domain';
+import { SYNTHETIC_SCHEDULE_TERM } from '@caa/test-kit';
 
-import { loadApiEnv } from '../config/env';
-import { chooseConversationModel, DEMO_MODEL_ID, INJECTED_MODEL_ID } from './conversation.wiring';
+import { setupTurnApp } from '../testing/conversation-turn-harness';
+import { bearer, STUDENTS, TOKENS } from '../testing/fixtures';
 
-const BASE = {
-  APP_VERSION: 'test',
-  DATABASE_URL: 'postgres://unused.invalid/test',
-  AUTH_MODE: 'dev',
-  DEV_AUTH_TOKENS: '{}',
-};
+const modelIdOfStoredAnswer = (store: { conversationTurns?: readonly { metadata: unknown }[] }) =>
+  AssistantTurnMetadataSchema.parse(store.conversationTurns?.[1]?.metadata).modelId;
 
-const env = (extra: Record<string, string>) => loadApiEnv({ ...BASE, NODE_ENV: 'test', ...extra });
+describe('wireConversation model choice', () => {
+  it('is off by default: status unavailable and turns DISABLED', async () => {
+    const { app, post, store } = setupTurnApp();
 
-describe('chooseConversationModel', () => {
-  it('is off by default', () => {
-    expect(chooseConversationModel(env({}), undefined)).toBeNull();
-  });
-
-  it('picks the demo model', () => {
-    expect(chooseConversationModel(env({ CONVERSATION_MODEL: 'demo' }), undefined)?.modelId).toBe(
-      DEMO_MODEL_ID,
-    );
-  });
-
-  it('builds Claude from its key and model id', () => {
-    const chosen = chooseConversationModel(
-      env({ CONVERSATION_MODEL: 'claude', ANTHROPIC_API_KEY: 'synthetic-key' }),
-      undefined,
-    );
-
-    expect(chosen?.modelId).toBe('claude-haiku-5-5');
-  });
-
-  it('lets a test inject a model, even with chat configured off', () => {
-    const model = createScriptedModel([]);
-
-    expect(chooseConversationModel(env({}), model)).toEqual({
-      model,
-      modelId: INJECTED_MODEL_ID,
+    const status = await app.inject({
+      method: 'GET',
+      url: `/v1/students/${STUDENTS.own.id}/conversation?termId=${SYNTHETIC_SCHEDULE_TERM.termId}`,
+      headers: bearer(TOKENS.student),
     });
+    const { turn } = await post('Hello there');
+
+    const body = ConversationResponseSchema.parse(
+      z.object({ data: z.unknown() }).parse(status.json()).data,
+    );
+    expect(body.available).toBe(false);
+    expect(body.unavailableReason).toBe(NoticeCode.Disabled);
+    expect(turn?.turn.modelStatus).toBe(ModelStatus.Disabled);
+    expect(store.conversationTurns).toEqual([]);
+  });
+
+  it('records the demo model id when configured to demo', async () => {
+    const { post, store } = setupTurnApp({ mode: 'demo' });
+
+    const { status } = await post('What can I take next term?');
+
+    expect(status).toBe(200);
+    expect(modelIdOfStoredAnswer(store)).toBe('demo-model');
+  });
+
+  it('records the injected model id, even with chat configured off', async () => {
+    const { post, store } = setupTurnApp({ steps: [], mode: 'off' });
+
+    const { status } = await post('What can I take next term?');
+
+    expect(status).toBe(200);
+    expect(modelIdOfStoredAnswer(store)).toBe('injected-test-model');
   });
 });

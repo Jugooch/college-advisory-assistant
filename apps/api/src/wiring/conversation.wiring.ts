@@ -32,13 +32,13 @@ import type { PolicySearchService } from '../modules/policy-search/policy-search
 import type { ScheduleOptionsService } from '../modules/schedule-options/schedule-options.service';
 
 /** The model id recorded when a test injects a model. */
-export const INJECTED_MODEL_ID = 'injected-test-model';
+const INJECTED_MODEL_ID = 'injected-test-model';
 
 /** The model id recorded for the demo model. */
-export const DEMO_MODEL_ID = 'demo-model';
+const DEMO_MODEL_ID = 'demo-model';
 
 /** The chosen model and the id recorded with each turn. */
-export interface ChosenModel {
+interface ChosenModel {
   readonly model: ConversationModel;
   readonly modelId: string;
 }
@@ -51,7 +51,7 @@ export interface ChosenModel {
  * @param injected - A model a test supplies; it replaces the configured one.
  * @returns The model, or `null` when chat is off.
  */
-export function chooseConversationModel(
+function chooseConversationModel(
   env: ApiEnv,
   injected: ConversationModel | undefined,
 ): ChosenModel | null {

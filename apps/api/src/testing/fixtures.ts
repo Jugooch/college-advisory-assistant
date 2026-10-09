@@ -80,7 +80,11 @@ export function buildWorldApp(
   repositoryOverrides: Partial<Repositories> = {},
   settings: Pick<
     TestAppOptions,
-    'solverWorkCap' | 'conversationModel' | 'conversationRateLimit' | 'conversationHistoryTurns'
+    | 'solverWorkCap'
+    | 'conversationModel'
+    | 'conversationMode'
+    | 'conversationRateLimit'
+    | 'conversationHistoryTurns'
   > = {},
 ): {
   app: FastifyInstance;
