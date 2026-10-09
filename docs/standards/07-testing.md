@@ -2,17 +2,18 @@
 
 ## What must be tested
 
-| Code                           | Test type                                                                                        | Required                    |
-| ------------------------------ | ------------------------------------------------------------------------------------------------ | --------------------------- |
-| `packages/engine`              | Unit, every branch                                                                               | Yes. Coverage threshold 95% |
-| `packages/domain` models       | Unit: valid input, each invariant violation                                                      | Yes. Coverage threshold 90% |
-| API services                   | Unit with injected fakes                                                                         | Yes                         |
-| API routes                     | HTTP-level via `app.inject` for success and each error code                                      | Yes                         |
-| Repositories and mappers       | Mapper unit tests; repository integration tests (`*.integration.test.ts`) against Postgres       | Yes                         |
-| Worker jobs and adapters       | Unit with fixture batches, including malformed and out-of-order input                            | Yes                         |
-| Web components                 | Component tests for non-trivial logic and accessibility-relevant states                          | When logic exists           |
-| Acceptance cases (AC01 onward) | `tests/acceptance`, owned by QA                                                                  | One file per case           |
-| T06 AI evaluations             | `tests/evals/t06-<slug>.eval.test.ts`, owned by QA, run against the scripted model (ADR-0015 §9) | One file per dimension      |
+| Code                           | Test type                                                                                        | Required                       |
+| ------------------------------ | ------------------------------------------------------------------------------------------------ | ------------------------------ |
+| `packages/engine`              | Unit, every branch                                                                               | Yes. Coverage threshold 95%    |
+| `packages/domain` models       | Unit: valid input, each invariant violation                                                      | Yes. Coverage threshold 90%    |
+| API services                   | Unit with injected fakes                                                                         | Yes                            |
+| API routes                     | HTTP-level via `app.inject` for success and each error code                                      | Yes                            |
+| Repositories and mappers       | Mapper unit tests; repository integration tests (`*.integration.test.ts`) against Postgres       | Yes                            |
+| Worker jobs and adapters       | Unit with fixture batches, including malformed and out-of-order input                            | Yes                            |
+| Web components                 | Component tests for non-trivial logic and accessibility-relevant states                          | When logic exists              |
+| Acceptance cases (AC01 onward) | `tests/acceptance`, owned by QA                                                                  | One file per case              |
+| Browser end-to-end cases       | `tests/e2e/acNN-<slug>.e2e.ts`, owned by QA, Playwright with an axe check (ADR-0016)             | Core student and advisor flows |
+| T06 AI evaluations             | `tests/evals/t06-<slug>.eval.test.ts`, owned by QA, run against the scripted model (ADR-0015 §9) | One file per dimension         |
 
 Every bug fix adds a test that fails before the fix.
 
@@ -48,6 +49,16 @@ Code that talks to PostgreSQL is tested against a real database, not mocks.
 ## AI evaluations (T06)
 
 T06 evaluations live in `tests/evals/`, written by the QA engineer from planning/10 and planning/13, never by the author of the assistant detectors or templates. That includes the fixed crisis phrase list (ADR-0015 Amendment 1). Each case is a multi-turn session through `@caa/api/testing` with the scripted model from `@caa/assistant`, which can be made to misbehave on purpose (inject, misuse a tool, claim eligibility). Expectations are literal. A planning/10 release blocker (an invented minimum grade, CONDITIONAL or UNKNOWN shown as PASS, another student's or tenant's record, a saved plan called registered, a hidden source outage, a promised human reply) fails the run. `pnpm test` runs them in CI. `pnpm --filter @caa/tests eval:live` runs the same cases against the live model by hand. It is never part of CI or `pnpm verify`, and agents can't run it (ADR-0003).
+
+## Browser end-to-end tests
+
+ADR-0016 has the decision. In short:
+
+- **What.** Playwright on Chromium drives the real web app and API, with `AUTH_MODE=dev`, `CONVERSATION_MODEL=demo` and the dev seed. One acceptance case per file in `tests/e2e/`. The QA engineer writes them from planning/13, and expected results never come from the seed or the app.
+- **Imports.** Only the browser and `@caa/domain` enums. No `./testing` entry, no app or package code.
+- **Accessibility.** Each step that shows a new page or chat result runs `expectNoAxeViolations` (WCAG 2.2 AA tags). No axe rule is ever disabled. A violation becomes a frontend issue plus a known-findings entry (§Known findings).
+- **Determinism.** One worker and no retries. Each case uses its own synthetic student or builds its state through the UI. Never assert on the clock or on model prose; assert on verified blocks by role and heading.
+- **Where it runs.** The `E2E` CI job runs it. `pnpm verify` doesn't, because it needs a browser and a database. Locally, `pnpm e2e` works once the user has installed the browser outside the sandbox and Postgres is seeded. Agents never download browsers (ADR-0003). Without one, they push and read the `E2E` job and its trace artifact.
 
 ## Golden corpus
 
@@ -92,4 +103,5 @@ pnpm test               # all projects
 pnpm test:coverage      # with thresholds (CI runs this)
 pnpm vitest run packages/engine   # one workspace
 pnpm vitest run --project integration   # database tests (needs DATABASE_URL)
+pnpm e2e                # browser end-to-end (needs a seeded DATABASE_URL and Playwright's Chromium; not in verify)
 ```
