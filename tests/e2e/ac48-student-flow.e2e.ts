@@ -52,6 +52,35 @@ async function sendChat(page: Page, text: string): Promise<Locator> {
 }
 
 /**
+ * Checks that the assistant's own words in a turn carry no academic value: the intro and label
+ * paragraphs hold no digits or eligibility, credit, prerequisite, deadline, grade or pass wording.
+ *
+ * @param turn - The assistant turn.
+ */
+async function expectNoConsequentialProse(turn: Locator): Promise<void> {
+  await expect(turn.locator(':scope > p')).not.toContainText(
+    /\d|eligib|credit|prerequisite|deadline|grade|\bpass/i,
+  );
+}
+
+/**
+ * Counts the student's review cases by opening Help and cases in a second tab, so the form tab
+ * stays where it is.
+ *
+ * @param page - The browser page, on a screen whose URL names the student.
+ * @returns The number of "Review my plan" cases listed.
+ */
+async function countReviewCases(page: Page): Promise<number> {
+  const studentId = new URL(page.url()).searchParams.get('studentId') ?? '';
+  const other = await page.context().newPage();
+  await other.goto(`/help-and-cases?studentId=${studentId}`);
+  await expect(other.getByRole('heading', { level: 2, name: 'Your cases' })).toBeVisible();
+  const count = await other.getByRole('article').filter({ hasText: 'Review my plan' }).count();
+  await other.close();
+  return count;
+}
+
+/**
  * Step: sign in and open the overview.
  *
  * @param page - The browser page.
@@ -108,7 +137,7 @@ async function confirmNoFridaysChip(page: Page): Promise<void> {
 
   await chips.getByRole('button', { name: 'Confirm: Not available on Friday, all day.' }).click();
 
-  await expect(chips.getByText('added to the form.')).toBeVisible();
+  await expect(chips.getByRole('listitem').getByText('added to the form.')).toBeVisible();
   await expect(
     page
       .getByRole('group', { name: 'Unavailable time 1' })
@@ -147,7 +176,8 @@ async function confirmSearch(page: Page): Promise<void> {
  */
 async function askForOptions(page: Page): Promise<void> {
   const assistant = assistantOf(page);
-  await sendChat(page, 'Show me my options');
+  const turn = await sendChat(page, 'Show me my options');
+  await expectNoConsequentialProse(turn);
 
   const option = assistant.getByRole('article', { name: 'Option 1' });
   await expect(option).toBeVisible();
@@ -165,13 +195,14 @@ async function askForOptions(page: Page): Promise<void> {
 async function askPolicyQuestion(page: Page): Promise<void> {
   const turn = await sendChat(page, 'What is the policy on dropping a course?');
 
+  await expectNoConsequentialProse(turn);
   const hit = turn
     .getByRole('listitem')
-    .filter({ has: page.getByRole('term', { name: 'Revision' }) });
+    .filter({ has: page.getByText('Revision', { exact: true }) });
   await expect(hit.first()).toBeVisible();
-  await expect(hit.first().getByRole('heading')).toBeVisible();
-  await expect(hit.first().getByRole('term', { name: 'Effective' })).toBeVisible();
-  await expect(hit.first().getByRole('term', { name: 'Source' })).toBeVisible();
+  await expect(hit.first().getByRole('heading').first()).toBeVisible();
+  await expect(hit.first().getByText('Effective', { exact: true })).toBeVisible();
+  await expect(hit.first().getByText('Source', { exact: true })).toBeVisible();
   await expectNoAxeViolations(page);
 }
 
@@ -183,9 +214,10 @@ async function askPolicyQuestion(page: Page): Promise<void> {
 async function askAboutAid(page: Page): Promise<void> {
   const turn = await sendChat(page, 'Can I get financial aid for this term?');
 
+  await expectNoConsequentialProse(turn);
   await expect(turn.getByRole('note')).toBeVisible();
   await expect(turn.getByRole('article')).toHaveCount(0);
-  await expect(turn.getByRole('term', { name: 'Revision' })).toHaveCount(0);
+  await expect(turn.getByText('Revision', { exact: true })).toHaveCount(0);
   await expectNoAxeViolations(page);
 }
 
@@ -228,15 +260,18 @@ async function openCaseForm(page: Page): Promise<void> {
 }
 
 /**
- * Step: submit the case form.
+ * Step: submit the case form. No case exists until this button is pressed.
  *
  * @param page - The browser page.
+ * @param casesBefore - How many review cases were listed before the chat preview.
  */
-async function submitCase(page: Page): Promise<void> {
+async function submitCase(page: Page, casesBefore: number): Promise<void> {
+  expect(await countReviewCases(page)).toBe(casesBefore);
   await page.getByLabel('Your note for your advisor').fill('Please review my plan for next term.');
   await page.getByRole('button', { name: 'Send to my advisor' }).click();
 
   await expect(page.getByText('Case opened.')).toBeVisible({ timeout: SLOW_STEP_MS });
+  expect(await countReviewCases(page)).toBe(casesBefore + 1);
   await expectNoAxeViolations(page);
 }
 
@@ -272,9 +307,10 @@ acceptanceTest(
     await test.step('ask about financial aid and see the referral with no determination', () =>
       askAboutAid(page));
     await test.step('save a draft from an option', () => saveDraft(page));
+    const casesBefore = await countReviewCases(page);
     await test.step('ask for an advisor review and open the prefilled case form', () =>
       openCaseForm(page));
-    await test.step('submit the case form', () => submitCase(page));
+    await test.step('submit the case form', () => submitCase(page, casesBefore));
     await test.step('see the case as waiting for an advisor, with no transcript', () =>
       checkCaseListed(page));
   },
