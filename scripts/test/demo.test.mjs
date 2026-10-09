@@ -17,7 +17,7 @@ const SCRIPT = fileURLToPath(new URL('../demo.mjs', import.meta.url));
  * @returns {import('node:child_process').SpawnSyncReturns<string>} The result.
  */
 function runDemo(env) {
-  return spawnSync(process.execPath, [SCRIPT], {
+  return spawnSync(process.execPath, ['--import', 'tsx', SCRIPT], {
     env: { PATH: process.env.PATH ?? '', ...env },
     encoding: 'utf8',
     timeout: 20_000,

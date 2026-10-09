@@ -7,13 +7,20 @@
 import { SDK_RESTRICTION } from './layer-boundaries.mjs';
 
 const BASE_MESSAGE =
-  'scripts/ may import only the @caa/api-contract root entry (ADR-0016 Amendment 1, issue #617).';
+  'scripts/ may import only the @caa/api-contract root entry and assertResetAllowed from @caa/db (ADR-0016 Amendment 1, issue #617).';
 const TEST_MESSAGE =
-  'scripts tests may import only the @caa/api-contract root entry and @caa/db/testing (ADR-0016 Amendment 1, issue #617).';
+  'scripts tests may import only the @caa/api-contract root entry, assertResetAllowed from @caa/db, and @caa/db/testing (ADR-0016 Amendment 1, issue #617).';
 /** Relative or deep paths into `apps/` or `packages/` are never allowed. */
 const DEEP_PATH = {
   regex: '(^|/)(apps|packages)/',
   message: 'scripts/ must not reach into apps/ or packages/ by path (ADR-0016 Amendment 1).',
+};
+
+/** The `@caa/db` root entry is allowed for one named export only (ADR-0016 Amendment 1). */
+const DB_ROOT = {
+  name: '@caa/db',
+  allowImportNames: ['assertResetAllowed'],
+  message: 'scripts/ may import only assertResetAllowed from @caa/db (ADR-0016 Amendment 1).',
 };
 
 /**
@@ -26,21 +33,23 @@ const DEEP_PATH = {
 function scriptImports(allowed, message) {
   return [
     'error',
-    { patterns: [{ regex: `^@caa/(?!(${allowed})$)`, message }, DEEP_PATH, SDK_RESTRICTION] },
+    {
+      paths: [DB_ROOT],
+      patterns: [{ regex: `^@caa/(?!(${allowed})$)`, message }, DEEP_PATH, SDK_RESTRICTION],
+    },
   ];
 }
 
-// TODO(#614): also allow the local-database reset guard, a named import from the @caa/db root entry.
 /** Flat-config blocks for `scripts/**`; they must follow the generic test-file blocks. */
 export const scriptsRules = [
   {
     files: ['scripts/**/*.mjs'],
-    rules: { 'no-restricted-imports': scriptImports('api-contract', BASE_MESSAGE) },
+    rules: { 'no-restricted-imports': scriptImports('api-contract|db', BASE_MESSAGE) },
   },
   {
     files: ['scripts/**/*.test.mjs'],
     rules: {
-      'no-restricted-imports': scriptImports('api-contract|db/testing', TEST_MESSAGE),
+      'no-restricted-imports': scriptImports('api-contract|db|db/testing', TEST_MESSAGE),
     },
   },
 ];
