@@ -11,9 +11,9 @@ import { ApiError, ConversationTurnRequestSchema } from '@caa/api-contract';
 import { ErrorCode } from '@caa/domain';
 
 import { postConversationTurn } from '@/api/conversation.api';
-import { toFailureResult } from '@/shared/utils/action-failure';
 import { keepApiError } from '@/shared/utils/keep-api-error';
 
+import { toFailureResult } from '../utils/action-failure';
 import type { SendTurnResult } from '../utils/conversation-state';
 
 /**

@@ -272,6 +272,10 @@ describe('ChatPanel recovery', () => {
     const alert = await screen.findByRole('alert');
     expect(alert.textContent).toContain('Clear broke.');
     expect(screen.getByRole('list', { name: 'Conversation' })).toBeTruthy();
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Clear conversation' }));
+    await waitFor(() => {
+      expect(document.activeElement).toBe(
+        screen.getByRole('button', { name: 'Clear conversation' }),
+      );
+    });
   });
 });

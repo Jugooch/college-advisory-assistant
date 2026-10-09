@@ -1,6 +1,6 @@
 /**
  * @file The serializable shape a server action returns when the API answered with an error.
- * @module @caa/web/shared/utils/action-failure
+ * @module @caa/web/features/conversation/utils/action-failure
  * @see docs/standards/05-api-design.md
  */
 import type { ApiError } from '@caa/api-contract';

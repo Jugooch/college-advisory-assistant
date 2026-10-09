@@ -10,9 +10,9 @@ import { ApiError } from '@caa/api-contract';
 import { ErrorCode, TermIdSchema } from '@caa/domain';
 
 import { getConversation } from '@/api/conversation.api';
-import { toFailureResult } from '@/shared/utils/action-failure';
 import { keepApiError } from '@/shared/utils/keep-api-error';
 
+import { toFailureResult } from '../utils/action-failure';
 import type { ReloadResult } from '../utils/conversation-state';
 
 /**

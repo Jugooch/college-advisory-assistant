@@ -62,20 +62,21 @@ export default async function NextTermPlannerPage({
   if (student.kind !== 'valid') {
     return <StudentLookupScreen title="Plan next term" isIdInvalid={student.kind === 'invalid'} />;
   }
-  const id = student.studentId;
+  const studentId = student.studentId;
   // The summary comes first: its catalog entries give each variable-credit course's range.
-  const summary = await keepApiError(getAcademicSummary(id));
-  const terms = await keepApiError(getPlannableTerms(id));
-  const tid = readChatTerm(values.termId);
-  const chat = tid === null ? null : await keepApiError(getConversation(id, { termId: tid }));
+  const summary = await keepApiError(getAcademicSummary(studentId));
+  const terms = await keepApiError(getPlannableTerms(studentId));
+  const termId = readChatTerm(values.termId);
+  const chat = termId === null ? null : await keepApiError(getConversation(studentId, { termId }));
   const courses = summaryCourses(summary);
   const plan = planScheduleRequest(values, courses);
   const request = confirmedRequest(step, plan);
-  const found = request === null ? null : await keepApiError(findScheduleOptions(id, request));
+  const found =
+    request === null ? null : await keepApiError(findScheduleOptions(studentId, request));
   const view = planPlannerView(step, plan, found);
   return (
     <>
-      <StudentNav studentId={id} current="next-term-planner" />
+      <StudentNav studentId={studentId} current="next-term-planner" />
       <h1>Plan next term</h1>
       <p>Set up a search for next term. Nothing here registers you or changes your record.</p>
       <LoadNotices summary={summary} terms={terms} />
@@ -85,7 +86,7 @@ export default async function NextTermPlannerPage({
           courses={courses}
           renderSaveDraft={bindOptionDraftControl({
             saveAction: savePlanDraftAction,
-            studentId: id,
+            studentId: studentId,
             request,
             result: view.result,
           })}
@@ -93,7 +94,7 @@ export default async function NextTermPlannerPage({
       ) : null}
       <div className="planner-layout">
         <PlannerColumn
-          studentId={id}
+          studentId={studentId}
           view={view}
           values={values}
           plan={plan}
@@ -101,7 +102,7 @@ export default async function NextTermPlannerPage({
           terms={terms}
         />
         <ChatSection
-          studentId={id}
+          studentId={studentId}
           termId={values.termId}
           conversation={chat}
           plannerInputs={request}

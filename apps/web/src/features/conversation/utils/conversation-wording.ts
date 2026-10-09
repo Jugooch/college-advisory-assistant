@@ -44,3 +44,14 @@ export const CLEARED_ANNOUNCEMENT = 'Conversation cleared.';
 
 /** Shown when the message couldn't be read, so nothing was sent. */
 export const REJECTED_MESSAGE = 'That message couldn’t be sent. Check it and try again.';
+
+/** The text of the link to Help and cases. */
+export const HELP_LINK_TEXT = 'Open Help and cases';
+
+/** A reload shows a stored referral by its template only, so its wording can't be shown again. */
+export const STORED_REFERRAL_UNAVAILABLE =
+  'The assistant showed you a referral to a specialist office here. Its details aren’t saved with the conversation. Contact information is always available.';
+
+/** A reload shows a stored notice by its template only, so its wording can't be shown again. */
+export const STORED_NOTICE_UNAVAILABLE =
+  'The assistant showed you a notice here. Its wording isn’t saved with the conversation.';

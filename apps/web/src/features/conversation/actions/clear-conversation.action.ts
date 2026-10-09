@@ -10,9 +10,8 @@ import { ApiError } from '@caa/api-contract';
 import { ErrorCode, TermIdSchema } from '@caa/domain';
 
 import { clearConversation } from '@/api/conversation.api';
-import { toFailureResult } from '@/shared/utils/action-failure';
-import { keepApiError } from '@/shared/utils/keep-api-error';
 
+import { toFailureResult } from '../utils/action-failure';
 import type { ClearResult } from '../utils/conversation-state';
 
 /**
@@ -35,8 +34,13 @@ export async function clearConversationAction(
       requestId: null,
     };
   }
-  const result = await keepApiError(
-    clearConversation(studentId, { termId: parsed.data }).then(() => null),
-  );
-  return result instanceof ApiError ? toFailureResult(result) : { kind: 'cleared' };
+  try {
+    await clearConversation(studentId, { termId: parsed.data });
+    return { kind: 'cleared' };
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return toFailureResult(error);
+    }
+    throw error;
+  }
 }

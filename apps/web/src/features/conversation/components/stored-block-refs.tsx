@@ -14,6 +14,11 @@ import { AssistantBlockKind } from '@caa/domain';
 
 import { Timestamp } from '@/shared/components/timestamp';
 
+import {
+  HELP_LINK_TEXT,
+  STORED_NOTICE_UNAVAILABLE,
+  STORED_REFERRAL_UNAVAILABLE,
+} from '../utils/conversation-wording';
 import type { StudentLinks } from '../utils/student-links';
 
 /** Props for {@link StoredBlockRefs}. */
@@ -23,7 +28,9 @@ export interface StoredBlockRefsProps {
 }
 
 /**
- * Renders one line per reference that points to a screen; proposals and case previews have no
+ * Renders one line per reference. Screen results point to their screen. A stored referral or
+ * notice carries only a template id and code, not its wording, so it shows the "unavailable"
+ * notice with a link to Help and cases rather than vanishing. Proposals and case previews have no
  * past result to point to and are skipped.
  *
  * @param props - The references and the links.
@@ -58,6 +65,18 @@ export function StoredBlockRefs({ refs, links }: StoredBlockRefsProps): ReactEle
         return [
           <li key={key}>
             Policy results shown. <Link href={links.help}>Search policies again</Link>.
+          </li>,
+        ];
+      case AssistantBlockKind.Referral:
+        return [
+          <li key={key} role="note" className="notice notice--problem">
+            {STORED_REFERRAL_UNAVAILABLE} <Link href={links.help}>{HELP_LINK_TEXT}</Link>.
+          </li>,
+        ];
+      case AssistantBlockKind.Notice:
+        return [
+          <li key={key} role="note" className="notice notice--caution">
+            {STORED_NOTICE_UNAVAILABLE} <Link href={links.help}>{HELP_LINK_TEXT}</Link>.
           </li>,
         ];
       default:

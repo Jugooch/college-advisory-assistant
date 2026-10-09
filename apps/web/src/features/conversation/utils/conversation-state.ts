@@ -6,8 +6,7 @@
  */
 import type { AssistantTurnView, ConversationResponse } from '@caa/api-contract';
 
-import type { FailureResult } from '@/shared/utils/action-failure';
-
+import type { FailureResult } from './action-failure';
 import { REJECTED_MESSAGE } from './conversation-wording';
 
 /** The outcome of posting one turn. */

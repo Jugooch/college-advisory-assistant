@@ -80,7 +80,7 @@ export function ChatPanel({ clearAction, ...input }: ChatPanelProps): ReactEleme
             studentId={studentId}
             termId={termId}
             clearAction={clearAction}
-            isDisabled={items.length === 0}
+            isDisabled={items.length === 0 || chat.isPending}
             onCleared={chat.markCleared}
             onFailed={chat.setProblem}
           />

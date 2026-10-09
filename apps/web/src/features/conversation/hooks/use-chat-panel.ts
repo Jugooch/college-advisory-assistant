@@ -1,27 +1,19 @@
 /**
- * @file Client state for the chat panel: the message box, sending, the failure to show, and the
- * one polite announcement per turn.
+ * @file Client state for the chat panel: composes the transcript, feedback, send and reload.
  * @module @caa/web/features/conversation/hooks/use-chat-panel
  * @requirement FR-10
  * @requirement NFR-02
  * @see docs/adr/0015-conversation-orchestration-and-policy-corpus.md
  */
-import { type RefObject, type SubmitEvent, useRef, useState, useTransition } from 'react';
+import type { RefObject, SubmitEvent } from 'react';
 
 import type { ConversationResponse, ScheduleOptionsRequest } from '@caa/api-contract';
 
-import {
-  type ChatProblem,
-  problemFrom,
-  type ReloadResult,
-  type SendTurnResult,
-} from '../utils/conversation-state';
-import {
-  CLEARED_ANNOUNCEMENT,
-  CONFLICT_ANNOUNCEMENT,
-  REPLY_ANNOUNCEMENT,
-} from '../utils/conversation-wording';
-import { buildTurnRequest } from '../utils/turn-request';
+import type { ChatProblem, ReloadResult, SendTurnResult } from '../utils/conversation-state';
+import { CLEARED_ANNOUNCEMENT } from '../utils/conversation-wording';
+import { useChatFeedback } from './use-chat-feedback';
+import { useChatReload } from './use-chat-reload';
+import { useChatSend } from './use-chat-send';
 import { type ChatTranscript, useChatTranscript } from './use-chat-transcript';
 
 /** What {@link useChatPanel} needs. */
@@ -50,70 +42,36 @@ export interface ChatPanelState {
 }
 
 /**
- * Holds the panel's state. Only the message, the term, the latest sequence seen and the form's
- * confirmed inputs are sent; prior turns never are.
+ * Holds the panel's state by composing the focused hooks.
  *
- * @param input - The student, term, form inputs, initial transcript and the send action.
+ * @param input - The student, term, form inputs, initial transcript and the send and reload actions.
  * @returns The state and handlers.
  */
 export function useChatPanel(input: ChatPanelInput): ChatPanelState {
   const { studentId, termId, plannerInputs, initial, sendAction, reloadAction } = input;
   const transcript = useChatTranscript(initial);
-  const [message, setMessage] = useState('');
-  const [problem, setProblem] = useState<ChatProblem | null>(null);
-  const [announcement, setAnnouncement] = useState('');
-  const [isPending, startTransition] = useTransition();
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const finish = (text: string): void => {
-    setAnnouncement(text);
-    inputRef.current?.focus();
-  };
-  const reload = async (): Promise<void> => {
-    const reloaded = await reloadAction(studentId, termId);
-    if (reloaded.kind === 'loaded') {
-      transcript.reload(reloaded.conversation);
-      finish(CONFLICT_ANNOUNCEMENT);
-    } else {
-      setProblem(problemFrom(reloaded));
-      finish('');
-    }
-  };
-  const show = async (result: SendTurnResult, text: string): Promise<void> => {
-    if (result.kind === 'replied') {
-      transcript.addExchange(text, result.turn, result.lastSequence);
-      setMessage('');
-      finish(REPLY_ANNOUNCEMENT);
-    } else if (result.kind === 'conflict') {
-      await reload();
-    } else {
-      setProblem(problemFrom(result));
-      finish('');
-    }
-  };
-  const submit = (event: SubmitEvent<HTMLFormElement>): void => {
-    event.preventDefault();
-    const text = message.trim();
-    if (text === '' || isPending) {
-      return;
-    }
-    setProblem(null);
-    setAnnouncement('');
-    startTransition(async () => {
-      const request = buildTurnRequest({
-        termId,
-        message: text,
-        expectedSequence: transcript.sequence,
-        plannerInputs,
-      });
-      await show(await sendAction(studentId, request), text);
-    });
-  };
+  const feedback = useChatFeedback();
+  const reload = useChatReload({
+    studentId,
+    termId,
+    reloadAction,
+    transcript,
+    setProblem: feedback.setProblem,
+    finish: feedback.finish,
+  });
+  const send = useChatSend({
+    studentId,
+    termId,
+    plannerInputs,
+    sendAction,
+    transcript,
+    feedback,
+    reload,
+  });
   const markCleared = (): void => {
     transcript.empty();
-    setProblem(null);
-    finish(CLEARED_ANNOUNCEMENT);
+    feedback.setProblem(null);
+    feedback.finish(CLEARED_ANNOUNCEMENT);
   };
-  const state = { message, setMessage, problem, setProblem, announcement, isPending, inputRef };
-  return { ...state, transcript, submit, markCleared };
+  return { ...send, ...feedback, transcript, markCleared };
 }
