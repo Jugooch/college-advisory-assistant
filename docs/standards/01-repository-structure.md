@@ -31,6 +31,8 @@ api ──► api-contract, engine, db, assistant ──► domain
 worker ──► engine, db ──► domain
 ```
 
+Root tooling (`scripts/`) sits outside the product graph. It may import only `@caa/api-contract`, `@caa/db/testing` from `*.test.mjs` files, and the reset guard from `@caa/db` once #614 exports it (ADR-0016 Amendment 1).
+
 ESLint `no-restricted-imports` blocks every other direction. `packages/domain` depends on nothing but `zod`. A model provider SDK such as `@anthropic-ai/sdk` is imported only in `apps/api/src/adapters/` (ADR-0015 §1).
 
 ### Shared invariants
@@ -165,6 +167,8 @@ The API's composition root is `apps/api/src/container.ts` plus the files in `app
 - **Test entry points:** the one exception is a documented `./testing` subpath export (ADR-0009). It is a single file `src/testing.ts` (no nested `index.ts`), exported as `"./testing"` in the workspace's `package.json`, used only by tests, and never bundled into the production entry. It is allowed only in these workspaces:
   - `apps/api` (`@caa/api/testing`) and `apps/worker` (`@caa/worker/testing`): build the app with test dependencies.
   - `packages/db` (`@caa/db/testing`): write synthetic scenarios into the test database, because only `@caa/db` owns the tables and client.
+
+  Root `scripts/**/*.test.mjs` may consume `@caa/db/testing` too, to check demo data against the seed plan (ADR-0016 Amendment 1).
 
   Any other package or app needs an amendment to this list. Anything else under `src/` stays private.
 

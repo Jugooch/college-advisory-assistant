@@ -1,6 +1,6 @@
 # ADR-0016: Browser end-to-end tests and the one-command local demo
 
-- **Status:** Accepted 2026-10-09. The repo owner confirms or overrides the tech-lead choices listed on the S7 umbrella issue.
+- **Status:** Accepted 2026-10-09. The repo owner confirms or overrides the tech-lead choices listed on the S7 umbrella issue. Amendment 1 added 2026-10-09 (#583).
 - **Date:** 2026-10-09
 - **Deciders:** Tech lead; repo owner (sprint S7 decisions 1–2: a local demo only, no hosted environment)
 - **Related:** FR-01, FR-08, FR-11, FR-12, NFR-02, NFR-05; new AC48–AC51; T08; planning/11 (accessibility), planning/13 §Test families; ADR-0003, ADR-0009, ADR-0013, ADR-0015; standards 01, 06, 07, 08; issues #577 (umbrella), #578, #581–#585, #590–#593
@@ -68,3 +68,28 @@ The options for getting a browser were:
 - A second browser or a mobile viewport matrix is needed for a pilot (planning/13 T08). Add it as a Playwright project.
 - A hosted demo or staging environment is approved. That falls under E09, and it would replace the local-only guard in `pnpm demo`.
 - E2e runs exceed about 10 minutes, or flake. Then split them into projects or shard them, but never add retries that hide a failure.
+
+## Amendment 1 (2026-10-09, issue #583): what `pnpm demo` may import
+
+**Related:** standard 01 §Separation of concerns and §Test entry points, ADR-0009, issues #583 (PR #612), #614, #617.
+
+**Context.** §4 has the demo prepare state "through the real API", but no rule says what root `scripts/` may import. On `main`, nothing under `scripts/` imports a workspace package, and lint turns `no-restricted-imports` off for `scripts/**`. PR #612 needs two edges: the preparation step builds and checks its requests with `@caa/api-contract`, and a test compares the demo personas with `buildDemoSeedPlan` from `@caa/db/testing`. The options were:
+
+- **(a) Sanction exactly those edges** for the local demo, and have lint hold `scripts/**` to them.
+- **(b) Remove them.** Hand the persona test to the data-engineer and write the request bodies by hand. That copies the contract's schemas and the seed's identities into `scripts/`, which is the drift the review wants to prevent.
+
+**Decision: option (a).**
+
+- Root `scripts/**/*.mjs` may import `@caa/api-contract` (its root entry only), for the demo's preparation step. Workspace packages are declared in the root `devDependencies` as `workspace:*`, and `tsx` is a root `devDependency`. No deep or relative path into `apps/` or `packages/`.
+- Root `scripts/**/*.test.mjs` may also import `@caa/db/testing`, to keep demo data in step with the seed plan. A non-test script may not.
+- When #614 exports the local-database reset guard from `@caa/db`, scripts may import that one export from the `@caa/db` root entry to replace the copy in `scripts/lib/demo.mjs`.
+- No other `@caa/*` import from `scripts/`. Any further edge needs another amendment.
+- Devops (#617) replaces the blanket lint exception for `scripts/**` with a restriction to exactly these entries, with rule tests.
+
+**Consequences.**
+
+- The demo reuses the contract and the seed plan instead of copying them, so a contract or persona change fails a test, not a live demo.
+- Root tooling now depends on two product packages. The edges are narrow and point into the graph, never out of it: no product package imports `scripts/`.
+- Until #617 merges, review enforces the list. PR #612 may merge first.
+
+**Revisit when** `scripts/` needs another workspace import, or the demo moves to a hosted environment (E09).
