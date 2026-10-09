@@ -14,6 +14,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx src/seed/run-seed.ts",
     "db:seed:demo": "tsx src/seed/run-seed-demo.ts",
+    "db:reset": "tsx src/seed/run-reset.ts",
     "db:seed:revise": "tsx src/seed/run-revise.ts"
   },
   "dependencies": {

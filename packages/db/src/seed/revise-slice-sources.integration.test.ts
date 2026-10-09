@@ -53,7 +53,7 @@ describe('reviseSliceSources', () => {
     const snapshots = createStudentSnapshotRepository(testDatabase.db);
     const seeded = await snapshots.findLatest(TENANT, STUDENT);
 
-    const result = await reviseSliceSources(testDatabase.db, 'student', FIRST);
+    const result = await reviseSliceSources(testDatabase.db, { target: 'student' }, FIRST);
 
     const expected = buildStudentRevision(FIRST, STUDENT);
     const latest = await snapshots.findLatest(TENANT, STUDENT);
@@ -69,10 +69,10 @@ describe('reviseSliceSources', () => {
 
   it('makes another newer student revision on a re-run and none for the same run time', async () => {
     const snapshots = createStudentSnapshotRepository(testDatabase.db);
-    await reviseSliceSources(testDatabase.db, 'student', FIRST);
+    await reviseSliceSources(testDatabase.db, { target: 'student' }, FIRST);
 
-    const again = await reviseSliceSources(testDatabase.db, 'student', SECOND);
-    const repeat = await reviseSliceSources(testDatabase.db, 'student', SECOND);
+    const again = await reviseSliceSources(testDatabase.db, { target: 'student' }, SECOND);
+    const repeat = await reviseSliceSources(testDatabase.db, { target: 'student' }, SECOND);
 
     const latest = await snapshots.findLatest(TENANT, STUDENT);
     expect(again.published).toBe(true);
@@ -88,7 +88,11 @@ describe('reviseSliceSources', () => {
     const before = await snapshots.findLatest(TENANT, STUDENT);
 
     await expect(
-      reviseSliceSources(testDatabase.db, 'student', new Date(FIRST.getTime() - HOUR_MS)),
+      reviseSliceSources(
+        testDatabase.db,
+        { target: 'student' },
+        new Date(FIRST.getTime() - HOUR_MS),
+      ),
     ).rejects.toBeInstanceOf(ReviseNotNewerError);
 
     expect(await snapshots.findLatest(TENANT, STUDENT)).toEqual(before);
@@ -97,19 +101,23 @@ describe('reviseSliceSources', () => {
   it('appends a newer section snapshot with MATH 102 002 withdrawn, keeping the earlier one', async () => {
     const sections = createSectionSnapshotRepository(testDatabase.db);
 
-    const result = await reviseSliceSources(testDatabase.db, 'sections', FIRST);
+    const result = await reviseSliceSources(testDatabase.db, { target: 'sections' }, FIRST);
 
     const latest = await sections.findLatestPublished(TENANT, TERM);
     expect(result).toEqual({ target: 'sections', published: true });
     expect(latest).toEqual({ status: 'FOUND', snapshot: buildWithdrawnSectionSnapshot(FIRST) });
-    expect(await reviseSliceSources(testDatabase.db, 'sections', SECOND)).toMatchObject({
-      published: true,
-    });
-    expect(await reviseSliceSources(testDatabase.db, 'sections', SECOND)).toMatchObject({
-      published: false,
-    });
+    expect(await reviseSliceSources(testDatabase.db, { target: 'sections' }, SECOND)).toMatchObject(
+      {
+        published: true,
+      },
+    );
+    expect(await reviseSliceSources(testDatabase.db, { target: 'sections' }, SECOND)).toMatchObject(
+      {
+        published: false,
+      },
+    );
     await expect(
-      reviseSliceSources(testDatabase.db, 'sections', new Date(SEED_RUN.getTime())),
+      reviseSliceSources(testDatabase.db, { target: 'sections' }, new Date(SEED_RUN.getTime())),
     ).rejects.toBeInstanceOf(ReviseNotNewerError);
   });
 });
@@ -126,12 +134,12 @@ describe('reviseSliceSources edge cases', () => {
   });
 
   it('asks for the seed first when nothing is seeded, for both targets', async () => {
-    await expect(reviseSliceSources(testDatabase.db, 'student', FIRST)).rejects.toBeInstanceOf(
-      ReviseNotSeededError,
-    );
-    await expect(reviseSliceSources(testDatabase.db, 'sections', FIRST)).rejects.toBeInstanceOf(
-      ReviseNotSeededError,
-    );
+    await expect(
+      reviseSliceSources(testDatabase.db, { target: 'student' }, FIRST),
+    ).rejects.toBeInstanceOf(ReviseNotSeededError);
+    await expect(
+      reviseSliceSources(testDatabase.db, { target: 'sections' }, FIRST),
+    ).rejects.toBeInstanceOf(ReviseNotSeededError);
   });
 
   it('refuses when the latest revision is a tie, and writes nothing', async () => {
@@ -157,12 +165,12 @@ describe('reviseSliceSources edge cases', () => {
       linkedSectionGroups: [],
     });
 
-    await expect(reviseSliceSources(testDatabase.db, 'student', SECOND)).rejects.toBeInstanceOf(
-      ReviseNotNewerError,
-    );
-    await expect(reviseSliceSources(testDatabase.db, 'sections', SECOND)).rejects.toBeInstanceOf(
-      ReviseNotNewerError,
-    );
+    await expect(
+      reviseSliceSources(testDatabase.db, { target: 'student' }, SECOND),
+    ).rejects.toBeInstanceOf(ReviseNotNewerError);
+    await expect(
+      reviseSliceSources(testDatabase.db, { target: 'sections' }, SECOND),
+    ).rejects.toBeInstanceOf(ReviseNotNewerError);
     expect(
       await createStudentSnapshotRepository(testDatabase.db).findLatest(TENANT, STUDENT),
     ).toEqual({ status: 'AMBIGUOUS' });
