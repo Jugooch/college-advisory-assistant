@@ -18,14 +18,7 @@
  *
  * The fixing PR removes its entry, and nothing else in `tests/`.
  */
-export const KNOWN_FINDINGS: ReadonlyMap<string, number> = new Map<string, number>([
-  [
-    'AC51: blocks the student missing a prerequisite with FAIL MIN_GRADE_NOT_MET, never UNKNOWN or PASS',
-    609,
-  ],
-  ['AC51: leaves the pending transfer UNKNOWN with PENDING_TRANSFER, never PASS', 609],
-  ['AC51: reads the saved plan STALE with STUDENT_RECORD_SUPERSEDED after a newer record', 609],
-]);
+export const KNOWN_FINDINGS: ReadonlyMap<string, number> = new Map<string, number>([]);
 
 /** A key of the register: a golden case ID, or an acceptance case and its exact test title. */
 export const FINDING_KEY = /^(G[CH]-[A-Z]+-\d{3}|AC\d{2}: \S.*)$/;
