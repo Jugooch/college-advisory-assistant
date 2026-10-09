@@ -37,12 +37,12 @@ describe('sendTurnAction', () => {
 
   it('sends the checked request and returns the reply', async () => {
     const turn = buildAssistantTurnView();
-    vi.mocked(postConversationTurn).mockResolvedValue({ turn });
+    vi.mocked(postConversationTurn).mockResolvedValue({ turn, lastSequence: 2 });
 
     const result = await sendTurnAction(STUDENT_ID, REQUEST);
 
     expect(postConversationTurn).toHaveBeenCalledWith(STUDENT_ID, REQUEST);
-    expect(result).toEqual({ kind: 'replied', turn });
+    expect(result).toEqual({ kind: 'replied', turn, lastSequence: 2 });
   });
 
   it('passes the server lastSequence through when the reply carries it', async () => {

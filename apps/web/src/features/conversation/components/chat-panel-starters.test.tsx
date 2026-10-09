@@ -11,7 +11,6 @@ import {
   buildAssistantTurnView,
   buildConversationResponse,
   buildScheduleConstraintSet,
-  buildUnavailableConversationResponse,
   syntheticId,
 } from '@caa/test-kit';
 
@@ -28,13 +27,23 @@ const INPUTS = ScheduleOptionsRequestSchema.parse({
   constraints: buildScheduleConstraintSet(),
 });
 
+/** A chat-off conversation with no turns. */
+const UNAVAILABLE = buildConversationResponse({
+  available: false,
+  unavailableReason: 'DISABLED',
+  turns: [],
+  lastSequence: 0,
+});
+
 /**
  * Renders the panel with mock actions.
  *
  * @param initial - The initial conversation.
  * @returns The mocks.
  */
-function renderPanel(initial: ConversationResponse = buildConversationResponse({ turns: [] })) {
+function renderPanel(
+  initial: ConversationResponse = buildConversationResponse({ turns: [], lastSequence: 0 }),
+) {
   const sendAction = vi.fn<(studentId: string, request: unknown) => Promise<SendTurnResult>>();
   sendAction.mockResolvedValue({ kind: 'replied', turn: buildAssistantTurnView() });
   const reloadAction = vi.fn<(studentId: string, termId: string) => Promise<ReloadResult>>();
@@ -74,14 +83,14 @@ describe('ChatPanel starter prompts', () => {
   });
 
   it('hides the prompts once the transcript has a turn', () => {
-    renderPanel(buildConversationResponse());
+    renderPanel(buildConversationResponse({ lastSequence: 2 }));
 
     expect(screen.queryByText(EMPTY_CHAT_INTRO)).toBeNull();
     expect(screen.queryByRole('button', { name: 'Show me my options' })).toBeNull();
   });
 
   it('brings the prompts back after the conversation is cleared', async () => {
-    renderPanel(buildConversationResponse());
+    renderPanel(buildConversationResponse({ lastSequence: 2 }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Clear conversation' }));
     fireEvent.click(screen.getByRole('button', { name: 'Yes, clear it' }));
@@ -92,9 +101,17 @@ describe('ChatPanel starter prompts', () => {
   });
 
   it('shows no prompts when chat is unavailable', () => {
-    renderPanel(buildUnavailableConversationResponse());
+    renderPanel(UNAVAILABLE);
 
     expect(screen.getByText(UNAVAILABLE_MESSAGE)).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Show me my options' })).toBeNull();
+  });
+
+  it('shows only the unavailable message, with no input or clear control', () => {
+    renderPanel(UNAVAILABLE);
+
+    expect(screen.getByText(/Chat is unavailable right now/)).toBeTruthy();
+    expect(screen.queryByLabelText('Message to the assistant')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Clear conversation' })).toBeNull();
   });
 });
