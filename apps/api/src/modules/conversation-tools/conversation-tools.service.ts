@@ -20,6 +20,7 @@ import type { ScheduleOptionsRequest } from '@caa/api-contract';
 import {
   ALL_TOOLS,
   type ModelToolCall,
+  NOTICE_TEMPLATE_IDS,
   renderNotice,
   TEMPLATE_VERSION,
   type ToolName,
@@ -96,11 +97,11 @@ interface NamedResult {
 function toFailure(error: unknown): ToolResult {
   const code = error instanceof DomainError ? error.code : ErrorCode.InternalError;
   // SAFETY: a stale or unreachable source gets its own fixed notice, never a generic failure.
-  const { noticeCode, templateId } = failureNotice(code);
+  const noticeCode = failureNotice(code);
   return failedResult(
     code,
     buildNotice(noticeCode, {
-      id: templateId,
+      id: NOTICE_TEMPLATE_IDS[noticeCode],
       version: TEMPLATE_VERSION,
       text: renderNotice(noticeCode),
     }),

@@ -4,3 +4,5 @@ dist/
 .next/
 docs/planning/
 packages/db/migrations/
+playwright-report/
+test-results/
