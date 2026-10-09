@@ -49,6 +49,9 @@ const PLANNED_COURSE_CODES: readonly RegExp[] = [
 const VARIABLE_CREDIT_COURSE = 'DEMO-IND 390';
 const VARIABLE_CREDIT_CHOICE = '2.00';
 
+/** The whole flow's time limit, well above Playwright's 30 s default. */
+const FLOW_TIMEOUT_MS = 180_000;
+
 /** How long a search, a save or a chat reply may take in CI before the step fails. */
 const SLOW_STEP_MS = 30_000;
 
@@ -330,6 +333,8 @@ acceptanceTest(
   'AC48',
   'the student plans next term, asks for help and opens an advisor case',
   async ({ page }) => {
+    // One long flow through eleven pages on a development server that compiles on first visit.
+    test.setTimeout(FLOW_TIMEOUT_MS);
     await test.step('sign in and open the overview', () => signInAndOpenOverview(page));
     await test.step('open the planner and pick the term', () => openPlannerAndPickTerm(page));
     await test.step('write "no Fridays", see a preferred chip and confirm it', () =>
