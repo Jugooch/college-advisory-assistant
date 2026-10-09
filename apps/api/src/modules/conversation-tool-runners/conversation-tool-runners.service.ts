@@ -26,7 +26,6 @@ import {
 import {
   type Actor,
   AssistantBlockKind,
-  CaseReason,
   NoticeCode,
   ScheduleConstraintSetSchema,
   type StudentId,
@@ -38,8 +37,10 @@ import type { AcademicSummaryService } from '../academic-summary/academic-summar
 import {
   buildCasePreviewBlock,
   isValidCaseDraft,
+  pickCurrentPlan,
   type PreviewPlan,
   projectCasePreview,
+  reasonNeedsPlan,
 } from '../conversation-tool-case-preview/conversation-tool-case-preview.logic';
 import {
   projectAcademicSummary,
@@ -54,6 +55,7 @@ import {
   failedResult,
   INVALID_ARGUMENTS,
   PLANNER_INPUT_TEMPLATE_ID,
+  succeededResult,
   type ToolResult,
 } from '../conversation-tools/conversation-tools.logic';
 import type { PlanViewsService } from '../plan-views/plan-views.service';
@@ -104,20 +106,6 @@ function withArgs<Schema extends z.ZodType>(
   };
 }
 /**
- * Builds a successful result with one block and no notice.
- *
- * @param projection - The minimized result for the model.
- * @param block - The verified block for the student.
- * @returns The result.
- */
-function succeeded(
-  projection: ToolResult['projection'],
-  block: NonNullable<ToolResult['block']>,
-): ToolResult {
-  return { projection, block, notice: null, errorCode: null };
-}
-
-/**
  * Builds the fixed planner-input-needed result: no block, and the template notice.
  *
  * @returns The result.
@@ -147,7 +135,7 @@ function academicSummaryRunner(deps: ToolRunnersDependencies): ToolRunner {
     const summary = toAcademicSummaryResponse(
       await deps.academicSummary.getAcademicSummary(actor, studentId, context),
     );
-    return succeeded(projectAcademicSummary(summary), {
+    return succeededResult(projectAcademicSummary(summary), {
       kind: AssistantBlockKind.AcademicSummary,
       summary,
     });
@@ -164,7 +152,7 @@ function policyRunner(deps: ToolRunnersDependencies): ToolRunner {
   return withArgs(SearchApprovedPolicyArgsSchema, async ({ actor, args, context }) => {
     const { query, topic } = args;
     const results = await deps.policySearch.search(actor, { q: query, topic }, context);
-    return succeeded(projectPolicyResults(results), {
+    return succeededResult(projectPolicyResults(results), {
       kind: AssistantBlockKind.PolicyResults,
       results,
     });
@@ -186,7 +174,7 @@ function proposeConstraintsRunner(): ToolRunner {
     const set = ScheduleConstraintSetSchema.safeParse(proposed.map((item) => item.constraint));
     if (!set.success) return Promise.resolve(failedResult(INVALID_ARGUMENTS, null));
     return Promise.resolve(
-      succeeded(projectConstraintProposal(proposed), {
+      succeededResult(projectConstraintProposal(proposed), {
         kind: AssistantBlockKind.ConstraintProposal,
         constraints: proposed,
       }),
@@ -210,7 +198,7 @@ function requestPlanRunner(deps: ToolRunnersDependencies): ToolRunner {
       { ...inputs.data, studentId },
       context,
     );
-    return succeeded(projectScheduleOptions(result), {
+    return succeededResult(projectScheduleOptions(result), {
       kind: AssistantBlockKind.ScheduleOptions,
       result,
     });
@@ -232,7 +220,10 @@ function evidenceRunner(deps: ToolRunnersDependencies): ToolRunner {
       revision === undefined
         ? (await deps.planViews.getPlan(actor, { studentId, planId }, context)).latest
         : await deps.planViews.getRevision(actor, { studentId, planId, revision }, context);
-    return succeeded(projectPlanEvidence(plan), { kind: AssistantBlockKind.PlanEvidence, plan });
+    return succeededResult(projectPlanEvidence(plan), {
+      kind: AssistantBlockKind.PlanEvidence,
+      plan,
+    });
   });
 }
 
@@ -248,24 +239,22 @@ function draftCaseRunner(deps: ToolRunnersDependencies): ToolRunner {
     async ({ actor, studentId, plannerInputs, args, context }) => {
       const { reason, planId, discrepancySubject } = args;
       let plan: PreviewPlan | null = null;
-      if (planId === undefined && reason !== CaseReason.SourceDiscrepancy) {
-        // SECURITY: the model never holds a plan id, so the session student's own latest saved
-        // plan is resolved here, under the session's tenant and student.
-        const { plans } = await deps.planViews.listPlans(actor, studentId, context);
-        const termId = plannerInputs?.termId;
-        const current = plans.find((summary) => termId === undefined || summary.termId === termId);
-        if (current === undefined) return plannerInputNeeded();
-        plan = { planId: current.id, revision: current.latestRevision };
-      } else if (planId !== undefined) {
+      if (planId !== undefined) {
         // SECURITY: the plan is read under the session's student; another student's is NOT_FOUND.
         const view = await deps.planViews.getPlan(actor, { studentId, planId }, context);
         plan = { planId, revision: view.latest.revision };
+      } else if (reasonNeedsPlan(reason)) {
+        // SECURITY: the model never holds a plan id, so the session student's own saved plan is
+        // resolved here, under the session's tenant and student.
+        const { plans } = await deps.planViews.listPlans(actor, studentId, context);
+        plan = pickCurrentPlan(plans, plannerInputs?.termId);
+        if (plan === null) return plannerInputNeeded();
       }
       if (!isValidCaseDraft(reason, plan?.planId, discrepancySubject)) {
         return failedResult(INVALID_ARGUMENTS, null);
       }
       // SAFETY: a preview only. Nothing is created; the student submits through the case flow.
-      return succeeded(
+      return succeededResult(
         projectCasePreview(reason, plan !== null),
         buildCasePreviewBlock(reason, plan, discrepancySubject),
       );
