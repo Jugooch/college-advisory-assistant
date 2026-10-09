@@ -218,6 +218,21 @@ describe('ConversationTurnResponseSchema', () => {
       false,
     );
   });
+
+  it('accepts lastSequence when present or absent and rejects negative or fractional', () => {
+    const parse = (v: unknown) =>
+      ConversationTurnResponseSchema.safeParse({ turn: ANSWER, lastSequence: v }).success;
+    expect(ConversationTurnResponseSchema.safeParse({ turn: ANSWER }).success).toBe(true);
+    expect(parse(2)).toBe(true);
+    expect(parse(5)).toBe(true);
+    expect(parse(-1)).toBe(false);
+    expect(parse(1.5)).toBe(false);
+  });
+
+  it('rejects a lastSequence behind the turn', () => {
+    const behind = ConversationTurnResponseSchema.safeParse({ turn: ANSWER, lastSequence: 1 });
+    expect(behind.success).toBe(false);
+  });
 });
 
 describe('ConversationResponseSchema', () => {
@@ -266,5 +281,19 @@ describe('ConversationResponseSchema', () => {
   it('rejects ids and metadata on a turn view', () => {
     const leaky = { ...ASSISTANT_TURN, id: STUDENT_ID, metadata: {} };
     expect(accepts({ ...ok, turns: [leaky] })).toBe(false);
+  });
+
+  it('accepts lastSequence when present or absent and rejects negative or fractional', () => {
+    const parse = (v: unknown) => accepts({ ...ok, lastSequence: v });
+    expect(accepts(ok)).toBe(true);
+    expect(parse(2)).toBe(true);
+    expect(parse(5)).toBe(true);
+    expect(parse(-1)).toBe(false);
+    expect(parse(1.5)).toBe(false);
+  });
+
+  it('rejects a lastSequence behind the newest turn', () => {
+    expect(accepts({ ...ok, turns: [STUDENT_TURN, ASSISTANT_TURN], lastSequence: 1 })).toBe(false);
+    expect(accepts({ ...ok, turns: [STUDENT_TURN, ASSISTANT_TURN], lastSequence: 0 })).toBe(false);
   });
 });
