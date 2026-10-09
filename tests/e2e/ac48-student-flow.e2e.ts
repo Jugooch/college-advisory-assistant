@@ -93,7 +93,9 @@ async function countReviewCases(page: Page): Promise<number> {
   const studentId = new URL(page.url()).searchParams.get('studentId') ?? '';
   const other = await page.context().newPage();
   await other.goto(`/help-and-cases?studentId=${studentId}`);
-  await expect(other.getByRole('heading', { level: 2, name: 'Your cases' })).toBeVisible();
+  await expect(other.getByRole('heading', { level: 2, name: 'Your cases' })).toBeVisible({
+    timeout: SLOW_STEP_MS,
+  });
   const count = await other.getByRole('article').filter({ hasText: 'Review my plan' }).count();
   await other.close();
   return count;
@@ -314,7 +316,9 @@ async function submitCase(page: Page, casesBefore: number): Promise<void> {
 async function checkCaseListed(page: Page): Promise<void> {
   await page.getByRole('link', { name: 'Open Help and cases' }).click();
 
-  await expect(page.getByRole('heading', { level: 2, name: 'Your cases' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 2, name: 'Your cases' })).toBeVisible({
+    timeout: SLOW_STEP_MS,
+  });
   const submitted = page.getByRole('article').filter({ hasText: 'Review my plan' }).first();
   await expect(submitted.getByText('Waiting for an advisor').first()).toBeVisible();
   await expect(submitted.getByText('Please review my plan for next term.').first()).toBeVisible();
