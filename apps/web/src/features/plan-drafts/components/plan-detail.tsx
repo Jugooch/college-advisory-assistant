@@ -14,16 +14,16 @@ import type { ReactElement, ReactNode } from 'react';
 
 import type { PlanRevisionView, PlanView, ScheduleOptionsResponse } from '@caa/api-contract';
 
+import { FreshnessBanner } from '@/shared/components/freshness-banner';
+import { ResultSection } from '@/shared/components/result-section';
 import { Timestamp } from '@/shared/components/timestamp';
-
 import {
   EARLIER_REVISION_LABEL,
   EARLIER_REVISION_NOTE,
   PLAN_BOUNDARY_NOTE,
-} from '../utils/plan-detail-wording';
+} from '@/shared/utils/plan-detail-wording';
+
 import type { RevalidateState } from '../utils/revalidate-state';
-import { FreshnessBanner } from './freshness-banner';
-import { ResultSection } from './result-section';
 import { RevalidateForm } from './revalidate-form';
 import { RevisionHistory } from './revision-history';
 

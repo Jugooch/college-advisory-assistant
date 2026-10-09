@@ -10,8 +10,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { CaseStatus } from '@caa/domain';
 import { buildCaseView } from '@caa/test-kit';
 
+import { describeCaseStatus } from '@/shared/utils/case-wording';
+
 import type { CaseSummary } from '../utils/case-summary';
-import { describeCaseStatus } from '../utils/case-wording';
 import { NO_OPEN_CASES, OpenCaseSummary } from './open-case-summary';
 
 /**

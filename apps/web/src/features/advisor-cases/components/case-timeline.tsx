@@ -11,8 +11,7 @@ import type { ReactElement } from 'react';
 import type { CaseEventView } from '@caa/api-contract';
 
 import { Timestamp } from '@/shared/components/timestamp';
-
-import { describeAction, describeActor } from '../utils/case-wording';
+import { describeAction, describeActor } from '@/shared/utils/case-wording';
 
 /** Props for {@link CaseTimeline}. */
 export interface CaseTimelineProps {

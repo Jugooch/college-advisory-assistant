@@ -12,8 +12,7 @@ import type { CaseEventView } from '@caa/api-contract';
 import { Role } from '@caa/domain';
 
 import { Timestamp } from '@/shared/components/timestamp';
-
-import { ADVICE_NOT_PERMISSION, describeResolution } from '../utils/case-wording';
+import { ADVICE_NOT_PERMISSION, describeResolution } from '@/shared/utils/case-wording';
 
 /** Props for {@link CaseResolution}. */
 export interface CaseResolutionProps {

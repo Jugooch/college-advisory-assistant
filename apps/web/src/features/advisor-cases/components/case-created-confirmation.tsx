@@ -11,8 +11,8 @@ import Link from 'next/link';
 import type { ReactElement, Ref } from 'react';
 
 import { Timestamp } from '@/shared/components/timestamp';
+import { describeCaseStatus } from '@/shared/utils/case-wording';
 
-import { describeCaseStatus } from '../utils/case-wording';
 import type { CreateCaseState } from '../utils/create-case-state';
 
 /** Props for {@link CaseCreatedConfirmation}. */

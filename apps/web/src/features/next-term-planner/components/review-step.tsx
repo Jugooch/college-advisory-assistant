@@ -7,8 +7,10 @@
  */
 import type { ReactElement } from 'react';
 
-import type { ReviewedConstraint } from '../utils/constraint-wording';
-import { type PlannerFormValues, PlannerStep } from '../utils/planner-fields';
+import type { ReviewedConstraint } from '@/shared/utils/constraint-wording';
+import { PlannerStep } from '@/shared/utils/planner-query-names';
+
+import { type PlannerFormValues } from '../utils/planner-fields';
 import { HiddenValues } from './hidden-values';
 
 /** Props for {@link ReviewStep}. */

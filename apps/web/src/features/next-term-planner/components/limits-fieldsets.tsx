@@ -9,7 +9,9 @@ import type { ReactElement } from 'react';
 
 import { SectionModality } from '@caa/domain';
 
-import { plannerFieldId, type PlannerFormValues, slotFieldName } from '../utils/planner-fields';
+import { slotFieldName } from '@/shared/utils/planner-query-names';
+
+import { plannerFieldId, type PlannerFormValues } from '../utils/planner-fields';
 import { StrengthField } from './strength-field';
 
 /** Props shared by the fieldsets. */

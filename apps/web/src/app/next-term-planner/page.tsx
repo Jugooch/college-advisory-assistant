@@ -28,9 +28,9 @@ import {
 import { confirmedRequest, planPlannerView } from '@/features/next-term-planner/utils/planner-view';
 import { savePlanDraftAction } from '@/features/plan-drafts/actions/save-plan-draft.action';
 import { bindOptionDraftControl } from '@/features/plan-drafts/components/option-draft-control';
-import { ScheduleResults } from '@/features/schedule-options/components/schedule-results';
 import { StudentLookupScreen } from '@/features/session/components/student-lookup-screen';
 import { StudentNav } from '@/features/student-navigation/components/student-nav';
+import { ScheduleResults } from '@/shared/components/schedule-results';
 import { summaryCourses } from '@/shared/utils/course-display';
 import { keepApiError } from '@/shared/utils/keep-api-error';
 

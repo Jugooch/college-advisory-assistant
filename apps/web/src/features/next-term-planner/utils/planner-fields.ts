@@ -1,38 +1,16 @@
 /**
- * @file The planner form's fields: the step, the constraint slots, their query names, and the
- * raw values a submission carries. Names only; nothing here is validated.
+ * @file The planner form's raw values and element ids. The step, slot and query names live in
+ * `shared/utils/planner-query-names`. Names only; nothing here is validated.
+ * The raw values a submission carries. Names only; nothing here is validated.
  * @module @caa/web/features/next-term-planner/utils/planner-fields
  * @requirement FR-08
  * @see docs/planning/11-ux-and-accessibility-design.md
  */
-
-/** Which step of the planner a submission asks for. */
-export const PlannerStep = {
-  /** Show the form, filled with the submitted values. */
-  Edit: 'edit',
-  /** Check the values and list the constraints for the student to confirm. */
-  Review: 'review',
-  /** Search with the confirmed constraints. */
-  Search: 'search',
-} as const;
-
-/** Union of every {@link PlannerStep} value. */
-export type PlannerStep = (typeof PlannerStep)[keyof typeof PlannerStep];
-
-/** The unavailable-time block slots the form offers, in form order. */
-export const TIME_BLOCK_SLOTS = ['block1', 'block2', 'block3'] as const;
-
-/** One constraint slot of the form; each slot states at most one constraint. */
-export type ConstraintSlot =
-  (typeof TIME_BLOCK_SLOTS)[number] | 'credit-range' | 'modality' | 'campus';
-
-/** Every constraint slot, in form order, which is also the order of the default priorities. */
-export const CONSTRAINT_SLOTS: readonly ConstraintSlot[] = [
-  ...TIME_BLOCK_SLOTS,
-  'credit-range',
-  'modality',
-  'campus',
-];
+import {
+  CONSTRAINT_SLOTS,
+  type ConstraintSlot,
+  type TIME_BLOCK_SLOTS,
+} from '@/shared/utils/planner-query-names';
 
 /** How strict a slot is and its priority, as typed. */
 export interface StrengthInput {
@@ -62,17 +40,6 @@ export interface PlannerFormValues {
   readonly creditRange: StrengthInput & { readonly min: string; readonly max: string };
   readonly modality: StrengthInput & { readonly values: readonly string[] };
   readonly campus: StrengthInput & { readonly text: string };
-}
-
-/**
- * Names the query field of one part of a slot.
- *
- * @param slot - The constraint slot.
- * @param part - The part, for example `strength` or `start`.
- * @returns For example `block1-start`.
- */
-export function slotFieldName(slot: ConstraintSlot, part: string): string {
-  return `${slot}-${part}`;
 }
 
 /**

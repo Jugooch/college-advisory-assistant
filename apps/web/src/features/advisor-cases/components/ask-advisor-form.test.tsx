@@ -16,7 +16,8 @@ import {
   syntheticId,
 } from '@caa/test-kit';
 
-import { CHAT_NOT_SHARED, WHO_SEES_THIS } from '../utils/case-wording';
+import { CHAT_NOT_SHARED, WHO_SEES_THIS } from '@/shared/utils/case-wording';
+
 import { CASE_REQUEST_FIELD, parseCreateCaseForm } from '../utils/create-case-form';
 import type { CreateCaseState } from '../utils/create-case-state';
 import { AskAdvisorForm } from './ask-advisor-form';

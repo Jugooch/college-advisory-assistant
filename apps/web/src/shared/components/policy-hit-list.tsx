@@ -11,13 +11,14 @@ import type { ReactElement } from 'react';
 import type { PolicyHit } from '@caa/api-contract';
 
 import { Timestamp } from '@/shared/components/timestamp';
+import { type HeadingLevel, headingTag } from '@/shared/utils/heading-level';
 
 /** Props for {@link PolicyHitList}. */
 export interface PolicyHitListProps {
   /** Hits exactly as the API returned them. */
   readonly hits: readonly PolicyHit[];
   /** Heading level for each hit's title. */
-  readonly headingLevel: 3 | 4;
+  readonly headingLevel: HeadingLevel;
 }
 
 /**
@@ -29,7 +30,7 @@ export interface PolicyHitListProps {
  * @returns The list.
  */
 export function PolicyHitList({ hits, headingLevel }: PolicyHitListProps): ReactElement {
-  const Heading = headingLevel === 3 ? 'h3' : 'h4';
+  const Heading = headingTag(headingLevel);
   return (
     <ul className="policy-hit-list">
       {hits.map((hit) => (

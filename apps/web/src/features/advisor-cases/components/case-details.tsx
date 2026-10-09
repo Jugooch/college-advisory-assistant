@@ -14,8 +14,8 @@ import type { CaseView } from '@caa/api-contract';
 
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Timestamp } from '@/shared/components/timestamp';
+import { describeSubject } from '@/shared/utils/case-wording';
 
-import { describeSubject } from '../utils/case-wording';
 import {
   describeCaseStanding,
   describeQueueStatus,

@@ -17,9 +17,10 @@ import {
 
 import type { CourseLookup } from '@/shared/utils/course-display';
 import { planCreditSelections } from '@/shared/utils/credit-selections';
+import { type ConstraintSlot, slotFieldName, SlotPart } from '@/shared/utils/planner-query-names';
 
 import { type FieldError, readConstraintSlots } from './constraint-slots';
-import { type ConstraintSlot, type PlannerFormValues, slotFieldName } from './planner-fields';
+import { type PlannerFormValues } from './planner-fields';
 
 /** One thing that stops the search, for the error summary and, when it has one, its field. */
 export interface PlannerIssue {
@@ -43,13 +44,13 @@ export interface PlannerPlan {
 const DUPLICATE_RANK_MESSAGE = 'Give each preference a different priority number.';
 
 /** The part of a slot each constraint field belongs to. */
-const PART_BY_KEY: Readonly<Record<string, string>> = {
-  weekdays: 'day',
-  startTime: 'start',
-  endTime: 'end',
-  priorityRank: 'rank',
-  minCreditsHundredths: 'min',
-  maxCreditsHundredths: 'max',
+const PART_BY_KEY: Readonly<Record<string, SlotPart>> = {
+  weekdays: SlotPart.Day,
+  startTime: SlotPart.Start,
+  endTime: SlotPart.End,
+  priorityRank: SlotPart.Rank,
+  minCreditsHundredths: SlotPart.Min,
+  maxCreditsHundredths: SlotPart.Max,
 };
 
 /** What to tell the student for each part a parsed constraint can reject. */
@@ -74,7 +75,7 @@ function fieldFor(slot: ConstraintSlot, key: string | number | symbol | undefine
   if (slot === 'campus' || slot === 'modality') {
     return slot;
   }
-  return slotFieldName(slot, PART_BY_KEY[String(key)] ?? 'strength');
+  return slotFieldName(slot, PART_BY_KEY[String(key)] ?? SlotPart.Strength);
 }
 
 /**

@@ -21,10 +21,10 @@ import { revalidatePlanAction } from '@/features/plan-drafts/actions/revalidate-
 import { PlanDetail } from '@/features/plan-drafts/components/plan-detail';
 import { readPlanIdParam } from '@/features/plan-drafts/utils/plan-id-param';
 import { readRevisionQuery } from '@/features/plan-drafts/utils/revision-query';
-import { ScheduleResults } from '@/features/schedule-options/components/schedule-results';
 import { StudentLookupForm } from '@/features/session/components/student-lookup-form';
 import { StudentNav } from '@/features/student-navigation/components/student-nav';
 import { ApiErrorNotice } from '@/shared/components/api-error-notice';
+import { ScheduleResults } from '@/shared/components/schedule-results';
 import { keepApiError } from '@/shared/utils/keep-api-error';
 import { readStudentIdQuery } from '@/shared/utils/student-id-query';
 

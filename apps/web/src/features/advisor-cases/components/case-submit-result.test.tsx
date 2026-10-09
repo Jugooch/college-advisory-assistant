@@ -8,9 +8,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { ErrorCode } from '@caa/domain';
 
+import { FORM_REJECTED, OPEN_CASE_EXISTS } from '@/shared/utils/case-wording';
 import { describeError } from '@/shared/utils/error-code-wording';
 
-import { FORM_REJECTED, OPEN_CASE_EXISTS } from '../utils/case-wording';
 import { CaseSubmitResult, type CaseSubmitResultProps } from './case-submit-result';
 
 const CASES_HREF = '/help-and-cases?studentId=abc';

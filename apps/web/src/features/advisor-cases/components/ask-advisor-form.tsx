@@ -13,10 +13,10 @@ import type { PlanRevisionView } from '@caa/api-contract';
 import { CaseReason } from '@caa/domain';
 
 import { Timestamp } from '@/shared/components/timestamp';
+import { CHAT_NOT_SHARED, describeCaseReason, WHO_SEES_THIS } from '@/shared/utils/case-wording';
 import { indexCourses } from '@/shared/utils/course-display';
 
 import { buildPlanCaseRequest } from '../utils/case-request';
-import { CHAT_NOT_SHARED, describeCaseReason, WHO_SEES_THIS } from '../utils/case-wording';
 import type { CreateCaseState } from '../utils/create-case-state';
 import { listSharedChecks } from '../utils/shared-checks';
 import { CaseFormShell } from './case-form-shell';
@@ -36,8 +36,46 @@ export interface AskAdvisorFormProps {
   readonly studentId: string;
   /** The revision the case will freeze, exactly as the API returned it. */
   readonly revision: PlanRevisionView;
+  /** The reason to preselect; the student can change it. */
+  readonly initialReason?: (typeof PLAN_REASONS)[number];
   /** Link to the student's Help and cases page. */
   readonly casesHref: string;
+}
+
+/**
+ * The reason choice.
+ *
+ * @param props - The chosen reason and its change handler.
+ * @returns The fieldset.
+ */
+function ReasonFields({
+  reason,
+  onChange,
+}: {
+  readonly reason: (typeof PLAN_REASONS)[number];
+  readonly onChange: (reason: (typeof PLAN_REASONS)[number]) => void;
+}): ReactElement {
+  return (
+    <fieldset>
+      <legend>What do you want help with?</legend>
+      {PLAN_REASONS.map((option) => (
+        <p key={option}>
+          <label>
+            <input
+              type="radio"
+              name="reason"
+              value={option}
+              checked={reason === option}
+              onChange={() => {
+                onChange(option);
+              }}
+            />{' '}
+            {describeCaseReason(option)}
+          </label>
+        </p>
+      ))}
+    </fieldset>
+  );
 }
 
 /**
@@ -50,10 +88,10 @@ export function AskAdvisorForm({
   createAction,
   studentId,
   revision,
+  initialReason = CaseReason.PlanReview,
   casesHref,
 }: AskAdvisorFormProps): ReactElement {
-  const [reason, setReason] = useState<(typeof PLAN_REASONS)[number]>(CaseReason.PlanReview);
-  const courses = indexCourses(revision.result?.courses);
+  const [reason, setReason] = useState<(typeof PLAN_REASONS)[number]>(initialReason);
   return (
     <CaseFormShell
       createAction={createAction}
@@ -63,27 +101,7 @@ export function AskAdvisorForm({
       noteLabel="Your note for your advisor"
       noteHint="Say what you want help with. Keep it short."
       buildRequest={(note) => buildPlanCaseRequest(reason, revision.id, note)}
-      fields={
-        <fieldset>
-          <legend>What do you want help with?</legend>
-          {PLAN_REASONS.map((option) => (
-            <p key={option}>
-              <label>
-                <input
-                  type="radio"
-                  name="reason"
-                  value={option}
-                  checked={reason === option}
-                  onChange={() => {
-                    setReason(option);
-                  }}
-                />{' '}
-                {describeCaseReason(option)}
-              </label>
-            </p>
-          ))}
-        </fieldset>
-      }
+      fields={<ReasonFields reason={reason} onChange={setReason} />}
       renderPreview={(request) => (
         <section aria-labelledby="ask-preview-heading">
           <h2 id="ask-preview-heading">What will be shared</h2>
@@ -93,7 +111,10 @@ export function AskAdvisorForm({
             </li>
             <li>
               Checks that did not pass on this revision:
-              <SharedChecksList checks={listSharedChecks(revision)} courses={courses} />
+              <SharedChecksList
+                checks={listSharedChecks(revision)}
+                courses={indexCourses(revision.result?.courses)}
+              />
             </li>
             <li>
               Your note: <NotePreview note={request.studentNote} />
