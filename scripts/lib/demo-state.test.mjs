@@ -10,6 +10,7 @@ import {
   SavePlanRequestSchema,
   ScheduleOptionsRequestSchema,
 } from '@caa/api-contract';
+import { buildDemoSeedPlan } from '@caa/db/testing';
 
 import {
   buildDiscrepancyBody,
@@ -95,6 +96,26 @@ describe('pickers and bodies', () => {
       planRevisionId: null,
       discrepancySubject: 'COURSE_ATTEMPT',
     });
+  });
+});
+
+describe('buildScheduleRequest', () => {
+  const request = buildScheduleRequest('t4');
+  const { courses, policy } = buildDemoSeedPlan(new Date('2026-10-01T12:00:00.000Z')).academic;
+  const byId = new Map(courses.map((course) => [course.id, course]));
+
+  it('reaches the seed policy term minimum', () => {
+    const selected = new Map(
+      request.creditSelections.map((pick) => [pick.courseId, pick.selectedCreditsHundredths]),
+    );
+    const counted = request.courseIds.map((id) => byId.get(id));
+    expect(counted.every((course) => course !== undefined)).toBe(true);
+    // NOTE: a course whose credits are included in another's counts once, under the lecture.
+    const total = counted
+      .filter((course) => course.creditsIncludedInCourseId === null)
+      .reduce((sum, course) => sum + (course.creditsHundredths ?? selected.get(course.id)), 0);
+    expect(total).toBeGreaterThanOrEqual(policy.termCreditBounds.minCreditsHundredths);
+    expect(total).toBeLessThanOrEqual(policy.termCreditBounds.maxCreditsHundredths);
   });
 });
 
