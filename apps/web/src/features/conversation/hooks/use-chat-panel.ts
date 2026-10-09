@@ -40,6 +40,8 @@ export interface ChatPanelState {
   readonly submit: (event: SubmitEvent<HTMLFormElement>) => void;
   /** Empties the transcript after a clear, announces it, and returns focus to the input. */
   readonly markCleared: () => void;
+  /** Puts a starter prompt in the message box and focuses it, without sending. */
+  readonly chooseStarter: (text: string) => void;
 }
 
 /**
@@ -74,5 +76,9 @@ export function useChatPanel(input: ChatPanelInput): ChatPanelState {
     feedback.setProblem(null);
     feedback.finish(CLEARED_ANNOUNCEMENT);
   };
-  return { ...send, ...feedback, transcript, markCleared };
+  const chooseStarter = (text: string): void => {
+    send.setMessage(text);
+    feedback.inputRef.current?.focus();
+  };
+  return { ...send, ...feedback, transcript, markCleared, chooseStarter };
 }

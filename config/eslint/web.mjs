@@ -203,6 +203,8 @@ export const webRules = [
     settings: { next: { rootDir: 'apps/web' } },
     rules: {
       ...jsxA11y.flatConfigs.strict.rules,
+      // A scrollable labelled region must take focus so keyboards can scroll it (WCAG 2.1.1).
+      'jsx-a11y/no-noninteractive-tabindex': ['error', { roles: ['region'], tags: [] }],
       ...nextPlugin.configs.recommended.rules,
       ...nextPlugin.configs['core-web-vitals'].rules,
       'react-hooks/rules-of-hooks': 'error',
