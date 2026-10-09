@@ -88,6 +88,8 @@ export function buildStoredAssistantTurnView(
 /**
  * Builds a valid available conversation response with one student turn and one answer.
  *
+ * `lastSequence` defaults to the sequence of the last turn, or 0 when there are no turns.
+ *
  * @param overrides - Fields to replace in the default. `unavailableReason` must be `DISABLED`
  *   exactly when `available` is `false`.
  * @returns A validated conversation response.
@@ -95,11 +97,13 @@ export function buildStoredAssistantTurnView(
 export function buildConversationResponse(
   overrides: Partial<ConversationResponseInput> = {},
 ): ConversationResponse {
+  const turns = overrides.turns ?? [buildStudentTurnView(), buildStoredAssistantTurnView()];
   return ConversationResponseSchema.parse({
     available: true,
     unavailableReason: null,
-    turns: [buildStudentTurnView(), buildStoredAssistantTurnView()],
+    lastSequence: turns.at(-1)?.sequence ?? 0,
     ...overrides,
+    turns,
   });
 }
 

@@ -52,6 +52,17 @@ describe('buildConversationResponse', () => {
 
     expect(ConversationResponseSchema.safeParse(response).success).toBe(true);
     expect(response.turns.map((turn) => turn.sequence)).toEqual([1, 2]);
+    expect(response.lastSequence).toBe(2);
+  });
+
+  it('derives lastSequence from the last turn it is given', () => {
+    const response = buildConversationResponse({ turns: [buildStudentTurnView()] });
+
+    expect(response.lastSequence).toBe(1);
+  });
+
+  it('keeps an explicit lastSequence', () => {
+    expect(buildConversationResponse({ lastSequence: 7 }).lastSequence).toBe(7);
   });
 
   it('builds the unavailable response with reason DISABLED', () => {
@@ -59,6 +70,7 @@ describe('buildConversationResponse', () => {
       available: false,
       unavailableReason: 'DISABLED',
       turns: [],
+      lastSequence: 0,
     });
   });
 
