@@ -9,8 +9,6 @@
 import type { Metadata } from 'next';
 import type { ReactElement } from 'react';
 
-import type { ApiError, ConversationResponse } from '@caa/api-contract';
-
 import { getAcademicSummary } from '@/api/academic-summary.api';
 import { getConversation } from '@/api/conversation.api';
 import { getPlannableTerms } from '@/api/plannable-terms.api';
@@ -21,6 +19,7 @@ import { sendTurnAction } from '@/features/conversation/actions/send-turn.action
 import { ChatSection } from '@/features/conversation/components/chat-section';
 import { ChatSkipLink } from '@/features/conversation/components/chat-skip-link';
 import { readChatTerm } from '@/features/conversation/utils/chat-term';
+import { hasChatPanel } from '@/features/conversation/utils/has-chat-panel';
 import { LoadNotices } from '@/features/next-term-planner/components/load-notices';
 import { PlannerColumn } from '@/features/next-term-planner/components/planner-column';
 import { planScheduleRequest } from '@/features/next-term-planner/utils/planner-plan';
@@ -50,25 +49,26 @@ const CHAT_ACTIONS = {
   clearAction: clearConversationAction,
 };
 
+/** Props for {@link PlannerHeading}. */
+export interface PlannerHeadingProps {
+  readonly studentId: string;
+  /** Whether the chat panel renders, so the skip link has a heading to reach. */
+  readonly hasChat: boolean;
+}
+
 /**
  * Renders the navigation, title, intro and the stacked-layout skip link.
  *
- * @param props - The student and the loaded conversation.
+ * @param props - The student and whether the chat panel renders.
  * @returns The heading block.
  */
-function PlannerHeading({
-  studentId,
-  chat,
-}: {
-  readonly studentId: string;
-  readonly chat: ConversationResponse | ApiError | null;
-}): ReactElement {
+function PlannerHeading({ studentId, hasChat }: PlannerHeadingProps): ReactElement {
   return (
     <>
       <StudentNav studentId={studentId} current="next-term-planner" />
       <h1>Plan next term</h1>
       <p>Set up a search for next term. Nothing here registers you or changes your record.</p>
-      <ChatSkipLink conversation={chat} />
+      {hasChat ? <ChatSkipLink /> : null}
     </>
   );
 }
@@ -105,7 +105,7 @@ export default async function NextTermPlannerPage({
   const view = planPlannerView(step, plan, found);
   return (
     <>
-      <PlannerHeading studentId={studentId} chat={chat} />
+      <PlannerHeading studentId={studentId} hasChat={hasChatPanel(chat)} />
       <LoadNotices summary={summary} terms={terms} />
       {view.kind === 'searched' && request !== null ? (
         <ScheduleResults

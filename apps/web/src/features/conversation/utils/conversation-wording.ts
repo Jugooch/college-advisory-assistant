@@ -35,9 +35,6 @@ export const FORM_LINK_TEXT = 'Go to the planner form';
 /** Shown in the transcript while a turn is pending; the reply replaces it. */
 export const PENDING_REPLY_TEXT = 'Checking your records…';
 
-/** The id of the chat heading, which the skip link moves focus to. */
-export const CHAT_HEADING_ID = 'chat-heading';
-
 /** Announced once when a reply arrives. */
 export const REPLY_ANNOUNCEMENT = 'The assistant replied.';
 

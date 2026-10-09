@@ -53,6 +53,7 @@ export function ChatTranscriptRegion({
   return (
     // The region scrolls, so it must take focus for keyboard users (axe scrollable-region-focusable,
     // WCAG 2.1.1); jsx-a11y's static rule can't tell, so the focusability is spread in.
+    // TODO(#606): replace the spread with a lint exception once devops adds one.
     <div
       className="chat-transcript-region"
       role="region"

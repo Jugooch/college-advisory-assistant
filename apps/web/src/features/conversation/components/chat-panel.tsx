@@ -13,12 +13,9 @@ import type { ReactElement } from 'react';
 import type { ConversationResponse, ScheduleOptionsRequest } from '@caa/api-contract';
 
 import { useChatPanel } from '../hooks/use-chat-panel';
+import { CHAT_HEADING_ID } from '../utils/chat-heading-id';
 import type { ClearResult, ReloadResult, SendTurnResult } from '../utils/conversation-state';
-import {
-  CHAT_HEADING_ID,
-  NOT_REGISTRATION_NOTE,
-  UNAVAILABLE_MESSAGE,
-} from '../utils/conversation-wording';
+import { NOT_REGISTRATION_NOTE, UNAVAILABLE_MESSAGE } from '../utils/conversation-wording';
 import { ChatMessageForm } from './chat-message-form';
 import { ChatTranscriptRegion } from './chat-transcript-region';
 import { ClearConversation } from './clear-conversation';

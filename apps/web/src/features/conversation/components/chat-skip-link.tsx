@@ -8,26 +8,14 @@
  */
 import type { MouseEvent, ReactElement } from 'react';
 
-import { ApiError, type ConversationResponse } from '@caa/api-contract';
-
-import { CHAT_HEADING_ID } from '../utils/conversation-wording';
-
-/** Props for {@link ChatSkipLink}. */
-export interface ChatSkipLinkProps {
-  /** The API's answer, its error, or null; the link shows only when the panel will render. */
-  readonly conversation: ConversationResponse | ApiError | null;
-}
+import { CHAT_HEADING_ID } from '../utils/chat-heading-id';
 
 /**
- * Renders the link, or nothing when there is no chat heading to move to.
+ * Renders the link. The page renders it only when the chat panel (and so its heading) renders.
  *
- * @param props - The conversation the page loaded.
- * @returns The link or null.
+ * @returns The link.
  */
-export function ChatSkipLink({ conversation }: ChatSkipLinkProps): ReactElement | null {
-  if (conversation === null || conversation instanceof ApiError) {
-    return null;
-  }
+export function ChatSkipLink(): ReactElement {
   const go = (event: MouseEvent<HTMLAnchorElement>): void => {
     event.preventDefault();
     document.getElementById(CHAT_HEADING_ID)?.focus();

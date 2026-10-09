@@ -47,10 +47,12 @@ export interface ChatSend {
 export function useChatSend(input: ChatSendInput): ChatSend {
   const { studentId, termId, plannerInputs, sendAction, transcript, feedback, reload } = input;
   const [message, setMessage] = useState('');
-  const [sentText, setSentText] = useState('');
+  const [pendingText, setPendingText] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const show = async (result: SendTurnResult, text: string): Promise<void> => {
+    // Cleared in the same batch as the reply is added, so the pending row never shows with it.
+    setPendingText(null);
     if (result.kind === 'replied') {
       transcript.addExchange(text, result.turn, result.lastSequence);
       setMessage('');
@@ -70,7 +72,7 @@ export function useChatSend(input: ChatSendInput): ChatSend {
     }
     feedback.setProblem(null);
     feedback.setAnnouncement('');
-    setSentText(text);
+    setPendingText(text);
     startTransition(async () => {
       const request = buildTurnRequest({
         termId,
@@ -78,8 +80,12 @@ export function useChatSend(input: ChatSendInput): ChatSend {
         expectedSequence: transcript.sequence,
         plannerInputs,
       });
-      await show(await sendAction(studentId, request), text);
+      try {
+        await show(await sendAction(studentId, request), text);
+      } finally {
+        setPendingText(null);
+      }
     });
   };
-  return { message, setMessage, isPending, pendingText: isPending ? sentText : null, submit };
+  return { message, setMessage, isPending, pendingText, submit };
 }

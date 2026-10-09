@@ -4,7 +4,7 @@
  * focus, the request body, conflicts and clearing.
  */
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { type ConversationResponse, ScheduleOptionsRequestSchema } from '@caa/api-contract';
 import { ModelStatus } from '@caa/domain';
@@ -83,6 +83,11 @@ function sendMessage(text: string): void {
   fireEvent.click(screen.getByRole('button', { name: 'Send' }));
 }
 
+beforeAll(() => {
+  // jsdom has no layout, so it lacks scrollIntoView, which the transcript calls.
+  Element.prototype.scrollIntoView = vi.fn();
+});
+
 describe('ChatPanel', () => {
   afterEach(() => {
     cleanup();
@@ -131,9 +136,7 @@ describe('ChatPanel', () => {
     await waitFor(() => {
       expect(screen.getByText('Here you go.')).toBeTruthy();
     });
-    await waitFor(() => {
-      expect(screen.getByText('Assistant')).toBeTruthy();
-    });
+    expect(screen.getByText('Assistant')).toBeTruthy();
     expect(screen.getByText('Hello')).toBeTruthy();
     const live = screen.getByRole('status');
     expect(live.getAttribute('aria-live')).toBe('polite');
