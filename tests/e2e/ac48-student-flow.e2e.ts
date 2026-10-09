@@ -32,6 +32,21 @@ function assistantOf(page: Page): Locator {
 /** The term code the student plans for, as the term picker names it. */
 const PLANNING_TERM_CODE = '2027SP';
 
+/**
+ * The four courses the student plans together. With the variable-credit course at two credits
+ * they total the term's 12.00 minimum (README, sample record walkthrough step 3).
+ */
+const PLANNED_COURSE_CODES: readonly RegExp[] = [
+  /DEMO-MATH 102/,
+  /DEMO-PHYS 301/,
+  /DEMO-ENGL 101/,
+  /DEMO-IND 390/,
+];
+
+/** The course that offers a credit choice, and the credits the student enters for it. */
+const VARIABLE_CREDIT_COURSE = 'DEMO-IND 390';
+const VARIABLE_CREDIT_CHOICE = '2.00';
+
 /** How long a search, a save or a chat reply may take in CI before the step fails. */
 const SLOW_STEP_MS = 30_000;
 
@@ -154,14 +169,17 @@ async function confirmNoFridaysChip(page: Page): Promise<void> {
 }
 
 /**
- * Step: choose a course and confirm the search so chat has inputs.
+ * Step: choose courses and confirm the search so chat has inputs.
  *
  * @param page - The browser page.
  */
 async function confirmSearch(page: Page): Promise<void> {
-  const courses = page.getByRole('group', { name: 'Courses to schedule' }).getByRole('checkbox');
-  const composition = courses.and(page.getByRole('checkbox', { name: /ENGL 101/ }));
-  await ((await composition.count()) > 0 ? composition.first() : courses.first()).check();
+  const courses = page.getByRole('group', { name: 'Courses to schedule' });
+  for (const code of PLANNED_COURSE_CODES) {
+    await courses.getByRole('checkbox', { name: code }).check();
+  }
+  await page.getByLabel(`Credits for ${VARIABLE_CREDIT_COURSE}`).fill(VARIABLE_CREDIT_CHOICE);
+
   await page.getByRole('button', { name: 'Review constraints' }).click();
 
   await expect(page.getByRole('heading', { name: 'Review your constraints' })).toBeVisible();
