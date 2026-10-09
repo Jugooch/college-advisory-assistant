@@ -233,3 +233,18 @@ describe('folder naming', () => {
     expect(await lintWithRules(path, '', FOLDER_RULE)).not.toEqual([]);
   });
 });
+
+describe('tabIndex on scrollable regions', () => {
+  const RULE = ['jsx-a11y/no-noninteractive-tabindex'];
+  const PATH = 'apps/web/src/shared/components/x.tsx';
+  const jsx = (element) => `export const X = () => ${element};`;
+
+  it('allows tabIndex on a region', async () => {
+    const code = jsx('<section role="region" aria-label="x" tabIndex={0} />');
+    expect(await lintWithRules(PATH, code, RULE)).toEqual([]);
+  });
+
+  it('still rejects tabIndex on a non-interactive element', async () => {
+    expect(await lintWithRules(PATH, jsx('<div tabIndex={0} />'), RULE)).not.toEqual([]);
+  });
+});

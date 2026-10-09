@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { SeedRefusedError } from './dev-seed-command';
 import {
   type DevReviseDependencies,
-  parseReviseTarget,
+  parseReviseRequest,
   ReviseUsageError,
   runDevRevise,
 } from './revise-command';
@@ -72,22 +72,34 @@ describe('runDevRevise', () => {
   });
 });
 
-describe('parseReviseTarget', () => {
-  it('defaults to the student record and reads --student and --sections', () => {
-    expect(parseReviseTarget([])).toBe('student');
-    expect(parseReviseTarget(['--student'])).toBe('student');
-    expect(parseReviseTarget(['--sections'])).toBe('sections');
+describe('parseReviseRequest', () => {
+  it('defaults to the slice student and reads --student and --sections', () => {
+    expect(parseReviseRequest([])).toEqual({ target: 'student' });
+    expect(parseReviseRequest(['--student'])).toEqual({ target: 'student' });
+    expect(parseReviseRequest(['--sections'])).toEqual({ target: 'sections' });
+  });
+
+  it('reads the student to revise from --student <id>', () => {
+    expect(parseReviseRequest(['--student', 'SYN-000006'])).toEqual({
+      target: 'student',
+      sourceStudentId: 'SYN-000006',
+    });
   });
 
   it('ignores the leading -- that pnpm forwards', () => {
-    expect(parseReviseTarget(['--', '--sections'])).toBe('sections');
-    expect(parseReviseTarget(['--', '--student'])).toBe('student');
-    expect(parseReviseTarget(['--'])).toBe('student');
-    expect(() => parseReviseTarget(['--', '--', '--sections'])).toThrow(ReviseUsageError);
+    expect(parseReviseRequest(['--', '--sections'])).toEqual({ target: 'sections' });
+    expect(parseReviseRequest(['--', '--student', 'SYN-000004'])).toEqual({
+      target: 'student',
+      sourceStudentId: 'SYN-000004',
+    });
+    expect(parseReviseRequest(['--'])).toEqual({ target: 'student' });
+    expect(() => parseReviseRequest(['--', '--', '--sections'])).toThrow(ReviseUsageError);
   });
 
-  it('rejects both flags together and anything unknown', () => {
-    expect(() => parseReviseTarget(['--student', '--sections'])).toThrow(ReviseUsageError);
-    expect(() => parseReviseTarget(['sections'])).toThrow(ReviseUsageError);
+  it('rejects both flags together, a value on --sections, and anything unknown', () => {
+    expect(() => parseReviseRequest(['--student', '--sections'])).toThrow(ReviseUsageError);
+    expect(() => parseReviseRequest(['--sections', 'SYN-000006'])).toThrow(ReviseUsageError);
+    expect(() => parseReviseRequest(['--student', 'SYN-000006', 'x'])).toThrow(ReviseUsageError);
+    expect(() => parseReviseRequest(['sections'])).toThrow(ReviseUsageError);
   });
 });
