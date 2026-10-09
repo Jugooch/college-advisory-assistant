@@ -66,6 +66,26 @@ describe('buildDemoSeedPlan', () => {
     expect(added[1]?.grade).toBeNull();
   });
 
+  it('gives each persona one current snapshot holding its one attempt', () => {
+    const demo = buildDemoSeedPlan(NOW);
+    const snapshots = demo.academic.snapshots.slice(3);
+    const attempts = demo.academic.attempts.slice(4);
+
+    expect(snapshots.map((snapshot) => snapshot.studentId)).toEqual([
+      '30000000-0000-4000-8000-000000000004',
+      '30000000-0000-4000-8000-000000000005',
+      '30000000-0000-4000-8000-000000000006',
+    ]);
+    expect(snapshots.map((snapshot) => snapshot.attemptIds)).toEqual(
+      attempts.map((attempt) => [attempt.id]),
+    );
+    expect(attempts.map((attempt) => attempt.id)).toEqual([
+      '60000000-0000-4000-8000-000000000104',
+      '60000000-0000-4000-8000-000000000105',
+      '60000000-0000-4000-8000-000000000106',
+    ]);
+  });
+
   it('writes no result: audits and requirement results are the dev seed ones only', () => {
     const demo = buildDemoSeedPlan(NOW);
 

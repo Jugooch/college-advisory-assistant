@@ -4,7 +4,7 @@
  * @module @caa/db/seed/dev-seed-demo-plan
  * @requirement FR-01
  * @requirement FR-11
- * @see docs/adr/0016-browser-e2e-and-local-demo.md
+ * @see docs/adr/0016-browser-end-to-end-tests-and-local-demo.md
  */
 import {
   AttemptStatus,
@@ -14,6 +14,7 @@ import {
   IdentityStatus,
   LetterGrade,
   Role,
+  type StudentSnapshot,
 } from '@caa/domain';
 
 import { SEED_CATALOG, SEED_TENANT_ID, seedId } from './dev-seed-academic-catalog';
@@ -112,6 +113,79 @@ function attemptFor(persona: DemoPersona, fields: PersonaAttempt) {
 }
 
 /**
+ * Builds a persona's sign-in identity.
+ *
+ * @param persona - The persona.
+ * @returns The identity.
+ */
+function identityFor(persona: DemoPersona): SeedIdentity {
+  return {
+    id: seedId('20000000', 0x10 + persona.number),
+    tenantId: SEED_TENANT_ID,
+    issuer: DEV_SEED_ISSUER,
+    subject: `synthetic-student-${subjectNumber(persona.number)}`,
+    roles: [Role.Student],
+    status: IdentityStatus.Active,
+  };
+}
+
+/**
+ * Builds a persona's student, linked to its identity.
+ *
+ * @param persona - The persona.
+ * @returns The student.
+ */
+function studentFor(persona: DemoPersona): SeedStudent {
+  return {
+    id: studentId(persona.number),
+    tenantId: SEED_TENANT_ID,
+    sourceStudentId: sourceStudentId(persona.number),
+    userSubject: `synthetic-student-${subjectNumber(persona.number)}`,
+    sourceEffectiveAt: SOURCE_EFFECTIVE_AT,
+  };
+}
+
+/**
+ * Builds the assignment of a persona to the demo advisor.
+ *
+ * @param persona - The persona.
+ * @returns The assignment.
+ */
+function assignmentFor(persona: DemoPersona): SeedAssignment {
+  return {
+    id: seedId('40000000', 0x10 + persona.number),
+    tenantId: SEED_TENANT_ID,
+    advisorSubject: ADVISOR_SUBJECT,
+    sourceStudentId: sourceStudentId(persona.number),
+    approverSubject: APPROVER_SUBJECT,
+    effectiveFrom: SOURCE_EFFECTIVE_AT,
+    effectiveTo: null,
+  };
+}
+
+/**
+ * Builds a persona's current student snapshot, holding its one attempt.
+ *
+ * @param persona - The persona.
+ * @param attemptId - The persona's attempt.
+ * @param now - The time the seed run started.
+ * @returns The snapshot.
+ */
+function snapshotFor(persona: DemoPersona, attemptId: string, now: Date): StudentSnapshot {
+  const times = seedRecordTimes(now);
+  return createStudentSnapshot({
+    id: seedRevisionId('a0000000', 0x10 + persona.number, now),
+    tenantId: SEED_TENANT_ID,
+    studentId: studentId(persona.number),
+    programId: SEED_PROGRAM_ID,
+    catalogYear: SEED_CATALOG_YEAR,
+    sourceEffectiveAt: times.currentRecordEffectiveAt,
+    ingestedAt: times.currentRecordIngestedAt,
+    attemptIds: [attemptId],
+  });
+}
+
+/**
  * Builds the demo seed plan: the dev seed plan plus three personas, all assigned to
  * `synthetic-advisor-001`. The dev plan is included unchanged.
  *
@@ -128,55 +202,17 @@ function attemptFor(persona: DemoPersona, fields: PersonaAttempt) {
  */
 export function buildDemoSeedPlan(now: Date): DevSeedPlan {
   const base = buildDevSeedPlan(now);
-  const times = seedRecordTimes(now);
   const attempts = PERSONAS.map((persona) =>
     attemptFor(persona, ATTEMPT_BY_PURPOSE[persona.purpose]),
   );
-  const identities: SeedIdentity[] = PERSONAS.map((persona) => ({
-    id: seedId('20000000', 0x10 + persona.number),
-    tenantId: SEED_TENANT_ID,
-    issuer: DEV_SEED_ISSUER,
-    subject: `synthetic-student-${subjectNumber(persona.number)}`,
-    roles: [Role.Student],
-    status: IdentityStatus.Active,
-  }));
-  const students: SeedStudent[] = PERSONAS.map((persona) => ({
-    id: studentId(persona.number),
-    tenantId: SEED_TENANT_ID,
-    sourceStudentId: sourceStudentId(persona.number),
-    userSubject: `synthetic-student-${subjectNumber(persona.number)}`,
-    sourceEffectiveAt: SOURCE_EFFECTIVE_AT,
-  }));
-  const assignments: SeedAssignment[] = PERSONAS.map((persona) => ({
-    id: seedId('40000000', 0x10 + persona.number),
-    tenantId: SEED_TENANT_ID,
-    advisorSubject: ADVISOR_SUBJECT,
-    sourceStudentId: sourceStudentId(persona.number),
-    approverSubject: APPROVER_SUBJECT,
-    effectiveFrom: SOURCE_EFFECTIVE_AT,
-    effectiveTo: null,
-  }));
-  const snapshots = PERSONAS.map((persona, index) => {
-    const attempt = attempts[index];
-    if (!attempt) {
-      throw new Error('Demo persona has no attempt');
-    }
-    return createStudentSnapshot({
-      id: seedRevisionId('a0000000', 0x10 + persona.number, now),
-      tenantId: SEED_TENANT_ID,
-      studentId: studentId(persona.number),
-      programId: SEED_PROGRAM_ID,
-      catalogYear: SEED_CATALOG_YEAR,
-      sourceEffectiveAt: times.currentRecordEffectiveAt,
-      ingestedAt: times.currentRecordIngestedAt,
-      attemptIds: [attempt.id],
-    });
-  });
+  const snapshots = PERSONAS.map((persona, index) =>
+    snapshotFor(persona, attempts[index]?.id ?? '', now),
+  );
   return {
     ...base,
-    identities: [...base.identities, ...identities],
-    students: [...base.students, ...students],
-    assignments: [...base.assignments, ...assignments],
+    identities: [...base.identities, ...PERSONAS.map(identityFor)],
+    students: [...base.students, ...PERSONAS.map(studentFor)],
+    assignments: [...base.assignments, ...PERSONAS.map(assignmentFor)],
     academic: {
       ...base.academic,
       attempts: [...base.academic.attempts, ...attempts],
