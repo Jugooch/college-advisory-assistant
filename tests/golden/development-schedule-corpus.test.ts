@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest';
 import { GOLDEN_DEVELOPMENT_SCHEDULE_CORPUS } from '@caa/test-kit';
 
 import { findScheduleMismatches } from '../support/golden-schedule-runner';
-import { itForFinding } from '../support/known-findings';
+import { itForFinding } from '../support/known-findings-declarations';
 
 describe('golden corpus, development scheduling cases', () => {
   for (const golden of GOLDEN_DEVELOPMENT_SCHEDULE_CORPUS) {

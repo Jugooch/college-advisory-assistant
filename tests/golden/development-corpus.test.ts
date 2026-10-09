@@ -13,7 +13,7 @@ import { describe, expect, it } from 'vitest';
 import { GOLDEN_DEVELOPMENT_CORPUS, GoldenRuleFamily, GoldenScheduleFamily } from '@caa/test-kit';
 
 import { findGoldenMismatches } from '../support/golden-runner';
-import { itForFinding } from '../support/known-findings';
+import { itForFinding } from '../support/known-findings-declarations';
 
 describe('golden corpus, development set', () => {
   for (const golden of GOLDEN_DEVELOPMENT_CORPUS) {
