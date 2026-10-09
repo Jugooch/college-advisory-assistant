@@ -152,11 +152,9 @@ async function confirmNoFridaysChip(page: Page): Promise<void> {
  * @param page - The browser page.
  */
 async function confirmSearch(page: Page): Promise<void> {
-  await page
-    .getByRole('group', { name: 'Courses to schedule' })
-    .getByRole('checkbox')
-    .first()
-    .check();
+  const courses = page.getByRole('group', { name: 'Courses to schedule' }).getByRole('checkbox');
+  const composition = courses.and(page.getByRole('checkbox', { name: /ENGL 101/ }));
+  await ((await composition.count()) > 0 ? composition.first() : courses.first()).check();
   await page.getByRole('button', { name: 'Review constraints' }).click();
 
   await expect(page.getByRole('heading', { name: 'Review your constraints' })).toBeVisible();

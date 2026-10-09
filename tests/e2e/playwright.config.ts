@@ -42,6 +42,8 @@ export default defineConfig({
       cwd: REPOSITORY_ROOT,
       url: `${API_URL}/v1/health`,
       reuseExistingServer: process.env.CI === undefined,
+      stdout: 'pipe',
+      stderr: 'pipe',
       timeout: 120_000,
       env: {
         NODE_ENV: 'development',
@@ -57,6 +59,8 @@ export default defineConfig({
       cwd: REPOSITORY_ROOT,
       url: `${WEB_URL}/dev/sign-in`,
       reuseExistingServer: process.env.CI === undefined,
+      stdout: 'pipe',
+      stderr: 'pipe',
       timeout: 180_000,
       env: { NODE_ENV: 'development', API_BASE_URL: API_URL },
     },
