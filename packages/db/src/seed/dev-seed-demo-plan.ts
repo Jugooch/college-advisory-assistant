@@ -16,6 +16,8 @@ import {
   GradeScheme,
   IdentityStatus,
   LetterGrade,
+  type RequirementResultInput,
+  RequirementState,
   Role,
   type StudentSnapshot,
 } from '@caa/domain';
@@ -212,12 +214,40 @@ function snapshotFor(
 }
 
 /**
+ * Builds the requirement that lists a persona's candidate courses, so the course-check picker
+ * offers them. It is INCOMPLETE with nothing allocated: the engine, not the audit, decides the
+ * check result.
+ *
+ * @param persona - The persona.
+ * @returns The requirement, or none when the persona has no candidate courses.
+ */
+function candidateRequirements(persona: DemoPersona): RequirementResultInput[] {
+  if (persona.purpose === 'stale plan') {
+    return [];
+  }
+  return [
+    {
+      sourceRequirementId: 'REQ-MATH-NEXT',
+      parentSourceRequirementId: 'REQ-DEMO-BS',
+      label: 'Next mathematics course',
+      state: RequirementState.Incomplete,
+      allocatedAttemptIds: [],
+      remainingCreditsHundredths: null,
+      remainingCourseCount: 1,
+      candidateCourseIds: [SEED_CATALOG.math102.id],
+      isReusable: false,
+      sourceRef: 'requirement/REQ-MATH-NEXT',
+    },
+  ];
+}
+
+/**
  * Builds a persona's degree audit: the source record that goes with its current snapshot.
  *
  * @param persona - The persona.
  * @param snapshot - The persona's current snapshot.
  * @param now - The time the seed run started.
- * @returns The audit, pinned to the snapshot, with only an INCOMPLETE root requirement.
+ * @returns The audit, pinned to the snapshot, with INCOMPLETE requirements only.
  */
 function auditFor(persona: DemoPersona, snapshot: StudentSnapshot, now: Date): AuditSnapshot {
   const times = seedRecordTimes(now);
@@ -234,8 +264,8 @@ function auditFor(persona: DemoPersona, snapshot: StudentSnapshot, now: Date): A
     auditVersion: `audit_demo_p${String(persona.number)}_${String(seedInstantMs(now))}`,
     generatedAt: times.currentAuditGeneratedAt,
     studentRecordEffectiveAt: snapshot.sourceEffectiveAt,
-    // SAFETY: the root only, INCOMPLETE; the audit never decides what a persona demonstrates.
-    requirements: requirementTree(false),
+    // SAFETY: INCOMPLETE and allocated nothing; the audit never decides what a persona shows.
+    requirements: [...requirementTree(false), ...candidateRequirements(persona)],
   });
 }
 

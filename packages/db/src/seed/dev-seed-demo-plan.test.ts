@@ -129,9 +129,20 @@ describe('buildDemoSeedPlan', () => {
     expect(new Set(ids).size).toBe(5);
     expect(new Set(versions).size).toBe(5);
     for (const audit of demo.academic.audits.slice(2)) {
-      expect(audit.requirements.map((req) => req.state)).toEqual(['INCOMPLETE']);
+      expect(audit.requirements.every((req) => req.state === 'INCOMPLETE')).toBe(true);
       expect(audit.requirements.flatMap((req) => req.allocatedAttemptIds)).toEqual([]);
     }
+  });
+
+  it('lists DEMO-MATH 102 as a candidate for the blocked and unknown personas only', () => {
+    const demo = buildDemoSeedPlan(NOW);
+    const [blocked, unknown, stale] = demo.academic.audits
+      .slice(2)
+      .map((audit) => audit.requirements.flatMap((req) => req.candidateCourseIds));
+
+    expect(blocked).toEqual(['50000000-0000-4000-8000-000000000102']);
+    expect(unknown).toEqual(['50000000-0000-4000-8000-000000000102']);
+    expect(stale).toEqual([]);
   });
 
   it('uses only visibly synthetic subjects, IDs and issuer', () => {
