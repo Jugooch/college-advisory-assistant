@@ -97,7 +97,7 @@ describe('reviseSliceSources for a chosen student', () => {
     const audit = await createAuditSnapshotRepository(testDatabase.db).findLatest(TENANT, persona);
     expect(audit).toMatchObject({
       status: 'FOUND',
-      revision: { audit: { studentSnapshotId: seeded.revision.snapshot.id } },
+      audit: { studentSnapshotId: seeded.revision.snapshot.id },
     });
   });
 

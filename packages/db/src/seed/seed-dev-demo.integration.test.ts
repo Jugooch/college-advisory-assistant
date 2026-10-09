@@ -150,7 +150,7 @@ describe('demo seed', () => {
     expect(identities).toHaveLength(3);
   });
 
-  it('links each persona snapshot to its attempt', async () => {
+  it('links each persona snapshot to its attempts', async () => {
     await seedDevData(testDatabase.db, DEMO_PLAN);
 
     const links = await testDatabase.db
@@ -166,6 +166,7 @@ describe('demo seed', () => {
       '60000000-0000-4000-8000-000000000104',
       '60000000-0000-4000-8000-000000000105',
       '60000000-0000-4000-8000-000000000106',
+      '60000000-0000-4000-8000-000000000206',
     ]);
   });
 });
