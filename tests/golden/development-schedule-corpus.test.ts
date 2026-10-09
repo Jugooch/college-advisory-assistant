@@ -20,7 +20,7 @@ describe('golden corpus, development scheduling cases', () => {
     });
   }
 
-  it('has 27 solver cases', () => {
-    expect(GOLDEN_DEVELOPMENT_SCHEDULE_CORPUS).toHaveLength(27);
+  it('has 37 solver cases', () => {
+    expect(GOLDEN_DEVELOPMENT_SCHEDULE_CORPUS).toHaveLength(37);
   });
 });
