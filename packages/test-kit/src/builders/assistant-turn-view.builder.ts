@@ -11,10 +11,15 @@ import {
   ConversationResponseSchema,
   type ConversationTurnView,
   ConversationTurnViewSchema,
+  TemplateBlockEntrySchema,
 } from '@caa/api-contract';
+import { AssistantBlockKind, NoticeCode } from '@caa/domain';
 
-import { buildPolicyResultsBlock } from './assistant-block.builder';
+import { buildNoticeBlock, buildPolicyResultsBlock } from './assistant-block.builder';
 import { buildAssistantBlockRef } from './assistant-block-ref.builder';
+
+/** One re-rendered template block entry, as the contract reads it. */
+export type TemplateBlockEntry = z.infer<typeof TemplateBlockEntrySchema>;
 
 /** Raw input accepted for an assistant turn view, as the contract schema reads it. */
 export type AssistantTurnViewInput = z.input<typeof AssistantTurnViewSchema>;
@@ -105,4 +110,41 @@ export function buildConversationResponse(
  */
 export function buildUnavailableConversationResponse(): ConversationResponse {
   return buildConversationResponse({ available: false, unavailableReason: 'DISABLED', turns: [] });
+}
+
+/**
+ * Builds one re-rendered template block entry: the notice block at `refIndex` 0. Pair it with a
+ * stored turn whose ref at that index names the same template id, version and code.
+ *
+ * @param overrides - Fields to replace in the default.
+ * @returns A validated entry.
+ */
+export function buildTemplateBlockEntry(
+  overrides: Partial<z.input<typeof TemplateBlockEntrySchema>> = {},
+): TemplateBlockEntry {
+  return TemplateBlockEntrySchema.parse({ refIndex: 0, block: buildNoticeBlock(), ...overrides });
+}
+
+/**
+ * Builds a stored answered assistant turn at sequence 2 whose only ref is the rate-limited notice
+ * and whose `templateBlocks` holds its re-rendered block.
+ *
+ * @param overrides - Fields to replace in the default.
+ * @returns A validated assistant turn view.
+ */
+export function buildStoredNoticeTurnView(
+  overrides: Partial<Extract<ConversationTurnView, { role: 'ASSISTANT' }>> = {},
+): ConversationTurnView {
+  return buildStoredAssistantTurnView({
+    blockRefs: [
+      buildAssistantBlockRef({
+        kind: AssistantBlockKind.Notice,
+        code: NoticeCode.RateLimited,
+        templateId: 'notice-rate-limited',
+        templateVersion: '1',
+      }),
+    ],
+    templateBlocks: [buildTemplateBlockEntry()],
+    ...overrides,
+  });
 }
