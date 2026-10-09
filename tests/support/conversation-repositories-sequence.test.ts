@@ -10,7 +10,13 @@ import { describe, expect, it } from 'vitest';
 
 import type { NewConversationTurn } from '@caa/db';
 import { StudentIdSchema } from '@caa/domain';
-import { buildConversation, SYNTHETIC_TENANTS, syntheticId } from '@caa/test-kit';
+import {
+  buildAssistantTurn,
+  buildConversation,
+  buildStudentTurn,
+  SYNTHETIC_TENANTS,
+  syntheticId,
+} from '@caa/test-kit';
 
 import {
   type ConversationWorld,
@@ -23,17 +29,23 @@ const OWNER = StudentIdSchema.parse(syntheticId('student', 1));
 const OTHER = StudentIdSchema.parse(syntheticId('student', 2));
 const CONVERSATION = buildConversation().id;
 const KEEP_ALL = { retainSince: '2026-01-01T00:00:00.000-05:00', retainCount: 100 };
+const STUDENT_TURN = buildStudentTurn();
+const ASSISTANT_TURN = buildAssistantTurn();
 const EXCHANGE: readonly NewConversationTurn[] = [
-  { role: 'STUDENT', text: 'What should I take?', createdAt: '2026-09-22T10:00:00.000-05:00' },
-  {
-    role: 'ASSISTANT',
-    text: 'Here is your plan.',
-    createdAt: '2026-09-22T10:01:00.000-05:00',
-    blockRefs: [],
-    modelStatus: 'OK',
-    metadata: null,
-  },
-] as unknown as readonly NewConversationTurn[];
+  { role: 'STUDENT', text: STUDENT_TURN.text, createdAt: STUDENT_TURN.createdAt },
+  ...(ASSISTANT_TURN.role === 'ASSISTANT'
+    ? [
+        {
+          role: ASSISTANT_TURN.role,
+          text: ASSISTANT_TURN.text,
+          createdAt: ASSISTANT_TURN.createdAt,
+          blockRefs: ASSISTANT_TURN.blockRefs,
+          modelStatus: ASSISTANT_TURN.modelStatus,
+          metadata: ASSISTANT_TURN.metadata,
+        } as const,
+      ]
+    : []),
+];
 
 /**
  * Builds a world with the owner's conversation and no turns.
@@ -99,10 +111,10 @@ describe('conversation fake last sequence', () => {
     expect(await lastSequence(data)).toBe(2);
   });
 
-  it('is unchanged after retention prunes turns', async () => {
+  it('is unchanged after retention prunes every turn', async () => {
     const data = world();
-    await exchange(data, 1);
-    expect(data.conversationTurns).toHaveLength(1);
+    await exchange(data, 0);
+    expect(data.conversationTurns).toEqual([]);
     expect(await lastSequence(data)).toBe(2);
   });
 
