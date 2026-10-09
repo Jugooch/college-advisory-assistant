@@ -8,6 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { InstitutionIdSchema, StudentIdSchema } from '@caa/domain';
 
+import { createAuditSnapshotRepository } from '../repositories/audit-snapshot.repository';
 import { createStudentSnapshotRepository } from '../repositories/student-snapshot.repository';
 import { courseAttemptTable } from '../tables/course-attempt.table';
 import { studentTable } from '../tables/student.table';
@@ -91,6 +92,13 @@ describe('reviseSliceSources for a chosen student', () => {
       '60000000-1006-4000-8000-01a0f78ce080',
     ]);
     expect(await snapshots.findLatest(TENANT, studentIdOf(OTHER_PERSONA))).toEqual(otherBefore);
+    // NOTE: the seeded audit stays pinned to the seeded snapshot, so the newer record is what
+    // supersedes a plan; the audit is not rewritten.
+    const audit = await createAuditSnapshotRepository(testDatabase.db).findLatest(TENANT, persona);
+    expect(audit).toMatchObject({
+      status: 'FOUND',
+      revision: { audit: { studentSnapshotId: seeded.revision.snapshot.id } },
+    });
   });
 
   it('writes the same rows when the same run is repeated', async () => {

@@ -6,7 +6,9 @@ import { and, count, eq, inArray, type SQL } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { advisorAssignmentTable } from '../tables/advisor-assignment.table';
+import { auditSnapshotTable } from '../tables/audit-snapshot.table';
 import { courseAttemptTable } from '../tables/course-attempt.table';
+import { requirementResultTable } from '../tables/requirement-result.table';
 import { studentTable } from '../tables/student.table';
 import { studentSnapshotTable } from '../tables/student-snapshot.table';
 import { studentSnapshotAttemptTable } from '../tables/student-snapshot-attempt.table';
@@ -39,6 +41,13 @@ describe('demo seed', () => {
     const snapshotIds = DEMO_PLAN.academic.snapshots
       .filter((snapshot) => DEMO_STUDENT_IDS.includes(snapshot.studentId))
       .map((snapshot) => snapshot.id);
+    const auditIds = DEMO_PLAN.academic.audits
+      .filter((audit) => DEMO_STUDENT_IDS.includes(audit.studentId))
+      .map((audit) => audit.id);
+    await db
+      .delete(requirementResultTable)
+      .where(inArray(requirementResultTable.auditSnapshotId, auditIds));
+    await db.delete(auditSnapshotTable).where(inArray(auditSnapshotTable.id, auditIds));
     await db
       .delete(advisorAssignmentTable)
       .where(inArray(advisorAssignmentTable.studentId, DEMO_STUDENT_IDS));
@@ -82,7 +91,8 @@ describe('demo seed', () => {
         | typeof advisorAssignmentTable
         | typeof courseAttemptTable
         | typeof studentSnapshotTable
-        | typeof studentSnapshotAttemptTable,
+        | typeof studentSnapshotAttemptTable
+        | typeof auditSnapshotTable,
       condition: SQL,
     ) => (await db.select({ n: count() }).from(table).where(condition))[0]?.n;
     return {
@@ -103,6 +113,10 @@ describe('demo seed', () => {
         studentSnapshotAttemptTable,
         inArray(studentSnapshotAttemptTable.studentSnapshotId, snapshotIds),
       ),
+      audits: await countWhere(
+        auditSnapshotTable,
+        inArray(auditSnapshotTable.studentId, DEMO_STUDENT_IDS),
+      ),
     };
   }
 
@@ -114,9 +128,10 @@ describe('demo seed', () => {
     expect(afterFirst).toEqual({
       students: 3,
       assignments: 3,
-      attempts: 3,
+      attempts: 4,
       snapshots: 3,
-      links: 3,
+      links: 4,
+      audits: 3,
     });
     expect(await countPersonaRows()).toEqual(afterFirst);
     const identities = await testDatabase.db
