@@ -16,6 +16,7 @@ const BASE = {
   termId: syntheticId('term', 1),
   plannerInputs: null,
   sendAction: vi.fn(),
+  reloadAction: vi.fn(),
   clearAction: vi.fn(),
 };
 

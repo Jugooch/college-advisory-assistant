@@ -21,7 +21,7 @@ import {
   syntheticId,
 } from '@caa/test-kit';
 
-import type { ClearResult, SendTurnResult } from '../utils/conversation-state';
+import type { ClearResult, ReloadResult, SendTurnResult } from '../utils/conversation-state';
 import { STATUS_NOTICES } from '../utils/conversation-wording';
 import { ChatPanel } from './chat-panel';
 
@@ -51,6 +51,7 @@ function renderPanel({
 } = {}) {
   const sendAction = vi.fn<(studentId: string, request: unknown) => Promise<SendTurnResult>>();
   sendAction.mockResolvedValue(send);
+  const reloadAction = vi.fn<(studentId: string, termId: string) => Promise<ReloadResult>>();
   const clearAction = vi.fn<(studentId: string, termId: string) => Promise<ClearResult>>();
   clearAction.mockResolvedValue(clear);
   render(
@@ -60,6 +61,7 @@ function renderPanel({
       plannerInputs={INPUTS}
       initial={initial}
       sendAction={sendAction}
+      reloadAction={reloadAction}
       clearAction={clearAction}
     />,
   );

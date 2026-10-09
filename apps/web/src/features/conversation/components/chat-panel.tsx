@@ -13,7 +13,7 @@ import type { ReactElement } from 'react';
 import type { ConversationResponse, ScheduleOptionsRequest } from '@caa/api-contract';
 
 import { useChatPanel } from '../hooks/use-chat-panel';
-import type { ClearResult, SendTurnResult } from '../utils/conversation-state';
+import type { ClearResult, ReloadResult, SendTurnResult } from '../utils/conversation-state';
 import { NOT_REGISTRATION_NOTE, UNAVAILABLE_MESSAGE } from '../utils/conversation-wording';
 import { ChatItemView } from './chat-item-view';
 import { ChatMessageForm } from './chat-message-form';
@@ -30,6 +30,8 @@ export interface ChatPanelProps {
   readonly initial: ConversationResponse;
   /** Server action that posts a turn. */
   readonly sendAction: (studentId: string, request: unknown) => Promise<SendTurnResult>;
+  /** Server action that reloads the transcript after a conflict. */
+  readonly reloadAction: (studentId: string, termId: string) => Promise<ReloadResult>;
   /** Server action that clears the transcript. */
   readonly clearAction: (studentId: string, termId: string) => Promise<ClearResult>;
 }
@@ -37,7 +39,7 @@ export interface ChatPanelProps {
 /**
  * Renders the panel.
  *
- * @param props - The student, term, form inputs, initial transcript, and the two actions.
+ * @param props - The student, term, form inputs, initial transcript, and the three actions.
  * @returns The panel.
  */
 export function ChatPanel({ clearAction, ...input }: ChatPanelProps): ReactElement {

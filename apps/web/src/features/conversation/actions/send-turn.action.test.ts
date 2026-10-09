@@ -5,14 +5,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiError } from '@caa/api-contract';
 import { ErrorCode } from '@caa/domain';
-import { buildAssistantTurnView, buildConversationResponse, syntheticId } from '@caa/test-kit';
+import { buildAssistantTurnView, syntheticId } from '@caa/test-kit';
 
-import { getConversation, postConversationTurn } from '@/api/conversation.api';
+import { postConversationTurn } from '@/api/conversation.api';
 
 import { sendTurnAction } from './send-turn.action';
 
 vi.mock('@/api/conversation.api', () => ({
-  getConversation: vi.fn(),
   postConversationTurn: vi.fn(),
 }));
 
@@ -62,15 +61,13 @@ describe('sendTurnAction', () => {
     expect(postConversationTurn).not.toHaveBeenCalled();
   });
 
-  it('reloads the transcript on a revision conflict', async () => {
-    const conversation = buildConversationResponse();
+  it('returns a conflict after its one call, without reloading', async () => {
     vi.mocked(postConversationTurn).mockRejectedValue(apiError(ErrorCode.RevisionConflict, 409));
-    vi.mocked(getConversation).mockResolvedValue(conversation);
 
     const result = await sendTurnAction(STUDENT_ID, REQUEST);
 
-    expect(getConversation).toHaveBeenCalledWith(STUDENT_ID, { termId: TERM_ID });
-    expect(result).toEqual({ kind: 'conflict', conversation });
+    expect(result).toEqual({ kind: 'conflict' });
+    expect(postConversationTurn).toHaveBeenCalledTimes(1);
   });
 
   it('returns any other API error as a failure', async () => {
@@ -83,6 +80,5 @@ describe('sendTurnAction', () => {
       code: ErrorCode.InternalError,
       requestId: 'req-3',
     });
-    expect(getConversation).not.toHaveBeenCalled();
   });
 });

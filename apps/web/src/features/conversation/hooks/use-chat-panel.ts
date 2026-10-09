@@ -10,7 +10,12 @@ import { type RefObject, type SubmitEvent, useRef, useState, useTransition } fro
 
 import type { ConversationResponse, ScheduleOptionsRequest } from '@caa/api-contract';
 
-import { type ChatProblem, problemFrom, type SendTurnResult } from '../utils/conversation-state';
+import {
+  type ChatProblem,
+  problemFrom,
+  type ReloadResult,
+  type SendTurnResult,
+} from '../utils/conversation-state';
 import {
   CLEARED_ANNOUNCEMENT,
   CONFLICT_ANNOUNCEMENT,
@@ -26,6 +31,7 @@ export interface ChatPanelInput {
   readonly plannerInputs: ScheduleOptionsRequest | null;
   readonly initial: ConversationResponse;
   readonly sendAction: (studentId: string, request: unknown) => Promise<SendTurnResult>;
+  readonly reloadAction: (studentId: string, termId: string) => Promise<ReloadResult>;
 }
 
 /** What {@link useChatPanel} returns. */
@@ -51,7 +57,7 @@ export interface ChatPanelState {
  * @returns The state and handlers.
  */
 export function useChatPanel(input: ChatPanelInput): ChatPanelState {
-  const { studentId, termId, plannerInputs, initial, sendAction } = input;
+  const { studentId, termId, plannerInputs, initial, sendAction, reloadAction } = input;
   const transcript = useChatTranscript(initial);
   const [message, setMessage] = useState('');
   const [problem, setProblem] = useState<ChatProblem | null>(null);
@@ -63,14 +69,23 @@ export function useChatPanel(input: ChatPanelInput): ChatPanelState {
     setAnnouncement(text);
     inputRef.current?.focus();
   };
-  const show = (result: SendTurnResult, text: string): void => {
+  const reload = async (): Promise<void> => {
+    const reloaded = await reloadAction(studentId, termId);
+    if (reloaded.kind === 'loaded') {
+      transcript.reload(reloaded.conversation);
+      finish(CONFLICT_ANNOUNCEMENT);
+    } else {
+      setProblem(problemFrom(reloaded));
+      finish('');
+    }
+  };
+  const show = async (result: SendTurnResult, text: string): Promise<void> => {
     if (result.kind === 'replied') {
       transcript.addExchange(text, result.turn, result.lastSequence);
       setMessage('');
       finish(REPLY_ANNOUNCEMENT);
     } else if (result.kind === 'conflict') {
-      transcript.reload(result.conversation);
-      finish(CONFLICT_ANNOUNCEMENT);
+      await reload();
     } else {
       setProblem(problemFrom(result));
       finish('');
@@ -91,7 +106,7 @@ export function useChatPanel(input: ChatPanelInput): ChatPanelState {
         expectedSequence: transcript.sequence,
         plannerInputs,
       });
-      show(await sendAction(studentId, request), text);
+      await show(await sendAction(studentId, request), text);
     });
   };
   const markCleared = (): void => {

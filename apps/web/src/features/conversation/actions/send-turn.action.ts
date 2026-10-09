@@ -10,19 +10,21 @@
 import { ApiError, ConversationTurnRequestSchema } from '@caa/api-contract';
 import { ErrorCode } from '@caa/domain';
 
-import { getConversation, postConversationTurn } from '@/api/conversation.api';
+import { postConversationTurn } from '@/api/conversation.api';
+import { toFailureResult } from '@/shared/utils/action-failure';
 import { keepApiError } from '@/shared/utils/keep-api-error';
 
-import { type SendTurnResult, toFailure } from '../utils/conversation-state';
+import type { SendTurnResult } from '../utils/conversation-state';
 
 /**
  * Sends the message, term, latest seen sequence and the form's confirmed inputs. Prior turns are
- * never sent: the server holds the transcript. On 409 it reloads the transcript so the panel can
- * show what changed. Tenant and user come from the session on the server.
+ * never sent: the server holds the transcript. This is one API call; on a revision conflict the
+ * panel reloads the transcript through the reload action. Tenant and user come from the session
+ * on the server.
  *
  * @param studentId - Internal student ID from the page URL.
  * @param request - The turn request; it is checked again here before anything is sent.
- * @returns The reply, the reloaded transcript on a conflict, `rejected` when the request didn't
+ * @returns The reply, `conflict` when the transcript changed, `rejected` when the request didn't
  *   parse, or the API's own error.
  */
 export async function sendTurnAction(studentId: string, request: unknown): Promise<SendTurnResult> {
@@ -31,18 +33,12 @@ export async function sendTurnAction(studentId: string, request: unknown): Promi
     return { kind: 'rejected' };
   }
   const reply = await keepApiError(postConversationTurn(studentId, parsed.data));
-  if (!(reply instanceof ApiError)) {
-    return reply.lastSequence === undefined
-      ? { kind: 'replied', turn: reply.turn }
-      : { kind: 'replied', turn: reply.turn, lastSequence: reply.lastSequence };
+  if (reply instanceof ApiError) {
+    return reply.code === ErrorCode.RevisionConflict
+      ? { kind: 'conflict' }
+      : toFailureResult(reply);
   }
-  if (reply.code !== ErrorCode.RevisionConflict) {
-    return toFailure(reply);
-  }
-  const conversation = await keepApiError(
-    getConversation(studentId, { termId: parsed.data.termId }),
-  );
-  return conversation instanceof ApiError
-    ? toFailure(conversation)
-    : { kind: 'conflict', conversation };
+  return reply.lastSequence === undefined
+    ? { kind: 'replied', turn: reply.turn }
+    : { kind: 'replied', turn: reply.turn, lastSequence: reply.lastSequence };
 }

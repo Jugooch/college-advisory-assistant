@@ -4,7 +4,9 @@
  * @requirement FR-10
  * @see docs/adr/0015-conversation-orchestration-and-policy-corpus.md
  */
-import type { ApiError, AssistantTurnView, ConversationResponse } from '@caa/api-contract';
+import type { AssistantTurnView, ConversationResponse } from '@caa/api-contract';
+
+import type { FailureResult } from '@/shared/utils/action-failure';
 
 import { REJECTED_MESSAGE } from './conversation-wording';
 
@@ -15,39 +17,16 @@ export type SendTurnResult =
       readonly turn: AssistantTurnView;
       readonly lastSequence?: number;
     }
-  | { readonly kind: 'conflict'; readonly conversation: ConversationResponse }
+  | { readonly kind: 'conflict' }
   | { readonly kind: 'rejected' }
-  | {
-      readonly kind: 'failed';
-      readonly code: ApiError['code'];
-      readonly message: string;
-      readonly requestId: string | null;
-    };
+  | FailureResult;
 
 /** The outcome of clearing the transcript. */
-export type ClearResult =
-  | { readonly kind: 'cleared' }
-  | {
-      readonly kind: 'failed';
-      readonly code: ApiError['code'];
-      readonly message: string;
-      readonly requestId: string | null;
-    };
+export type ClearResult = { readonly kind: 'cleared' } | FailureResult;
 
-/**
- * Builds the serializable part of a failure from an API error.
- *
- * @param error - The error the API returned.
- * @returns Code, message and support reference.
- */
-export function toFailure(error: ApiError): {
-  readonly kind: 'failed';
-  readonly code: ApiError['code'];
-  readonly message: string;
-  readonly requestId: string | null;
-} {
-  return { kind: 'failed', code: error.code, message: error.message, requestId: error.requestId };
-}
+/** The outcome of reloading the transcript after a conflict. */
+export type ReloadResult =
+  { readonly kind: 'loaded'; readonly conversation: ConversationResponse } | FailureResult;
 
 /** A failure to show beside the input. */
 export interface ChatProblem {
