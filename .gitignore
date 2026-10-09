@@ -25,3 +25,9 @@ coverage/
 apps/web/AGENTS.md
 apps/web/CLAUDE.md
 solver-calibration.json
+
+# Playwright output (ADR-0016)
+tests/playwright-report/
+tests/test-results/
+playwright-report/
+test-results/
