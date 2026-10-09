@@ -16,7 +16,8 @@ import {
   getPlannableTermsEndpoint,
   listAdvisorCasesEndpoint,
   savePlanEndpoint,
-} from '../packages/api-contract/src/index.ts';
+} from '@caa/api-contract';
+
 import { prepareDemoState } from './lib/demo-state.mjs';
 
 const ENDPOINTS = {

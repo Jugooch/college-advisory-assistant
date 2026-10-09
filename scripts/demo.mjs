@@ -43,6 +43,22 @@ function isReachable({ host, port }) {
 }
 
 /**
+ * Returns the last non-empty line of a command's whole output.
+ *
+ * @param {string} output - Everything the command wrote to stdout.
+ * @returns {string} The line, or an empty string.
+ */
+function lastLine(output) {
+  return (
+    output
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line !== '')
+      .at(-1) ?? ''
+  );
+}
+
+/**
  * Runs a command to completion with the demo environment.
  *
  * @param {string[]} args - Arguments to `pnpm`.
@@ -56,14 +72,16 @@ function run(args, env, captureLast = false) {
       env,
       stdio: ['ignore', captureLast ? 'pipe' : 'inherit', 'inherit'],
     });
-    let last = '';
+    let output = '';
     child.stdout?.on('data', (chunk) => {
       process.stdout.write(chunk);
-      last = chunk.toString().trim().split('\n').at(-1) ?? last;
+      output += chunk.toString();
     });
     child.on('error', reject);
     child.on('exit', (code) =>
-      code === 0 ? resolve(last) : reject(new Error(`pnpm ${args[0]} exited with code ${code}`)),
+      code === 0
+        ? resolve(lastLine(output))
+        : reject(new Error(`pnpm ${args[0]} exited with code ${code}`)),
     );
   });
 }
@@ -111,16 +129,22 @@ async function main() {
   const stopped = new Promise((resolve) => stack.on('exit', resolve));
   const abort = new AbortController();
   stopped.then(() => abort.abort());
+  let interrupted = false;
   for (const signal of ['SIGINT', 'SIGTERM']) {
-    process.on(signal, () => stack.kill(signal));
+    process.on(signal, () => {
+      interrupted = true;
+      stack.kill(signal);
+    });
   }
   try {
     await waitForApi(abort.signal);
-    const last = await run(['--filter', '@caa/db', 'exec', 'tsx', PREPARE_SCRIPT], env, true);
+    const last = await run(['exec', 'tsx', PREPARE_SCRIPT], env, true);
     console.log(describeReady(JSON.parse(last)));
   } catch (error) {
-    console.error(error instanceof Error ? error.message : 'The demo could not be prepared.');
-    process.exitCode = 1;
+    if (!interrupted) {
+      console.error(error instanceof Error ? error.message : 'The demo could not be prepared.');
+      process.exitCode = 1;
+    }
     stack.kill('SIGTERM');
   }
   await stopped;

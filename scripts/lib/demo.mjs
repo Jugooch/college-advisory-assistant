@@ -117,7 +117,8 @@ export function buildDevAuthTokens() {
  * Decides whether the demo may run, before anything connects or writes.
  *
  * SECURITY: the demo wipes the database it is pointed at, so only a local, non-production one is
- * allowed. The host is read from the URL, and a URL that can name another target through query
+ * allowed. This mirrors `assertResetAllowed` in `packages/db/src/seed/reset-command.ts`, which
+ * `db:reset` still runs itself; keep the two in step. The host is read from the URL, and a URL that can name another target through query
  * parameters (`host`, `hostaddr`, `port`) is refused outright.
  *
  * @param {Record<string, string | undefined>} env - Process environment.
@@ -125,6 +126,7 @@ export function buildDevAuthTokens() {
  * @throws {DemoRefusedError} When `NODE_ENV` is production, or the database is not local.
  */
 export function assertDemoAllowed(env) {
+  // TODO(#614): replace this copy with the shared guard once @caa/db exports it.
   if (env.NODE_ENV === 'production') {
     throw new DemoRefusedError('NODE_ENV is production');
   }
@@ -150,7 +152,7 @@ export function assertDemoAllowed(env) {
 
 /**
  * Builds the environment every demo child process runs with. The forced settings win over the
- * shell; secrets such as an API key are dropped, so the demo can never reach a live model.
+ * shell, and `ANTHROPIC_API_KEY` is dropped, so the demo can never reach a live model.
  *
  * @param {Record<string, string | undefined>} env - Process environment.
  * @param {string} databaseUrl - The accepted database URL.

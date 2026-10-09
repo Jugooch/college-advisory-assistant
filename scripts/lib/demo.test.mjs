@@ -5,6 +5,8 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { buildDemoSeedPlan, DEV_SEED_ISSUER } from '@caa/db/testing';
+
 import {
   assertDemoAllowed,
   buildDemoEnv,
@@ -100,5 +102,35 @@ describe('messages', () => {
       expect(text).toContain(persona.token);
     }
     expect(text).toContain('2 open cases');
+  });
+});
+
+describe('DEMO_PERSONAS', () => {
+  const plan = buildDemoSeedPlan(new Date('2026-10-01T12:00:00.000Z'));
+
+  it('names the seeded identities, students and issuer', () => {
+    for (const persona of DEMO_PERSONAS) {
+      const identity = plan.identities.find((candidate) => candidate.subject === persona.subject);
+      expect(identity, persona.subject).toBeDefined();
+      expect(identity.issuer).toBe(DEV_SEED_ISSUER);
+      if (persona.studentId !== null) {
+        const student = plan.students.find(
+          (candidate) => candidate.userSubject === persona.subject,
+        );
+        expect(student.id).toBe(persona.studentId);
+        if (persona.sourceStudentId !== undefined) {
+          expect(student.sourceStudentId).toBe(persona.sourceStudentId);
+        }
+      }
+    }
+  });
+
+  it('assigns the demo students to the demo advisor', () => {
+    for (const persona of DEMO_PERSONAS.filter((candidate) => candidate.sourceStudentId)) {
+      const assignment = plan.assignments.find(
+        (candidate) => candidate.sourceStudentId === persona.sourceStudentId,
+      );
+      expect(assignment.advisorSubject).toBe('synthetic-advisor-001');
+    }
   });
 });

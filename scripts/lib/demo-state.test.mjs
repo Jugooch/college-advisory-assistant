@@ -6,8 +6,16 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  CreateCaseRequestSchema,
+  SavePlanRequestSchema,
+  ScheduleOptionsRequestSchema,
+} from '@caa/api-contract';
+
+import {
   buildDiscrepancyBody,
   buildPlanReviewBody,
+  buildSaveBody,
+  buildScheduleRequest,
   pickFirstOptionSections,
   pickPlanningTermId,
   prepareDemoState,
@@ -118,5 +126,30 @@ describe('prepareDemoState', () => {
 
   it('fails when the case does not read STALE', async () => {
     await expect(prepareDemoState(fakeApi({ freshness: 'CURRENT' }))).rejects.toThrow(/STALE/);
+  });
+});
+
+describe('request bodies against the contract schemas', () => {
+  const TERM_ID = '10000000-0000-4000-8000-000000000004';
+  const REVISION_ID = '70000000-0000-4000-8000-000000000001';
+
+  it('builds a schedule-options request the contract accepts', () => {
+    expect(ScheduleOptionsRequestSchema.safeParse(buildScheduleRequest(TERM_ID)).success).toBe(
+      true,
+    );
+  });
+
+  it('builds the save body with a request the contract accepts', () => {
+    const request = buildScheduleRequest(TERM_ID);
+    const body = buildSaveBody(request, { pinnedInputs: {} }, [REVISION_ID]);
+    const parsed = SavePlanRequestSchema.safeParse(body);
+    const failing = parsed.success ? [] : parsed.error.issues.map((issue) => issue.path[0]);
+    // NOTE: only the pinned inputs are a stand-in here; everything the demo builds must parse.
+    expect(failing.filter((key) => key !== 'expectedPinnedInputs')).toEqual([]);
+  });
+
+  it('builds case bodies the contract accepts', () => {
+    expect(CreateCaseRequestSchema.safeParse(buildPlanReviewBody(REVISION_ID)).success).toBe(true);
+    expect(CreateCaseRequestSchema.safeParse(buildDiscrepancyBody()).success).toBe(true);
   });
 });
