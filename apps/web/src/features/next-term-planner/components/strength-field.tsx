@@ -10,12 +10,9 @@ import type { ReactElement } from 'react';
 
 import { ConstraintStrength } from '@caa/domain';
 
-import {
-  type ConstraintSlot,
-  plannerFieldId,
-  slotFieldName,
-  type StrengthInput,
-} from '../utils/planner-fields';
+import { type ConstraintSlot, slotFieldName } from '@/shared/utils/planner-query-names';
+
+import { plannerFieldId, type StrengthInput } from '../utils/planner-fields';
 
 /** Props for {@link StrengthField}. */
 export interface StrengthFieldProps {

@@ -14,13 +14,13 @@ import { ApiError } from '@caa/api-contract';
 
 import { getAcademicSummary } from '@/api/academic-summary.api';
 import { listStudentCases } from '@/api/cases.api';
-import { AuditFreshness } from '@/features/academic-summary/components/audit-freshness';
-import { RecordDetails } from '@/features/academic-summary/components/record-details';
-import { RequirementOverview } from '@/features/academic-summary/components/requirement-overview';
 import { OpenCaseSummary } from '@/features/advisor-cases/components/open-case-summary';
 import { StudentLookupForm } from '@/features/session/components/student-lookup-form';
 import { StudentNav } from '@/features/student-navigation/components/student-nav';
 import { ApiErrorNotice } from '@/shared/components/api-error-notice';
+import { AuditFreshness } from '@/shared/components/audit-freshness';
+import { RecordDetails } from '@/shared/components/record-details';
+import { RequirementOverview } from '@/shared/components/requirement-overview';
 import { keepApiError } from '@/shared/utils/keep-api-error';
 import { readStudentIdQuery } from '@/shared/utils/student-id-query';
 

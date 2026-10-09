@@ -11,8 +11,13 @@ import { type ReactElement, useState } from 'react';
 
 import { DiscrepancySubject } from '@caa/domain';
 
+import {
+  describeSubject,
+  REPORT_CHANGES_NOTHING,
+  WHO_SEES_THIS,
+} from '@/shared/utils/case-wording';
+
 import { buildDiscrepancyRequest } from '../utils/case-request';
-import { describeSubject, REPORT_CHANGES_NOTHING, WHO_SEES_THIS } from '../utils/case-wording';
 import type { CreateCaseState } from '../utils/create-case-state';
 import { CaseFormShell } from './case-form-shell';
 import { NotePreview } from './note-preview';
@@ -25,6 +30,8 @@ export interface ReportProblemFormProps {
     formData: FormData,
   ) => Promise<CreateCaseState>;
   readonly studentId: string;
+  /** The subject to preselect; the student can change it. */
+  readonly initialSubject?: DiscrepancySubject;
   /** Link to the student's Help and cases page. */
   readonly casesHref: string;
 }
@@ -38,9 +45,10 @@ export interface ReportProblemFormProps {
 export function ReportProblemForm({
   createAction,
   studentId,
+  initialSubject = DiscrepancySubject.ProgramOrCatalog,
   casesHref,
 }: ReportProblemFormProps): ReactElement {
-  const [subject, setSubject] = useState<DiscrepancySubject>(DiscrepancySubject.ProgramOrCatalog);
+  const [subject, setSubject] = useState<DiscrepancySubject>(initialSubject);
   return (
     <CaseFormShell
       createAction={createAction}

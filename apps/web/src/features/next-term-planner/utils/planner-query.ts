@@ -5,16 +5,18 @@
  * @see docs/standards/09-errors-logging-and-security.md
  */
 import { readCreditInputs } from '@/shared/utils/credit-selections';
+import {
+  type ConstraintSlot,
+  PlannerStep,
+  slotFieldName,
+  TIME_BLOCK_SLOTS,
+} from '@/shared/utils/planner-query-names';
 import { readStudentIdQuery, type StudentIdQuery } from '@/shared/utils/student-id-query';
 
 import {
-  type ConstraintSlot,
   defaultRank,
   type PlannerFormValues,
-  PlannerStep,
-  slotFieldName,
   type StrengthInput,
-  TIME_BLOCK_SLOTS,
   type TimeBlockInput,
 } from './planner-fields';
 

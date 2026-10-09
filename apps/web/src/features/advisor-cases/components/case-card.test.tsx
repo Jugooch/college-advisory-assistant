@@ -22,7 +22,8 @@ import {
   buildUnknownPlanFreshnessView,
 } from '@caa/test-kit';
 
-import { ADVICE_NOT_PERMISSION, describeCaseStatus } from '../utils/case-wording';
+import { ADVICE_NOT_PERMISSION, describeCaseStatus } from '@/shared/utils/case-wording';
+
 import { CaseCard } from './case-card';
 
 const withdrawAction = vi.fn();

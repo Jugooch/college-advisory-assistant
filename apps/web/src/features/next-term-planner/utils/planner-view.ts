@@ -8,8 +8,9 @@
  */
 import { ApiError, type ScheduleOptionsResponse } from '@caa/api-contract';
 
-import { describeConstraints, type ReviewedConstraint } from './constraint-wording';
-import { PlannerStep } from './planner-fields';
+import { describeConstraints, type ReviewedConstraint } from '@/shared/utils/constraint-wording';
+import { PlannerStep } from '@/shared/utils/planner-query-names';
+
 import type { PlannerIssue, PlannerPlan } from './planner-plan';
 
 /** What the planner page shows. */

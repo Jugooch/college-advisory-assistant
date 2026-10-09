@@ -12,8 +12,7 @@ import type { ReactElement } from 'react';
 import type { PlanView } from '@caa/api-contract';
 
 import { Timestamp } from '@/shared/components/timestamp';
-
-import { describeRevisionCause } from '../utils/plan-detail-wording';
+import { describeRevisionCause } from '@/shared/utils/plan-detail-wording';
 
 /** Props for {@link RevisionHistory}. */
 export interface RevisionHistoryProps {

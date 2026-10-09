@@ -11,9 +11,11 @@ import type { ReactElement } from 'react';
 
 import { createCaseAction } from '@/features/advisor-cases/actions/create-case.action';
 import { ReportProblemForm } from '@/features/advisor-cases/components/report-problem-form';
-import { REPORT_CHANGES_NOTHING } from '@/features/advisor-cases/utils/case-wording';
+import { readSubjectQuery } from '@/features/advisor-cases/utils/handoff-query';
 import { StudentLookupForm } from '@/features/session/components/student-lookup-form';
 import { StudentNav } from '@/features/student-navigation/components/student-nav';
+import { HandoffQuery } from '@/shared/utils/case-handoff-query';
+import { REPORT_CHANGES_NOTHING } from '@/shared/utils/case-wording';
 import { readStudentIdQuery } from '@/shared/utils/student-id-query';
 
 /** Page title. */
@@ -30,7 +32,8 @@ export default async function ReportAProblemPage({
 }: {
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
 }): Promise<ReactElement> {
-  const query = readStudentIdQuery((await searchParams).studentId);
+  const params = await searchParams;
+  const query = readStudentIdQuery(params[HandoffQuery.StudentId]);
   if (query.kind !== 'valid') {
     return (
       <>
@@ -47,6 +50,7 @@ export default async function ReportAProblemPage({
       <ReportProblemForm
         createAction={createCaseAction}
         studentId={query.studentId}
+        initialSubject={readSubjectQuery(params[HandoffQuery.Subject])}
         casesHref={`/help-and-cases?studentId=${query.studentId}`}
       />
     </>

@@ -1,6 +1,6 @@
 /**
  * @file One assistant block: structured content for notices, referrals and policy results, and a
- * pointer to the verified screen for everything else.
+ * verified cards for everything else.
  * @module @caa/web/features/conversation/components/block-body
  * @requirement FR-10
  * @requirement NFR-02
@@ -14,8 +14,9 @@ import { AssistantBlockKind } from '@caa/domain';
 import { PolicyHitList } from '@/shared/components/policy-hit-list';
 import { Timestamp } from '@/shared/components/timestamp';
 
+import { CHAT_CARD_LEVEL } from '../utils/chat-heading-level';
 import type { StudentLinks } from '../utils/student-links';
-import { ResultPointer } from './result-pointer';
+import { ResultBlock } from './result-block';
 
 /** Props for {@link BlockBody}. */
 export interface BlockBodyProps {
@@ -24,7 +25,7 @@ export interface BlockBodyProps {
 }
 
 /**
- * Renders one block: structured content for notices, referrals and policy results, and a pointer
+ * Renders one block: structured content for notices, referrals and policy results, and cards
  * to the verified screen for everything else.
  *
  * @param props - The block and the links.
@@ -42,7 +43,9 @@ export function BlockBody({ block, links }: BlockBodyProps): ReactElement {
       return (
         <div role="note" className="notice notice--problem">
           <p>{block.text}</p>
-          {block.policy === null ? null : <PolicyHitList hits={[block.policy]} headingLevel={3} />}
+          {block.policy === null ? null : (
+            <PolicyHitList hits={[block.policy]} headingLevel={CHAT_CARD_LEVEL} />
+          )}
           <p>
             Checked <Timestamp iso={block.asOf} />.
           </p>
@@ -52,9 +55,9 @@ export function BlockBody({ block, links }: BlockBodyProps): ReactElement {
       return block.results.hits.length === 0 ? (
         <p>No approved policy matched. Ask your advising office.</p>
       ) : (
-        <PolicyHitList hits={block.results.hits} headingLevel={3} />
+        <PolicyHitList hits={block.results.hits} headingLevel={CHAT_CARD_LEVEL} />
       );
     default:
-      return <ResultPointer block={block} links={links} />;
+      return <ResultBlock block={block} links={links} />;
   }
 }

@@ -7,8 +7,9 @@
 import type { ReactElement } from 'react';
 
 import { creditFieldName } from '@/shared/utils/credit-choice';
+import { slotFieldName, TIME_BLOCK_SLOTS } from '@/shared/utils/planner-query-names';
 
-import { type PlannerFormValues, slotFieldName, TIME_BLOCK_SLOTS } from '../utils/planner-fields';
+import { type PlannerFormValues } from '../utils/planner-fields';
 
 /** One hidden field. */
 type Entry = readonly [name: string, value: string];

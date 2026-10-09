@@ -15,13 +15,13 @@ import { CaseAction, CaseStatus } from '@caa/domain';
 
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Timestamp } from '@/shared/components/timestamp';
-
 import {
   describeCaseReason,
   describeCaseStatus,
   describeSubject,
   REPORT_CHANGES_NOTHING,
-} from '../utils/case-wording';
+} from '@/shared/utils/case-wording';
+
 import type { WithdrawCaseState } from '../utils/withdraw-case-state';
 import { CaseResolution } from './case-resolution';
 import { CaseTimeline } from './case-timeline';

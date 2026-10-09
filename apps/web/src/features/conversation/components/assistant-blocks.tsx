@@ -1,6 +1,6 @@
 /**
  * @file The blocks of one assistant turn. Policy results, notices and referrals render their
- * structured fields; result-bearing blocks point to the screen that shows the verified result.
+ * structured fields; result blocks render the shared verified cards; suggestions are confirmable.
  * @module @caa/web/features/conversation/components/assistant-blocks
  * @requirement FR-10
  * @requirement NFR-02

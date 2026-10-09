@@ -14,9 +14,9 @@ import type { CaseView } from '@caa/api-contract';
 
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Timestamp } from '@/shared/components/timestamp';
+import { describeCaseReason, describeCaseStatus } from '@/shared/utils/case-wording';
 
 import type { CaseSummary } from '../utils/case-summary';
-import { describeCaseReason, describeCaseStatus } from '../utils/case-wording';
 import type { WithdrawCaseState } from '../utils/withdraw-case-state';
 import { CaseCard } from './case-card';
 

@@ -7,6 +7,7 @@ import { studentScreenHref } from '@/shared/utils/student-screens';
 
 /** The screens a chat block can point to. */
 export interface StudentLinks {
+  readonly studentId: string;
   readonly planner: string;
   readonly plans: string;
   readonly overview: string;
@@ -21,6 +22,7 @@ export interface StudentLinks {
  */
 export function studentLinks(studentId: string): StudentLinks {
   return {
+    studentId,
     planner: studentScreenHref('next-term-planner', studentId),
     plans: studentScreenHref('my-plans', studentId),
     overview: studentScreenHref('overview', studentId),
