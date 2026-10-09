@@ -5,7 +5,11 @@
  * @requirement FR-10
  * @see docs/adr/0015-conversation-orchestration-and-policy-corpus.md
  */
-import type { AssistantTurnView, ConversationTurnView } from '@caa/api-contract';
+import type {
+  AssistantTurnView,
+  ConversationResponse,
+  ConversationTurnView,
+} from '@caa/api-contract';
 import { TurnRole } from '@caa/domain';
 
 /** One line of the transcript. */
@@ -34,11 +38,14 @@ export function itemsFromTurns(turns: readonly ConversationTurnView[]): readonly
 }
 
 /**
- * Reads the latest stored sequence, which the next turn must send as `expectedSequence`.
+ * Reads the sequence the next turn must send as `expectedSequence`. The server's `lastSequence`
+ * wins because it survives a clear; without it, the last visible turn is the best available.
  *
- * @param turns - Stored turns in increasing sequence order.
- * @returns The last sequence, or 0 for an empty transcript.
+ * @param conversation - The conversation as the API returned it.
+ * @returns `lastSequence` when present, else the last visible sequence, else 0.
  */
-export function latestSequence(turns: readonly ConversationTurnView[]): number {
-  return turns.at(-1)?.sequence ?? 0;
+export function nextSequence(
+  conversation: Pick<ConversationResponse, 'turns' | 'lastSequence'>,
+): number {
+  return conversation.lastSequence ?? conversation.turns.at(-1)?.sequence ?? 0;
 }

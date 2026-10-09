@@ -32,7 +32,9 @@ export async function sendTurnAction(studentId: string, request: unknown): Promi
   }
   const reply = await keepApiError(postConversationTurn(studentId, parsed.data));
   if (!(reply instanceof ApiError)) {
-    return { kind: 'replied', turn: reply.turn };
+    return reply.lastSequence === undefined
+      ? { kind: 'replied', turn: reply.turn }
+      : { kind: 'replied', turn: reply.turn, lastSequence: reply.lastSequence };
   }
   if (reply.code !== ErrorCode.RevisionConflict) {
     return toFailure(reply);

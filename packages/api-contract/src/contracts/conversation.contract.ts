@@ -30,6 +30,14 @@ import { ScheduleOptionsRequestSchema } from './schedule-options-request.contrac
 export const MAX_TRANSCRIPT_TURNS = 100;
 
 /**
+ * The conversation's last stored sequence. When present, the client must use it as the next
+ * `expectedSequence`, because clear and unreadable turns leave it ahead of the visible
+ * transcript (ADR-0015 §2, AC44).
+ */
+// TODO(#559): make required once the api and test-kit builders always set it (staged rollout, standard 08)
+const LastSequenceSchema = z.number().int().min(0).optional();
+
+/**
  * Query for reading or clearing a conversation. Strict: tenant, user and student come from the
  * session and path, never the query.
  */
@@ -97,7 +105,19 @@ export type AssistantTurnView = z.infer<typeof AssistantTurnViewSchema>;
 
 /** Response body for `POST /v1/students/:studentId/conversation/turns`. */
 export const ConversationTurnResponseSchema = z
-  .strictObject({ turn: AssistantTurnViewSchema })
+  .strictObject({
+    turn: AssistantTurnViewSchema,
+    lastSequence: LastSequenceSchema,
+  })
+  // SAFETY: the next `expectedSequence` can't be behind the turn just stored, or every later
+  // turn would fail with 409 REVISION_CONFLICT (ADR-0015 §2).
+  .refine(
+    (body) =>
+      body.lastSequence === undefined ||
+      body.turn.sequence === null ||
+      body.lastSequence >= body.turn.sequence,
+    { message: 'lastSequence must be at least the turn sequence', path: ['lastSequence'] },
+  )
   .readonly();
 
 /** Response body for `POST /v1/students/:studentId/conversation/turns`. */
@@ -149,6 +169,7 @@ export const ConversationResponseSchema = z
     unavailableReason: z.literal(NoticeCode.Disabled).nullable(),
     /** The newest 100 turns, oldest first. */
     turns: z.array(ConversationTurnViewSchema).max(MAX_TRANSCRIPT_TURNS).readonly(),
+    lastSequence: LastSequenceSchema,
   })
   // SAFETY: an unavailable conversation always says why, and an available one never does, so
   // the UI can't show a disabled panel without a reason or a stale reason on a working one
@@ -157,6 +178,16 @@ export const ConversationResponseSchema = z
     message: 'unavailableReason is null exactly when available',
     path: ['unavailableReason'],
   })
+  // SAFETY: the next `expectedSequence` can't be behind the newest visible turn, or every later
+  // turn would fail with 409 REVISION_CONFLICT (ADR-0015 §2).
+  .refine(
+    (body) =>
+      body.lastSequence === undefined ||
+      body.turns.every(
+        (turn) => body.lastSequence !== undefined && body.lastSequence >= turn.sequence,
+      ),
+    { message: 'lastSequence must be at least the newest turn sequence', path: ['lastSequence'] },
+  )
   // SAFETY: the transcript is append-only and ordered, so a repeated or reversed sequence means
   // the history is wrong (ADR-0015 §7).
   .refine(

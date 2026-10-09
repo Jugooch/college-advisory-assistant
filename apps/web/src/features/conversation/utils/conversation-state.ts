@@ -10,7 +10,11 @@ import { REJECTED_MESSAGE } from './conversation-wording';
 
 /** The outcome of posting one turn. */
 export type SendTurnResult =
-  | { readonly kind: 'replied'; readonly turn: AssistantTurnView }
+  | {
+      readonly kind: 'replied';
+      readonly turn: AssistantTurnView;
+      readonly lastSequence?: number;
+    }
   | { readonly kind: 'conflict'; readonly conversation: ConversationResponse }
   | { readonly kind: 'rejected' }
   | {
