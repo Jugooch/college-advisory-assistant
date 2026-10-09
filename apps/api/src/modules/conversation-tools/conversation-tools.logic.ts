@@ -26,18 +26,6 @@ export const UNKNOWN_TOOL = 'UNKNOWN_TOOL';
 /** Why a tool produced no result: a service error code or one of the tool layer's own. */
 export type ToolErrorCode = ErrorCode | typeof INVALID_ARGUMENTS | typeof UNKNOWN_TOOL;
 
-/** Template ID of the notice shown when a tool fails. */
-export const TOOL_FAILED_TEMPLATE_ID = 'notice.tool-failed';
-
-/** Template ID of the notice shown when a source is out of date. */
-export const STALE_SOURCE_TEMPLATE_ID = 'notice.stale-source';
-
-/** Template ID of the notice shown when a source can't be reached. */
-export const SOURCE_UNAVAILABLE_TEMPLATE_ID = 'notice.source-unavailable';
-
-/** Template ID of the notice shown when the planner form can't be used. */
-export const PLANNER_INPUT_TEMPLATE_ID = 'notice.planner-input-needed';
-
 /** What one tool call produces. Block and notice come from services and templates, never the model. */
 export interface ToolOutcome {
   /** The minimized result for the model, with no names, emails, IDs, grades, or notes. */
@@ -95,20 +83,13 @@ export function failedResult(errorCode: ToolErrorCode, notice: AssistantBlock | 
  * notices; everything else is the generic tool failure.
  *
  * @param code - Why the tool failed.
- * @returns The notice code and the ID of its template.
+ * @returns The notice code; the caller looks up its template.
  */
-export function failureNotice(code: ToolErrorCode): {
-  readonly noticeCode: NoticeCode;
-  readonly templateId: string;
-} {
+export function failureNotice(code: ToolErrorCode): NoticeCode {
   // SAFETY: a stale or unreachable source is never reported as a generic failure.
-  if (code === ErrorCode.StaleSource) {
-    return { noticeCode: NoticeCode.StaleSource, templateId: STALE_SOURCE_TEMPLATE_ID };
-  }
-  if (code === ErrorCode.SourceUnavailable) {
-    return { noticeCode: NoticeCode.SourceUnavailable, templateId: SOURCE_UNAVAILABLE_TEMPLATE_ID };
-  }
-  return { noticeCode: NoticeCode.ToolFailed, templateId: TOOL_FAILED_TEMPLATE_ID };
+  if (code === ErrorCode.StaleSource) return NoticeCode.StaleSource;
+  if (code === ErrorCode.SourceUnavailable) return NoticeCode.SourceUnavailable;
+  return NoticeCode.ToolFailed;
 }
 
 /**

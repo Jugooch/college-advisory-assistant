@@ -21,6 +21,7 @@ import { NotFoundError } from '../../shared/domain-errors';
 import type { RequestContext } from '../../shared/request-context';
 import type { AccessService } from '../access/access.service';
 import { toTranscriptTurns } from './conversation-store.logic';
+import { renderTemplateBlock } from './conversation-store.mapper';
 
 /** Dependencies of the conversation store service. */
 export interface ConversationStoreServiceDependencies {
@@ -134,7 +135,7 @@ export function createConversationStoreService(
       const lastSequence = await conversations.findLastSequence(ids);
       // SECURITY: a conversation that isn't the owner's reads as missing.
       if (lastSequence === null) throw new NotFoundError();
-      const { turns, unreadableSequences } = toTranscriptTurns(stored);
+      const { turns, unreadableSequences } = toTranscriptTurns(stored, renderTemplateBlock);
       logUnreadable(context, {
         tenantId: actor.tenantId,
         conversationId: conversation.id,
