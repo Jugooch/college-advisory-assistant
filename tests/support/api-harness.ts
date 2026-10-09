@@ -68,6 +68,11 @@ export interface AcceptanceOptions {
    * `ConversationModel` and hand it to `createContainer`.
    */
   readonly conversationModel?: unknown;
+  /**
+   * `CONVERSATION_MODEL`, the API's own choice of model: `demo` is the keyword demo model, which
+   * needs no key. Defaults to the API's default, chat off.
+   */
+  readonly conversationMode?: 'off' | 'demo' | 'claude';
 }
 
 /** The API app, not yet listening. */
@@ -224,6 +229,9 @@ export function buildAcceptanceApp(
     ACADEMIC_SOURCE_MAX_AGE_MS: String(ACCEPTANCE_SOURCE_MAX_AGE_MS),
     AUDIT_RECORD_MAX_SKEW_MS: String(ACCEPTANCE_AUDIT_SKEW_MS),
     SCHEDULE_SOLVER_WORK_CAP: String(options.solverWorkCap ?? ACCEPTANCE_SOLVER_WORK_CAP),
+    ...(options.conversationMode === undefined
+      ? {}
+      : { CONVERSATION_MODEL: options.conversationMode }),
   });
   const repositories: Repositories = {
     userIdentities: createIdentities(world),
