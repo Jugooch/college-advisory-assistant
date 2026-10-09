@@ -14,10 +14,12 @@ import {
   createContainer,
   type DevTokenIdentity,
   loadApiEnv,
+  type LogDestination,
   type Repositories,
   type StudentRepository,
   type UserIdentityRepository,
 } from '@caa/api/testing';
+import type { ConversationModel } from '@caa/assistant';
 import type { StudentUserLinkRepository } from '@caa/db';
 import type { AdvisorAssignment, Student, UserIdentity } from '@caa/domain';
 
@@ -63,11 +65,16 @@ export interface AcceptanceOptions {
   /** `ACTIVE_RULESET_VERSION`; defaults to {@link ACCEPTANCE_RULESET_VERSION}. */
   readonly rulesetVersion?: string;
   /**
-   * The conversation model the API calls. NOTE: typed loosely and not yet passed on, because
-   * `ContainerOptions.conversationModel` arrives with #513; once it does, type this as
-   * `ConversationModel` and hand it to `createContainer`.
+   * The conversation model the API calls. Omit it to run with chat off (`CONVERSATION_MODEL=off`),
+   * which is the kill switch.
    */
-  readonly conversationModel?: unknown;
+  readonly conversationModel?: ConversationModel;
+  /** `CONVERSATION_RATE_LIMIT`; defaults to the API's own default. */
+  readonly conversationRateLimit?: number;
+  /** `CONVERSATION_HISTORY_TURNS`; defaults to the API's own default. */
+  readonly conversationHistoryTurns?: number;
+  /** Where the API's log lines go; defaults to no logging. */
+  readonly logStream?: LogDestination;
 }
 
 /** The API app, not yet listening. */
@@ -224,6 +231,12 @@ export function buildAcceptanceApp(
     ACADEMIC_SOURCE_MAX_AGE_MS: String(ACCEPTANCE_SOURCE_MAX_AGE_MS),
     AUDIT_RECORD_MAX_SKEW_MS: String(ACCEPTANCE_AUDIT_SKEW_MS),
     SCHEDULE_SOLVER_WORK_CAP: String(options.solverWorkCap ?? ACCEPTANCE_SOLVER_WORK_CAP),
+    ...(options.conversationRateLimit === undefined
+      ? {}
+      : { CONVERSATION_RATE_LIMIT: String(options.conversationRateLimit) }),
+    ...(options.conversationHistoryTurns === undefined
+      ? {}
+      : { CONVERSATION_HISTORY_TURNS: String(options.conversationHistoryTurns) }),
   });
   const repositories: Repositories = {
     userIdentities: createIdentities(world),
@@ -239,8 +252,15 @@ export function buildAcceptanceApp(
     ...createConversationRepositories(world),
   };
   return buildApp({
-    dependencies: createContainer({ env, repositories, now: () => options.now ?? ACCEPTANCE_NOW }),
-    logger: false,
+    dependencies: createContainer({
+      env,
+      repositories,
+      now: () => options.now ?? ACCEPTANCE_NOW,
+      ...(options.conversationModel === undefined
+        ? {}
+        : { conversationModel: options.conversationModel }),
+    }),
+    logger: options.logStream === undefined ? false : { stream: options.logStream },
   });
 }
 

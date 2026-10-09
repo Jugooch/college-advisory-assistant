@@ -259,6 +259,9 @@ importers:
 
   tests:
     dependencies:
+      '@caa/assistant':
+        specifier: workspace:*
+        version: link:../packages/assistant
       '@caa/db':
         specifier: workspace:*
         version: link:../packages/db
