@@ -6,7 +6,7 @@
  */
 import type { ReactElement } from 'react';
 
-import type { ChipFieldsProps } from '../utils/chip-draft';
+import type { ChipFieldsProps } from './chip-fields-props';
 import { TextField } from './text-field';
 
 /**

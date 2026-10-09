@@ -207,7 +207,11 @@ describe('ScheduleResults comparison', () => {
       'Total credits',
       'Missed preferences',
     ]);
-    expect(html).toContain('href="#option-2-heading"');
+    const targets = [...html.matchAll(/<a href="#([^"]+)">Option \d+<\/a>/g)].map((m) => m[1]);
+    expect(targets).toHaveLength(2);
+    for (const target of targets) {
+      expect(html).toMatch(new RegExp(`<h3 id="${String(target)}">Option \\d+</h3>`));
+    }
     expect(html).toContain('data-label="Missed preferences"');
   });
 });

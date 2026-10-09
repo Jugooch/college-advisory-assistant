@@ -24,6 +24,7 @@ import { StudentNav } from '@/features/student-navigation/components/student-nav
 import { ApiErrorNotice } from '@/shared/components/api-error-notice';
 import { PlanFreshness } from '@/shared/components/plan-freshness';
 import { Timestamp } from '@/shared/components/timestamp';
+import { HandoffQuery } from '@/shared/utils/case-handoff-query';
 import { keepApiError } from '@/shared/utils/keep-api-error';
 import { readStudentIdQuery } from '@/shared/utils/student-id-query';
 
@@ -68,7 +69,7 @@ export default async function AskAnAdvisorPage({
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
 }): Promise<ReactElement> {
   const params = await searchParams;
-  const query = readStudentIdQuery(params.studentId);
+  const query = readStudentIdQuery(params[HandoffQuery.StudentId]);
   if (query.kind !== 'valid') {
     return (
       <>
@@ -77,7 +78,7 @@ export default async function AskAnAdvisorPage({
       </>
     );
   }
-  const planId = readPlanIdQuery(params.planId);
+  const planId = readPlanIdQuery(params[HandoffQuery.PlanId]);
   const casesHref = `/help-and-cases?studentId=${query.studentId}`;
   const plansHref = `/my-plans?studentId=${query.studentId}`;
   if (planId === null) {
@@ -92,7 +93,7 @@ export default async function AskAnAdvisorPage({
       </>
     );
   }
-  const shown = await loadRevision(query.studentId, planId, params.revision);
+  const shown = await loadRevision(query.studentId, planId, params[HandoffQuery.Revision]);
   return (
     <>
       <StudentNav studentId={query.studentId} current={null} />
@@ -114,7 +115,7 @@ export default async function AskAnAdvisorPage({
             createAction={createCaseAction}
             studentId={query.studentId}
             revision={shown}
-            initialReason={readPlanReasonQuery(params.reason)}
+            initialReason={readPlanReasonQuery(params[HandoffQuery.Reason])}
             casesHref={casesHref}
           />
         </>

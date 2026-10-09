@@ -9,6 +9,8 @@
 import type { AssistantBlock } from '@caa/api-contract';
 import { CaseReason } from '@caa/domain';
 
+import { HandoffQuery } from '@/shared/utils/case-handoff-query';
+
 /** The case preview block. */
 export type CasePreview = Extract<AssistantBlock, { kind: 'CASE_PREVIEW' }>;
 
@@ -20,19 +22,19 @@ export type CasePreview = Extract<AssistantBlock, { kind: 'CASE_PREVIEW' }>;
  * @returns The path and query of the existing case form.
  */
 export function caseHandoffHref(preview: CasePreview, studentId: string): string {
-  const query = new URLSearchParams({ studentId });
+  const query = new URLSearchParams({ [HandoffQuery.StudentId]: studentId });
   if (preview.reason === CaseReason.SourceDiscrepancy) {
     if (preview.discrepancySubject !== null) {
-      query.set('subject', preview.discrepancySubject);
+      query.set(HandoffQuery.Subject, preview.discrepancySubject);
     }
     return `/report-a-problem?${query.toString()}`;
   }
   if (preview.planId !== null) {
-    query.set('planId', preview.planId);
+    query.set(HandoffQuery.PlanId, preview.planId);
   }
   if (preview.planRevision !== null) {
-    query.set('revision', String(preview.planRevision));
+    query.set(HandoffQuery.Revision, String(preview.planRevision));
   }
-  query.set('reason', preview.reason);
+  query.set(HandoffQuery.Reason, preview.reason);
   return `/ask-an-advisor?${query.toString()}`;
 }

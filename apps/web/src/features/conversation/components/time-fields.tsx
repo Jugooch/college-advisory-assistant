@@ -10,8 +10,8 @@ import { Weekday } from '@caa/domain';
 
 import { describeWeekday } from '@/shared/utils/section-wording';
 
-import type { ChipFieldsProps } from '../utils/chip-draft';
 import { CheckGroup } from './check-group';
+import type { ChipFieldsProps } from './chip-fields-props';
 import { TextField } from './text-field';
 
 /**

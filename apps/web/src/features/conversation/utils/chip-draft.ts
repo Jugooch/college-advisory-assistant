@@ -13,7 +13,12 @@ import {
   ScheduleConstraintSchema,
 } from '@caa/domain';
 
-import { parseCreditText } from '@/shared/utils/credit-choice';
+import {
+  readCreditBound,
+  readPriorityRank,
+  readTimeBounds,
+  splitCampusIds,
+} from '@/shared/utils/constraint-input';
 
 import { creditText } from './credit-text';
 
@@ -30,21 +35,13 @@ export interface ChipDraft {
   readonly rank: string;
 }
 
-/** Props shared by the chip edit field groups. */
-export interface ChipFieldsProps {
-  readonly id: string;
-  readonly draft: ChipDraft;
-  /** The id of the error message shown for this edit, or `null` when there is none. */
-  readonly errorId: string | null;
-  readonly onChange: (change: Partial<ChipDraft>) => void;
-}
-
 /** The outcome of applying an edit. */
 export type DraftResult =
   | { readonly kind: 'valid'; readonly constraint: ScheduleConstraint }
   | { readonly kind: 'invalid'; readonly message: string };
 
-const INVALID = 'These values don’t make a valid limit. Check the fields and try again.';
+const INVALID =
+  'These values don’t make a valid limit. Check the fields in this edit and try again.';
 
 /**
  * Starts an edit from a constraint.
@@ -85,16 +82,6 @@ export function draftFromConstraint(constraint: ScheduleConstraint): ChipDraft {
 }
 
 /**
- * Reads one typed credit bound.
- *
- * @param text - The typed value.
- * @returns The hundredths, null when blank, or undefined when not a number.
- */
-function readBound(text: string): number | null | undefined {
-  return text.trim() === '' ? null : (parseCreditText(text.trim()) ?? undefined);
-}
-
-/**
  * Builds the raw kind-specific fields from the draft.
  *
  * @param constraint - The constraint being edited.
@@ -106,12 +93,11 @@ function kindFields(constraint: ScheduleConstraint, draft: ChipDraft): object | 
     case ScheduleConstraintKind.UnavailableTime:
       return {
         weekdays: draft.days,
-        startTime: draft.start || '00:00',
-        endTime: draft.end || '24:00',
+        ...readTimeBounds(draft.start, draft.end),
       };
     case ScheduleConstraintKind.CreditRange: {
-      const min = readBound(draft.min);
-      const max = readBound(draft.max);
+      const min = readCreditBound(draft.min);
+      const max = readCreditBound(draft.max);
       return min === undefined || max === undefined
         ? null
         : { minCreditsHundredths: min, maxCreditsHundredths: max };
@@ -119,7 +105,7 @@ function kindFields(constraint: ScheduleConstraint, draft: ChipDraft): object | 
     case ScheduleConstraintKind.AllowedModalities:
       return { modalities: draft.modalities };
     case ScheduleConstraintKind.AllowedCampuses:
-      return { campusIds: draft.campuses.split(/[\s,]+/).filter((id) => id !== '') };
+      return { campusIds: splitCampusIds(draft.campuses) };
   }
 }
 
@@ -132,8 +118,8 @@ function kindFields(constraint: ScheduleConstraint, draft: ChipDraft): object | 
  */
 export function applyDraft(constraint: ScheduleConstraint, draft: ChipDraft): DraftResult {
   const fields = kindFields(constraint, draft);
-  const rank = /^\d{1,2}$/.test(draft.rank) ? Number(draft.rank) : 0;
-  if (fields === null || (constraint.strength === ConstraintStrength.Preferred && rank < 1)) {
+  const rank = readPriorityRank(draft.rank);
+  if (fields === null || (constraint.strength === ConstraintStrength.Preferred && rank === null)) {
     return { kind: 'invalid', message: INVALID };
   }
   const parsed = ScheduleConstraintSchema.safeParse({

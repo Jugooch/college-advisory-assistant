@@ -10,8 +10,8 @@ import { SectionModality } from '@caa/domain';
 
 import { describeModality } from '@/shared/utils/section-wording';
 
-import type { ChipFieldsProps } from '../utils/chip-draft';
 import { CheckGroup } from './check-group';
+import type { ChipFieldsProps } from './chip-fields-props';
 
 /**
  * Fields for the allowed formats.

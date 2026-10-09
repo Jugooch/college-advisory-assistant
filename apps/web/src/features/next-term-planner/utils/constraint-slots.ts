@@ -7,10 +7,19 @@
  */
 import { ConstraintStrength, ScheduleConstraintKind } from '@caa/domain';
 
-import { parseCreditText } from '@/shared/utils/credit-choice';
 import {
+  readCreditBound as readCreditText,
+  readPriorityRank,
+  readTimeBounds,
+  splitCampusIds,
+} from '@/shared/utils/constraint-input';
+import {
+  CAMPUS_SLOT,
   type ConstraintSlot,
+  CREDIT_RANGE_SLOT,
+  MODALITY_SLOT,
   slotFieldName,
+  SlotPart,
   TIME_BLOCK_SLOTS,
 } from '@/shared/utils/planner-query-names';
 
@@ -45,12 +54,12 @@ function readStrengthFields(slot: ConstraintSlot, input: StrengthInput): Payload
     return { strength: ConstraintStrength.Hard, priorityRank: null };
   }
   if (input.strength !== '' && input.strength !== ConstraintStrength.Preferred) {
-    return [slotFieldName(slot, 'strength'), 'Choose required or preferred.'];
+    return [slotFieldName(slot, SlotPart.Strength), 'Choose required or preferred.'];
   }
-  const rank = /^\d{1,2}$/.test(input.rank) ? Number(input.rank) : 0;
-  return rank > 0
-    ? { strength: ConstraintStrength.Preferred, priorityRank: rank }
-    : [slotFieldName(slot, 'rank'), RANK_MESSAGE];
+  const rank = readPriorityRank(input.rank);
+  return rank === null
+    ? [slotFieldName(slot, SlotPart.Rank), RANK_MESSAGE]
+    : { strength: ConstraintStrength.Preferred, priorityRank: rank };
 }
 
 /**
@@ -88,14 +97,16 @@ function withStrength(
 function readTimeBlock(slot: ConstraintSlot, block: TimeBlockInput): SlotReading {
   if (block.days.length === 0) {
     const isBlank = block.start === '' && block.end === '';
-    const error: FieldError = [slotFieldName(slot, 'day'), 'Choose a day, or clear the times.'];
+    const error: FieldError = [
+      slotFieldName(slot, SlotPart.Day),
+      'Choose a day, or clear the times.',
+    ];
     return isBlank ? { kind: 'unused' } : { kind: 'invalid', errors: [error] };
   }
   return withStrength(slot, block, {
     kind: ScheduleConstraintKind.UnavailableTime,
     weekdays: block.days,
-    startTime: block.start === '' ? '00:00' : block.start,
-    endTime: block.end === '' ? '24:00' : block.end,
+    ...readTimeBounds(block.start, block.end),
   });
 }
 
@@ -110,7 +121,7 @@ function readCreditBound(name: string, text: string): number | null | FieldError
   if (text === '') {
     return null;
   }
-  return parseCreditText(text) ?? [name, 'Enter a number of credits, such as 12 or 12.5.'];
+  return readCreditText(text) ?? [name, 'Enter a number of credits, such as 12 or 12.5.'];
 }
 
 /**
@@ -123,15 +134,15 @@ function readCreditRange(range: PlannerFormValues['creditRange']): SlotReading {
   if (range.min === '' && range.max === '') {
     return { kind: 'unused' };
   }
-  const min = readCreditBound(slotFieldName('credit-range', 'min'), range.min);
-  const max = readCreditBound(slotFieldName('credit-range', 'max'), range.max);
+  const min = readCreditBound(slotFieldName(CREDIT_RANGE_SLOT, SlotPart.Min), range.min);
+  const max = readCreditBound(slotFieldName(CREDIT_RANGE_SLOT, SlotPart.Max), range.max);
   const errors = [min, max].filter((bound) => Array.isArray(bound)) as FieldError[];
   const fields = {
     kind: ScheduleConstraintKind.CreditRange,
     minCreditsHundredths: min,
     maxCreditsHundredths: max,
   };
-  return withStrength('credit-range', range, errors.length > 0 ? errors : fields);
+  return withStrength(CREDIT_RANGE_SLOT, range, errors.length > 0 ? errors : fields);
 }
 
 /**
@@ -144,7 +155,7 @@ function readModalities(modality: PlannerFormValues['modality']): SlotReading {
   if (modality.values.length === 0) {
     return { kind: 'unused' };
   }
-  return withStrength('modality', modality, {
+  return withStrength(MODALITY_SLOT, modality, {
     kind: ScheduleConstraintKind.AllowedModalities,
     modalities: modality.values,
   });
@@ -157,11 +168,11 @@ function readModalities(modality: PlannerFormValues['modality']): SlotReading {
  * @returns The list's reading.
  */
 function readCampuses(campus: PlannerFormValues['campus']): SlotReading {
-  const campusIds = campus.text.split(/[\s,]+/).filter((id) => id !== '');
+  const campusIds = splitCampusIds(campus.text);
   if (campusIds.length === 0) {
     return { kind: 'unused' };
   }
-  return withStrength('campus', campus, {
+  return withStrength(CAMPUS_SLOT, campus, {
     kind: ScheduleConstraintKind.AllowedCampuses,
     campusIds,
   });
@@ -180,8 +191,8 @@ export function readConstraintSlots(
     ...TIME_BLOCK_SLOTS.map(
       (slot) => [slot, readTimeBlock(slot, values.timeBlocks[slot])] as const,
     ),
-    ['credit-range', readCreditRange(values.creditRange)],
-    ['modality', readModalities(values.modality)],
-    ['campus', readCampuses(values.campus)],
+    [CREDIT_RANGE_SLOT, readCreditRange(values.creditRange)],
+    [MODALITY_SLOT, readModalities(values.modality)],
+    [CAMPUS_SLOT, readCampuses(values.campus)],
   ];
 }

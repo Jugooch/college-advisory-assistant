@@ -17,6 +17,7 @@ import { type CourseLookup, indexCourses } from '@/shared/utils/course-display';
 import { describeAsOf } from '@/shared/utils/decisive-leaf-wording';
 import { type HeadingLevel, headingTag, subHeadingLevel } from '@/shared/utils/heading-level';
 import { describeDateRange } from '@/shared/utils/meeting-wording';
+import { optionHeadingId } from '@/shared/utils/option-heading-id';
 
 import { ConflictList } from './conflict-list';
 import { LimitationsList } from './limitations-list';
@@ -90,7 +91,7 @@ function OptionsSection({
   return (
     <section aria-labelledby={optionsId}>
       <Heading id={optionsId}>Options</Heading>
-      <OptionComparison options={result.options} asOf={asOf} />
+      <OptionComparison options={result.options} asOf={asOf} idPrefix={optionsId} />
       {result.options.map((option) => (
         <OptionCard
           key={option.rank}
@@ -100,6 +101,7 @@ function OptionsSection({
           campuses={campuses}
           actions={renderSaveDraft?.(option)}
           headingLevel={headingLevel}
+          headingId={optionHeadingId(optionsId, option.rank)}
         />
       ))}
     </section>

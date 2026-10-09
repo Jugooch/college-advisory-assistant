@@ -10,14 +10,12 @@ import { type ReactElement, useEffect, useRef, useState } from 'react';
 
 import { ScheduleConstraintKind } from '@caa/domain';
 
+import { describeConstraint } from '@/shared/utils/constraint-wording';
+
 import type { Chip, ConstraintChips } from '../hooks/use-constraint-chips';
-import {
-  applyDraft,
-  type ChipDraft,
-  type ChipFieldsProps,
-  draftFromConstraint,
-} from '../utils/chip-draft';
+import { applyDraft, type ChipDraft, draftFromConstraint } from '../utils/chip-draft';
 import { CampusFields } from './campus-fields';
+import type { ChipFieldsProps } from './chip-fields-props';
 import { CreditFields } from './credit-fields';
 import { ModalityFields } from './modality-fields';
 import { TextField } from './text-field';
@@ -85,7 +83,12 @@ export function ChipEditor({ chip, actions, onSaved }: ChipEditorProps): ReactEl
     }
   };
   return (
-    <div className="chip__editor" ref={editorRef}>
+    <div
+      className="chip__editor"
+      ref={editorRef}
+      role="group"
+      aria-label={`Edit: ${describeConstraint(constraint).statement}`}
+    >
       <Fields id={id} draft={draft} errorId={errorId} onChange={onChange} />
       {constraint.priorityRank === null ? null : (
         <TextField

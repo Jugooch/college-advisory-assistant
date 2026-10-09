@@ -53,12 +53,23 @@ function ChipOutcome({ text, isFocused }: ChipOutcomeProps): ReactElement {
 }
 
 /**
+ * The id of a chip's statement, so its controls can be tied to it.
+ *
+ * @param chip - The chip.
+ * @returns The statement's element id.
+ */
+function statementIdOf(chip: Chip): string {
+  return `chip-${String(chip.id)}-statement`;
+}
+
+/**
  * The required-or-preferred choice, labelled and named in words.
  *
  * @param props - The chip and the handlers.
  * @returns The fieldset.
  */
 function StrengthChoice({ chip, actions }: StrengthChoiceProps): ReactElement {
+  const statementId = statementIdOf(chip);
   const name = `chip-${String(chip.id)}-strength`;
   const isHard = chip.constraint.strength === ConstraintStrength.Hard;
   const options = [
@@ -66,7 +77,7 @@ function StrengthChoice({ chip, actions }: StrengthChoiceProps): ReactElement {
     { value: ConstraintStrength.Hard, label: 'Required (hard)', isChecked: isHard },
   ];
   return (
-    <fieldset>
+    <fieldset aria-describedby={statementId}>
       <legend>How firm is this?</legend>
       {options.map((option) => (
         <label key={option.value}>
@@ -82,6 +93,42 @@ function StrengthChoice({ chip, actions }: StrengthChoiceProps): ReactElement {
         </label>
       ))}
     </fieldset>
+  );
+}
+
+/** Props for the Dismiss and Confirm buttons. */
+interface ChipDecisionProps extends ConstraintChipProps {
+  readonly statement: string;
+}
+
+/**
+ * The Dismiss and Confirm buttons, each named with the chip's statement.
+ *
+ * @param props - The chip, the handlers and the statement.
+ * @returns The two buttons.
+ */
+function ChipDecision({ chip, actions, statement }: ChipDecisionProps): ReactElement {
+  return (
+    <>
+      <button
+        type="button"
+        aria-label={`Dismiss: ${statement}`}
+        onClick={() => {
+          actions.dismiss(chip.id);
+        }}
+      >
+        Dismiss
+      </button>{' '}
+      <button
+        type="button"
+        aria-label={`Confirm: ${statement}`}
+        onClick={() => {
+          actions.confirm(chip.id);
+        }}
+      >
+        Confirm
+      </button>
+    </>
   );
 }
 
@@ -103,7 +150,9 @@ export function ConstraintChip({ chip, actions }: ConstraintChipProps): ReactEle
   }
   return (
     <li className="chip">
-      <p className="chip__statement">{statement}</p>
+      <p className="chip__statement" id={statementIdOf(chip)}>
+        {statement}
+      </p>
       <StrengthChoice chip={chip} actions={actions} />
       {chip.isEditing ? (
         <ChipEditor
@@ -123,6 +172,7 @@ export function ConstraintChip({ chip, actions }: ConstraintChipProps): ReactEle
         <button
           type="button"
           ref={editRef}
+          aria-label={`Edit: ${statement}`}
           aria-expanded={chip.isEditing}
           onClick={() => {
             actions.setEditing(chip.id, !chip.isEditing);
@@ -130,22 +180,7 @@ export function ConstraintChip({ chip, actions }: ConstraintChipProps): ReactEle
         >
           Edit
         </button>{' '}
-        <button
-          type="button"
-          onClick={() => {
-            actions.dismiss(chip.id);
-          }}
-        >
-          Dismiss
-        </button>{' '}
-        <button
-          type="button"
-          onClick={() => {
-            actions.confirm(chip.id);
-          }}
-        >
-          Confirm
-        </button>
+        <ChipDecision chip={chip} actions={actions} statement={statement} />
       </p>
     </li>
   );

@@ -31,6 +31,8 @@ export interface OptionCardProps {
   readonly actions?: ReactNode;
   /** Level of this card's heading; its sub-headings sit one level below. Defaults to `3`. */
   readonly headingLevel?: HeadingLevel;
+  /** The heading's id, when something links to it; defaults to a generated one. */
+  readonly headingId?: string;
 }
 
 /**
@@ -46,10 +48,12 @@ export function OptionCard({
   campuses,
   actions,
   headingLevel = 3,
+  headingId: givenHeadingId,
 }: OptionCardProps): ReactElement {
   const aggregate = describeAggregate(option.aggregate);
   const total = option.setResults.creditLoad.evidence?.creditLoad?.totalCreditsHundredths;
-  const headingId = useId();
+  const generatedId = useId();
+  const headingId = givenHeadingId ?? generatedId;
   const Heading = headingTag(headingLevel);
   const SubHeading = headingTag(subHeadingLevel(headingLevel));
   return (
