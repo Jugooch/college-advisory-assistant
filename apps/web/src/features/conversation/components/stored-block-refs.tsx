@@ -9,6 +9,7 @@
 import Link from 'next/link';
 import type { ReactElement } from 'react';
 
+import type { ConversationTurnView } from '@caa/api-contract';
 import type { AssistantBlockRef } from '@caa/domain';
 import { AssistantBlockKind } from '@caa/domain';
 
@@ -20,23 +21,74 @@ import {
   STORED_REFERRAL_UNAVAILABLE,
 } from '../utils/conversation-wording';
 import type { StudentLinks } from '../utils/student-links';
+import { BlockBody } from './block-body';
+
+/** The re-rendered template blocks of a stored assistant turn. */
+type TemplateBlocks = NonNullable<
+  Extract<ConversationTurnView, { role: 'ASSISTANT' }>['templateBlocks']
+>;
 
 /** Props for {@link StoredBlockRefs}. */
 export interface StoredBlockRefsProps {
   readonly refs: readonly AssistantBlockRef[];
   readonly links: StudentLinks;
+  /** Server re-rendered referral and notice blocks, keyed by `refIndex`; absent on older turns. */
+  readonly templateBlocks?: TemplateBlocks | undefined;
+}
+
+type TemplateBlock = NonNullable<TemplateBlocks>[number]['block'];
+type Rendered = ReadonlyMap<number, TemplateBlock>;
+
+/**
+ * Renders a stored referral or notice: the block the server re-rendered from its fixed template
+ * through the component a live turn uses, or the "unavailable" notice with a link to Help and
+ * cases when there is no entry for this ref.
+ *
+ * @param line - The REFERRAL or NOTICE reference, its React key and its re-rendered block, if any.
+ * @param links - The student's screen links.
+ * @returns The list entry.
+ */
+function templateLine(
+  line: {
+    ref: AssistantBlockRef;
+    key: string;
+    block: TemplateBlock | undefined;
+  },
+  links: StudentLinks,
+): ReactElement {
+  const { ref, key, block } = line;
+  if (block?.kind === ref.kind) {
+    return (
+      <li key={key} className="chat-block">
+        <BlockBody block={block} links={links} />
+      </li>
+    );
+  }
+  const isReferral = ref.kind === AssistantBlockKind.Referral;
+  return (
+    <li key={key} role="note" className={`notice notice--${isReferral ? 'problem' : 'caution'}`}>
+      {isReferral ? STORED_REFERRAL_UNAVAILABLE : STORED_NOTICE_UNAVAILABLE}{' '}
+      <Link href={links.help}>{HELP_LINK_TEXT}</Link>.
+    </li>
+  );
 }
 
 /**
  * Renders one line per reference. Screen results point to their screen. A stored referral or
- * notice carries only a template id and code, not its wording, so it shows the "unavailable"
- * notice with a link to Help and cases rather than vanishing. Proposals and case previews have no
- * past result to point to and are skipped.
+ * notice shows its re-rendered block when the server sent one. Academic results never get a
+ * block. Proposals and case previews have no past result to point to and are skipped.
  *
- * @param props - The references and the links.
+ * @param props - The references, the links and the re-rendered template blocks.
  * @returns The list, or null when there is nothing to show.
  */
-export function StoredBlockRefs({ refs, links }: StoredBlockRefsProps): ReactElement | null {
+export function StoredBlockRefs({
+  refs,
+  links,
+  templateBlocks,
+}: StoredBlockRefsProps): ReactElement | null {
+  const rendered: Rendered = new Map(
+    (templateBlocks ?? []).map((entry) => [entry.refIndex, entry.block]),
+  );
   const lines = refs.flatMap((ref, index) => {
     const key = `${ref.kind}-${String(index)}`;
     switch (ref.kind) {
@@ -68,17 +120,8 @@ export function StoredBlockRefs({ refs, links }: StoredBlockRefsProps): ReactEle
           </li>,
         ];
       case AssistantBlockKind.Referral:
-        return [
-          <li key={key} role="note" className="notice notice--problem">
-            {STORED_REFERRAL_UNAVAILABLE} <Link href={links.help}>{HELP_LINK_TEXT}</Link>.
-          </li>,
-        ];
       case AssistantBlockKind.Notice:
-        return [
-          <li key={key} role="note" className="notice notice--caution">
-            {STORED_NOTICE_UNAVAILABLE} <Link href={links.help}>{HELP_LINK_TEXT}</Link>.
-          </li>,
-        ];
+        return [templateLine({ ref, key, block: rendered.get(index) }, links)];
       default:
         return [];
     }

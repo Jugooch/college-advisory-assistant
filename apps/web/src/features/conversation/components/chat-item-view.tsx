@@ -49,7 +49,11 @@ export function ChatItemView({ item, studentId }: ChatItemViewProps): ReactEleme
       {item.kind === 'live' ? (
         <AssistantBlocks blocks={item.turn.blocks} studentId={studentId} />
       ) : (
-        <StoredBlockRefs refs={item.turn.blockRefs} links={links} />
+        <StoredBlockRefs
+          refs={item.turn.blockRefs}
+          links={links}
+          templateBlocks={item.turn.templateBlocks}
+        />
       )}
     </li>
   );
