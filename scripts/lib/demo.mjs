@@ -7,7 +7,7 @@
  * @requirement NFR-05
  * @see docs/adr/0016-browser-end-to-end-tests-and-local-demo.md
  */
-import { assertResetAllowed, ResetRefusedError } from '@caa/db';
+import { assertResetAllowed } from '@caa/db';
 
 /** Synthetic identity provider the demo tokens sign in against. */
 const ISSUER = 'https://idp.synthetic.example';
@@ -116,7 +116,7 @@ export function buildDevAuthTokens() {
  *
  * SECURITY: the demo wipes the database it is pointed at, so it runs the same guard as `db:reset`
  * (`assertResetAllowed` from `@caa/db`): non-production, a local host, and no query parameter that
- * can name another target. Its refusals are re-thrown as {@link DemoRefusedError}.
+ * can name another target. Any refusal is re-thrown as a {@link DemoRefusedError} carrying the guard's own message.
  *
  * @param {Record<string, string | undefined>} env - Process environment.
  * @returns {{ databaseUrl: string, host: string, port: number }} The accepted database target.
@@ -127,10 +127,8 @@ export function assertDemoAllowed(env) {
   try {
     assertResetAllowed({ ...env, DATABASE_URL: databaseUrl });
   } catch (error) {
-    if (error instanceof ResetRefusedError) {
-      throw new DemoRefusedError(error.message.replace(/^Refusing to reset the database: /, ''));
-    }
-    throw new DemoRefusedError('the environment is not valid for a local reset');
+    const reason = error instanceof Error ? error.message : 'the environment is not valid';
+    throw new DemoRefusedError(reason);
   }
   const url = new URL(databaseUrl);
   return { databaseUrl, host: url.hostname, port: url.port === '' ? 5432 : Number(url.port) };
