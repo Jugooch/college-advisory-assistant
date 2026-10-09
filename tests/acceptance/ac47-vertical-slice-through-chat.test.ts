@@ -93,7 +93,7 @@ async function say(message: string, plannerInputs?: object): Promise<Conversatio
   });
   expect(response.statusCode).toBe(200);
   const data = ConversationTurnResponseSchema.parse(dataOf(response));
-  lastSequence = data.lastSequence ?? data.turn.sequence ?? lastSequence;
+  lastSequence = data.lastSequence;
   return data;
 }
 
