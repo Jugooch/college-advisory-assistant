@@ -5,6 +5,7 @@
  * @module @caa/db/seed/revise-slice-sources
  * @requirement FR-11
  * @requirement NFR-04
+ * @requirement NFR-05
  * @see docs/adr/0013-plan-drafts-staleness-and-advisor-cases.md
  * @see docs/planning/09-data-model-and-integration-contracts.md
  */
@@ -16,8 +17,14 @@ import { createStudentRepository } from '../repositories/student.repository';
 import { createStudentSnapshotRepository } from '../repositories/student-snapshot.repository';
 import { courseAttemptTable } from '../tables/course-attempt.table';
 import { SEED_TENANT_ID, SEED_TERMS } from './dev-seed-academic-catalog';
+import { buildDemoSeedPlan } from './dev-seed-demo-plan';
 import { seedInstantMs } from './dev-seed-record-times';
-import { buildStudentRevision, type ReviseTarget } from './dev-seed-revision-plan';
+import {
+  buildPersonaRevision,
+  buildStudentRevision,
+  type ReviseRequest,
+  type ReviseTarget,
+} from './dev-seed-revision-plan';
 import { buildWithdrawnSectionSnapshot } from './dev-seed-section-plan';
 import { insertSectionSnapshot } from './section-snapshot-writer';
 import { insertSnapshot } from './seed-academic-data';
@@ -25,6 +32,15 @@ import { insertSnapshot } from './seed-academic-data';
 /** Source ID of the slice student in the seed. */
 const SLICE_SOURCE_STUDENT_ID = 'SYN-000001';
 const PLANNING_TERM_CODE = '2027SP';
+
+/** Thrown when the student is not one the demo or dev seed creates; nothing is written. */
+export class ReviseUnknownStudentError extends Error {
+  /** Creates the error. */
+  constructor() {
+    super('That student is not in the demo or dev seed; nothing was written');
+    this.name = 'ReviseUnknownStudentError';
+  }
+}
 
 /** Thrown when the dev seed has not run, so there is nothing to supersede. */
 export class ReviseNotSeededError extends Error {
@@ -44,6 +60,24 @@ export class ReviseNotNewerError extends Error {
   }
 }
 
+/**
+ * Checks that a source student ID is a student the seed gives a record in the seed tenant.
+ *
+ * @param sourceStudentId - The ID asked for.
+ * @param now - The run time, which the seed plan derives its records from.
+ * @returns True only for seeded students in the seed tenant that have a student snapshot.
+ */
+function isRevisableStudent(sourceStudentId: string, now: Date): boolean {
+  const plan = buildDemoSeedPlan(now);
+  const withRecord = new Set<string>(plan.academic.snapshots.map((snapshot) => snapshot.studentId));
+  return plan.students.some(
+    (seeded) =>
+      seeded.tenantId === SEED_TENANT_ID &&
+      seeded.sourceStudentId === sourceStudentId &&
+      withRecord.has(seeded.id),
+  );
+}
+
 /** What a revise run did. Counts and flags only, safe to log. */
 export interface ReviseResult {
   readonly target: ReviseTarget;
@@ -52,24 +86,34 @@ export interface ReviseResult {
 }
 
 /**
- * Publishes the next revision of the chosen source for the slice student's tenant.
+ * Publishes the next revision of the chosen source: for `student`, the slice student's record or
+ * the named seeded student's; for `sections`, the planning term's sections.
  *
  * @param db - Typed database handle.
- * @param target - `student` for a grade change, `sections` for a withdrawn section.
+ * @param request - `student` for a grade change (of the slice student unless a source student ID
+ *   is given), `sections` for a withdrawn section.
  * @param now - The time the run started, read once by the caller; the revision takes effect then.
  * @returns Whether a revision was written.
+ * @throws {ReviseUnknownStudentError} When the student is not in the demo or dev seed.
  * @throws {ReviseNotSeededError} When the seed data is missing.
  * @throws {ReviseNotNewerError} When the latest revision is at or after `now`, or ties.
  * @throws {RangeError} When `now` is invalid.
  */
 export async function reviseSliceSources(
   db: Database,
-  target: ReviseTarget,
+  request: ReviseRequest,
   now: Date,
 ): Promise<ReviseResult> {
   seedInstantMs(now);
+  const { target, sourceStudentId = SLICE_SOURCE_STUDENT_ID } = request;
+  // SAFETY: only seeded synthetic students can be revised, whatever the caller passes.
+  if (!isRevisableStudent(sourceStudentId, now)) {
+    throw new ReviseUnknownStudentError();
+  }
   const wasPublished =
-    target === 'student' ? await reviseStudent(db, now) : await reviseSections(db, now);
+    target === 'student'
+      ? await reviseStudent(db, now, sourceStudentId)
+      : await reviseSections(db, now);
   return { target, published: wasPublished };
 }
 
@@ -95,16 +139,15 @@ function isNewer(latest: { id: string; at: string } | 'AMBIGUOUS', nextId: strin
   return true;
 }
 
-async function reviseStudent(db: Database, now: Date): Promise<boolean> {
+async function reviseStudent(db: Database, now: Date, sourceStudentId: string): Promise<boolean> {
   const tenantId = InstitutionIdSchema.parse(SEED_TENANT_ID);
   const student = await createStudentRepository(db).findBySourceStudentId(
     tenantId,
-    SLICE_SOURCE_STUDENT_ID,
+    sourceStudentId,
   );
   if (!student) {
     throw new ReviseNotSeededError();
   }
-  const { attempt, snapshot } = buildStudentRevision(now, student.id);
   const latest = await createStudentSnapshotRepository(db).findLatest(
     tenantId,
     StudentIdSchema.parse(student.id),
@@ -112,10 +155,19 @@ async function reviseStudent(db: Database, now: Date): Promise<boolean> {
   if (latest === null) {
     throw new ReviseNotSeededError();
   }
-  const head =
-    latest.status === 'AMBIGUOUS'
-      ? 'AMBIGUOUS'
-      : { id: latest.revision.snapshot.id, at: latest.revision.snapshot.sourceEffectiveAt };
+  // SAFETY: a tied head is never superseded; refused before a revision is even built.
+  if (latest.status === 'AMBIGUOUS') {
+    throw new ReviseNotNewerError();
+  }
+  const { attempt, snapshot } =
+    sourceStudentId === SLICE_SOURCE_STUDENT_ID
+      ? buildStudentRevision(now, student.id)
+      : buildPersonaRevision(
+          now,
+          { id: student.id, number: Number(sourceStudentId.slice('SYN-'.length)) },
+          latest.revision.snapshot,
+        );
+  const head = { id: latest.revision.snapshot.id, at: latest.revision.snapshot.sourceEffectiveAt };
   if (!isNewer(head, snapshot.id, now)) {
     return false;
   }

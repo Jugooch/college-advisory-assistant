@@ -38,6 +38,9 @@ run when `NODE_ENV=production`.
    - `pnpm --filter @caa/db db:seed:revise` (or `--student`) publishes a newer student record in
      which the in-progress DEMO-PHYS 201 attempt becomes completed with a posted grade. The draft is
      `STALE` with `STUDENT_RECORD_SUPERSEDED`.
+   - `pnpm --filter @caa/db db:seed:revise --student SYN-0000NN` does the same for another seeded
+     student (a demo persona or another dev seed student): their record gains a completed
+     DEMO-PHYS 201 attempt. An ID outside the seed fails and writes nothing.
    - `pnpm --filter @caa/db db:seed:revise --sections` publishes a newer 2027SP section snapshot
      in which DEMO-MATH 102 section 002 is withdrawn. The draft is `STALE` with
      `SECTIONS_SUPERSEDED`.
@@ -49,3 +52,7 @@ Each run appends a revision taking effect at the run time, so running it again m
 revision and earlier snapshots are never changed. A run at or before the latest revision's time is
 refused, so a late older batch never replaces newer truth. Run `db:seed` first; the command only
 reads and writes this system's own synthetic data, never an institutional system.
+
+`pnpm --filter @caa/db db:reset` drops every table and the migration journal, recreates the schema,
+and migrates. It refuses, before connecting, unless the `DATABASE_URL` host is `localhost` or
+`127.0.0.1` and `NODE_ENV` is not `production`, and it says which check failed.
