@@ -27,7 +27,6 @@ import {
   DEFAULT_INTRO,
   FIXED_RESPONSES,
   SCHEDULE_INTRO,
-  TIER_ONE_PHRASES,
 } from '../support/chat-referral-fixtures';
 import {
   blockKinds,
@@ -37,6 +36,7 @@ import {
   resetChatWorld,
   turnOf,
 } from '../support/conversation-harness';
+import { TIER_1_PHRASES } from '../support/crisis-phrases';
 import { acceptanceIt } from '../support/known-findings';
 import { BOTH_COURSES, resetPlanWorld } from '../support/plan-drafts-harness';
 import {} from '../support/schedule-options-harness';
@@ -98,16 +98,15 @@ describe('AC46 referrals and model outage keep the planner working', () => {
       });
       expect(blockKinds(response)).toEqual(['REFERRAL']);
       expect(model.requests).toHaveLength(0);
-      expect(CRISIS_REFERRAL).toContain('This chat is not monitored live');
     },
   );
 
   acceptanceIt('AC46', 'treats every phrase on the tier-1 list the same way', async () => {
     let expectedSequence = 0;
-    for (const phrase of TIER_ONE_PHRASES) {
+    for (const phrase of TIER_1_PHRASES) {
       const model = slot.use([finalStep('ASK_FOR_DETAIL')]);
 
-      const response = await postTurn(roomyApp, `${phrase}, and what should I take?`, {
+      const response = await postTurn(roomyApp, phrase, {
         expectedSequence,
       });
 

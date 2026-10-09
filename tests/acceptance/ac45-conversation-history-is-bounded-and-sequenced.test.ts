@@ -41,6 +41,10 @@ const logLines: string[] = [];
 
 // NOTE: built once at module scope so Fastify's first build doesn't count against a case's timeout.
 const app = buildAcademicApp(world, { conversationModel: slot.model });
+const historyApp = buildAcademicApp(world, {
+  conversationModel: slot.model,
+  conversationHistoryTurns: 4,
+});
 const limitedApp = buildAcademicApp(world, {
   conversationModel: slot.model,
   conversationRateLimit: 2,
@@ -64,34 +68,30 @@ describe('AC45 conversation history is bounded, sequenced and unlogged', () => {
       let expectedSequence = 0;
       for (const number of [1, 2, 3, 4]) {
         slot.use([finalStep('ASK_FOR_DETAIL')]);
-        const reply = await postTurn(app, `message ${String(number)}`, { expectedSequence });
+        const reply = await postTurn(historyApp, `message ${String(number)}`, { expectedSequence });
         expectedSequence = lastSequenceOf(reply) ?? -1;
       }
       slot.use([
         toolCallStep(scriptedToolCall('call-1', 'request_plan', {})),
         finalStep('SCHEDULE_OPTIONS'),
       ]);
-      const withTool = await postTurn(app, 'message 5', {
+      const withTool = await postTurn(historyApp, 'message 5', {
         expectedSequence,
         plannerInputs: BOTH_COURSES,
       });
       expectedSequence = lastSequenceOf(withTool) ?? -1;
       slot.use([finalStep('ASK_FOR_DETAIL')]);
-      const sixth = await postTurn(app, 'message 6', { expectedSequence });
+      const sixth = await postTurn(historyApp, 'message 6', { expectedSequence });
       expectedSequence = lastSequenceOf(sixth) ?? -1;
       const model = slot.use([finalStep('ASK_FOR_DETAIL')]);
 
-      await postTurn(app, 'message 7', { expectedSequence });
+      await postTurn(historyApp, 'message 7', { expectedSequence });
 
-      // Twelve turns are stored; the window is the newest eight, then the new message.
+      // Twelve turns are stored; the window is the configured four, then the new message.
       const messages = model.requests[0]?.messages ?? [];
       expect(
         messages.map((message) => [message.role, 'text' in message ? message.text : '']),
       ).toEqual([
-        ['user', 'message 3'],
-        ['assistant', ASK_FOR_DETAIL],
-        ['user', 'message 4'],
-        ['assistant', ASK_FOR_DETAIL],
         ['user', 'message 5'],
         ['assistant', 'Here are your schedule options. Each card shows its own checks.'],
         ['user', 'message 6'],

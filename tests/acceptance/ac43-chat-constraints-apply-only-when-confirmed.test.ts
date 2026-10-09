@@ -24,7 +24,7 @@ import {
 } from '@caa/test-kit';
 
 import { buildAcademicApp, createAcademicWorld } from '../support/academic-endpoints-harness';
-import { MATH_MWF, MATH_TTH, optionSections } from '../support/chat-schedule-fixtures';
+import { MATH_MWF, MATH_TTH, optionSections, optionsOf } from '../support/chat-schedule-fixtures';
 import {
   blockKinds,
   createModelSlot,
@@ -66,6 +66,18 @@ const MODEL_PROPOSES_HARD_NO_FRIDAYS = toolCallStep(
     ],
   }),
 );
+
+/**
+ * Reads the constraint hash of the schedule result in a turn.
+ *
+ * @param response - The turn response.
+ * @returns The hash, or undefined when the turn has no schedule result.
+ */
+function constraintHashOf(response: Parameters<typeof turnOf>[0]): string | undefined {
+  const result = turnOf(response).blocks[0]?.result as
+    { pinnedInputs?: { constraintHash?: string } } | undefined;
+  return result?.pinnedInputs?.constraintHash;
+}
 
 const world = createAcademicWorld();
 const slot = createModelSlot();
@@ -114,21 +126,43 @@ describe('AC43 chat constraints apply only when confirmed', () => {
     },
   );
 
-  acceptanceIt('AC43', 'computes options before confirming on the form state alone', async () => {
-    const model = slot.use([
-      toolCallStep(scriptedToolCall('call-1', 'request_plan', {})),
-      finalStep('SCHEDULE_OPTIONS'),
-    ]);
+  acceptanceIt(
+    'AC43',
+    'computes options before confirming on the form state alone, ignoring the proposal',
+    async () => {
+      slot.use([MODEL_PROPOSES_HARD_NO_FRIDAYS, finalStep('CONSTRAINT_PROPOSAL')]);
+      const proposal = await postTurn(app, "I'd like no Fridays");
+      const model = slot.use([
+        toolCallStep(scriptedToolCall('call-1', 'request_plan', {})),
+        finalStep('SCHEDULE_OPTIONS'),
+      ]);
 
-    const response = await postTurn(app, 'Show me options', {
-      plannerInputs: FORM_NO_CONSTRAINTS,
-    });
+      const response = await postTurn(app, 'Show me options', {
+        plannerInputs: FORM_NO_CONSTRAINTS,
+        expectedSequence: 2,
+      });
 
-    expect(turnOf(response).modelStatus).toBe('ANSWERED');
-    expect(blockKinds(response)).toEqual(['SCHEDULE_OPTIONS']);
-    expect(optionSections(turnOf(response).blocks)).toEqual([[MATH_MWF.id], [MATH_TTH.id]]);
-    expect(model.remaining()).toBe(0);
-  });
+      // The same form on a fresh conversation, with no proposal ever made, is the baseline.
+      resetChatWorld(world);
+      publishSections(world, [MATH_MWF, MATH_TTH]);
+      slot.use([
+        toolCallStep(scriptedToolCall('call-1', 'request_plan', {})),
+        finalStep('SCHEDULE_OPTIONS'),
+      ]);
+      const baseline = await postTurn(app, 'Show me options', {
+        plannerInputs: FORM_NO_CONSTRAINTS,
+      });
+
+      expect(proposal.statusCode).toBe(200);
+      expect(constraintHashOf(response)).toMatch(/^sha256:[0-9a-f]{64}$/);
+      expect(turnOf(response).modelStatus).toBe('ANSWERED');
+      expect(blockKinds(response)).toEqual(['SCHEDULE_OPTIONS']);
+      expect(optionSections(turnOf(response).blocks)).toEqual([[MATH_MWF.id], [MATH_TTH.id]]);
+      expect(optionsOf(turnOf(response).blocks).map((option) => option.rank)).toEqual([1, 2]);
+      expect(constraintHashOf(response)).toBe(constraintHashOf(baseline));
+      expect(model.remaining()).toBe(0);
+    },
+  );
 
   acceptanceIt(
     'AC43',
@@ -152,12 +186,17 @@ describe('AC43 chat constraints apply only when confirmed', () => {
 
       expect(optionSections(turnOf(asHard).blocks)).toEqual([[MATH_TTH.id]]);
       expect(optionSections(turnOf(asPreferred).blocks)).toEqual([[MATH_MWF.id], [MATH_TTH.id]]);
-      const hashOf = (response: typeof asHard) =>
-        (turnOf(response).blocks[0]?.result as { pinnedInputs?: { constraintHash?: string } })
-          .pinnedInputs?.constraintHash;
-      expect(hashOf(asHard)).toMatch(/^sha256:[0-9a-f]{64}$/);
-      expect(hashOf(asPreferred)).toMatch(/^sha256:[0-9a-f]{64}$/);
-      expect(hashOf(asHard)).not.toBe(hashOf(asPreferred));
+      const preferredOrder = optionsOf(turnOf(asPreferred).blocks).map((option) => ({
+        rank: option.rank,
+        sections: option.bundles.flatMap((bundle) => bundle.sections.map((x) => x.sectionId)),
+      }));
+      expect(preferredOrder).toEqual([
+        { rank: 1, sections: [MATH_TTH.id] },
+        { rank: 2, sections: [MATH_MWF.id] },
+      ]);
+      expect(constraintHashOf(asHard)).toMatch(/^sha256:[0-9a-f]{64}$/);
+      expect(constraintHashOf(asPreferred)).toMatch(/^sha256:[0-9a-f]{64}$/);
+      expect(constraintHashOf(asHard)).not.toBe(constraintHashOf(asPreferred));
     },
   );
 
