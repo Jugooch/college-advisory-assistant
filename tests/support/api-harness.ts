@@ -14,6 +14,7 @@ import {
   createContainer,
   type DevTokenIdentity,
   loadApiEnv,
+  type LogDestination,
   type Repositories,
   type StudentRepository,
   type UserIdentityRepository,
@@ -63,8 +64,17 @@ export interface AcceptanceOptions {
   readonly now?: Date;
   /** `ACTIVE_RULESET_VERSION`; defaults to {@link ACCEPTANCE_RULESET_VERSION}. */
   readonly rulesetVersion?: string;
-  /** The conversation model the API calls; it replaces the one `conversationMode` selects. */
+  /**
+   * The conversation model the API calls. Omit it to run with the model `conversationMode` selects
+   * (off, the kill switch, by default); it replaces that model when given.
+   */
   readonly conversationModel?: ConversationModel;
+  /** `CONVERSATION_RATE_LIMIT`; defaults to the API's own default. */
+  readonly conversationRateLimit?: number;
+  /** `CONVERSATION_HISTORY_TURNS`; defaults to the API's own default. */
+  readonly conversationHistoryTurns?: number;
+  /** Where the API's log lines go; defaults to no logging. */
+  readonly logStream?: LogDestination;
   /** `CONVERSATION_MODEL`; defaults to off. Ignored when `conversationModel` is given. */
   readonly conversationMode?: 'off' | 'demo';
 }
@@ -223,6 +233,12 @@ export function buildAcceptanceApp(
     ACADEMIC_SOURCE_MAX_AGE_MS: String(ACCEPTANCE_SOURCE_MAX_AGE_MS),
     AUDIT_RECORD_MAX_SKEW_MS: String(ACCEPTANCE_AUDIT_SKEW_MS),
     SCHEDULE_SOLVER_WORK_CAP: String(options.solverWorkCap ?? ACCEPTANCE_SOLVER_WORK_CAP),
+    ...(options.conversationRateLimit === undefined
+      ? {}
+      : { CONVERSATION_RATE_LIMIT: String(options.conversationRateLimit) }),
+    ...(options.conversationHistoryTurns === undefined
+      ? {}
+      : { CONVERSATION_HISTORY_TURNS: String(options.conversationHistoryTurns) }),
     ...(options.conversationMode === undefined
       ? {}
       : { CONVERSATION_MODEL: options.conversationMode }),
@@ -249,7 +265,7 @@ export function buildAcceptanceApp(
         ? {}
         : { conversationModel: options.conversationModel }),
     }),
-    logger: false,
+    logger: options.logStream === undefined ? false : { stream: options.logStream },
   });
 }
 
