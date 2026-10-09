@@ -17,6 +17,7 @@ import {
 } from '@caa/test-kit';
 
 import type { ClearResult, ReloadResult, SendTurnResult } from '../utils/conversation-state';
+import { EMPTY_CHAT_INTRO } from '../utils/conversation-wording';
 import { ChatPanel } from './chat-panel';
 
 const STUDENT_ID = syntheticId('student', 1);
@@ -154,7 +155,7 @@ describe('ChatPanel recovery', () => {
     fireEvent.click(within(group).getByRole('button', { name: 'Yes, clear it' }));
 
     await waitFor(() => {
-      expect(screen.getByText('No messages yet.')).toBeTruthy();
+      expect(screen.getByText(EMPTY_CHAT_INTRO)).toBeTruthy();
     });
     expect(clearAction).toHaveBeenCalledWith(STUDENT_ID, TERM_ID);
     expect(screen.getByRole('status').textContent).toBe('Conversation cleared.');
@@ -170,7 +171,7 @@ describe('ChatPanel recovery', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Clear conversation' }));
     fireEvent.click(screen.getByRole('button', { name: 'Yes, clear it' }));
     await waitFor(() => {
-      expect(screen.getByText('No messages yet.')).toBeTruthy();
+      expect(screen.getByText(EMPTY_CHAT_INTRO)).toBeTruthy();
     });
     sendMessage('After clear');
     await waitFor(() => {

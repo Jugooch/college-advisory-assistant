@@ -58,3 +58,15 @@ export const STORED_REFERRAL_UNAVAILABLE =
 /** A reload shows a stored notice by its template only, so its wording can't be shown again. */
 export const STORED_NOTICE_UNAVAILABLE =
   'The assistant showed you a notice here. Its wording isn’t saved with the conversation.';
+
+/** Shown above the starter prompts in an empty chat. */
+export const EMPTY_CHAT_INTRO =
+  'No messages yet. Choose a question to put it in the box, then send it when you’re ready.';
+
+/** Fixed questions offered in an empty chat. They state no academic fact; the student sends them. */
+export const STARTER_PROMPTS: readonly string[] = [
+  "I'd like no Fridays",
+  'Show me my options',
+  'What is the policy on dropping a course?',
+  'Ask my advisor to review my plan',
+];
