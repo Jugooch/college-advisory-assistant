@@ -51,6 +51,7 @@ export default defineConfig({
         API_PORT: '4000',
         AUTH_MODE: 'dev',
         CONVERSATION_MODEL: 'demo',
+        // Without a ruleset version the API cannot run course checks or schedule searches (500).
         ACTIVE_RULESET_VERSION: 'demo-2026.1',
         DEV_AUTH_TOKENS: devAuthTokensJson(),
       },

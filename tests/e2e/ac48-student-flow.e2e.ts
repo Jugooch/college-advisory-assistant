@@ -4,6 +4,8 @@
  *   policy excerpt and an aid referral, saves a draft, and sends a case through the existing case
  *   form. Every step that shows a new page or chat result passes axe. Assertions are on roles,
  *   headings and fixed wording, never on model prose (docs/planning/13, AC48).
+ * @see https://github.com/Jugooch/college-advisory-assistant/issues/627 for the gap: academic values
+ *   outside chat turns (overview, planner results, Help and cases) are not yet checked.
  * @requirement AC48
  * @requirement FR-01
  * @requirement FR-08
@@ -229,6 +231,10 @@ async function askPolicyQuestion(page: Page): Promise<void> {
   await expect(hit.first().getByRole('heading').first()).toBeVisible();
   await expect(hit.first().getByText('Effective', { exact: true }).first()).toBeVisible();
   await expect(hit.first().getByText('Source', { exact: true }).first()).toBeVisible();
+  const revision = hit.first().getByText('Revision', { exact: true }).first();
+  await expect(revision.locator('xpath=following-sibling::dd[1]')).toHaveText(/\S/);
+  const effective = hit.first().getByText('Effective', { exact: true }).first();
+  await expect(effective.locator('xpath=following-sibling::dd[1]')).toContainText(/\d{4}/);
   await expectNoAxeViolations(page);
 }
 
@@ -241,7 +247,10 @@ async function askAboutAid(page: Page): Promise<void> {
   const turn = await sendChat(page, 'Can I get financial aid for this term?');
 
   await expectNoConsequentialProse(turn);
-  await expect(turn.getByRole('note').first()).toBeVisible();
+  await expect(
+    turn.getByText('Financial aid questions need the financial aid office.'),
+  ).toBeVisible();
+  await expect(turn.getByText('This app cannot make that determination')).toBeVisible();
   await expect(turn.getByRole('article')).toHaveCount(0);
   await expectNoAxeViolations(page);
 }
