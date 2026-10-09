@@ -42,11 +42,11 @@ export function useChatTranscript(initial: ConversationResponse): ChatTranscript
     sequence,
     addExchange: (text, turn, lastSequence) => {
       counter.current += 1;
-      const id = String(counter.current);
+      const exchangeNumber = String(counter.current);
       setItems((current) => [
         ...current,
-        { key: `you-${id}`, kind: 'student', text },
-        { key: `reply-${id}`, kind: 'live', turn },
+        { key: `you-${exchangeNumber}`, kind: 'student', text },
+        { key: `reply-${exchangeNumber}`, kind: 'live', turn },
       ]);
       if (lastSequence !== undefined) {
         setSequence(lastSequence);

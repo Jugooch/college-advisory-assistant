@@ -9,18 +9,9 @@
 import type { ReactElement } from 'react';
 
 import type { AssistantBlock } from '@caa/api-contract';
-import { AssistantBlockKind } from '@caa/domain';
 
-import { PolicyHitList } from '@/shared/components/policy-hit-list';
-import { Timestamp } from '@/shared/components/timestamp';
-
-import { CHAT_CARD_LEVEL } from '../utils/chat-heading-level';
-import { type StudentLinks, studentLinks } from '../utils/student-links';
-import { AcademicSummaryBlock } from './academic-summary-block';
-import { CasePreviewBlock } from './case-preview-block';
-import { ConstraintProposal } from './constraint-proposal';
-import { PlanEvidenceBlock } from './plan-evidence-block';
-import { ScheduleOptionsBlock } from './schedule-options-block';
+import { studentLinks } from '../utils/student-links';
+import { BlockBody } from './block-body';
 
 /** Props for {@link AssistantBlocks}. */
 export interface AssistantBlocksProps {
@@ -49,77 +40,4 @@ export function AssistantBlocks({ blocks, studentId }: AssistantBlocksProps): Re
       ))}
     </ul>
   );
-}
-
-/**
- * Renders one block: structured content for notices, referrals and policy results, and the
- * result and suggestion blocks for everything else.
- *
- * @param props - The block and the links.
- * @returns The block's content.
- */
-function BlockBody({
-  block,
-  links,
-}: {
-  readonly block: AssistantBlock;
-  readonly links: StudentLinks;
-}): ReactElement {
-  switch (block.kind) {
-    case AssistantBlockKind.Notice:
-      return (
-        <p role="note" className="notice notice--caution">
-          {block.text}
-        </p>
-      );
-    case AssistantBlockKind.Referral:
-      return (
-        <div role="note" className="notice notice--problem">
-          <p>{block.text}</p>
-          {block.policy === null ? null : (
-            <PolicyHitList hits={[block.policy]} headingLevel={CHAT_CARD_LEVEL} />
-          )}
-          <p>
-            Checked <Timestamp iso={block.asOf} />.
-          </p>
-        </div>
-      );
-    case AssistantBlockKind.PolicyResults:
-      return block.results.hits.length === 0 ? (
-        <p>No approved policy matched. Ask your advising office.</p>
-      ) : (
-        <PolicyHitList hits={block.results.hits} headingLevel={CHAT_CARD_LEVEL} />
-      );
-    default:
-      return <ResultBlock block={block} links={links} />;
-  }
-}
-
-/**
- * Renders a result or suggestion block: verified cards, constraint chips and the case preview.
- *
- * @param props - The block and the links.
- * @returns The block's content.
- */
-function ResultBlock({
-  block,
-  links,
-}: {
-  readonly block: AssistantBlock;
-  readonly links: StudentLinks;
-}): ReactElement | null {
-  switch (block.kind) {
-    case AssistantBlockKind.ScheduleOptions:
-      return <ScheduleOptionsBlock block={block} />;
-    case AssistantBlockKind.PlanEvidence:
-      return <PlanEvidenceBlock block={block} links={links} />;
-    case AssistantBlockKind.AcademicSummary:
-      return <AcademicSummaryBlock block={block} />;
-    case AssistantBlockKind.ConstraintProposal:
-      return <ConstraintProposal constraints={block.constraints} />;
-    case AssistantBlockKind.CasePreview:
-      return <CasePreviewBlock block={block} studentId={links.studentId} />;
-    default:
-      return null;
-  }
 }

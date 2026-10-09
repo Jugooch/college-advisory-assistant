@@ -16,7 +16,7 @@ import {
   syntheticId,
 } from '@caa/test-kit';
 
-import type { ClearResult, SendTurnResult } from '../utils/conversation-state';
+import type { ClearResult, ReloadResult, SendTurnResult } from '../utils/conversation-state';
 import { ChatPanel } from './chat-panel';
 
 const STUDENT_ID = syntheticId('student', 1);
@@ -38,15 +38,19 @@ function renderPanel({
   initial = buildConversationResponse({ turns: [] }),
   send = { kind: 'replied', turn: buildAssistantTurnView() },
   clear = { kind: 'cleared' },
+  reload = { kind: 'loaded', conversation: buildConversationResponse({ turns: [] }) },
 }: {
   initial?: ConversationResponse;
   send?: SendTurnResult;
   clear?: ClearResult;
+  reload?: ReloadResult;
 } = {}) {
   const sendAction = vi.fn<(studentId: string, request: unknown) => Promise<SendTurnResult>>();
   sendAction.mockResolvedValue(send);
   const clearAction = vi.fn<(studentId: string, termId: string) => Promise<ClearResult>>();
   clearAction.mockResolvedValue(clear);
+  const reloadAction = vi.fn<(studentId: string, termId: string) => Promise<ReloadResult>>();
+  reloadAction.mockResolvedValue(reload);
   render(
     <ChatPanel
       studentId={STUDENT_ID}
@@ -54,10 +58,11 @@ function renderPanel({
       plannerInputs={INPUTS}
       initial={initial}
       sendAction={sendAction}
+      reloadAction={reloadAction}
       clearAction={clearAction}
     />,
   );
-  return { sendAction, clearAction };
+  return { sendAction, clearAction, reloadAction };
 }
 
 /**
@@ -104,7 +109,10 @@ describe('ChatPanel recovery', () => {
     const reloaded = buildConversationResponse({
       turns: [buildStudentTurnView({ text: 'Earlier question' }), buildStoredAssistantTurnView()],
     });
-    renderPanel({ send: { kind: 'conflict', conversation: reloaded } });
+    renderPanel({
+      send: { kind: 'conflict' },
+      reload: { kind: 'loaded', conversation: reloaded },
+    });
 
     sendMessage('Hello');
 
@@ -177,7 +185,10 @@ describe('ChatPanel recovery', () => {
 
   it('uses the reloaded lastSequence after a conflict', async () => {
     const reloaded = buildConversationResponse({ turns: [], lastSequence: 6 });
-    const { sendAction } = renderPanel({ send: { kind: 'conflict', conversation: reloaded } });
+    const { sendAction } = renderPanel({
+      send: { kind: 'conflict' },
+      reload: { kind: 'loaded', conversation: reloaded },
+    });
 
     sendMessage('One');
     await waitFor(() => {
@@ -218,5 +229,53 @@ describe('ChatPanel recovery', () => {
 
     expect(clearAction).not.toHaveBeenCalled();
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Clear conversation' }));
+  });
+
+  it('asks the reload action once on a conflict, for the same student and term', async () => {
+    const { reloadAction } = renderPanel({ send: { kind: 'conflict' } });
+
+    sendMessage('Hello');
+
+    await waitFor(() => {
+      expect(reloadAction).toHaveBeenCalledTimes(1);
+    });
+    expect(reloadAction).toHaveBeenCalledWith(STUDENT_ID, TERM_ID);
+  });
+
+  it('shows the failure when the reload after a conflict fails', async () => {
+    renderPanel({
+      send: { kind: 'conflict' },
+      reload: {
+        kind: 'failed',
+        code: 'INTERNAL_ERROR',
+        message: 'Reload broke.',
+        requestId: 'req-9',
+      },
+    });
+
+    sendMessage('Hello');
+
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('Reload broke.');
+    expect(alert.textContent).toContain('req-9');
+  });
+
+  it('keeps the transcript and refocuses the control when clearing fails', async () => {
+    renderPanel({
+      initial: buildConversationResponse(),
+      clear: { kind: 'failed', code: 'INTERNAL_ERROR', message: 'Clear broke.', requestId: null },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear conversation' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, clear it' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('Clear broke.');
+    expect(screen.getByRole('list', { name: 'Conversation' })).toBeTruthy();
+    await waitFor(() => {
+      expect(document.activeElement).toBe(
+        screen.getByRole('button', { name: 'Clear conversation' }),
+      );
+    });
   });
 });

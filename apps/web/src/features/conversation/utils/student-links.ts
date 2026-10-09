@@ -3,6 +3,7 @@
  * @module @caa/web/features/conversation/utils/student-links
  * @requirement FR-10
  */
+import { studentScreenHref } from '@/shared/utils/student-screens';
 
 /** The screens a chat block can point to. */
 export interface StudentLinks {
@@ -14,18 +15,17 @@ export interface StudentLinks {
 }
 
 /**
- * Builds the links for a student.
+ * Builds the links for a student from the same routes the student navigation uses.
  *
  * @param studentId - Internal student ID from the page URL.
  * @returns One link per screen.
  */
 export function studentLinks(studentId: string): StudentLinks {
-  const query = new URLSearchParams({ studentId }).toString();
   return {
     studentId,
-    planner: `/next-term-planner?${query}`,
-    plans: `/my-plans?${query}`,
-    overview: `/overview?${query}`,
-    help: `/help-and-cases?${query}`,
+    planner: studentScreenHref('next-term-planner', studentId),
+    plans: studentScreenHref('my-plans', studentId),
+    overview: studentScreenHref('overview', studentId),
+    help: studentScreenHref('help-and-cases', studentId),
   };
 }

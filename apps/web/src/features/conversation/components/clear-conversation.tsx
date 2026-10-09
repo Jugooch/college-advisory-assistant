@@ -11,7 +11,7 @@ import { type ClearConfirmationInput, useClearConfirmation } from '../hooks/use-
 
 /** Props for {@link ClearConversation}. */
 export interface ClearConversationProps extends ClearConfirmationInput {
-  /** True when there is nothing to clear. */
+  /** True when there is nothing to clear, or a message is still sending. */
   readonly isDisabled: boolean;
 }
 

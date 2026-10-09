@@ -21,8 +21,12 @@ import {
   syntheticId,
 } from '@caa/test-kit';
 
-import type { ClearResult, SendTurnResult } from '../utils/conversation-state';
-import { STATUS_NOTICES } from '../utils/conversation-wording';
+import type { ClearResult, ReloadResult, SendTurnResult } from '../utils/conversation-state';
+import {
+  STATUS_NOTICES,
+  STORED_NOTICE_UNAVAILABLE,
+  STORED_REFERRAL_UNAVAILABLE,
+} from '../utils/conversation-wording';
 import { ChatPanel } from './chat-panel';
 
 const STUDENT_ID = syntheticId('student', 1);
@@ -46,11 +50,12 @@ function renderPanel({
   clear = { kind: 'cleared' },
 }: {
   initial?: ConversationResponse;
-  send?: SendTurnResult;
+  send?: SendTurnResult | Promise<SendTurnResult>;
   clear?: ClearResult;
 } = {}) {
   const sendAction = vi.fn<(studentId: string, request: unknown) => Promise<SendTurnResult>>();
-  sendAction.mockResolvedValue(send);
+  sendAction.mockReturnValue(Promise.resolve(send));
+  const reloadAction = vi.fn<(studentId: string, termId: string) => Promise<ReloadResult>>();
   const clearAction = vi.fn<(studentId: string, termId: string) => Promise<ClearResult>>();
   clearAction.mockResolvedValue(clear);
   render(
@@ -60,6 +65,7 @@ function renderPanel({
       plannerInputs={INPUTS}
       initial={initial}
       sendAction={sendAction}
+      reloadAction={reloadAction}
       clearAction={clearAction}
     />,
   );
@@ -244,5 +250,44 @@ describe('ChatPanel', () => {
     expect(screen.getByRole('link', { name: 'Rerun it on the planner' })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Open Overview' })).toBeTruthy();
     expect(screen.queryByRole('heading', { level: 3 })).toBeNull();
+  });
+
+  it('keeps a stored crisis referral and notice visible after a reload', () => {
+    renderPanel({
+      initial: buildConversationResponse({
+        turns: [
+          buildStudentTurnView(),
+          buildStoredAssistantTurnView({
+            intro: '',
+            modelStatus: ModelStatus.Guarded,
+            blockRefs: buildAssistantBlockRefOfEveryKind().filter(
+              (ref) => ref.kind === 'REFERRAL' || ref.kind === 'NOTICE',
+            ),
+          }),
+        ],
+      }),
+    });
+
+    expect(screen.getByText(new RegExp(STORED_REFERRAL_UNAVAILABLE.slice(0, 40)))).toBeTruthy();
+    expect(screen.getByText(new RegExp(STORED_NOTICE_UNAVAILABLE.slice(0, 40)))).toBeTruthy();
+    expect(screen.getAllByRole('link', { name: 'Open Help and cases' }).length).toBe(2);
+  });
+
+  it('does not clear while a message is still sending', () => {
+    const { clearAction } = renderPanel({
+      initial: buildConversationResponse({
+        turns: [buildStudentTurnView(), buildStoredAssistantTurnView()],
+      }),
+      send: new Promise<never>(() => undefined),
+    });
+
+    sendMessage('Hello');
+    fireEvent.click(screen.getByRole('button', { name: 'Clear conversation' }));
+
+    expect(
+      screen.getByRole('button', { name: 'Clear conversation' }).getAttribute('aria-disabled'),
+    ).toBe('true');
+    expect(screen.queryByText(/Clear this conversation\?/)).toBeNull();
+    expect(clearAction).not.toHaveBeenCalled();
   });
 });

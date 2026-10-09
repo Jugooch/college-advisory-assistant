@@ -14,7 +14,7 @@ import {
   type ScheduleOptionsRequest,
 } from '@caa/api-contract';
 
-import type { ClearResult, SendTurnResult } from '../utils/conversation-state';
+import type { ClearResult, ReloadResult, SendTurnResult } from '../utils/conversation-state';
 import { UNAVAILABLE_MESSAGE } from '../utils/conversation-wording';
 import { ChatPanel } from './chat-panel';
 
@@ -26,6 +26,7 @@ export interface ChatSectionProps {
   readonly conversation: ConversationResponse | ApiError | null;
   readonly plannerInputs: ScheduleOptionsRequest | null;
   readonly sendAction: (studentId: string, request: unknown) => Promise<SendTurnResult>;
+  readonly reloadAction: (studentId: string, termId: string) => Promise<ReloadResult>;
   readonly clearAction: (studentId: string, termId: string) => Promise<ClearResult>;
 }
 
