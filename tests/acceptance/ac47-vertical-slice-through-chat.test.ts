@@ -60,6 +60,10 @@ const app = buildAcademicApp(world, { conversationMode: 'demo' });
 let lastSequence = 0;
 /** Every student message sent, to prove none reaches the case. */
 const sentMessages: string[] = [];
+/** The step 1 turn, so its chips and its status are checked by separate tests. */
+let firstTurn: TurnData['turn'] | undefined;
+/** The revision the student saved before asking the advisor, pinned by the case in step 6. */
+let savedRevisionId = '';
 
 /** The turn fields the steps read. */
 interface TurnData {
@@ -121,14 +125,9 @@ describe('AC47 the first vertical slice through chat (planning/14)', () => {
     'step 1: next-term options with no Fridays gives a preferred, unconfirmed chip',
     async () => {
       const { turn } = await say('Show me my next-term options, no Fridays please');
+      firstTurn = turn;
 
       expect(turn.sequence).toBe(2);
-      // NOTE: GUARDED because the demo picks the schedule intro while the form is still empty and
-      // only a notice comes back; the server swaps in its default intro (tracked in #570).
-      expect(turn.modelStatus).toBe('GUARDED');
-      expect(turn.intro).toBe(
-        'Here are the planning choices I understood. Please review them before continuing.',
-      );
       expect(turn.blocks).toEqual([
         {
           kind: 'CONSTRAINT_PROPOSAL',
@@ -148,6 +147,18 @@ describe('AC47 the first vertical slice through chat (planning/14)', () => {
         },
         expect.objectContaining({ kind: 'NOTICE', code: 'PLANNER_INPUT_NEEDED' }),
       ]);
+    },
+  );
+
+  acceptanceIt(
+    'AC47',
+    'step 1b: the chip turn is ANSWERED with the constraint proposal intro',
+    () => {
+      // NOTE: fails until #570 makes the demo pick the intro from the blocks that returned.
+      expect(firstTurn?.modelStatus).toBe('ANSWERED');
+      expect(firstTurn?.intro).toBe(
+        'Here are the planning choices I understood. Please review them before continuing.',
+      );
     },
   );
 
@@ -242,15 +253,23 @@ describe('AC47 the first vertical slice through chat (planning/14)', () => {
 
   acceptanceIt(
     'AC47',
-    'step 5: ask my advisor gives a case preview and no case exists',
+    'step 5: after saving a draft, ask my advisor gives a case preview and no case exists',
     async () => {
+      // NOTE: the default option the save helpers pick lives in these sections, not the demo ones.
+      publishSections(world, [MATH_MWF, PHYS_TTH]);
+      const saved = dataOf(await saveDefaultOption(app));
+      savedRevisionId = (saved.latest as { id: string }).id;
+      // NOTE: fails until #572 defaults draft_case_context to the student's current saved plan.
       const { turn } = await say('Please ask my advisor to review my plan');
 
+      expect(turn.sequence).toBe(10);
       expect(turn.intro).toBe(
         'Here is a preview of the case. Nothing is sent until you confirm it.',
       );
       expect(turn.modelStatus).toBe('ANSWERED');
-      expect(turn.blocks).toMatchObject([{ kind: 'CASE_PREVIEW', reason: 'PLAN_REVIEW' }]);
+      expect(turn.blocks).toMatchObject([
+        { kind: 'CASE_PREVIEW', reason: 'PLAN_REVIEW', context: { id: savedRevisionId } },
+      ]);
       expect(world.cases).toEqual([]);
       expect(world.caseEvents).toEqual([]);
     },
@@ -260,26 +279,28 @@ describe('AC47 the first vertical slice through chat (planning/14)', () => {
     'AC47',
     'step 6: creating the case through the existing endpoint pins the revision and the case has no transcript',
     async () => {
-      // NOTE: the default option the save helpers pick lives in these sections, not the demo ones.
-      publishSections(world, [MATH_MWF, PHYS_TTH]);
       expect(world.cases).toEqual([]);
-      const saved = dataOf(await saveDefaultOption(app));
-      const revisionId = (saved.latest as { id: string }).id;
-      const created = await createCase(app, planReviewBody(revisionId));
+      const created = await createCase(app, planReviewBody(savedRevisionId));
 
       expect(created.statusCode).toBe(201);
       expect(dataOf(created)).toMatchObject({
         status: 'OPEN',
         reason: 'PLAN_REVIEW',
-        context: { id: revisionId, revision: 1 },
+        context: { id: savedRevisionId, revision: 1 },
       });
-      const stored = JSON.stringify(dataOf(created)).toLowerCase();
+      expect(world.cases).toHaveLength(1);
+      const stored = [
+        JSON.stringify(dataOf(created)),
+        JSON.stringify(world.cases),
+        JSON.stringify(world.caseEvents),
+      ]
+        .join('\n')
+        .toLowerCase();
       expect(stored).not.toContain('transcript');
       expect(stored).not.toContain('"turns"');
       for (const message of sentMessages) {
         expect(stored).not.toContain(message.toLowerCase());
       }
-      expect(world.cases).toHaveLength(1);
     },
   );
 });
