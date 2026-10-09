@@ -32,7 +32,7 @@ import {
   resetChatWorld,
   turnOf,
 } from '../support/conversation-harness';
-import { acceptanceIt } from '../support/known-findings';
+import { acceptanceIt } from '../support/known-findings-declarations';
 import { publishSections, scheduleRequest } from '../support/schedule-options-harness';
 
 const { math102 } = SYNTHETIC_COURSES;

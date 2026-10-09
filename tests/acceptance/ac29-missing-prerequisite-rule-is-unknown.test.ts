@@ -19,7 +19,7 @@ import {
   createAcademicWorld,
   resetAcademicWorld,
 } from '../support/academic-endpoints-harness';
-import { acceptanceIt } from '../support/known-findings';
+import { acceptanceIt } from '../support/known-findings-declarations';
 
 const { math102, phys201 } = SYNTHETIC_COURSES;
 

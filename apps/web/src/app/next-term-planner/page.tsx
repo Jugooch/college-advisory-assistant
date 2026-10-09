@@ -63,9 +63,12 @@ export default async function NextTermPlannerPage({
     return <StudentLookupScreen title="Plan next term" isIdInvalid={student.kind === 'invalid'} />;
   }
   const studentId = student.studentId;
-  // The summary comes first: its catalog entries give each variable-credit course's range.
-  const summary = await keepApiError(getAcademicSummary(studentId));
-  const terms = await keepApiError(getPlannableTerms(studentId));
+  // The summary's catalog entries give each variable-credit course's range, used below.
+  // The two lookups don't depend on each other, so they run together.
+  const [summary, terms] = await Promise.all([
+    keepApiError(getAcademicSummary(studentId)),
+    keepApiError(getPlannableTerms(studentId)),
+  ]);
   const termId = readChatTerm(values.termId);
   const chat = termId === null ? null : await keepApiError(getConversation(studentId, { termId }));
   const courses = summaryCourses(summary);

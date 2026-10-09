@@ -33,7 +33,7 @@ import {
   turnOf,
 } from '../support/conversation-harness';
 import { TIER_1_PHRASES } from '../support/crisis-phrases';
-import { acceptanceIt } from '../support/known-findings';
+import { acceptanceIt } from '../support/known-findings-declarations';
 import { BOTH_COURSES, resetPlanWorld } from '../support/plan-drafts-harness';
 
 const world = createAcademicWorld();
