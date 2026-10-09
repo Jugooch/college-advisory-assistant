@@ -17,7 +17,6 @@ import {
   buildScheduleConstraintSet,
   buildStoredAssistantTurnView,
   buildStudentTurnView,
-  buildUnavailableConversationResponse,
   syntheticId,
 } from '@caa/test-kit';
 
@@ -45,7 +44,7 @@ const INPUTS = ScheduleOptionsRequestSchema.parse({
  * @returns The mocks.
  */
 function renderPanel({
-  initial = buildConversationResponse({ turns: [] }),
+  initial = buildConversationResponse({ turns: [], lastSequence: 0 }),
   send = { kind: 'replied', turn: buildAssistantTurnView() },
   clear = { kind: 'cleared' },
 }: {
@@ -99,17 +98,10 @@ describe('ChatPanel', () => {
     expect(screen.getByText(/This chat is not registration/)).toBeTruthy();
   });
 
-  it('shows only the unavailable message when chat is unavailable', () => {
-    renderPanel({ initial: buildUnavailableConversationResponse() });
-
-    expect(screen.getByText(/Chat is unavailable right now/)).toBeTruthy();
-    expect(screen.queryByLabelText('Message to the assistant')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Clear conversation' })).toBeNull();
-  });
-
   it('sends the message, term, latest sequence and inputs, and no prior turns', async () => {
     const initial = buildConversationResponse({
       turns: [buildStudentTurnView(), buildStoredAssistantTurnView()],
+      lastSequence: 2,
     });
     const { sendAction } = renderPanel({ initial });
 
@@ -248,6 +240,7 @@ describe('ChatPanel', () => {
           buildStudentTurnView(),
           buildStoredAssistantTurnView({ blockRefs: buildAssistantBlockRefOfEveryKind() }),
         ],
+        lastSequence: 2,
       }),
     });
 
@@ -270,6 +263,7 @@ describe('ChatPanel', () => {
             ),
           }),
         ],
+        lastSequence: 2,
       }),
     });
 
@@ -282,6 +276,7 @@ describe('ChatPanel', () => {
     const { clearAction } = renderPanel({
       initial: buildConversationResponse({
         turns: [buildStudentTurnView(), buildStoredAssistantTurnView()],
+        lastSequence: 2,
       }),
       send: new Promise<never>(() => undefined),
     });

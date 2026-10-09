@@ -90,6 +90,20 @@ describe('ConversationTurnStoreService.open', () => {
   });
 });
 
+describe('ConversationTurnStoreService.readLastSequence', () => {
+  it('reads 0 for a new conversation and the kept value after a clear, even when stale', async () => {
+    const fresh = await setup().service.readLastSequence(actor, target(9), NOW.toISOString());
+    const kept = await setup({ last: 4 }).service.readLastSequence(
+      actor,
+      target(0),
+      NOW.toISOString(),
+    );
+
+    expect(fresh).toBe(0);
+    expect(kept).toBe(4);
+  });
+});
+
 describe('ConversationTurnStoreService.isOverRateLimit', () => {
   it('is over at the limit and under below it', async () => {
     expect(await setup({ log: 2 }).service.isOverRateLimit(actor, student.id)).toBe(true);
