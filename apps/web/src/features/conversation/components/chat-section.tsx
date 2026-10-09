@@ -16,6 +16,7 @@ import {
 
 import type { ClearResult, ReloadResult, SendTurnResult } from '../utils/conversation-state';
 import { UNAVAILABLE_MESSAGE } from '../utils/conversation-wording';
+import { hasChatPanel } from '../utils/has-chat-panel';
 import { ChatPanel } from './chat-panel';
 
 /** Props for {@link ChatSection}. */
@@ -39,15 +40,15 @@ export interface ChatSectionProps {
 export function ChatSection({ conversation, ...panel }: ChatSectionProps): ReactElement {
   return (
     <aside aria-label="Assistant">
-      {conversation === null || conversation instanceof ApiError ? (
+      {hasChatPanel(conversation) ? (
+        <ChatPanel {...panel} initial={conversation} />
+      ) : (
         <p role="note" className="notice notice--caution">
           {UNAVAILABLE_MESSAGE}
           {conversation instanceof ApiError && conversation.requestId !== null
             ? ` (support reference: ${conversation.requestId})`
             : ''}
         </p>
-      ) : (
-        <ChatPanel {...panel} initial={conversation} />
       )}
     </aside>
   );
