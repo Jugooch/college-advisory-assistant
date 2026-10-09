@@ -18,6 +18,7 @@ import {
   type StudentRepository,
   type UserIdentityRepository,
 } from '@caa/api/testing';
+import type { ConversationModel } from '@caa/assistant';
 import type { StudentUserLinkRepository } from '@caa/db';
 import type { AdvisorAssignment, Student, UserIdentity } from '@caa/domain';
 
@@ -62,17 +63,10 @@ export interface AcceptanceOptions {
   readonly now?: Date;
   /** `ACTIVE_RULESET_VERSION`; defaults to {@link ACCEPTANCE_RULESET_VERSION}. */
   readonly rulesetVersion?: string;
-  /**
-   * The conversation model the API calls. NOTE: typed loosely and not yet passed on, because
-   * `ContainerOptions.conversationModel` arrives with #513; once it does, type this as
-   * `ConversationModel` and hand it to `createContainer`.
-   */
-  readonly conversationModel?: unknown;
-  /**
-   * `CONVERSATION_MODEL`, the API's own choice of model: `demo` is the keyword demo model, which
-   * needs no key. Defaults to the API's default, chat off.
-   */
-  readonly conversationMode?: 'off' | 'demo' | 'claude';
+  /** The conversation model the API calls; it replaces the one `conversationMode` selects. */
+  readonly conversationModel?: ConversationModel;
+  /** `CONVERSATION_MODEL`; defaults to off. Ignored when `conversationModel` is given. */
+  readonly conversationMode?: 'off' | 'demo';
 }
 
 /** The API app, not yet listening. */
@@ -247,7 +241,14 @@ export function buildAcceptanceApp(
     ...createConversationRepositories(world),
   };
   return buildApp({
-    dependencies: createContainer({ env, repositories, now: () => options.now ?? ACCEPTANCE_NOW }),
+    dependencies: createContainer({
+      env,
+      repositories,
+      now: () => options.now ?? ACCEPTANCE_NOW,
+      ...(options.conversationModel === undefined
+        ? {}
+        : { conversationModel: options.conversationModel }),
+    }),
     logger: false,
   });
 }

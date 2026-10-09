@@ -154,7 +154,6 @@ describe('AC47 the first vertical slice through chat (planning/14)', () => {
     'AC47',
     'step 1b: the chip turn is ANSWERED with the constraint proposal intro',
     () => {
-      // NOTE: fails until #570 makes the demo pick the intro from the blocks that returned.
       expect(firstTurn?.modelStatus).toBe('ANSWERED');
       expect(firstTurn?.intro).toBe(
         'Here are the planning choices I understood. Please review them before continuing.',
@@ -259,7 +258,6 @@ describe('AC47 the first vertical slice through chat (planning/14)', () => {
       publishSections(world, [MATH_MWF, PHYS_TTH]);
       const saved = dataOf(await saveDefaultOption(app));
       savedRevisionId = (saved.latest as { id: string }).id;
-      // NOTE: fails until #572 defaults draft_case_context to the student's current saved plan.
       const { turn } = await say('Please ask my advisor to review my plan');
 
       expect(turn.sequence).toBe(10);
@@ -268,7 +266,7 @@ describe('AC47 the first vertical slice through chat (planning/14)', () => {
       );
       expect(turn.modelStatus).toBe('ANSWERED');
       expect(turn.blocks).toMatchObject([
-        { kind: 'CASE_PREVIEW', reason: 'PLAN_REVIEW', context: { id: savedRevisionId } },
+        { kind: 'CASE_PREVIEW', reason: 'PLAN_REVIEW', planId: saved.id, planRevision: 1 },
       ]);
       expect(world.cases).toEqual([]);
       expect(world.caseEvents).toEqual([]);

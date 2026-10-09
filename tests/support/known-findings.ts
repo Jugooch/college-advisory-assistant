@@ -19,13 +19,7 @@ import { it } from 'vitest';
  *
  * The fixing PR removes its entry, and nothing else in `tests/`.
  */
-export const KNOWN_FINDINGS: ReadonlyMap<string, number> = new Map<string, number>([
-  ['AC47: step 1b: the chip turn is ANSWERED with the constraint proposal intro', 570],
-  [
-    'AC47: step 5: after saving a draft, ask my advisor gives a case preview and no case exists',
-    572,
-  ],
-]);
+export const KNOWN_FINDINGS: ReadonlyMap<string, number> = new Map<string, number>([]);
 
 /** A key of the register: a golden case ID, or an acceptance case and its exact test title. */
 export const FINDING_KEY = /^(G[CH]-[A-Z]+-\d{3}|AC\d{2}: \S.*)$/;
