@@ -12,8 +12,18 @@ pnpm install
 cp infra/env.example .env                 # local settings (synthetic data only)
 docker compose -f infra/docker-compose.yml up -d   # local Postgres (synthetic data only)
 pnpm dev                                  # web :3000, api :4000, worker
-pnpm verify                               # everything CI checks
+pnpm verify                               # what CI runs except the E2E job
+pnpm e2e                                  # browser tests; see docs/demo.md for setup
 ```
+
+### Run the demo
+
+```bash
+docker compose -f infra/docker-compose.yml up -d   # local Postgres
+pnpm demo                                          # reset, seed synthetic personas, start everything
+```
+
+No API key or `.env` is needed. The walkthrough, with the personas, a student script and an advisor script, is in [`docs/demo.md`](docs/demo.md).
 
 ### Seed and sign in locally
 
@@ -89,6 +99,7 @@ curl -X POST http://localhost:4000/v1/students/30000000-0000-4000-8000-000000000
 | [`docs/standards/`](docs/standards/README.md)      | Binding coding standards: structure, naming, comments, data objects, APIs, tests, PRs |
 | [`docs/team/`](docs/team/README.md)                | The agent team, file ownership, handoffs, and the review panel                        |
 | [`docs/adr/`](docs/adr/)                           | Architecture decision records                                                         |
+| [`docs/demo.md`](docs/demo.md)                     | The local demo walkthrough                                                            |
 
 ## Contributing
 
