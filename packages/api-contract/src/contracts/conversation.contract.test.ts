@@ -56,6 +56,13 @@ function stub(status: number, body?: unknown): { fetchFn: typeof fetch; seen: Re
   return { fetchFn, seen };
 }
 
+const ok = {
+  available: true,
+  unavailableReason: null,
+  turns: [STUDENT_TURN, ASSISTANT_TURN],
+  lastSequence: 10,
+};
+
 describe('conversation endpoints', () => {
   it('declares the three endpoints of ADR-0015 section 10', () => {
     expect(getConversationEndpoint).toMatchObject({
@@ -74,7 +81,7 @@ describe('conversation endpoints', () => {
 
   it('reads the transcript through the typed client with a term query', async () => {
     const { fetchFn, seen } = stub(200, {
-      data: { available: true, unavailableReason: null, turns: [STUDENT_TURN, ASSISTANT_TURN] },
+      data: ok,
     });
     const client = createApiClient({ baseUrl: 'http://api.test', fetchFn });
 
@@ -90,7 +97,7 @@ describe('conversation endpoints', () => {
   });
 
   it('posts a turn through the typed client and parses the answer', async () => {
-    const { fetchFn, seen } = stub(200, { data: { turn: ANSWER } });
+    const { fetchFn, seen } = stub(200, { data: { turn: ANSWER, lastSequence: 10 } });
     const client = createApiClient({ baseUrl: 'http://api.test', fetchFn });
 
     const result = await client.call(postConversationTurnEndpoint, {
@@ -213,30 +220,29 @@ describe('AssistantTurnViewSchema', () => {
 
 describe('ConversationTurnResponseSchema', () => {
   it('wraps the turn and rejects other keys', () => {
-    expect(ConversationTurnResponseSchema.safeParse({ turn: ANSWER }).success).toBe(true);
-    expect(ConversationTurnResponseSchema.safeParse({ turn: ANSWER, turns: [] }).success).toBe(
-      false,
-    );
+    const parse = (extra: object) =>
+      ConversationTurnResponseSchema.safeParse({ turn: ANSWER, lastSequence: 10, ...extra });
+    expect(parse({}).success).toBe(true);
+    expect(parse({ turns: [] }).success).toBe(false);
   });
 
-  it('accepts lastSequence when present or absent and rejects negative or fractional', () => {
+  it('requires lastSequence and rejects negative or fractional', () => {
     const parse = (v: unknown) =>
       ConversationTurnResponseSchema.safeParse({ turn: ANSWER, lastSequence: v }).success;
-    expect(ConversationTurnResponseSchema.safeParse({ turn: ANSWER }).success).toBe(true);
+    expect(ConversationTurnResponseSchema.safeParse({ turn: ANSWER }).success).toBe(false);
     expect(parse(2)).toBe(true);
-    expect(parse(5)).toBe(true);
     expect(parse(-1)).toBe(false);
     expect(parse(1.5)).toBe(false);
   });
 
   it('rejects a lastSequence behind the turn', () => {
-    const behind = ConversationTurnResponseSchema.safeParse({ turn: ANSWER, lastSequence: 1 });
-    expect(behind.success).toBe(false);
+    expect(
+      ConversationTurnResponseSchema.safeParse({ turn: ANSWER, lastSequence: 1 }).success,
+    ).toBe(false);
   });
 });
 
 describe('ConversationResponseSchema', () => {
-  const ok = { available: true, unavailableReason: null, turns: [STUDENT_TURN, ASSISTANT_TURN] };
   const accepts = (body: unknown): boolean => ConversationResponseSchema.safeParse(body).success;
 
   it('accepts a transcript of student and assistant turns', () => {
@@ -269,8 +275,8 @@ describe('ConversationResponseSchema', () => {
     const turn = (sequence: number): unknown => ({ ...STUDENT_TURN, sequence });
     const turns = (count: number): unknown[] =>
       Array.from({ length: count }, (_unused, i) => turn(i + 1));
-    expect(accepts({ ...ok, turns: turns(100) })).toBe(true);
-    expect(accepts({ ...ok, turns: turns(101) })).toBe(false);
+    expect(accepts({ ...ok, turns: turns(100), lastSequence: 100 })).toBe(true);
+    expect(accepts({ ...ok, turns: turns(101), lastSequence: 101 })).toBe(false);
   });
 
   it('rejects turns out of order or repeated', () => {
@@ -283,11 +289,10 @@ describe('ConversationResponseSchema', () => {
     expect(accepts({ ...ok, turns: [leaky] })).toBe(false);
   });
 
-  it('accepts lastSequence when present or absent and rejects negative or fractional', () => {
+  it('requires lastSequence and rejects negative or fractional', () => {
     const parse = (v: unknown) => accepts({ ...ok, lastSequence: v });
-    expect(accepts(ok)).toBe(true);
+    expect(accepts({ ...ok, lastSequence: undefined })).toBe(false);
     expect(parse(2)).toBe(true);
-    expect(parse(5)).toBe(true);
     expect(parse(-1)).toBe(false);
     expect(parse(1.5)).toBe(false);
   });

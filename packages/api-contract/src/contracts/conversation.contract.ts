@@ -40,8 +40,7 @@ export const MAX_TRANSCRIPT_TURNS = 100;
  * `expectedSequence`, because clear and unreadable turns leave it ahead of the visible
  * transcript (ADR-0015 §2, AC44).
  */
-// TODO(#559): make required once the api and test-kit builders always set it (staged rollout, standard 08)
-const LastSequenceSchema = z.number().int().min(0).optional();
+const LastSequenceSchema = z.number().int().min(0);
 
 /**
  * Query for reading or clearing a conversation. Strict: tenant, user and student come from the
@@ -117,13 +116,10 @@ export const ConversationTurnResponseSchema = z
   })
   // SAFETY: the next `expectedSequence` can't be behind the turn just stored, or every later
   // turn would fail with 409 REVISION_CONFLICT (ADR-0015 §2).
-  .refine(
-    (body) =>
-      body.lastSequence === undefined ||
-      body.turn.sequence === null ||
-      body.lastSequence >= body.turn.sequence,
-    { message: 'lastSequence must be at least the turn sequence', path: ['lastSequence'] },
-  )
+  .refine((body) => body.turn.sequence === null || body.lastSequence >= body.turn.sequence, {
+    message: 'lastSequence must be at least the turn sequence',
+    path: ['lastSequence'],
+  })
   .readonly();
 
 /** Response body for `POST /v1/students/:studentId/conversation/turns`. */
@@ -250,14 +246,10 @@ export const ConversationResponseSchema = z
   })
   // SAFETY: the next `expectedSequence` can't be behind the newest visible turn, or every later
   // turn would fail with 409 REVISION_CONFLICT (ADR-0015 §2).
-  .refine(
-    (body) =>
-      body.lastSequence === undefined ||
-      body.turns.every(
-        (turn) => body.lastSequence !== undefined && body.lastSequence >= turn.sequence,
-      ),
-    { message: 'lastSequence must be at least the newest turn sequence', path: ['lastSequence'] },
-  )
+  .refine((body) => body.turns.every((turn) => body.lastSequence >= turn.sequence), {
+    message: 'lastSequence must be at least the newest turn sequence',
+    path: ['lastSequence'],
+  })
   // SAFETY: the transcript is append-only and ordered, so a repeated or reversed sequence means
   // the history is wrong (ADR-0015 §7).
   .refine(

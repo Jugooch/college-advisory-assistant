@@ -215,25 +215,6 @@ describe('ChatPanel recovery', () => {
     expect(sendAction.mock.calls[1]?.[1]).toMatchObject({ expectedSequence: 6 });
   });
 
-  it('falls back to the visible turn when lastSequence is absent', async () => {
-    const { sendAction } = renderPanel({
-      initial: buildConversationResponse({
-        turns: [
-          buildStudentTurnView({ sequence: 1 }),
-          buildStoredAssistantTurnView({ sequence: 2 }),
-        ],
-        lastSequence: undefined,
-      }),
-    });
-
-    sendMessage('Next');
-    await waitFor(() => {
-      expect(sendAction).toHaveBeenCalledTimes(1);
-    });
-
-    expect(sendAction.mock.calls[0]?.[1]).toMatchObject({ expectedSequence: 2 });
-  });
-
   it('keeps the conversation when the student declines, returning focus to the control', () => {
     const { clearAction } = renderPanel({
       initial: buildConversationResponse({ lastSequence: 2 }),
