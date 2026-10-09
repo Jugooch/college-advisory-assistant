@@ -29,6 +29,9 @@ function assistantOf(page: Page): Locator {
   return page.getByRole('complementary', { name: 'Assistant' });
 }
 
+/** The term code the student plans for, as the term picker names it. */
+const PLANNING_TERM_CODE = '2027SP';
+
 /** How long a search, a save or a chat reply may take in CI before the step fails. */
 const SLOW_STEP_MS = 30_000;
 
@@ -104,7 +107,11 @@ async function openPlannerAndPickTerm(page: Page): Promise<void> {
     .getByRole('link', { name: 'Plan next term' })
     .click();
   await expect(page.getByRole('heading', { level: 1, name: 'Plan next term' })).toBeVisible();
-  await page.getByLabel('Term', { exact: true }).selectOption({ index: 1 });
+  const term = page.getByLabel('Term', { exact: true });
+  const spring = await term
+    .locator('option', { hasText: PLANNING_TERM_CODE })
+    .getAttribute('value');
+  await term.selectOption(spring);
   await page.getByRole('button', { name: 'Review constraints' }).click();
 
   await expect(assistant.getByRole('heading', { name: 'Ask the assistant' })).toBeVisible();
