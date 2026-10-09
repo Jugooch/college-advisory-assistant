@@ -5,7 +5,12 @@ import { describe, expect, it } from 'vitest';
 
 import { NoticeCode } from '@caa/domain';
 
-import { NOTICE_TEMPLATES, renderNotice, TEMPLATE_VERSION } from './notice.template';
+import {
+  NOTICE_TEMPLATES,
+  renderNotice,
+  SOURCE_NOTICE_TEMPLATES,
+  TEMPLATE_VERSION,
+} from './notice.template';
 import { REFERRAL_TEMPLATES } from './referral.template';
 
 describe('notice templates', () => {
@@ -13,7 +18,9 @@ describe('notice templates', () => {
     for (const code of Object.values(NoticeCode)) {
       expect(renderNotice(code).length).toBeGreaterThan(0);
     }
-    expect(Object.keys(NOTICE_TEMPLATES)).toHaveLength(Object.values(NoticeCode).length);
+    expect(Object.keys(NOTICE_TEMPLATES)).toHaveLength(
+      Object.values(NoticeCode).length + Object.keys(SOURCE_NOTICE_TEMPLATES).length,
+    );
   });
 
   it('hypothetical notice says scenarios are unsupported and the record is unchanged', () => {
@@ -50,7 +57,17 @@ describe('notice templates', () => {
         'The assistant is turned off for your institution. You can still use the planning form and your saved plans.',
       POLICY_CONFLICT:
         'The approved policy documents disagree on this point, so no answer is shown. Please ask your advisor.',
+      ...SOURCE_NOTICE_TEMPLATES,
     });
+  });
+
+  it('renders the source-freshness notices as exact literal sentences', () => {
+    expect(SOURCE_NOTICE_TEMPLATES.STALE_SOURCE).toBe(
+      'The information for this answer is out of date and could not be confirmed, so nothing is shown as current. Use the planner and My plans for your saved work, and ask your advisor.',
+    );
+    expect(SOURCE_NOTICE_TEMPLATES.SOURCE_UNAVAILABLE).toBe(
+      'The information for this answer could not be reached right now, so nothing is shown as current. Use the planner and My plans for your saved work, and ask your advisor.',
+    );
   });
 
   it('carries a template version', () => {
