@@ -58,6 +58,18 @@ async function openStudentScreen(page: Page, label: string): Promise<void> {
 }
 
 /**
+ * Waits until Help and cases has loaded the student's cases. The page heading also shows on the
+ * loading screen, so the wait is for a link only the loaded page has.
+ *
+ * @param page - The browser page.
+ */
+async function waitForCaseList(page: Page): Promise<void> {
+  await expect(page.getByRole('link', { name: 'Report a problem with my record' })).toBeVisible({
+    timeout: SLOW_STEP_MS,
+  });
+}
+
+/**
  * Withdraws every open case the student has, so the saved draft can take a new one. A withdrawn
  * case is final, and a new question opens a new case.
  *
@@ -65,7 +77,7 @@ async function openStudentScreen(page: Page, label: string): Promise<void> {
  */
 export async function withdrawOpenCases(page: Page): Promise<void> {
   await openStudentScreen(page, 'Help and cases');
-  await expect(page.getByRole('heading', { level: 1, name: 'Help and cases' })).toBeVisible();
+  await waitForCaseList(page);
   const withdraw = page.getByRole('button', { name: 'Withdraw this case' });
   while ((await withdraw.count()) > 0) {
     await withdraw.first().click();
@@ -73,7 +85,7 @@ export async function withdrawOpenCases(page: Page): Promise<void> {
       timeout: SLOW_STEP_MS,
     });
     await page.reload();
-    await expect(page.getByRole('heading', { level: 1, name: 'Help and cases' })).toBeVisible();
+    await waitForCaseList(page);
   }
 }
 
