@@ -9,6 +9,7 @@ import { advisorAssignmentTable } from '../tables/advisor-assignment.table';
 import { auditSnapshotTable } from '../tables/audit-snapshot.table';
 import { courseAttemptTable } from '../tables/course-attempt.table';
 import { requirementResultTable } from '../tables/requirement-result.table';
+import { requirementResultCandidateCourseTable } from '../tables/requirement-result-candidate-course.table';
 import { studentTable } from '../tables/student.table';
 import { studentSnapshotTable } from '../tables/student-snapshot.table';
 import { studentSnapshotAttemptTable } from '../tables/student-snapshot-attempt.table';
@@ -44,6 +45,9 @@ describe('demo seed', () => {
     const auditIds = DEMO_PLAN.academic.audits
       .filter((audit) => DEMO_STUDENT_IDS.includes(audit.studentId))
       .map((audit) => audit.id);
+    await db
+      .delete(requirementResultCandidateCourseTable)
+      .where(inArray(requirementResultCandidateCourseTable.auditSnapshotId, auditIds));
     await db
       .delete(requirementResultTable)
       .where(inArray(requirementResultTable.auditSnapshotId, auditIds));
