@@ -133,11 +133,23 @@ describe('buildDevSeedSectionPlan', () => {
     const isClash = (a: Meeting, b: Meeting): boolean =>
       isSameDays(a, b) && isSameDates(a, b) && isSameTimes(a, b);
 
+    for (const meeting of meetings) {
+      expect([meeting.weekdays, meeting.startTime, meeting.endTime]).not.toContain(null);
+    }
     expect(meetings.flatMap((meeting) => meeting.weekdays ?? [])).not.toContain('FRIDAY');
     const pairs = meetings.flatMap((a, i) => meetings.slice(i + 1).map((b) => isClash(a, b)));
     expect(pairs).not.toContain(true);
-    // NOTE: 3.00 + 3.00 + 4.00 (lecture; the lab adds none) + 2.00 = 12.00.
-    expect(3 + 3 + 4 + 2).toBe(12);
+    // NOTE: the lab adds no credits (included in PHYS 301); IND 390 is chosen at 2.00 (200).
+    const { math102, engl101, phys301, phys301Lab, ind390 } = SEED_CATALOG;
+    expect(phys301Lab.creditsIncludedInCourseId).toBe(phys301.id);
+    expect(ind390.minCreditsHundredths).toBeLessThanOrEqual(200);
+    expect(ind390.maxCreditsHundredths).toBeGreaterThanOrEqual(200);
+    const total =
+      (math102.creditsHundredths ?? 0) +
+      (engl101.creditsHundredths ?? 0) +
+      (phys301.creditsHundredths ?? 0) +
+      200;
+    expect(total).toBe(1200);
   });
 
   it('configures 15 minutes each way between North and South, in a fixed version', () => {

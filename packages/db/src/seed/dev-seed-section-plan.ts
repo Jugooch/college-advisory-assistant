@@ -87,7 +87,8 @@ const { north, south } = SEED_CAMPUSES;
 // scenarios, never from engine output.
 /** The seeded sections. */
 const SECTION_SPECS: readonly SectionSpec[] = [
-  // Vertical slice: MATH 102 and ENGL 101 give exactly two feasible pairs.
+  // Vertical slice: with sections 001 and 002 only, MATH 102 and ENGL 101 give exactly two
+  // feasible pairs; ENGL 101 003 (below) adds two more (it clashes with neither MATH section).
   { slot: 1, courseId: math102.id, code: '001', campus: north, meets: [MWF, '09:00', '09:50'] },
   { slot: 2, courseId: math102.id, code: '002', campus: north, meets: [TU_TH, '09:30', '10:45'] },
   { slot: 3, courseId: engl101.id, code: '001', campus: north, meets: [MWF, '09:00', '09:50'] },
@@ -128,9 +129,9 @@ const SECTION_SPECS: readonly SectionSpec[] = [
   { slot: 12, courseId: phys301.id, code: '002', campus: north, meets: [TU_TH, '13:00', '14:15'] },
 ];
 
-/** Slots of the labs PHYS 301 001 accepts, and of the one lab PHYS 301 002 accepts (non-Friday). */
-const LAB_SLOTS_FIRST = [6, 7];
-const LAB_SLOTS_TUTH = [7];
+/** Slots of the labs PHYS 301 001 accepts, and of the one lab PHYS 301 002 accepts (L02, MW). */
+const LAB_SLOTS_PHYS_001 = [6, 7];
+const LAB_SLOTS_PHYS_002 = [7];
 
 /**
  * Builds the two PHYS 301 linked-section groups for one snapshot.
@@ -153,7 +154,10 @@ function toLinkedGroups(now: Date, offset: number, groupSlots: readonly [number,
       },
     ],
   });
-  return [group(groupSlots[0], 5, LAB_SLOTS_FIRST), group(groupSlots[1], 12, LAB_SLOTS_TUTH)];
+  return [
+    group(groupSlots[0], 5, LAB_SLOTS_PHYS_001),
+    group(groupSlots[1], 12, LAB_SLOTS_PHYS_002),
+  ];
 }
 
 /**
