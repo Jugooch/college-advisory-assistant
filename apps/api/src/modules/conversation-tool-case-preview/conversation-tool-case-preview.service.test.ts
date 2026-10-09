@@ -46,6 +46,19 @@ describe('draft_case_context', () => {
     });
   });
 
+  it('refuses a subject on a plan review whether or not a plan is saved', async () => {
+    const args = {
+      reason: CaseReason.PlanReview,
+      discrepancySubject: DiscrepancySubject.CourseAttempt,
+    };
+    const { run, listPlans } = setupTools();
+
+    const outcome = await run(ToolName.DraftCaseContext, args);
+
+    expect(outcome.errorCode).toBe('INVALID_ARGUMENTS');
+    expect(listPlans).not.toHaveBeenCalled();
+  });
+
   it('refuses a model-written note', async () => {
     const outcome = await setupTools().run(ToolName.DraftCaseContext, {
       reason: CaseReason.PlanReview,

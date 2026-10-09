@@ -37,6 +37,7 @@ import type { AcademicSummaryService } from '../academic-summary/academic-summar
 import {
   buildCasePreviewBlock,
   isValidCaseDraft,
+  isValidCaseShape,
   pickCurrentPlan,
   type PreviewPlan,
   projectCasePreview,
@@ -238,6 +239,9 @@ function draftCaseRunner(deps: ToolRunnersDependencies): ToolRunner {
     DraftCaseContextArgsSchema,
     async ({ actor, studentId, plannerInputs, args, context }) => {
       const { reason, planId, discrepancySubject } = args;
+      if (planId === undefined && !isValidCaseShape(reason, discrepancySubject)) {
+        return failedResult(INVALID_ARGUMENTS, null);
+      }
       let plan: PreviewPlan | null = null;
       if (planId !== undefined) {
         // SECURITY: the plan is read under the session's student; another student's is NOT_FOUND.

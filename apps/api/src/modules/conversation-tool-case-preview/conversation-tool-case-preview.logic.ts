@@ -75,6 +75,23 @@ export function reasonNeedsPlan(reason: CaseReason): boolean {
   return !subjects.some((subject) => isValidCaseDraft(reason, undefined, subject));
 }
 
+/**
+ * Checks a draft's reason and subject alone, as if a plan were attached when the reason needs
+ * one. Lets a malformed draft fail before any plan lookup.
+ *
+ * @param reason - The case reason.
+ * @param subject - The discrepancy subject the model named, if any.
+ * @returns True when a plan could complete the draft.
+ */
+export function isValidCaseShape(
+  reason: CaseReason,
+  subject: DiscrepancySubject | undefined,
+): boolean {
+  // SAFETY: a stand-in plan id; the shape check never reads or stores it.
+  const stand = reasonNeedsPlan(reason) ? (PLACEHOLDER_ID as PlanId) : undefined;
+  return isValidCaseDraft(reason, stand, subject);
+}
+
 /** A saved plan as far as selection needs it. */
 export interface PlanChoice {
   readonly id: PlanId;
