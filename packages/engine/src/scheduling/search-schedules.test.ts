@@ -14,12 +14,12 @@ const COMPATIBLE_TABLE = { verdictOf: () => ({ fail: null, unknownIssues: [] }) 
  * Builds a one-course, one-section bundle worth 3 credits.
  *
  * @param index - Its position, also its course position.
- * @param fields - Its misses and section ordinal.
+ * @param fields - Its misses, section ordinal and course-list number (0 unless given).
  * @returns The bundle.
  */
 function bundle(
   index: number,
-  fields: { readonly miss: number; readonly ordinal: number },
+  fields: { readonly miss: number; readonly ordinal: number; readonly courseListId?: number },
 ): SearchBundle {
   return {
     index,
@@ -27,6 +27,7 @@ function bundle(
     misses: [fields.miss],
     ordinals: [fields.ordinal],
     courses: [{ index: 0, credits: 300, includer: -1 }],
+    courseListId: fields.courseListId ?? 0,
   };
 }
 
@@ -89,6 +90,7 @@ describe('searchSchedules credits', () => {
         { index: 0, credits: 300, includer: -1 },
         { index: 1, credits: 100, includer: 0 },
       ],
+      courseListId: 0,
     };
     // Counted on its own, the lab would make 4 credits, above the 3-credit maximum.
     const space: SearchSpace = { ...oneCourse([lecture], 300), slotCount: 0, courseCount: 2 };
@@ -96,9 +98,9 @@ describe('searchSchedules credits', () => {
     expect(searchSchedules(space, 10).top).toHaveLength(1);
   });
 
-  it('keeps the first 20 credit conflicts in tie-break order and counts them all', () => {
+  it('keeps the first 20 distinct credit conflicts in tie-break order and counts them all', () => {
     const bundles = Array.from({ length: 22 }, (_, index) =>
-      bundle(index, { miss: 0, ordinal: 21 - index }),
+      bundle(index, { miss: 0, ordinal: 21 - index, courseListId: index }),
     );
 
     const result = searchSchedules(oneCourse(bundles, 200), 100);
@@ -113,10 +115,36 @@ describe('searchSchedules credits', () => {
 
   it('appends a later credit conflict that sorts last', () => {
     const result = searchSchedules(
-      oneCourse([bundle(0, { miss: 0, ordinal: 0 }), bundle(1, { miss: 0, ordinal: 1 })], 200),
+      oneCourse(
+        [
+          bundle(0, { miss: 0, ordinal: 0, courseListId: 0 }),
+          bundle(1, { miss: 0, ordinal: 1, courseListId: 1 }),
+        ],
+        200,
+      ),
       100,
     );
 
     expect(result.creditConflicts.map((conflict) => conflict.chosen)).toEqual([[0], [1]]);
+  });
+
+  it('records candidates with the same course lists as one credit conflict, the first in tie-break order', () => {
+    // Search order puts the higher ordinal first, so the kept candidate is replaced once.
+    const result = searchSchedules(
+      oneCourse(
+        [
+          bundle(0, { miss: 0, ordinal: 2 }),
+          bundle(1, { miss: 0, ordinal: 0 }),
+          bundle(2, { miss: 0, ordinal: 1 }),
+        ],
+        200,
+      ),
+      100,
+    );
+
+    expect(result.creditConflictCount).toBe(1);
+    expect(result.creditConflicts).toEqual([
+      { reasonCode: 'CREDIT_LIMIT_EXCEEDED', ordinals: [0], chosen: [1] },
+    ]);
   });
 });

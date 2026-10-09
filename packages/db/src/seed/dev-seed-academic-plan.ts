@@ -201,7 +201,7 @@ function buildSnapshots(now: Date, ids: RunSnapshotIds): readonly StudentSnapsho
  * @param withChildren - Whether to add SYN-000001's child requirements.
  * @returns The requirements in audit order.
  */
-function requirementTree(withChildren: boolean): RequirementResultInput[] {
+export function requirementTree(withChildren: boolean): RequirementResultInput[] {
   const node = (fields: Partial<RequirementResultInput> & { sourceRequirementId: string }) => ({
     parentSourceRequirementId: 'REQ-DEMO-BS',
     label: fields.sourceRequirementId,

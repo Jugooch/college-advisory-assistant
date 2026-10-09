@@ -5,8 +5,10 @@ import { describe, expect, it } from 'vitest';
 
 import { AttemptStatus } from '@caa/domain';
 
+import { SEED_CATALOG } from './dev-seed-academic-catalog';
 import { buildDemoSeedPlan } from './dev-seed-demo-plan';
 import { buildDevSeedPlan } from './dev-seed-plan';
+import { seedRecordTimes } from './dev-seed-record-times';
 
 const NOW = new Date('2026-10-01T12:00:00.000Z');
 
@@ -25,7 +27,7 @@ describe('buildDemoSeedPlan', () => {
     expect(demo.academic.attempts.slice(0, dev.academic.attempts.length)).toEqual(
       dev.academic.attempts,
     );
-    expect(demo.academic.audits).toEqual(dev.academic.audits);
+    expect(demo.academic.audits.slice(0, dev.academic.audits.length)).toEqual(dev.academic.audits);
     expect(demo.sections).toEqual(dev.sections);
     expect(demo.policyDocuments).toEqual(dev.policyDocuments);
   });
@@ -55,7 +57,7 @@ describe('buildDemoSeedPlan', () => {
 
   it('gives the blocked persona a below-C grade and the unknown persona a pending transfer', () => {
     const demo = buildDemoSeedPlan(NOW);
-    const added = demo.academic.attempts.slice(4);
+    const added = demo.academic.attempts.slice(4, 7);
 
     expect(added.map((attempt) => attempt.status)).toEqual([
       AttemptStatus.Completed,
@@ -66,30 +68,70 @@ describe('buildDemoSeedPlan', () => {
     expect(added[1]?.grade).toBeNull();
   });
 
-  it('gives each persona one current snapshot holding its one attempt', () => {
+  it('gives each persona one current snapshot holding its attempts', () => {
     const demo = buildDemoSeedPlan(NOW);
     const snapshots = demo.academic.snapshots.slice(3);
-    const attempts = demo.academic.attempts.slice(4);
 
     expect(snapshots.map((snapshot) => snapshot.studentId)).toEqual([
       '30000000-0000-4000-8000-000000000004',
       '30000000-0000-4000-8000-000000000005',
       '30000000-0000-4000-8000-000000000006',
     ]);
-    expect(snapshots.map((snapshot) => snapshot.attemptIds)).toEqual(
-      attempts.map((attempt) => [attempt.id]),
-    );
-    expect(attempts.map((attempt) => attempt.id)).toEqual([
-      '60000000-0000-4000-8000-000000000104',
-      '60000000-0000-4000-8000-000000000105',
-      '60000000-0000-4000-8000-000000000106',
+    expect(snapshots.map((snapshot) => snapshot.attemptIds)).toEqual([
+      ['60000000-0000-4000-8000-000000000104'],
+      ['60000000-0000-4000-8000-000000000105'],
+      ['60000000-0000-4000-8000-000000000106', '60000000-0000-4000-8000-000000000206'],
     ]);
   });
 
-  it('writes no result: audits and requirement results are the dev seed ones only', () => {
-    const demo = buildDemoSeedPlan(NOW);
+  it('gives SYN-000006 a completed PHYS 201 with a passing grade before 2027SP', () => {
+    const attempts = buildDemoSeedPlan(NOW).academic.attempts;
+    const phys = attempts.find((attempt) => attempt.id === '60000000-0000-4000-8000-000000000206');
 
-    expect(demo.academic.audits).toHaveLength(2);
+    expect(phys).toMatchObject({
+      studentId: '30000000-0000-4000-8000-000000000006',
+      courseId: SEED_CATALOG.phys201.id,
+      status: AttemptStatus.Completed,
+      grade: { scheme: 'LETTER', value: 'C' },
+      creditsEarnedHundredths: 400,
+      termCode: '2026FA',
+    });
+    expect(attempts).toHaveLength(8);
+  });
+
+  it('writes one audit per persona, pinned to its current snapshot', () => {
+    const dev = buildDevSeedPlan(NOW);
+    const demo = buildDemoSeedPlan(NOW);
+    const added = demo.academic.audits.slice(dev.academic.audits.length);
+    const snapshots = demo.academic.snapshots.slice(dev.academic.snapshots.length);
+    const times = seedRecordTimes(NOW);
+
+    expect(demo.academic.audits.slice(0, 2)).toEqual(dev.academic.audits);
+    expect(added).toHaveLength(3);
+    expect(added.map((audit) => audit.studentId)).toEqual(snapshots.map((s) => s.studentId));
+    for (const [index, audit] of added.entries()) {
+      expect(audit).toMatchObject({
+        tenantId: snapshots[index]?.tenantId,
+        programId: snapshots[index]?.programId,
+        catalogYear: snapshots[index]?.catalogYear,
+        studentSnapshotId: snapshots[index]?.id,
+        studentRecordEffectiveAt: times.currentRecordEffectiveAt,
+        generatedAt: times.currentAuditGeneratedAt,
+      });
+    }
+  });
+
+  it('keeps audit IDs and versions apart from the dev seed and decides no persona state', () => {
+    const demo = buildDemoSeedPlan(NOW);
+    const ids = demo.academic.audits.map((audit) => audit.id);
+    const versions = demo.academic.audits.map((audit) => audit.auditVersion);
+
+    expect(new Set(ids).size).toBe(5);
+    expect(new Set(versions).size).toBe(5);
+    for (const audit of demo.academic.audits.slice(2)) {
+      expect(audit.requirements.map((req) => req.state)).toEqual(['INCOMPLETE']);
+      expect(audit.requirements.flatMap((req) => req.allocatedAttemptIds)).toEqual([]);
+    }
   });
 
   it('uses only visibly synthetic subjects, IDs and issuer', () => {
