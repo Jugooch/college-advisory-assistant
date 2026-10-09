@@ -13,7 +13,9 @@ import {
   buildAssistantTurnView,
   buildConversationResponse,
   buildStoredAssistantTurnView,
+  buildStoredNoticeTurnView,
   buildStudentTurnView,
+  buildTemplateBlockEntry,
   buildUnavailableConversationResponse,
 } from './assistant-turn-view.builder';
 
@@ -62,5 +64,21 @@ describe('buildConversationResponse', () => {
 
   it('rejects an unavailable response with no reason', () => {
     expect(() => buildConversationResponse({ available: false })).toThrow();
+  });
+});
+
+describe('template block builders', () => {
+  it('builds an entry pointing at ref 0 with a notice block', () => {
+    expect(buildTemplateBlockEntry()).toMatchObject({ refIndex: 0, block: { kind: 'NOTICE' } });
+  });
+
+  it('builds a stored turn whose re-rendered block matches its ref', () => {
+    expect(ConversationTurnViewSchema.safeParse(buildStoredNoticeTurnView()).success).toBe(true);
+  });
+
+  it('rejects an entry that points at a ref it was not rendered from', () => {
+    expect(() =>
+      buildStoredNoticeTurnView({ templateBlocks: [buildTemplateBlockEntry({ refIndex: 1 })] }),
+    ).toThrow();
   });
 });
