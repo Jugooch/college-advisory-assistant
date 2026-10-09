@@ -26,3 +26,4 @@ export * from './repositories/student-snapshot.repository';
 export * from './repositories/student-turn-log.repository';
 export * from './repositories/term.repository';
 export * from './repositories/user-identity.repository';
+export { assertResetAllowed, ResetRefusedError } from './seed/reset-command';

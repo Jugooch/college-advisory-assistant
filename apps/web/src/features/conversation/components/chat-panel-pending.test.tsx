@@ -30,7 +30,7 @@ function renderPanel(): { settle: (result: SendTurnResult) => Promise<void> } {
       studentId={syntheticId('student', 1)}
       termId={syntheticId('term', 1)}
       plannerInputs={null}
-      initial={buildConversationResponse({ turns: [] })}
+      initial={buildConversationResponse({ turns: [], lastSequence: 0 })}
       sendAction={sendAction}
       reloadAction={vi.fn<() => Promise<ReloadResult>>()}
       clearAction={vi.fn<() => Promise<ClearResult>>()}

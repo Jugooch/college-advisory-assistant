@@ -90,8 +90,8 @@ interface TurnDone {
   readonly outcome: TurnOutcome;
   /** The stored answer's sequence, or `null` when nothing was stored. */
   readonly sequence: number | null;
-  /** The conversation's last sequence, when the turn got as far as reading it. */
-  readonly lastSequence: number | undefined;
+  /** The conversation's stored last sequence, which the client sends as its next `expectedSequence`. */
+  readonly lastSequence: number;
 }
 
 /**
@@ -114,7 +114,7 @@ function finish(done: TurnDone) {
     'conversation turn',
   );
   const turn = buildTurnView(outcome.decision, outcome.blocks, sequence);
-  return lastSequence === undefined ? { turn } : { turn, lastSequence };
+  return { turn, lastSequence };
 }
 
 /**
@@ -159,12 +159,13 @@ export function createConversationService(
       // SAFETY: the detectors run first, on the message alone, and their blocks are shown at
       // every status, including RATE_LIMITED and DISABLED (Amendment 1).
       const detected = await blocks.detect(actor, { message: request.message, at }, context);
-      const respond = (outcome: TurnOutcome, sequence: number | null, lastSequence?: number) =>
+      const respond = (outcome: TurnOutcome, sequence: number | null, lastSequence: number) =>
         finish({ actor, context, startedMs, now, outcome, sequence, lastSequence });
       // SAFETY: off is the kill switch; nothing is stored and no model is called.
       if (!answers.isEnabled) {
         const off = answers.unstored(detected.blocks, ModelStatus.Disabled, NoticeCode.Disabled);
-        return respond(off, null);
+        // SAFETY: nothing is stored, but the client still needs the sequence to resume with.
+        return respond(off, null, await store.readLastSequence(actor, request, at));
       }
       // SECURITY: a stale caller is refused first, so it costs neither a rate-limit slot nor a
       // model call, and the response carries the sequence to retry with.
