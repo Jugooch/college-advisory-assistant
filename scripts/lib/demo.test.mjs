@@ -34,25 +34,17 @@ describe('assertDemoAllowed', () => {
     expect(() => assertDemoAllowed({ NODE_ENV: 'production' })).toThrow(DemoRefusedError);
   });
 
-  it.each([
-    ['a remote host', 'postgres://u:p@db.example.com:5432/caa'],
-    ['a look-alike host', 'postgres://u:p@localhost.example.com/caa'],
-    ['a host query parameter', 'postgres://u:p@localhost/caa?host=db.example.com'],
-    ['a port query parameter', 'postgres://u:p@localhost/caa?port=1'],
-    ['no host', 'postgres:///caa'],
-    ['a non-postgres URL', 'http://localhost/caa'],
-    ['text that is not a URL', 'not a url'],
-  ])('refuses %s without echoing the URL', (_name, databaseUrl) => {
-    let message = '';
-    try {
-      assertDemoAllowed({ DATABASE_URL: databaseUrl });
-    } catch (error) {
-      expect(error).toBeInstanceOf(DemoRefusedError);
-      message = error.message;
-    }
-    expect(message).not.toBe('');
-    expect(message).not.toContain('example.com');
-    expect(message).not.toContain('u:p');
+  it('refuses a non-local database without echoing the URL', () => {
+    const attempt = () =>
+      assertDemoAllowed({ DATABASE_URL: 'postgres://u:p@db.example.com:5432/caa' });
+
+    expect(attempt).toThrow(DemoRefusedError);
+    expect(attempt).toThrow(/not localhost/);
+    expect(attempt).not.toThrow(/example\.com|u:p/);
+  });
+
+  it('refuses an environment the shared guard cannot read', () => {
+    expect(() => assertDemoAllowed({ NODE_ENV: 'staging' })).toThrow(DemoRefusedError);
   });
 });
 

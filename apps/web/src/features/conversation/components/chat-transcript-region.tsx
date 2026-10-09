@@ -14,9 +14,6 @@ import { PENDING_REPLY_TEXT } from '../utils/conversation-wording';
 import { transcriptScrollBehavior } from '../utils/scroll-behavior';
 import { ChatItemView } from './chat-item-view';
 
-/** Makes the scrolling region reachable by keyboard. */
-const SCROLL_FOCUS = { tabIndex: 0 };
-
 /** Props for {@link ChatTranscriptRegion}. */
 export interface ChatTranscriptRegionProps {
   readonly items: readonly ChatItem[];
@@ -52,13 +49,12 @@ export function ChatTranscriptRegion({
   }, [newest]);
   return (
     // The region scrolls, so it must take focus for keyboard users (axe scrollable-region-focusable,
-    // WCAG 2.1.1); jsx-a11y's static rule can't tell, so the focusability is spread in.
-    // TODO(#606): replace the spread with a lint exception once devops adds one.
+    // WCAG 2.1.1).
     <div
       className="chat-transcript-region"
       role="region"
       aria-label="Conversation transcript"
-      {...SCROLL_FOCUS}
+      tabIndex={0}
     >
       <ol className="chat-transcript" aria-label="Conversation" ref={listRef}>
         {items.map((item) => (

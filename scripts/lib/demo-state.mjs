@@ -12,10 +12,21 @@ import { DEMO_PERSONAS } from './demo.mjs';
 /** Code of the term the seeded sections and scenarios plan for. */
 export const PLANNING_TERM_CODE = '2027SP';
 
-/** DEMO-MATH 102 and DEMO-ENGL 101: both have seeded sections, and the stale persona meets MATH 102's prerequisite. */
+/** DEMO-IND 390, the variable-credit course; the request picks 2.00 credits for it. */
+export const IND_390_COURSE_ID = '50000000-0000-4000-8000-000000000390';
+
+/** Credits picked for DEMO-IND 390, in hundredths. */
+export const IND_390_CREDITS_HUNDREDTHS = 200;
+
+/**
+ * DEMO-MATH 102, DEMO-ENGL 101, DEMO-PHYS 301 (4.00, lab included) and DEMO-IND 390 (2.00): 12.00
+ * credits, the seed policy's term minimum. Each has seeded sections.
+ */
 export const STALE_PLAN_COURSE_IDS = Object.freeze([
   '50000000-0000-4000-8000-000000000102',
   '50000000-0000-4000-8000-000000001101',
+  '50000000-0000-4000-8000-000000000301',
+  IND_390_COURSE_ID,
 ]);
 
 const PLAN_REVIEW_NOTE = 'Please check my plan before I register.';
@@ -58,7 +69,14 @@ export function pickPlanningTermId(response) {
  * @returns {object} The request body.
  */
 export function buildScheduleRequest(termId) {
-  return { termId, courseIds: STALE_PLAN_COURSE_IDS, creditSelections: [], constraints: [] };
+  return {
+    termId,
+    courseIds: STALE_PLAN_COURSE_IDS,
+    creditSelections: [
+      { courseId: IND_390_COURSE_ID, selectedCreditsHundredths: IND_390_CREDITS_HUNDREDTHS },
+    ],
+    constraints: [],
+  };
 }
 
 /**

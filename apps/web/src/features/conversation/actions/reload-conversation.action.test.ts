@@ -22,7 +22,7 @@ describe('reloadConversationAction', () => {
   });
 
   it('returns the stored transcript for the term', async () => {
-    const conversation = buildConversationResponse();
+    const conversation = buildConversationResponse({ lastSequence: 2 });
     vi.mocked(getConversation).mockResolvedValue(conversation);
 
     const result = await reloadConversationAction(STUDENT_ID, TERM_ID);

@@ -39,6 +39,11 @@ export interface SearchBundle {
   readonly misses: readonly number[];
   readonly ordinals: readonly number[];
   readonly courses: readonly SearchCourseCredits[];
+  /**
+   * The bundle's ordered course list, as a number shared by every bundle with the same list.
+   * A candidate's credit-load check depends only on its bundles' course lists.
+   */
+  readonly courseListId: number;
 }
 
 /** The search's inputs, every bundle named by its position in `bundles`. */
@@ -79,9 +84,12 @@ export interface SearchResult {
   readonly workUsed: number;
   /** Distinct FAILs between two bundles that the search met, in the order met. */
   readonly pairFails: readonly ConflictEntry[];
-  /** The first credit-load FAILs in conflict order, at most {@link MAX_CONFLICT_ITEMS}. */
+  /**
+   * The first distinct credit-load FAILs in conflict order, at most {@link MAX_CONFLICT_ITEMS},
+   * each the first in conflict order of the candidates that give the same FAIL.
+   */
   readonly creditConflicts: readonly CreditConflict[];
-  /** How many credit-load FAILs the search met in all. */
+  /** How many distinct credit-load FAILs the search met in all. */
   readonly creditConflictCount: number;
 }
 
@@ -99,8 +107,8 @@ interface Walk {
   readonly ordinals: number[];
   readonly top: FoundCandidate[];
   readonly pairFails: Map<string, ConflictEntry>;
-  readonly creditConflicts: CreditConflict[];
-  creditConflictCount: number;
+  /** The first candidate in conflict order for each distinct credit-load FAIL, by its key. */
+  readonly creditConflicts: Map<string, CreditConflict>;
 }
 
 /**
@@ -127,8 +135,7 @@ export function searchSchedules(space: SearchSpace, workCap: number): SearchResu
     present: new Uint8Array(space.courseCount),
     top: [],
     pairFails: new Map(),
-    creditConflicts: [],
-    creditConflictCount: 0,
+    creditConflicts: new Map(),
   };
   visit(walk, 0);
   return {
@@ -136,8 +143,10 @@ export function searchSchedules(space: SearchSpace, workCap: number): SearchResu
     capHit: walk.capHit,
     workUsed: walk.used,
     pairFails: [...walk.pairFails.values()],
-    creditConflicts: walk.creditConflicts,
-    creditConflictCount: walk.creditConflictCount,
+    creditConflicts: [...walk.creditConflicts.values()]
+      .sort(compareCreditConflicts)
+      .slice(0, MAX_CONFLICT_ITEMS),
+    creditConflictCount: walk.creditConflicts.size,
   };
 }
 
@@ -334,27 +343,31 @@ function keepIfTop(
 }
 
 /**
- * Records a credit-load FAIL, keeping the first ones in conflict order.
+ * Records a credit-load FAIL, keeping one candidate per distinct FAIL: the first in conflict
+ * order.
  *
  * @param walk - The search state.
  * @param reasonCode - The FAIL's reason.
- * @param bundles - The candidate's bundles.
+ * @param bundles - The candidate's bundles, in search order.
  */
 function recordCreditConflict(
   walk: Walk,
   reasonCode: string,
   bundles: readonly SearchBundle[],
 ): void {
-  walk.creditConflictCount += 1;
-  const conflict = {
+  // SAFETY: candidates whose bundles have the same course lists, in the same search order,
+  // differ only in sections, which a credit-load check doesn't name; they give the same FAIL,
+  // so it is one conflict, shown once and counted once, never filling the list with copies that
+  // hide a distinct one (planning/08 §Constraint formulation: a verified conflict set;
+  // ADR-0010 §5: the distinct FAIL results).
+  const key = bundles.map((bundle) => bundle.courseListId).join(',');
+  const kept = walk.creditConflicts.get(key);
+  if (kept !== undefined && compareNumberLists(kept.ordinals, walk.ordinals) <= 0) return;
+  walk.creditConflicts.set(key, {
     reasonCode,
     ordinals: [...walk.ordinals],
     chosen: bundles.map((bundle) => bundle.index),
-  };
-  const { creditConflicts } = walk;
-  const position = creditConflicts.findIndex((kept) => compareCreditConflicts(conflict, kept) < 0);
-  creditConflicts.splice(position === -1 ? creditConflicts.length : position, 0, conflict);
-  creditConflicts.length = Math.min(creditConflicts.length, MAX_CONFLICT_ITEMS);
+  });
 }
 
 /**

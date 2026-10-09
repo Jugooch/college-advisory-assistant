@@ -205,6 +205,7 @@ function solverBundlesOf(input: SolveScheduleInput, prepared: PreparedRequest): 
     ...credits,
     index,
   }));
+  const courseListIdOf = courseListNumbering();
   return screened.map((entry, index) => {
     const { bundle, isUnknown, misses } = entry.screened;
     const ids = new Set<string>(bundle.sections.map((section) => section.id));
@@ -224,9 +225,27 @@ function solverBundlesOf(input: SolveScheduleInput, prepared: PreparedRequest): 
             credits,
             includer,
           })),
+        courseListId: courseListIdOf(bundle),
       },
     };
   });
+}
+
+/**
+ * Numbers bundles' ordered course lists: equal lists share a number, given in first-seen order.
+ *
+ * @returns A function giving a bundle's course-list number.
+ */
+function courseListNumbering(): (bundle: {
+  readonly courses: readonly { readonly id: string }[];
+}) => number {
+  const ids = new Map<string, number>();
+  return (bundle) => {
+    const list = bundle.courses.map((course) => course.id).join('\n');
+    const known = ids.get(list) ?? ids.size;
+    ids.set(list, known);
+    return known;
+  };
 }
 
 /**

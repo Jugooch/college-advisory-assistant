@@ -26,7 +26,7 @@ describe('ChatSection', () => {
   });
 
   it('renders the panel when the transcript loaded', () => {
-    render(<ChatSection {...BASE} conversation={buildConversationResponse()} />);
+    render(<ChatSection {...BASE} conversation={buildConversationResponse({ lastSequence: 2 })} />);
 
     expect(screen.getByLabelText('Message to the assistant')).toBeTruthy();
   });
