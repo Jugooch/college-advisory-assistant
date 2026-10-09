@@ -4,8 +4,6 @@
  *   policy excerpt and an aid referral, saves a draft, and sends a case through the existing case
  *   form. Every step that shows a new page or chat result passes axe. Assertions are on roles,
  *   headings and fixed wording, never on model prose (docs/planning/13, AC48).
- * @see https://github.com/Jugooch/college-advisory-assistant/issues/627 for the gap: academic values
- *   outside chat turns (overview, planner results, Help and cases) are not yet checked.
  * @requirement AC48
  * @requirement FR-01
  * @requirement FR-08
@@ -20,6 +18,7 @@ import { expect, type Locator, type Page, test } from '@playwright/test';
 import { expectNoAxeViolations } from './support/axe';
 import { acceptanceTest } from './support/known-findings';
 import { signInAs } from './support/sign-in';
+import { expectAcademicValuesInVerifiedBlocks } from './support/verified-blocks';
 
 /**
  * Finds the chat column.
@@ -113,6 +112,7 @@ async function signInAndOpenOverview(page: Page): Promise<void> {
   await signInAs(page, 'student');
 
   await expect(page.getByRole('heading', { level: 1, name: 'Overview' })).toBeVisible();
+  await expectAcademicValuesInVerifiedBlocks(page);
   await expectNoAxeViolations(page);
 }
 
@@ -195,6 +195,7 @@ async function confirmSearch(page: Page): Promise<void> {
   await expect(page.getByRole('button', { name: 'Save as draft' }).first()).toBeVisible({
     timeout: SLOW_STEP_MS,
   });
+  await expectAcademicValuesInVerifiedBlocks(page);
   await expectNoAxeViolations(page);
 }
 
@@ -323,6 +324,7 @@ async function checkCaseListed(page: Page): Promise<void> {
     timeout: SLOW_STEP_MS,
   });
   const submitted = page.getByRole('article').filter({ hasText: 'Review my plan' }).first();
+  await expectAcademicValuesInVerifiedBlocks(page);
   await expect(submitted.getByText('Waiting for an advisor').first()).toBeVisible();
   await expect(submitted.getByText('Please review my plan for next term.').first()).toBeVisible();
   await expect(page.getByText("I'd like no Fridays")).toHaveCount(0);
