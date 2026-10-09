@@ -173,6 +173,22 @@ describe('POST /v1/students/:studentId/conversation/turns', () => {
     const [notice] = turn?.turn.blocks ?? [];
     expect(notice).toMatchObject({ kind: 'NOTICE', code: NoticeCode.ModelUnavailable });
     expect(store.conversationTurns).toHaveLength(2);
+    expect(turn?.lastSequence).toBe(2);
+  });
+
+  it('returns the stored last sequence when chat is off, and 0 for an empty conversation', async () => {
+    const empty = setupTurnApp();
+    const kept = setupTurnApp();
+    kept.store.lastSequences = { [kept.conversation.id]: 4 };
+
+    const first = await empty.post('Hello there');
+    const later = await kept.post('Hello there');
+
+    expect(first.turn).toMatchObject({
+      turn: { modelStatus: ModelStatus.Disabled },
+      lastSequence: 0,
+    });
+    expect(later.turn).toMatchObject({ turn: { sequence: null }, lastSequence: 4 });
   });
 
   it('is DISABLED with chat off, storing nothing and calling no model', async () => {
