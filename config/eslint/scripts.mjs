@@ -1,7 +1,7 @@
 /**
  * @file Import rules for root `scripts/**`: only the workspace edges ADR-0016 Amendment 1 sanctions.
  * @module config/eslint/scripts
- * @see docs/adr/0016-e2e-browser-tests-demo-mode.md
+ * @see docs/adr/0016-browser-end-to-end-tests-and-local-demo.md
  * @see docs/standards/01-repository-structure.md
  */
 import { SDK_RESTRICTION } from './layer-boundaries.mjs';
