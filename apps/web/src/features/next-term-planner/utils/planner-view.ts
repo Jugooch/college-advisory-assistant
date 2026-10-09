@@ -51,7 +51,7 @@ export function isSearchRequested(step: PlannerStep, plan: PlannerPlan): boolean
  * @returns The request once the student confirmed a valid search, otherwise `null`.
  */
 export function confirmedRequest(step: PlannerStep, plan: PlannerPlan): PlannerPlan['request'] {
-  return step === PlannerStep.Search ? plan.request : null;
+  return isSearchRequested(step, plan) ? plan.request : null;
 }
 
 /**

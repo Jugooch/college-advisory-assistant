@@ -57,10 +57,12 @@ export function useClearConfirmation(input: ClearConfirmationInput): ClearConfir
     }
     startTransition(async () => {
       const result = await clearAction(studentId, termId);
-      setIsAsking(false);
       if (result.kind === 'cleared') {
+        setIsAsking(false);
         onCleared();
       } else {
+        isKept.current = true;
+        setIsAsking(false);
         onFailed({ message: result.message, requestId: result.requestId });
       }
     });

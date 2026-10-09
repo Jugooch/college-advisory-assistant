@@ -65,7 +65,7 @@ export function useChatPanel(input: ChatPanelInput): ChatPanelState {
   };
   const show = (result: SendTurnResult, text: string): void => {
     if (result.kind === 'replied') {
-      transcript.addExchange(text, result.turn);
+      transcript.addExchange(text, result.turn, result.lastSequence);
       setMessage('');
       finish(REPLY_ANNOUNCEMENT);
     } else if (result.kind === 'conflict') {

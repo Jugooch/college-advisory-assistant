@@ -148,6 +148,68 @@ describe('ChatPanel recovery', () => {
     expect(document.activeElement).toBe(screen.getByLabelText('Message to the assistant'));
   });
 
+  it('sends the server lastSequence after a clear, not 0', async () => {
+    const { sendAction } = renderPanel({
+      initial: buildConversationResponse({ lastSequence: 2 }),
+      send: { kind: 'replied', turn: buildAssistantTurnView({ sequence: 4 }), lastSequence: 4 },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear conversation' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, clear it' }));
+    await waitFor(() => {
+      expect(screen.getByText('No messages yet.')).toBeTruthy();
+    });
+    sendMessage('After clear');
+    await waitFor(() => {
+      expect(sendAction).toHaveBeenCalledTimes(1);
+    });
+    expect(sendAction.mock.calls[0]?.[1]).toMatchObject({ expectedSequence: 2 });
+
+    await waitFor(() => {
+      expect(screen.getByRole('status').textContent).not.toBe('');
+    });
+    sendMessage('Again');
+    await waitFor(() => {
+      expect(sendAction).toHaveBeenCalledTimes(2);
+    });
+    expect(sendAction.mock.calls[1]?.[1]).toMatchObject({ expectedSequence: 4 });
+  });
+
+  it('uses the reloaded lastSequence after a conflict', async () => {
+    const reloaded = buildConversationResponse({ turns: [], lastSequence: 6 });
+    const { sendAction } = renderPanel({ send: { kind: 'conflict', conversation: reloaded } });
+
+    sendMessage('One');
+    await waitFor(() => {
+      expect(screen.getByRole('status').textContent).toContain('reloaded');
+    });
+    sendMessage('Two');
+    await waitFor(() => {
+      expect(sendAction).toHaveBeenCalledTimes(2);
+    });
+
+    expect(sendAction.mock.calls[0]?.[1]).toMatchObject({ expectedSequence: 0 });
+    expect(sendAction.mock.calls[1]?.[1]).toMatchObject({ expectedSequence: 6 });
+  });
+
+  it('falls back to the visible turn when lastSequence is absent', async () => {
+    const { sendAction } = renderPanel({
+      initial: buildConversationResponse({
+        turns: [
+          buildStudentTurnView({ sequence: 1 }),
+          buildStoredAssistantTurnView({ sequence: 2 }),
+        ],
+      }),
+    });
+
+    sendMessage('Next');
+    await waitFor(() => {
+      expect(sendAction).toHaveBeenCalledTimes(1);
+    });
+
+    expect(sendAction.mock.calls[0]?.[1]).toMatchObject({ expectedSequence: 2 });
+  });
+
   it('keeps the conversation when the student declines, returning focus to the control', () => {
     const { clearAction } = renderPanel({ initial: buildConversationResponse() });
 

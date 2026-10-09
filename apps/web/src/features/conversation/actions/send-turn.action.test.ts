@@ -46,6 +46,15 @@ describe('sendTurnAction', () => {
     expect(result).toEqual({ kind: 'replied', turn });
   });
 
+  it('passes the server lastSequence through when the reply carries it', async () => {
+    const turn = buildAssistantTurnView();
+    vi.mocked(postConversationTurn).mockResolvedValue({ turn, lastSequence: 4 });
+
+    const result = await sendTurnAction(STUDENT_ID, REQUEST);
+
+    expect(result).toEqual({ kind: 'replied', turn, lastSequence: 4 });
+  });
+
   it('sends nothing when the request does not parse', async () => {
     const result = await sendTurnAction(STUDENT_ID, { ...REQUEST, message: '   ' });
 

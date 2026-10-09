@@ -9,7 +9,7 @@ import { useRef, useState } from 'react';
 
 import type { AssistantTurnView, ConversationResponse } from '@caa/api-contract';
 
-import { type ChatItem, itemsFromTurns, latestSequence } from '../utils/chat-items';
+import { type ChatItem, itemsFromTurns, nextSequence } from '../utils/chat-items';
 
 /** What {@link useChatTranscript} returns. */
 export interface ChatTranscript {
@@ -18,10 +18,10 @@ export interface ChatTranscript {
   /** The latest stored sequence seen: the next turn's `expectedSequence`. */
   readonly sequence: number;
   /** Appends the student's message and the reply received for it. */
-  readonly addExchange: (text: string, turn: AssistantTurnView) => void;
+  readonly addExchange: (text: string, turn: AssistantTurnView, lastSequence?: number) => void;
   /** Replaces everything with a transcript freshly loaded from the API. */
   readonly reload: (conversation: ConversationResponse) => void;
-  /** Empties the transcript after a clear. */
+  /** Empties the transcript after a clear; the server keeps its sequence, so this does too. */
   readonly empty: () => void;
 }
 
@@ -34,13 +34,13 @@ export interface ChatTranscript {
 export function useChatTranscript(initial: ConversationResponse): ChatTranscript {
   const [isAvailable, setIsAvailable] = useState(initial.available);
   const [items, setItems] = useState<readonly ChatItem[]>(() => itemsFromTurns(initial.turns));
-  const [sequence, setSequence] = useState(() => latestSequence(initial.turns));
+  const [sequence, setSequence] = useState(() => nextSequence(initial));
   const counter = useRef(0);
   return {
     isAvailable,
     items,
     sequence,
-    addExchange: (text, turn) => {
+    addExchange: (text, turn, lastSequence) => {
       counter.current += 1;
       const id = String(counter.current);
       setItems((current) => [
@@ -48,18 +48,19 @@ export function useChatTranscript(initial: ConversationResponse): ChatTranscript
         { key: `you-${id}`, kind: 'student', text },
         { key: `reply-${id}`, kind: 'live', turn },
       ]);
-      if (turn.sequence !== null) {
+      if (lastSequence !== undefined) {
+        setSequence(lastSequence);
+      } else if (turn.sequence !== null) {
         setSequence(turn.sequence);
       }
     },
     reload: (conversation) => {
       setIsAvailable(conversation.available);
       setItems(itemsFromTurns(conversation.turns));
-      setSequence(latestSequence(conversation.turns));
+      setSequence(nextSequence(conversation));
     },
     empty: () => {
       setItems([]);
-      setSequence(0);
     },
   };
 }
