@@ -60,26 +60,26 @@ describe('ConstraintProposal', () => {
     const preferred = screen.getAllByRole('radio', { name: 'Preferred' });
     expect(preferred).toHaveLength(2);
     expect(preferred.every((radio) => (radio as HTMLInputElement).checked)).toBe(true);
-    expect(screen.getAllByRole('button', { name: 'Confirm' })).toHaveLength(2);
-    expect(screen.getAllByRole('button', { name: 'Edit' })).toHaveLength(2);
-    expect(screen.getAllByRole('button', { name: 'Dismiss' })).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: /^Confirm/u })).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: /^Edit/u })).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: /^Dismiss/u })).toHaveLength(2);
     expect(screen.getAllByRole('group').length).toBeGreaterThanOrEqual(2);
   });
 
   it('changes nothing until Confirm: toggling, editing and dismissing never touch the form', () => {
     render(<ConstraintProposal constraints={[buildProposedConstraint()]} />);
     fireEvent.click(screen.getByRole('radio', { name: 'Required (hard)' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Edit/u }));
+    fireEvent.click(screen.getByRole('button', { name: /^Edit/u }));
     expect(replace).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Dismiss/u }));
     expect(replace).not.toHaveBeenCalled();
     expect(screen.getByText(/dismissed, nothing changed/)).toBeTruthy();
   });
 
   it('confirms a preferred chip into the form and returns to the form step', () => {
     render(<ConstraintProposal constraints={[buildProposedConstraint()]} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Confirm/u }));
     const query = sentQuery();
     expect(query.get('block1-strength')).toBe(ConstraintStrength.Preferred);
     expect(query.get('block1-day')).toBe('FRIDAY');
@@ -95,7 +95,7 @@ describe('ConstraintProposal', () => {
     );
     fireEvent.click(screen.getByRole('radio', { name: 'Required (hard)' }));
     expect(screen.getByRole('radio', { name: 'Required (hard)' })).toHaveProperty('checked', true);
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Confirm/u }));
     expect(sentQuery().get('modality-strength')).toBe(ConstraintStrength.Hard);
   });
 
@@ -105,7 +105,7 @@ describe('ConstraintProposal', () => {
         constraints={[buildProposedConstraint({ constraint: buildCreditRange() })]}
       />,
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Edit/u }));
     fireEvent.change(screen.getByLabelText(/Most credits/), { target: { value: 'lots' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
     expect(screen.getByRole('alert').textContent).toContain('valid limit');
@@ -118,7 +118,7 @@ describe('ConstraintProposal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
     expect(screen.getByText(/and 12.5 credits/)).toBeTruthy();
     expect(replace).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Confirm/u }));
     expect(sentQuery().get('credit-range-max')).toBe('12.5');
   });
 
@@ -129,16 +129,16 @@ describe('ConstraintProposal', () => {
         constraints={[buildProposedConstraint({ constraint: buildCreditRange() })]}
       />,
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Confirm/u }));
     expect(replace).not.toHaveBeenCalled();
     expect(screen.getAllByText(/already has an entry/).length).toBeGreaterThan(0);
-    expect(screen.getByRole('button', { name: 'Confirm' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Confirm/u })).toBeTruthy();
   });
 
   it('puts a Friday block in the next free slot when the form already has another day', () => {
     search.set('block1-day', 'MONDAY');
     render(<ConstraintProposal constraints={[buildProposedConstraint()]} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Confirm/u }));
     const query = sentQuery();
     expect(query.getAll('block1-day')).toEqual(['MONDAY']);
     expect(query.getAll('block2-day')).toEqual(['FRIDAY']);
@@ -154,7 +154,7 @@ describe('ConstraintProposal', () => {
         <ConstraintProposal constraints={[buildProposedConstraint()]} />
       </>,
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Confirm/u }));
     const query = sentQuery();
     expect(query.getAll('block1-day')).toEqual(['MONDAY']);
     expect(query.get('block1-start')).toBe('09:00');
@@ -173,7 +173,7 @@ describe('ConstraintProposal', () => {
         ]}
       />,
     );
-    screen.getAllByRole('button', { name: 'Confirm' }).forEach((button) => {
+    screen.getAllByRole('button', { name: /^Confirm/u }).forEach((button) => {
       fireEvent.click(button);
     });
     expect(replace).toHaveBeenCalledTimes(3);
@@ -187,7 +187,7 @@ describe('ConstraintProposal', () => {
     search.append('block1-day', 'FRIDAY');
     render(<ConstraintProposal constraints={[buildProposedConstraint()]} />);
     expect(screen.getByText(/added to the form/)).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Confirm' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Confirm/u })).toBeNull();
     expect(replace).not.toHaveBeenCalled();
   });
 
@@ -201,14 +201,14 @@ describe('ConstraintProposal', () => {
       />,
     );
     screen
-      .getAllByRole('button', { name: 'Confirm' })
+      .getAllByRole('button', { name: /^Confirm/u })
       .slice(0, 1)
       .forEach((button) => {
         fireEvent.click(button);
       });
     expect(document.activeElement?.textContent).toContain('added to the form');
     expect(document.activeElement?.getAttribute('tabindex')).toBe('-1');
-    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Dismiss/u }));
     expect(document.activeElement?.textContent).toContain('dismissed');
   });
 
@@ -218,8 +218,8 @@ describe('ConstraintProposal', () => {
         constraints={[buildProposedConstraint({ constraint: buildCreditRange() })]}
       />,
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Edit/u }));
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Edit' }));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: /^Edit/u }));
   });
 });
