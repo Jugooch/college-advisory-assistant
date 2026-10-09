@@ -28,6 +28,8 @@ Expected results are derived by hand from planning/08 and planning/13, not from 
 All data is synthetic. Run from the repository root with `DATABASE_URL` set; both commands refuse to
 run when `NODE_ENV=production`.
 
+`pnpm --filter @caa/db db:seed:demo` seeds the dev data plus three synthetic personas (SYN-000004 blocked prerequisite, SYN-000005 UNKNOWN data, SYN-000006 stale plan), all assigned to `synthetic-advisor-001`; it writes no plan, check result or case (ADR-0016).
+
 1. `pnpm --filter @caa/db db:seed` seeds the slice student (`synthetic-student-001`, SYN-000001),
    the assigned advisor (`synthetic-advisor-001`), the admin, and a second advisor
    (`synthetic-advisor-002`) who has no assignment and therefore sees no student.
