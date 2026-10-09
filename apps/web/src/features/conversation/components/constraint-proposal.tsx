@@ -7,7 +7,7 @@
  * @requirement NFR-02
  * @see docs/adr/0015-conversation-orchestration-and-policy-corpus.md
  */
-import type { ReactElement } from 'react';
+import { type ReactElement, useId } from 'react';
 
 import type { ProposedConstraint } from '@caa/api-contract';
 
@@ -27,6 +27,7 @@ export interface ConstraintProposalProps {
  * @returns The chip list.
  */
 export function ConstraintProposal({ constraints }: ConstraintProposalProps): ReactElement {
+  const scope = useId();
   const state = useConstraintChips(constraints, useFillPlanner());
   return (
     <section className="chat-card" aria-label="Suggested limits">
@@ -36,7 +37,7 @@ export function ConstraintProposal({ constraints }: ConstraintProposalProps): Re
       </p>
       <ul className="chip-list">
         {state.chips.map((chip) => (
-          <ConstraintChip key={chip.id} chip={chip} actions={state} />
+          <ConstraintChip key={chip.id} chip={chip} actions={state} scope={scope} />
         ))}
       </ul>
       <div role="status" aria-live="polite" className="chat-live">

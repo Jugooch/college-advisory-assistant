@@ -25,6 +25,8 @@ import { TimeFields } from './time-fields';
 export interface ChipEditorProps {
   readonly chip: Chip;
   readonly actions: ConstraintChips;
+  /** Prefix unique to the proposal block. */
+  readonly scope: string;
   /** Called after a valid edit is saved and the editor closes. */
   readonly onSaved: () => void;
 }
@@ -54,7 +56,7 @@ function fieldsFor(kind: ScheduleConstraintKind): (props: ChipFieldsProps) => Re
  * @param props - The chip and the handlers.
  * @returns The editor.
  */
-export function ChipEditor({ chip, actions, onSaved }: ChipEditorProps): ReactElement {
+export function ChipEditor({ chip, actions, scope, onSaved }: ChipEditorProps): ReactElement {
   const { constraint } = chip;
   const [draft, setDraft] = useState<ChipDraft>(() => draftFromConstraint(constraint));
   const [message, setMessage] = useState<string | null>(null);
@@ -69,7 +71,7 @@ export function ChipEditor({ chip, actions, onSaved }: ChipEditorProps): ReactEl
   const onChange = (change: Partial<ChipDraft>): void => {
     setDraft((current) => ({ ...current, ...change }));
   };
-  const id = `chip-${String(chip.id)}`;
+  const id = `${scope}-chip-${String(chip.id)}`;
   const errorId = message === null ? null : `${id}-error`;
   const Fields = fieldsFor(constraint.kind);
   const save = (): void => {

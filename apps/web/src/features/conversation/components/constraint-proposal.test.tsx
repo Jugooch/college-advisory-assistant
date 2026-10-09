@@ -222,4 +222,23 @@ describe('ConstraintProposal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
     expect(document.activeElement).toBe(screen.getByRole('button', { name: /^Edit/u }));
   });
+
+  it('keeps ids unique and radio groups independent across two proposals', () => {
+    render(
+      <>
+        <ConstraintProposal constraints={[buildProposedConstraint()]} />
+        <ConstraintProposal constraints={[buildProposedConstraint()]} />
+      </>,
+    );
+    const ids = [...document.querySelectorAll('[id]')].map((node) => node.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    const hard = screen.getAllByRole<HTMLInputElement>('radio', { name: 'Required (hard)' });
+    const preferred = screen.getAllByRole<HTMLInputElement>('radio', { name: 'Preferred' });
+    expect(hard[0]?.name).not.toBe(hard[1]?.name);
+    expect(hard[0]).toBeDefined();
+    fireEvent.click(hard[0] ?? document.body);
+    expect(hard[0]?.checked).toBe(true);
+    expect(preferred[1]?.checked).toBe(true);
+    expect(hard[1]?.checked).toBe(false);
+  });
 });

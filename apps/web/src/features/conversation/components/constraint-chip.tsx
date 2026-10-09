@@ -19,6 +19,8 @@ import { ChipEditor } from './chip-editor';
 export interface ConstraintChipProps {
   readonly chip: Chip;
   readonly actions: ConstraintChips;
+  /** Prefix unique to the proposal block, so DOM ids and radio names never collide. */
+  readonly scope: string;
 }
 
 /** Props for the strength choice. */
@@ -55,11 +57,12 @@ function ChipOutcome({ text, isFocused }: ChipOutcomeProps): ReactElement {
 /**
  * The id of a chip's statement, so its controls can be tied to it.
  *
+ * @param scope - The proposal block prefix.
  * @param chip - The chip.
  * @returns The statement's element id.
  */
-function statementIdOf(chip: Chip): string {
-  return `chip-${String(chip.id)}-statement`;
+function statementIdOf(scope: string, chip: Chip): string {
+  return `${scope}-chip-${String(chip.id)}-statement`;
 }
 
 /**
@@ -68,9 +71,9 @@ function statementIdOf(chip: Chip): string {
  * @param props - The chip and the handlers.
  * @returns The fieldset.
  */
-function StrengthChoice({ chip, actions }: StrengthChoiceProps): ReactElement {
-  const statementId = statementIdOf(chip);
-  const name = `chip-${String(chip.id)}-strength`;
+function StrengthChoice({ chip, actions, scope }: StrengthChoiceProps): ReactElement {
+  const statementId = statementIdOf(scope, chip);
+  const name = `${scope}-chip-${String(chip.id)}-strength`;
   const isHard = chip.constraint.strength === ConstraintStrength.Hard;
   const options = [
     { value: ConstraintStrength.Preferred, label: 'Preferred', isChecked: !isHard },
@@ -97,7 +100,7 @@ function StrengthChoice({ chip, actions }: StrengthChoiceProps): ReactElement {
 }
 
 /** Props for the Dismiss and Confirm buttons. */
-interface ChipDecisionProps extends ConstraintChipProps {
+interface ChipDecisionProps extends Omit<ConstraintChipProps, 'scope'> {
   readonly statement: string;
 }
 
@@ -138,7 +141,7 @@ function ChipDecision({ chip, actions, statement }: ChipDecisionProps): ReactEle
  * @param props - The chip and the handlers.
  * @returns The list entry.
  */
-export function ConstraintChip({ chip, actions }: ConstraintChipProps): ReactElement {
+export function ConstraintChip({ chip, actions, scope }: ConstraintChipProps): ReactElement {
   const { statement, strength } = describeConstraint(chip.constraint);
   const editRef = useRef<HTMLButtonElement>(null);
   // Only a chip the student acted on takes focus; one already confirmed on arrival does not.
@@ -150,14 +153,15 @@ export function ConstraintChip({ chip, actions }: ConstraintChipProps): ReactEle
   }
   return (
     <li className="chip">
-      <p className="chip__statement" id={statementIdOf(chip)}>
+      <p className="chip__statement" id={statementIdOf(scope, chip)}>
         {statement}
       </p>
-      <StrengthChoice chip={chip} actions={actions} />
+      <StrengthChoice chip={chip} actions={actions} scope={scope} />
       {chip.isEditing ? (
         <ChipEditor
           chip={chip}
           actions={actions}
+          scope={scope}
           onSaved={() => {
             editRef.current?.focus();
           }}
