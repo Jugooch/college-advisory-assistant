@@ -19,6 +19,7 @@ import { NOT_REGISTRATION_NOTE, UNAVAILABLE_MESSAGE } from '../utils/conversatio
 import { ChatMessageForm } from './chat-message-form';
 import { ChatTranscriptRegion } from './chat-transcript-region';
 import { ClearConversation } from './clear-conversation';
+import { StarterPrompts } from './starter-prompts';
 
 /** Props for {@link ChatPanel}. */
 export interface ChatPanelProps {
@@ -56,7 +57,7 @@ export function ChatPanel({ clearAction, ...input }: ChatPanelProps): ReactEleme
       {isAvailable ? (
         <>
           {items.length === 0 && chat.pendingText === null ? (
-            <p>No messages yet.</p>
+            <StarterPrompts onChoose={chat.chooseStarter} />
           ) : (
             <ChatTranscriptRegion
               items={items}
