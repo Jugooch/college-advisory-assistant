@@ -105,27 +105,54 @@ export function creditConflictsOf(
  * tie-break of its sections, the first 20 shown and the rest counted (ADR-0010 §5).
  *
  * @param entries - FAILs found before and during the search, possibly repeated.
- * @param credit - The credit-load FAILs kept, and how many there were in all.
+ * @param credit - The distinct credit-load FAILs kept, and how many there were in all.
  * @returns The conflict set, never claimed to be minimal.
  */
 export function buildConflictSet(
   entries: readonly ConflictEntry[],
   credit: { readonly entries: readonly ConflictEntry[]; readonly count: number },
 ): SolverConflictSet {
-  const distinct = [
-    ...new Map(entries.map((entry) => [`${entry.reasonCode}\n${entry.key}`, entry])).values(),
-  ];
-  const total = distinct.length + credit.count;
-  const items = [...distinct, ...credit.entries]
-    .sort(
-      (first, second) =>
-        compareText(first.reasonCode, second.reasonCode) || compareText(first.key, second.key),
-    )
+  const distinct = distinctChecks(entries);
+  const credits = distinctChecks(credit.entries);
+  const total = distinct.length + credit.count - (credit.entries.length - credits.length);
+  const items = [...distinct, ...credits]
+    .sort(compareConflictEntries)
     .slice(0, MAX_CONFLICT_ITEMS)
     .map((entry) => entry.check);
   // SAFETY: minimality is never checked, so the set never claims it (planning/08 §Constraint
   // formulation; ADR-0010 §5).
   return { items, isMinimal: false, omittedCount: total - items.length };
+}
+
+/**
+ * Keeps one entry per distinct FAIL result, the first in conflict order.
+ *
+ * @param entries - The entries, possibly repeating a result.
+ * @returns The distinct entries, in conflict order.
+ */
+function distinctChecks(entries: readonly ConflictEntry[]): ConflictEntry[] {
+  // SAFETY: a result is what the student sees, so two entries about different sections whose
+  // checks are equal (such as a section shared by two bundles, or a FAIL inside a bundle that
+  // two bundles share) are one conflict, shown once and counted once (planning/08 §Constraint
+  // formulation: a verified conflict set; ADR-0010 §5: the distinct FAIL results).
+  // NOTE: checks are built by `createCheckResult`, so equal checks serialize equally.
+  const byCheck = new Map<string, ConflictEntry>();
+  for (const entry of [...entries].sort(compareConflictEntries)) {
+    const identity = JSON.stringify(entry.check);
+    if (!byCheck.has(identity)) byCheck.set(identity, entry);
+  }
+  return [...byCheck.values()];
+}
+
+/**
+ * Orders conflict entries by reason code, then by the tie-break of their sections.
+ *
+ * @param first - One entry.
+ * @param second - The other.
+ * @returns Negative when `first` comes first.
+ */
+function compareConflictEntries(first: ConflictEntry, second: ConflictEntry): number {
+  return compareText(first.reasonCode, second.reasonCode) || compareText(first.key, second.key);
 }
 
 /**

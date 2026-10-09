@@ -249,7 +249,7 @@ describe('solveSchedule infeasibility', () => {
     ]);
   });
 
-  it('records credit-load FAILs, showing 20 and counting the rest', () => {
+  it('records the credit-load FAIL that every section choice gives once', () => {
     const many = (course: Course, day: Weekday, first: number): Section[] =>
       Array.from({ length: 5 }, (_, offset) =>
         buildSection(
@@ -269,13 +269,12 @@ describe('solveSchedule infeasibility', () => {
       { policy: tight },
     );
 
+    // 25 candidates, each 6.00 credits against a 5.00 maximum, give one FAIL.
     expect(solution.outcome).toBe('NO_FEASIBLE_PLAN');
-    expect(solution.conflictSet?.items).toHaveLength(20);
-    expect(solution.conflictSet?.omittedCount).toBe(5);
-    expect(solution.conflictSet?.items[0]).toMatchObject({
-      kind: 'CREDIT_LOAD',
-      reasonCode: 'CREDIT_LIMIT_EXCEEDED',
-    });
+    expect(solution.conflictSet?.items).toMatchObject([
+      { kind: 'CREDIT_LOAD', reasonCode: 'CREDIT_LIMIT_EXCEEDED' },
+    ]);
+    expect(solution.conflictSet?.omittedCount).toBe(0);
   });
 
   it("is NO_FEASIBLE_PLAN when every candidate breaks the student's hard range and the policy has no bounds", () => {
