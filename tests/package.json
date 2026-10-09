@@ -5,6 +5,7 @@
   "description": "Cross-package acceptance (AC01-AC20) and end-to-end tests. Owned by the QA engineer.",
   "type": "module",
   "scripts": {
+    "eval:live": "tsx support/eval-live.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
@@ -16,6 +17,7 @@
   },
   "devDependencies": {
     "@caa/api": "workspace:*",
-    "@caa/worker": "workspace:*"
+    "@caa/worker": "workspace:*",
+    "tsx": "^4.23.15"
   }
 }

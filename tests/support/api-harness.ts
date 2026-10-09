@@ -65,8 +65,8 @@ export interface AcceptanceOptions {
   /** `ACTIVE_RULESET_VERSION`; defaults to {@link ACCEPTANCE_RULESET_VERSION}. */
   readonly rulesetVersion?: string;
   /**
-   * The conversation model the API calls. Omit it to run with chat off (`CONVERSATION_MODEL=off`),
-   * which is the kill switch.
+   * The conversation model the API calls. Omit it to run with the model `conversationMode` selects
+   * (off, the kill switch, by default); it replaces that model when given.
    */
   readonly conversationModel?: ConversationModel;
   /** `CONVERSATION_RATE_LIMIT`; defaults to the API's own default. */
@@ -75,6 +75,8 @@ export interface AcceptanceOptions {
   readonly conversationHistoryTurns?: number;
   /** Where the API's log lines go; defaults to no logging. */
   readonly logStream?: LogDestination;
+  /** `CONVERSATION_MODEL`; defaults to off. Ignored when `conversationModel` is given. */
+  readonly conversationMode?: 'off' | 'demo';
 }
 
 /** The API app, not yet listening. */
@@ -237,6 +239,9 @@ export function buildAcceptanceApp(
     ...(options.conversationHistoryTurns === undefined
       ? {}
       : { CONVERSATION_HISTORY_TURNS: String(options.conversationHistoryTurns) }),
+    ...(options.conversationMode === undefined
+      ? {}
+      : { CONVERSATION_MODEL: options.conversationMode }),
   });
   const repositories: Repositories = {
     userIdentities: createIdentities(world),
