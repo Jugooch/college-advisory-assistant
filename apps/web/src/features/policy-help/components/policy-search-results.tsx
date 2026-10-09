@@ -10,8 +10,7 @@ import type { ReactElement } from 'react';
 import type { ApiError, PolicySearchResponse } from '@caa/api-contract';
 
 import { ApiErrorNotice } from '@/shared/components/api-error-notice';
-
-import { PolicyHitList } from './policy-hit-list';
+import { PolicyHitList } from '@/shared/components/policy-hit-list';
 
 /** Props for {@link PolicySearchResults}. */
 export interface PolicySearchResultsProps {

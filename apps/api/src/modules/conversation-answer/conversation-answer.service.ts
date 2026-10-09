@@ -16,16 +16,16 @@ import type { StoredConversationTurn } from '@caa/db';
 import { type Actor, type ModelStatus, type NoticeCode, type StudentId } from '@caa/domain';
 
 import type { RequestContext } from '../../shared/request-context';
+import { orderBlocks } from '../conversation-blocks/conversation-blocks.logic';
+import { fixedNotice } from '../conversation-blocks/conversation-blocks.mapper';
+import { buildHistory } from '../conversation-history/conversation-history.logic';
+import type { ConversationLoopService } from '../conversation-loop/conversation-loop.service';
 import {
   decideCrisisTurn,
   decideLoopTurn,
   noticeForLoopEnd,
   type TurnOutcome,
-} from '../conversation/conversation.logic';
-import { orderBlocks } from '../conversation-blocks/conversation-blocks.logic';
-import { fixedNotice } from '../conversation-blocks/conversation-blocks.mapper';
-import { buildHistory } from '../conversation-history/conversation-history.logic';
-import type { ConversationLoopService } from '../conversation-loop/conversation-loop.service';
+} from './conversation-answer.logic';
 
 /** Dependencies of the answer service. */
 export interface ConversationAnswerServiceDependencies {

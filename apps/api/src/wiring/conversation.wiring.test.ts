@@ -1,5 +1,5 @@
 /**
- * @file Tests of the model choice: off, demo, Claude, and the test seam. The production refusals
+ * @file Tests of the wiring's model choice: off, demo, Claude, and the test seam. The production refusals
  * are tested with the configuration in `config/env.test.ts`.
  * @requirement FR-01
  * @requirement NFR-05
@@ -9,11 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { createScriptedModel } from '@caa/assistant';
 
 import { loadApiEnv } from '../config/env';
-import {
-  chooseConversationModel,
-  DEMO_MODEL_ID,
-  INJECTED_MODEL_ID,
-} from './conversation-model.adapter';
+import { chooseConversationModel, DEMO_MODEL_ID, INJECTED_MODEL_ID } from './conversation.wiring';
 
 const BASE = {
   APP_VERSION: 'test',

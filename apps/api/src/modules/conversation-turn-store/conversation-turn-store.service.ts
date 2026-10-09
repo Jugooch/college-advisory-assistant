@@ -18,15 +18,16 @@ import type {
 import type { Actor, Conversation, StudentId, TermId } from '@caa/domain';
 
 import { NotFoundError, RevisionConflictError } from '../../shared/domain-errors';
-import { buildTurnsToStore, type TurnOutcome } from '../conversation/conversation.logic';
-import { buildMetadata } from '../conversation/conversation.mapper';
+import type { TurnOutcome } from '../conversation-answer/conversation-answer.logic';
 import { policyRevisionsOf } from '../conversation-blocks/conversation-blocks.logic';
 import {
+  buildTurnsToStore,
   isSequenceCurrent,
   RATE_LIMIT_WINDOW_MS,
   RETENTION_COUNT,
   RETENTION_MS,
 } from './conversation-turn-store.logic';
+import { buildMetadata } from './conversation-turn-store.mapper';
 
 /** Dependencies of the turn store service. */
 export interface ConversationTurnStoreServiceDependencies {

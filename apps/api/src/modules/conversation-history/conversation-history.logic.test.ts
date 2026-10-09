@@ -11,7 +11,7 @@ import { GuardReason } from '@caa/assistant';
 import { TurnRole } from '@caa/domain';
 
 import { buildStoredTurn } from '../../testing/stored-turns';
-import { buildMetadata } from '../conversation/conversation.mapper';
+import { buildMetadata } from '../conversation-turn-store/conversation-turn-store.mapper';
 import { buildHistory } from './conversation-history.logic';
 
 const CRISIS = GuardReason.CrisisUnambiguous;

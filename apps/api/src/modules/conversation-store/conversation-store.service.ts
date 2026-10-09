@@ -14,11 +14,7 @@ import {
   type ConversationResponse,
   MAX_TRANSCRIPT_TURNS,
 } from '@caa/api-contract';
-import type {
-  ConversationRepository,
-  ConversationSequenceReader,
-  FindLastSequenceRequest,
-} from '@caa/db';
+import type { ConversationRepository, ConversationSequenceReader } from '@caa/db';
 import { type Actor, NoticeCode, type StudentId } from '@caa/domain';
 
 import { NotFoundError } from '../../shared/domain-errors';
@@ -76,23 +72,6 @@ export interface ConversationStoreService {
 }
 
 /**
- * Reads the conversation's last sequence.
- *
- * @param conversations - The sequence reader.
- * @param request - Tenant and student from the session and path, and the conversation.
- * @returns The last sequence.
- * @throws {NotFoundError} When the conversation isn't the owner's.
- */
-async function requireLastSequence(
-  conversations: ConversationSequenceReader,
-  request: FindLastSequenceRequest,
-): Promise<number> {
-  const lastSequence = await conversations.findLastSequence(request);
-  if (lastSequence === null) throw new NotFoundError();
-  return lastSequence;
-}
-
-/**
  * Warns about stored turns that could not be read.
  *
  * @param context - Request-scoped values.
@@ -145,17 +124,16 @@ export function createConversationStoreService(
   return {
     async getConversation(actor, target, context) {
       const conversation = await open(actor, target, context);
-      const lastSequence = await requireLastSequence(conversations, {
+      // NOTE: turns first, then the sequence; it only grows, so it covers every turn read.
+      const ids = {
         tenantId: actor.tenantId,
         studentId: target.studentId,
         conversationId: conversation.id,
-      });
-      const stored = await conversations.listRecent({
-        tenantId: actor.tenantId,
-        studentId: target.studentId,
-        conversationId: conversation.id,
-        limit: MAX_TRANSCRIPT_TURNS,
-      });
+      };
+      const stored = await conversations.listRecent({ ...ids, limit: MAX_TRANSCRIPT_TURNS });
+      const lastSequence = await conversations.findLastSequence(ids);
+      // SECURITY: a conversation that isn't the owner's reads as missing.
+      if (lastSequence === null) throw new NotFoundError();
       const { turns, unreadableSequences } = toTranscriptTurns(stored);
       logUnreadable(context, {
         tenantId: actor.tenantId,

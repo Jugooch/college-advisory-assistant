@@ -148,11 +148,19 @@ async function runToolCalls(
     state.toolNames.push(loggableToolName(call.name));
     // SECURITY: the student is the path's, checked against the session by the tools service;
     // nothing the model wrote selects who the tool runs for.
-    const outcome = await tools.executeTool(
-      input.actor,
-      { call, studentId: input.studentId, plannerInputs: input.plannerInputs },
-      context,
-    );
+    // NOTE: the tool shares the turn's remaining time; running out ends the turn (ADR-0015 section 2).
+    const outcome = await withDeadline(
+      tools.executeTool(
+        input.actor,
+        { call, studentId: input.studentId, plannerInputs: input.plannerInputs },
+        context,
+      ),
+      TURN_BUDGET.totalMs - state.elapsed(),
+    ).catch((error: unknown) => {
+      if (error instanceof DeadlineError) return null;
+      throw error;
+    });
+    if (outcome === null) return false;
     state.blocks.push(...[outcome.block, outcome.notice].filter((block) => block !== null));
     state.messages.push({
       role: 'tool',

@@ -15,16 +15,17 @@ import { describe, expect, it } from 'vitest';
 import { ToolName } from '@caa/assistant';
 import {
   AssistantBlockKind,
-  CaseReason,
   ConstraintStrength,
   ErrorCode,
   MAX_SCHEDULE_CONSTRAINTS,
   NoticeCode,
+  PlanFreshness,
+  PlanStaleReason,
   PolicyTopic,
 } from '@caa/domain';
-import { buildUnavailableTime } from '@caa/test-kit';
+import { buildPlanFreshnessView, buildPlanRevisionView, buildUnavailableTime } from '@caa/test-kit';
 
-import { SourceUnavailableError } from '../../shared/domain-errors';
+import { SourceUnavailableError, StaleSourceError } from '../../shared/domain-errors';
 import {
   otherPlanId,
   ownPlan,
@@ -47,25 +48,32 @@ describe('get_academic_summary', () => {
     expect(outcome.modelText.startsWith('<tool_data tool="get_academic_summary">')).toBe(true);
   });
 
-  it('reports SOURCE_UNAVAILABLE as a TOOL_FAILED notice with no block', async () => {
+  it('reports SOURCE_UNAVAILABLE as a SOURCE_UNAVAILABLE notice with no block', async () => {
     const outcome = await setupTools({ missingRecord: true }).run(ToolName.GetAcademicSummary, {});
 
     expect(outcome.errorCode).toBe(ErrorCode.SourceUnavailable);
     expect(outcome.block).toBeNull();
     expect(outcome.notice).toMatchObject({
       kind: AssistantBlockKind.Notice,
-      code: NoticeCode.ToolFailed,
-      text: 'Something went wrong while looking that up, so no result is shown. Please try again.',
-      templateId: 'notice.tool-failed',
+      code: NoticeCode.SourceUnavailable,
+      text: 'The information for this answer could not be reached right now, so nothing is shown as current. Use the planner and My plans for your saved work, and ask your advisor.',
+      templateId: 'notice.source-unavailable',
     });
   });
 
-  it('reports a stale source as STALE_SOURCE', async () => {
-    const outcome = await setupTools({ staleRecord: true }).run(ToolName.GetAcademicSummary, {});
+  it('reports STALE_SOURCE as a STALE_SOURCE notice with no block', async () => {
+    const { run, search } = setupTools();
+    search.mockRejectedValueOnce(new StaleSourceError());
+
+    const outcome = await run(ToolName.SearchApprovedPolicy, { query: 'late' });
 
     expect(outcome.errorCode).toBe(ErrorCode.StaleSource);
+    expect(outcome.block).toBeNull();
     expect(outcome.notice).toMatchObject({
-      text: 'Something went wrong while looking that up, so no result is shown. Please try again.',
+      kind: AssistantBlockKind.Notice,
+      code: NoticeCode.StaleSource,
+      text: 'The information for this answer is out of date and could not be confirmed, so nothing is shown as current. Use the planner and My plans for your saved work, and ask your advisor.',
+      templateId: 'notice.stale-source',
     });
   });
 });
@@ -105,7 +113,11 @@ describe('search_approved_policy', () => {
     const outcome = await run(ToolName.SearchApprovedPolicy, { query: 'late' });
 
     expect(outcome.errorCode).toBe(ErrorCode.InternalError);
-    expect(outcome.notice).toMatchObject({ code: NoticeCode.ToolFailed });
+    expect(outcome.notice).toMatchObject({
+      code: NoticeCode.ToolFailed,
+      text: 'Something went wrong while looking that up, so no result is shown. Please try again.',
+      templateId: 'notice.tool-failed',
+    });
     expect(JSON.stringify(outcome)).not.toContain('db down');
   });
 });
@@ -206,14 +218,14 @@ describe('request_plan', () => {
     expect(findOptions).not.toHaveBeenCalled();
   });
 
-  it('turns a missing section snapshot into TOOL_FAILED', async () => {
+  it('turns a missing section snapshot into a SOURCE_UNAVAILABLE notice', async () => {
     const { run, findOptions } = setupTools();
     findOptions.mockRejectedValueOnce(new SourceUnavailableError());
 
     const outcome = await run(ToolName.RequestPlan, {}, { plannerInputs: scheduleRequest() });
 
     expect(outcome.errorCode).toBe(ErrorCode.SourceUnavailable);
-    expect(outcome.notice).toMatchObject({ code: NoticeCode.ToolFailed });
+    expect(outcome.notice).toMatchObject({ code: NoticeCode.SourceUnavailable });
   });
 });
 
@@ -225,6 +237,23 @@ describe('get_validation_evidence', () => {
 
     expect(outcome.block?.kind).toBe(AssistantBlockKind.PlanEvidence);
     expect(outcome.projection).toMatchObject({ revision: 1, freshness: 'CURRENT' });
+  });
+
+  it('passes a STALE revision through as STALE with its reason count', async () => {
+    const { run, getRevision } = setupTools();
+    getRevision.mockResolvedValueOnce(
+      buildPlanRevisionView({
+        planId: ownPlan.id,
+        freshness: buildPlanFreshnessView({
+          state: PlanFreshness.Stale,
+          reasons: [PlanStaleReason.AuditSuperseded, PlanStaleReason.RulesetChanged],
+        }),
+      }),
+    );
+
+    const outcome = await run(ToolName.GetValidationEvidence, { planId: ownPlan.id, revision: 1 });
+
+    expect(outcome.projection).toMatchObject({ freshness: 'STALE', staleReasonCount: 2 });
   });
 
   it('returns a named revision', async () => {
@@ -250,50 +279,5 @@ describe('get_validation_evidence', () => {
     });
 
     expect(outcome.errorCode).toBe(ErrorCode.NotFound);
-  });
-});
-
-describe('draft_case_context', () => {
-  it('previews a plan review with an empty note and creates nothing', async () => {
-    const outcome = await setupTools().run(ToolName.DraftCaseContext, {
-      reason: CaseReason.PlanReview,
-      planId: ownPlan.id,
-    });
-
-    expect(outcome.block).toMatchObject({
-      kind: AssistantBlockKind.CasePreview,
-      reason: CaseReason.PlanReview,
-      planId: ownPlan.id,
-      planRevision: 1,
-      discrepancySubject: null,
-      suggestedNote: '',
-    });
-    expect(outcome.projection).toEqual({
-      reason: CaseReason.PlanReview,
-      hasPlan: true,
-      submitted: false,
-    });
-  });
-
-  it('refuses a note or a plan review without a plan', async () => {
-    const { run } = setupTools();
-
-    expect(
-      (await run(ToolName.DraftCaseContext, { reason: CaseReason.PlanReview, suggestedNote: 'hi' }))
-        .errorCode,
-    ).toBe('INVALID_ARGUMENTS');
-    expect(
-      (await run(ToolName.DraftCaseContext, { reason: CaseReason.PlanReview })).errorCode,
-    ).toBe('INVALID_ARGUMENTS');
-  });
-
-  it("gives NOT_FOUND for another student's plan", async () => {
-    const outcome = await setupTools().run(ToolName.DraftCaseContext, {
-      reason: CaseReason.PlanReview,
-      planId: otherPlanId,
-    });
-
-    expect(outcome.errorCode).toBe(ErrorCode.NotFound);
-    expect(outcome.block).toBeNull();
   });
 });

@@ -53,15 +53,31 @@ describe('projections', () => {
     expect(JSON.stringify(projection)).not.toContain(hit.documentKey);
   });
 
-  it('counts requirements by state in a stable order', () => {
-    const projection = projectAcademicSummary(buildAcademicSummaryResponse());
+  it('counts requirements by exact state', () => {
+    const base = buildAcademicSummaryResponse();
+    const states = ['INCOMPLETE', 'COMPLETE', 'INCOMPLETE'] as const;
+    const summary = {
+      ...base,
+      requirements: base.requirements.flatMap((requirement) =>
+        states.map((state) => ({ ...requirement, state })),
+      ),
+    };
 
-    expect(projection).toMatchObject({ auditAvailable: true });
-    expect(
-      Object.keys((projection as { requirementsByState: object }).requirementsByState),
-    ).toEqual(
-      [...Object.keys((projection as { requirementsByState: object }).requirementsByState)].sort(),
-    );
+    expect(projectAcademicSummary(summary)).toEqual({
+      auditAvailable: true,
+      auditReflectsRecord: 'PASS',
+      programCatalogConsistency: 'PASS',
+      requirementCount: 3,
+      requirementsByState: { COMPLETE: 1, INCOMPLETE: 2 },
+    });
+  });
+
+  it('passes the audit-reflects-record state through, so a stale audit is never hidden', () => {
+    const summary = buildAcademicSummaryResponse({
+      auditReflectsRecord: { state: CheckState.Unknown, reasonCode: ReasonCode.AuditStale },
+    });
+
+    expect(projectAcademicSummary(summary)).toMatchObject({ auditReflectsRecord: 'UNKNOWN' });
   });
 
   it('passes the program and catalog check state through, so UNKNOWN is never hidden', () => {

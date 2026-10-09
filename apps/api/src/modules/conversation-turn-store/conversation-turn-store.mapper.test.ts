@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 import { PROMPT_VERSION, TEMPLATE_VERSION, TOOL_SCHEMA_VERSION } from '@caa/assistant';
 
-import { buildMetadata } from './conversation.mapper';
+import { buildMetadata } from './conversation-turn-store.mapper';
 
 describe('buildMetadata', () => {
   it('records the model, the versions, the reasons and the policy revisions', () => {

@@ -25,7 +25,7 @@ import {
   type ToolName,
   wrapUntrustedData,
 } from '@caa/assistant';
-import { type Actor, ErrorCode, NoticeCode, type StudentId } from '@caa/domain';
+import { type Actor, ErrorCode, type StudentId } from '@caa/domain';
 
 import { DomainError, NotFoundError } from '../../shared/domain-errors';
 import type { RequestContext } from '../../shared/request-context';
@@ -34,8 +34,8 @@ import type { ConversationToolRunnersService } from '../conversation-tool-runner
 import {
   buildNotice,
   failedResult,
+  failureNotice,
   INVALID_ARGUMENTS,
-  TOOL_FAILED_TEMPLATE_ID,
   type ToolOutcome,
   type ToolResult,
   UNKNOWN_TOOL,
@@ -85,20 +85,24 @@ interface NamedResult {
 }
 
 /**
- * Turns a thrown error into a result. The notice always renders from the fixed TOOL_FAILED
- * template, so a stored notice re-renders to the same text; the specific cause is only the
- * error code. A domain error keeps its code, and anything else is INTERNAL_ERROR.
+ * Turns a thrown error into a result. The notice always renders from a fixed template, so a
+ * stored notice re-renders to the same text. STALE_SOURCE and SOURCE_UNAVAILABLE get their own
+ * notices; every other failure gets TOOL_FAILED. A domain error keeps its code, and anything
+ * else is INTERNAL_ERROR.
  *
  * @param error - What the tool threw.
- * @returns A result with a TOOL_FAILED notice.
+ * @returns A result with a fixed notice.
  */
 function toFailure(error: unknown): ToolResult {
+  const code = error instanceof DomainError ? error.code : ErrorCode.InternalError;
+  // SAFETY: a stale or unreachable source gets its own fixed notice, never a generic failure.
+  const { noticeCode, templateId } = failureNotice(code);
   return failedResult(
-    error instanceof DomainError ? error.code : ErrorCode.InternalError,
-    buildNotice(NoticeCode.ToolFailed, {
-      id: TOOL_FAILED_TEMPLATE_ID,
+    code,
+    buildNotice(noticeCode, {
+      id: templateId,
       version: TEMPLATE_VERSION,
-      text: renderNotice(NoticeCode.ToolFailed),
+      text: renderNotice(noticeCode),
     }),
   );
 }

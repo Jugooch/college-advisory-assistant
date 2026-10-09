@@ -134,4 +134,20 @@ describe('the turn deadline', () => {
     expect(result.end).toBe(LoopEnd.BudgetExhausted);
     expect(executeTool).toHaveBeenCalledTimes(1);
   });
+
+  it('ends BUDGET_EXHAUSTED when a tool has not finished within the turn time', async () => {
+    const { run, respond, executeTool } = rig([Promise.resolve(TOOL_REPLY)], 0);
+    executeTool.mockImplementationOnce(() => new Promise(() => undefined));
+
+    const pending = run();
+    await vi.advanceTimersByTimeAsync(24_999);
+    const early = await Promise.race([pending, Promise.resolve('PENDING')]);
+    await vi.advanceTimersByTimeAsync(1);
+    const result = await pending;
+
+    expect(early).toBe('PENDING');
+    expect(result.end).toBe(LoopEnd.BudgetExhausted);
+    expect(respond).toHaveBeenCalledTimes(1);
+    expect(result.blocks).toHaveLength(0);
+  });
 });

@@ -8,7 +8,13 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { GuardReason, INTRO_TEXTS, IntroId } from '@caa/assistant';
-import { AssistantBlockKind, ModelStatus, NoticeCode, TurnRole } from '@caa/domain';
+import {
+  AssistantBlockKind,
+  ModelStatus,
+  NoticeCode,
+  StudentIdSchema,
+  TurnRole,
+} from '@caa/domain';
 import { buildActor, buildReferralBlock, syntheticId } from '@caa/test-kit';
 
 import { createRecordingLogger } from '../../testing/in-memory-repositories';
@@ -17,9 +23,7 @@ import { LoopEnd, NO_USAGE } from '../conversation-loop/conversation-loop.logic'
 import { createConversationAnswerService } from './conversation-answer.service';
 
 const actor = buildActor();
-const studentId = syntheticId('student', 1) as Parameters<
-  ReturnType<typeof createConversationAnswerService>['answer']
->[0]['studentId'];
+const studentId = StudentIdSchema.parse(syntheticId('student', 1));
 const context = { logger: createRecordingLogger() };
 const detector = [buildReferralBlock()];
 const input = { actor, studentId, message: 'hello', recent: [], detector };

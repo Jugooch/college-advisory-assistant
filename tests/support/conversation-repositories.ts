@@ -14,6 +14,7 @@
 import type {
   AppendTurnsRequest,
   ConversationRepository,
+  ConversationSequenceReader,
   FindOrCreateConversationRequest,
   StoredConversationTurn,
 } from '@caa/db';
@@ -47,7 +48,7 @@ export interface ConversationWorld {
 
 /** The conversation repository the harness gives the API's `Repositories` under `conversations`. */
 export interface ConversationRepositories {
-  readonly conversations: ConversationRepository;
+  readonly conversations: ConversationRepository & ConversationSequenceReader;
 }
 
 /**
@@ -233,6 +234,13 @@ export function createConversationRepositories(world: ConversationWorld): Conver
         }
         return Promise.resolve({ status: 'APPENDED', turns: store(world, request, lastSequence) });
       },
+
+      findLastSequence: ({ tenantId, studentId, conversationId }) =>
+        Promise.resolve(
+          ownedConversation(world, { tenantId, studentId, conversationId })
+            ? lastSequenceOf(world, conversationId)
+            : null,
+        ),
 
       countStudentTurnsSince: ({ tenantId, studentId, since }) =>
         Promise.resolve(

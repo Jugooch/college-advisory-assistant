@@ -1,7 +1,7 @@
 /**
  * @file Maps the assistant package's versions and a turn's guard reasons to the metadata stored
  * with an answer.
- * @module @caa/api/modules/conversation/conversation.mapper
+ * @module @caa/api/modules/conversation-turn-store/conversation-turn-store.mapper
  * @requirement FR-01
  * @requirement FR-10
  * @requirement FR-14

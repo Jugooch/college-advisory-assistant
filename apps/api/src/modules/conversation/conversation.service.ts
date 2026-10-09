@@ -24,6 +24,7 @@ import { type Actor, ModelStatus, NoticeCode, type StudentId } from '@caa/domain
 import { NotFoundError } from '../../shared/domain-errors';
 import type { RequestContext } from '../../shared/request-context';
 import type { AccessService } from '../access/access.service';
+import type { TurnOutcome } from '../conversation-answer/conversation-answer.logic';
 import type { ConversationAnswerService } from '../conversation-answer/conversation-answer.service';
 import type {
   ConversationBlocksService,
@@ -33,7 +34,7 @@ import type {
   ConversationTurnStoreService,
   OpenedConversation,
 } from '../conversation-turn-store/conversation-turn-store.service';
-import { buildTurnView, type TurnOutcome } from './conversation.logic';
+import { buildTurnView } from './conversation.logic';
 
 /** Dependencies of the conversation turn service. */
 export interface ConversationServiceDependencies {
