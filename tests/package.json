@@ -5,6 +5,7 @@
   "description": "Cross-package acceptance (AC01-AC20) and end-to-end tests. Owned by the QA engineer.",
   "type": "module",
   "scripts": {
+    "e2e": "playwright test -c e2e/playwright.config.ts",
     "eval:live": "tsx support/eval-live.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
@@ -17,8 +18,10 @@
     "@caa/test-kit": "workspace:*"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
     "@caa/api": "workspace:*",
     "@caa/worker": "workspace:*",
+    "@playwright/test": "1.64.0",
     "tsx": "^4.23.15"
   }
 }

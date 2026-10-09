@@ -33,7 +33,7 @@ import {
   syntheticId,
 } from '@caa/test-kit';
 
-import { acceptanceIt } from '../support/known-findings';
+import { acceptanceIt } from '../support/known-findings-declarations';
 
 const MATH101_THEN_MATH111 = [
   completedAttempt({ termCode: '2025FA' }, 1),

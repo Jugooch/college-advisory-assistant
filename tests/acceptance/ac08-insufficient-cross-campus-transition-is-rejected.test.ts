@@ -21,7 +21,7 @@ import {
 } from '@caa/test-kit';
 
 import { buildAcademicApp, createAcademicWorld } from '../support/academic-endpoints-harness';
-import { acceptanceIt } from '../support/known-findings';
+import { acceptanceIt } from '../support/known-findings-declarations';
 import {
   conflictIssues,
   findScheduleOptions,

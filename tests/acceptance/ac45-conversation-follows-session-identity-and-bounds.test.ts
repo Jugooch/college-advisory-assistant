@@ -34,7 +34,7 @@ import {
   turnOf,
 } from '../support/conversation-harness';
 import { storedSequences } from '../support/conversation-seeding';
-import { acceptanceIt } from '../support/known-findings';
+import { acceptanceIt } from '../support/known-findings-declarations';
 import { BOTH_COURSES, resetPlanWorld, saveDefaultOption } from '../support/plan-drafts-harness';
 
 const DENIED: readonly AcademicActor[] = [

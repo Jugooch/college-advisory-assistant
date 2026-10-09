@@ -220,3 +220,26 @@ describe('eval tests (ADR-0015 §9)', () => {
     expect(checkStructure(path)).toContain('t06-<slug>.eval.test.ts');
   });
 });
+
+describe('browser e2e tests (ADR-0016 §1)', () => {
+  it.each([
+    'tests/e2e/smoke.e2e.ts',
+    'tests/e2e/ac47-chat-slice.e2e.ts',
+    'tests/e2e/playwright.config.ts',
+    'tests/e2e/support/sign-in.ts',
+    'tests/e2e/support/personas.test.ts',
+  ])('accepts %s', (path) => {
+    expect(checkStructure(path)).toBeNull();
+  });
+
+  it.each([
+    'tests/e2e/foo.spec.ts',
+    'tests/e2e/foo.e2e.ts',
+    'tests/e2e/ac4-short.e2e.ts',
+    'tests/e2e/ac47-Chat.e2e.ts',
+    'tests/e2e/helpers.ts',
+    'tests/e2e/support/notes.md',
+  ])('rejects %s', (path) => {
+    expect(checkStructure(path)).toContain('ADR-0016');
+  });
+});

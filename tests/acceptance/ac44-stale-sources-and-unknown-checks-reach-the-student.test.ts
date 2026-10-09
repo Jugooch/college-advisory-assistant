@@ -30,7 +30,7 @@ import {
   resetChatWorld,
   turnOf,
 } from '../support/conversation-harness';
-import { acceptanceIt } from '../support/known-findings';
+import { acceptanceIt } from '../support/known-findings-declarations';
 import {
   publishSections,
   resetScheduleWorld,

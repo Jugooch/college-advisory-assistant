@@ -31,7 +31,7 @@ import {
   MISSING_STUDENT_ID,
 } from '../support/academic-endpoints-harness';
 import { summarizeError } from '../support/api-harness';
-import { acceptanceIt } from '../support/known-findings';
+import { acceptanceIt } from '../support/known-findings-declarations';
 import {
   conflictIssues,
   findScheduleOptions,

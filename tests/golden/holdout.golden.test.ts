@@ -10,7 +10,7 @@ import { describe, expect } from 'vitest';
 
 import { findGoldenMismatches } from '../support/golden-runner';
 import { findScheduleMismatches } from '../support/golden-schedule-runner';
-import { itForFinding } from '../support/known-findings';
+import { itForFinding } from '../support/known-findings-declarations';
 import {
   GOLDEN_HOLDOUT_CORPUS,
   GOLDEN_HOLDOUT_SCHEDULE_CORPUS,
