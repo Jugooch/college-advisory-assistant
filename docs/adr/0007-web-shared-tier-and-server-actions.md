@@ -1,6 +1,6 @@
 # ADR-0007: Web shared display tier, server actions, and runtime imports
 
-- **Status:** Accepted
+- **Status:** Accepted; amended 2026-10-09 (Amendment 1: the shared tier stays flat, with domain-first names)
 - **Date:** 2026-09-28
 - **Deciders:** Tech lead
 - **Related:** amends ADR-0001, standards 01, 04, 06, issues #154, #101, PRs #148, #149
@@ -78,5 +78,25 @@ Pages and components import types and values but no schemas. When a page needs p
 ## Revisit when
 
 - A hook is needed by more than one feature. Shared hooks would need `src/shared/hooks` and a rule on `@/api` imports.
-- `src/shared` grows past about 20 files, which suggests domain subfolders.
+- `src/shared` grows past about 20 files, which suggests domain subfolders. Superseded by Amendment 1, which sets a new trigger.
 - A server action needs to do more than one call, which suggests the logic belongs in the API.
+
+## Amendment 1 (2026-10-09, issue #558): the shared tier stays flat, with domain-first names
+
+**Related:** §Revisit when; standard 01 §Folder layout per workspace; `scripts/lib/structure-rules.mjs`; issues #558, #578; architecture review of #554.
+
+**Context.** The revisit trigger (about 20 files) has fired: after PR #554, `src/shared` holds about 60 source files, plus their tests. The architecture review of #554 asked whether to group them by domain. The options were:
+
+- **(a) Domain subfolders** (`shared/schedule`, `shared/requirements`, `shared/plans`, `shared/cases`, `shared/common`, each with `components/` and `utils/`). Each folder is smaller, but every import of a shared file in every feature changes in one move PR. The structure rules and their tests change too. And during S7 that PR would conflict with all three web polish PRs (#586–#588) and the reload render (#580).
+- **(b) Stay flat, with a naming rule.** Most files already start with their domain noun (`schedule-results`, `requirement-table`, `option-card`, `case-wording`, `freshness-banner`). Sorted by name, they already group by domain, and nothing has to move.
+- **(c) Stay flat, with no rule.** This leaves the review finding unanswered.
+
+**Decision: (b).**
+
+- `src/shared/components/` and `src/shared/utils/` stay flat. §Decision is unchanged.
+- A shared file's name starts with its domain noun: `requirement-`, `course-`, `section-`, `schedule-` or `option-`, `plan-`, `case-`, `policy-`, `freshness-`, `constraint-`, `credit-`, or `session-`. Cross-cutting helpers (`timestamp`, `heading-level`, `keep-api-error`, `api-error-notice`, `format-display`, `error-code-wording`, `reason-code-wording`) keep their names. Review enforces this; no tooling change is needed.
+- Existing files that don't follow the rule are renamed only when a PR already touches them for another reason. There is no rename PR.
+
+**Consequences.** No move PR and no tooling change. Review checks names, so #558 needs no frontend follow-up. Moving to subfolders later will still be one mechanical PR, because the prefixes map one-to-one onto folders.
+
+**Revisit when** `src/shared` passes about 100 source files (tests excluded), or one domain prefix passes about 25. Do the move at the start of a sprint, before any web PR is open, and give the devops-engineer a structure-rule change first.

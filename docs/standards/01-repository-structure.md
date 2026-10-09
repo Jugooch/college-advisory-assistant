@@ -113,6 +113,9 @@ tests/acceptance/acNN-<description>.test.ts
 tests/support/*.ts                  acceptance harnesses (import apps only via @caa/<app>/testing)
 tests/golden/*.test.ts              golden corpus runners (development set, holdout, isolation)
 tests/golden/holdout/               frozen holdout cases; importable only from tests/golden/
+tests/e2e/acNN-<description>.e2e.ts  browser end-to-end cases (Playwright, ADR-0016), plus smoke.e2e.ts
+tests/e2e/support/*.ts              e2e helpers: sign-in, axe check, known findings
+tests/e2e/playwright.config.ts      the one Playwright config
 
 packages/test-kit/src/golden/
   golden-case.schema.ts             the golden case format (Zod)
@@ -152,6 +155,7 @@ The API's composition root is `apps/api/src/container.ts` plus the files in `app
 | `.schema.ts`                                    | Zod schema for a test-data format (for example golden cases)                                                   |
 | `.cases.ts`                                     | Golden cases for one rule family                                                                               |
 | `.eval.test.ts`                                 | T06 evaluations in `tests/evals/`, one dimension per file (standard 07, ADR-0015)                              |
+| `.e2e.ts`                                       | Browser end-to-end cases in `tests/e2e/`, one acceptance case per file; never run by Vitest (ADR-0016)         |
 | `.test.ts(x)`                                   | Tests, colocated with the file under test                                                                      |
 
 - React component files are kebab-case and export one PascalCase component: `plan-card.tsx` → `PlanCard`.

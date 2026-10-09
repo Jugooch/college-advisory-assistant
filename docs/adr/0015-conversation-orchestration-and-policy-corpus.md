@@ -1,6 +1,6 @@
 # ADR-0015: Conversation orchestration, the model boundary, the approved policy corpus, and chat history
 
-- **Status:** Accepted 2026-10-08; amended 2026-10-08 (Amendment 1: template-only intros, two-tier crisis detection; Amendment 2: retracting an approved policy revision). The repo owner chose decisions 1–4 (model, tools, history, UI) and confirmed the tech lead's choices listed on #495 on 2026-10-08. The orchestrator defaults are adopted, except where evaluations live (§9).
+- **Status:** Accepted 2026-10-08; amended 2026-10-08 (Amendment 1: template-only intros, two-tier crisis detection; Amendment 2: retracting an approved policy revision); amended 2026-10-09 (Amendment 3: re-rendering stored referral and notice blocks, and the default plan for a case preview). The repo owner chose decisions 1–4 (model, tools, history, UI) and confirmed the tech lead's choices listed on #495 on 2026-10-08. The orchestrator defaults are adopted, except where evaluations live (§9).
 - **Date:** 2026-10-08
 - **Deciders:** Tech lead; repo owner (product decisions 1–4 on #495)
 - **Related:** FR-01, FR-02, FR-08, FR-10, FR-14, FR-16, NFR-02, NFR-05, NFR-08, new AC42–AC47, T06, planning/07 §Modules, §Request lifecycle and §Failure containment, planning/09 §Canonical entities, §Logical app interfaces and §Retention, planning/10 (all), planning/11 §Interaction details, planning/04 §Change control (model vendor), ADR-0005, ADR-0008, ADR-0009, ADR-0010, ADR-0013, ADR-0014, issues #495–#520
@@ -247,3 +247,20 @@ This narrows planning/10, which allows free-form model text to introduce the UI.
 - No contract, api, engine or web change. §6 "Applicability" now reads as above; "an approved revision is immutable" now means "immutable except its one-way retraction".
 
 **Revisit when** retraction needs an actor or reason (add columns then, when policy authoring gets a user flow), or a reader needs historical answers ("what applied on date X"), which would make `withdrawn_at` part of selection.
+
+## Amendment 3 (2026-10-09, issues #567, #572, #578): re-rendering stored referral and notice blocks, and the default plan for a case preview
+
+**Related:** §4 (`draft_case_context`), §7 (block references); ADR-0013 §3; planning/10 §Conversation state; planning/13 AC50; issues #567, #569, #572 (PR #574), #579, #580, #589.
+
+**Context.** §7 stores only block references. On reload, a `REFERRAL` or `NOTICE` reference has a template id and version but no wording, so the web shows "unavailable" with a link to Help and cases. That includes the tier-1 crisis referral. Those blocks are fixed server templates with no academic fact, so showing them again can't present a stale result as current. Separately, §4 gives `draft_case_context` an optional `planId`, but no tool result shows the model a plan id. So a plan-review preview needed a server-side default, and #572 (PR #574) added one without an ADR note.
+
+**Decision.**
+
+- **Re-render template blocks on read.** GET conversation re-renders every stored `REFERRAL` and `NOTICE` reference from its template id and version, through one pure lookup in `@caa/assistant` (#569). It returns them in an optional `templateBlocks` on the assistant turn view: `{ refIndex, block }` entries that point into the same turn's `blockRefs` (#579). An unknown id, or a version other than the current `TEMPLATE_VERSION`, gets no entry, and the web keeps the unavailable notice for that reference (#580). There is no model call on reload.
+- **Academic references don't change.** `SCHEDULE_OPTIONS`, `PLAN_EVIDENCE`, `POLICY_RESULTS`, `CONSTRAINT_PROPOSAL` and `CASE_PREVIEW` never get a `templateBlocks` entry. They keep the "shown at <time>" rendering, and a stored PASS is never shown as current (§7, ADR-0013 §3).
+- **Template ids live beside their text.** Every referral and notice template id is exported from the `@caa/assistant` file that holds its wording, and the api imports it (#569, #567).
+- **Note on §4:** when `draft_case_context` has no `planId` and the reason needs a plan, the server uses the session student's latest saved plan, for the planner form's term when one is set. The model never sees its id. With no saved plan, the turn gets the fixed `PLANNER_INPUT_NEEDED` notice instead of a preview. An explicit `planId` for another student's plan is still the same `NOT_FOUND` as a missing one (#572, PR #574).
+
+**Consequences.** A crisis referral survives a reload, and AC50 tests it. The field is optional and additive, so nothing ripples. A `TEMPLATE_VERSION` bump turns every older stored referral or notice back into the unavailable notice. That is accepted: it is rare, and the fallback still links to Help and cases.
+
+**Revisit when** the template wording becomes per tenant, or old versions must stay renderable. Then keep a versioned template table instead of the current version only.
