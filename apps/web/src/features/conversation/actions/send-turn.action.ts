@@ -38,7 +38,5 @@ export async function sendTurnAction(studentId: string, request: unknown): Promi
       ? { kind: 'conflict' }
       : toFailureResult(reply);
   }
-  return reply.lastSequence === undefined
-    ? { kind: 'replied', turn: reply.turn }
-    : { kind: 'replied', turn: reply.turn, lastSequence: reply.lastSequence };
+  return { kind: 'replied', turn: reply.turn, lastSequence: reply.lastSequence };
 }

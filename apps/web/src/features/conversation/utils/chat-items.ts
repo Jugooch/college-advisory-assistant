@@ -42,10 +42,10 @@ export function itemsFromTurns(turns: readonly ConversationTurnView[]): readonly
  * wins because it survives a clear; without it, the last visible turn is the best available.
  *
  * @param conversation - The conversation as the API returned it.
- * @returns `lastSequence` when present, else the last visible sequence, else 0.
+ * @returns `lastSequence`, the server's latest sequence.
  */
 export function nextSequence(
   conversation: Pick<ConversationResponse, 'turns' | 'lastSequence'>,
 ): number {
-  return conversation.lastSequence ?? conversation.turns.at(-1)?.sequence ?? 0;
+  return conversation.lastSequence;
 }
