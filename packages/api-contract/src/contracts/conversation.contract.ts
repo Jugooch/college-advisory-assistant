@@ -23,7 +23,11 @@ import {
 } from '@caa/domain';
 
 import { defineEndpoint } from '../define-endpoint';
-import { AssistantBlockSchema } from './conversation-blocks.contract';
+import {
+  AssistantBlockSchema,
+  NoticeBlockSchema,
+  ReferralBlockSchema,
+} from './conversation-blocks.contract';
 import { ScheduleOptionsRequestSchema } from './schedule-options-request.contract';
 
 /** Most turns the transcript returns: the newest (ADR-0015 §7). */
@@ -130,6 +134,17 @@ const HISTORY_FIELDS = {
 };
 
 /**
+ * A REFERRAL or NOTICE block the server re-rendered from a stored template ref. `refIndex`
+ * points into the same turn's `blockRefs`. No other block kind is allowed (ADR-0015 Amendment 3).
+ */
+export const TemplateBlockEntrySchema = z
+  .strictObject({
+    refIndex: z.number().int().min(0),
+    block: z.discriminatedUnion('kind', [NoticeBlockSchema, ReferralBlockSchema]),
+  })
+  .readonly();
+
+/**
  * One stored turn as the transcript shows it, discriminated by `role`. An assistant turn keeps
  * block references only: a past schedule or plan block has `shownAt` and no result, so a stored
  * PASS is never shown as current (ADR-0015 §7, ADR-0013 §3). Turn IDs, conversation IDs and
@@ -150,6 +165,27 @@ export const ConversationTurnViewSchema = z.discriminatedUnion('role', [
       intro: z.string().max(ASSISTANT_TURN_MAX_LENGTH),
       modelStatus: StoredModelStatusSchema,
       blockRefs: z.array(AssistantBlockRefSchema).max(MAX_TURN_BLOCKS).readonly(),
+      /** Re-rendered referral and notice blocks; omitted when the turn stored none. */
+      templateBlocks: z.array(TemplateBlockEntrySchema).max(MAX_TURN_BLOCKS).readonly().optional(),
+    })
+    // SAFETY: only template refs (REFERRAL, NOTICE) may carry a re-rendered block, once each, and
+    // the block kind must match its ref. An academic ref never gets a block, so a stored PASS is
+    // never shown as current (ADR-0015 Amendment 3, ADR-0013 §3).
+    .superRefine((turn, ctx) => {
+      const seen = new Set<number>();
+      (turn.templateBlocks ?? []).forEach((entry, i) => {
+        const ref = turn.blockRefs[entry.refIndex];
+        const isValid =
+          ref !== undefined && !seen.has(entry.refIndex) && ref.kind === entry.block.kind;
+        seen.add(entry.refIndex);
+        if (!isValid) {
+          ctx.addIssue({
+            code: 'custom',
+            message: 'refIndex must point once at a template ref of the same kind',
+            path: ['templateBlocks', i, 'refIndex'],
+          });
+        }
+      });
     })
     .readonly(),
 ]);
