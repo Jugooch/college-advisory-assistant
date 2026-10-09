@@ -10,8 +10,11 @@
 import type { AssistantBlock } from '@caa/api-contract';
 import {
   CRISIS_SUPPORT_REFERRAL,
+  CRISIS_TEMPLATE_ID,
   CrisisTier,
   type FixedResponseMatches,
+  NOTICE_TEMPLATE_IDS,
+  REFERRAL_TEMPLATE_IDS,
   renderNotice,
   renderReferral,
   TEMPLATE_VERSION,
@@ -24,9 +27,6 @@ import type {
   ReferralPolicies,
   ReferralPolicy,
 } from './conversation-blocks.logic';
-
-/** Template id of the tier-1 crisis referral. */
-export const CRISIS_TEMPLATE_ID = 'referral.crisis';
 
 /**
  * Reads the detectors' matches as plain facts for the block rules.
@@ -55,7 +55,7 @@ export function fixedNotice(code: NoticeCode): AssistantBlock {
   return {
     kind: AssistantBlockKind.Notice,
     code,
-    templateId: `notice.${code.toLowerCase().replaceAll('_', '-')}`,
+    templateId: NOTICE_TEMPLATE_IDS[code],
     templateVersion: TEMPLATE_VERSION,
     text: renderNotice(code),
   };
@@ -110,7 +110,7 @@ export function detectorBlocks(
           asOf,
         );
       case 'REFERRAL': {
-        const templateId = `referral.${entry.topic.toLowerCase().replaceAll('_', '-')}`;
+        const templateId = REFERRAL_TEMPLATE_IDS[entry.topic];
         const content = { topic: entry.topic, templateId, text: renderReferral(entry.topic) };
         return toReferralBlock(content, referrals.get(entry.topic), asOf);
       }
