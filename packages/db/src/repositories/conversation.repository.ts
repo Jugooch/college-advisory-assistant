@@ -57,6 +57,28 @@ export interface CountStudentTurnsRequest {
   readonly since: string;
 }
 
+/** Which conversation's last sequence to read. */
+export interface FindLastSequenceRequest {
+  readonly tenantId: InstitutionId;
+  /** The conversation's owner, from the session. Another student's conversation is never read. */
+  readonly studentId: StudentId;
+  readonly conversationId: ConversationId;
+}
+
+/**
+ * Reads a conversation's stored last sequence. Kept apart from {@link ConversationRepository} so
+ * existing in-memory fakes keep compiling until their owners add it; it merges in later.
+ */
+export interface ConversationSequenceReader {
+  /**
+   * Reads the stored last sequence, which survives clear and retention.
+   *
+   * @param request - Tenant, owner, and conversation.
+   * @returns The last sequence, or null when the conversation is not found or not the owner's.
+   */
+  findLastSequence(request: FindLastSequenceRequest): Promise<number | null>;
+}
+
 /** Reads and writes conversations. Every method is scoped by tenant and owning student. */
 export interface ConversationRepository {
   /**
@@ -108,7 +130,9 @@ export interface ConversationRepository {
  * @param db - Typed database handle.
  * @returns A {@link ConversationRepository}.
  */
-export function createConversationRepository(db: Database): ConversationRepository {
+export function createConversationRepository(
+  db: Database,
+): ConversationRepository & ConversationSequenceReader {
   return {
     findOrCreate: findOrCreateConversation(db),
 
@@ -143,6 +167,14 @@ export function createConversationRepository(db: Database): ConversationReposito
           ),
         );
       return rows[0]?.total ?? 0;
+    },
+
+    async findLastSequence({ tenantId, studentId, conversationId }) {
+      const rows = await db
+        .select({ lastSequence: conversationTable.lastSequence })
+        .from(conversationTable)
+        .where(ownedBy(tenantId, studentId, conversationId));
+      return rows[0]?.lastSequence ?? null;
     },
 
     clear: clearConversation(db),
