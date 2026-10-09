@@ -23,7 +23,7 @@ import {
   resetCasesWorld,
   saveRevision,
 } from '../support/cases-harness';
-import { acceptanceIt } from '../support/known-findings';
+import { acceptanceIt } from '../support/known-findings-declarations';
 import {
   dataOf,
   latestFreshness,

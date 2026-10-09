@@ -24,7 +24,7 @@ import {
 
 import { buildAcademicApp, createAcademicWorld } from '../support/academic-endpoints-harness';
 import { summarizeError } from '../support/api-harness';
-import { acceptanceIt } from '../support/known-findings';
+import { acceptanceIt } from '../support/known-findings-declarations';
 import {
   findScheduleOptions,
   pinnedField,

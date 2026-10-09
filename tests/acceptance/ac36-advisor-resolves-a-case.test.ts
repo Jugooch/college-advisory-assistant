@@ -33,7 +33,7 @@ import {
   readCase,
   resetCasesWorld,
 } from '../support/cases-harness';
-import { acceptanceIt } from '../support/known-findings';
+import { acceptanceIt } from '../support/known-findings-declarations';
 import { dataOf, readPlanAt } from '../support/plan-drafts-harness';
 
 const world: CasesWorld = createAcademicWorld();
