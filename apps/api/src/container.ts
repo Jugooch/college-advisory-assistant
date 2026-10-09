@@ -4,6 +4,7 @@
  * services, and controllers (ADR-0014).
  * @module @caa/api/container
  */
+import type { ConversationModel } from '@caa/assistant';
 import {
   type AcademicPolicyRepository,
   type AdvisingCaseRepository,
@@ -12,6 +13,7 @@ import {
   type CampusRepository,
   type CampusTransitionRepository,
   type ConversationRepository,
+  type ConversationSequenceReader,
   type CourseCatalogRepository,
   createAcademicPolicyRepository,
   createAdvisingCaseRepository,
@@ -48,6 +50,7 @@ import type { AcademicSummaryController } from './modules/academic-summary/acade
 import type { CaseActionsController } from './modules/case-actions/case-actions.controller';
 import type { CaseQueueController } from './modules/case-queue/case-queue.controller';
 import type { CasesController } from './modules/cases/cases.controller';
+import type { ConversationController } from './modules/conversation/conversation.controller';
 import type { ConversationStoreController } from './modules/conversation-store/conversation-store.controller';
 import type { CourseChecksController } from './modules/course-checks/course-checks.controller';
 import { createHealthController, type HealthController } from './modules/health/health.controller';
@@ -84,6 +87,7 @@ export interface Controllers {
   readonly caseQueue: CaseQueueController;
   readonly caseActions: CaseActionsController;
   readonly conversationStore: ConversationStoreController;
+  readonly conversation: ConversationController;
   readonly policySearch: PolicySearchController;
 }
 
@@ -106,7 +110,7 @@ export interface Repositories {
   readonly campuses: CampusRepository;
   readonly plans: PlanRepository;
   readonly cases: AdvisingCaseRepository;
-  readonly conversations: ConversationRepository;
+  readonly conversations: ConversationRepository & ConversationSequenceReader;
   readonly policyDocuments: PolicyDocumentRepository;
 }
 
@@ -116,6 +120,11 @@ export interface ContainerOptions {
   readonly repositories: Repositories;
   /** Returns the current time. */
   readonly now: () => Date;
+  /**
+   * A model that replaces the one `CONVERSATION_MODEL` selects. A permanent test seam, used by
+   * the harnesses to inject the scripted fake; production never sets it (ADR-0015 section 1).
+   */
+  readonly conversationModel?: ConversationModel;
 }
 
 /** Everything the app needs to register its routes. */
@@ -137,7 +146,7 @@ export function createContainer(options: ContainerOptions): AppDependencies {
   const plans = wirePlans(options, access.access, academic.scheduleOptionsService);
   const cases = wireCases(options, access.access, plans.views);
   const policy = wirePolicy(options);
-  const { conversationStore } = wireConversation(options, access.access, {
+  const conversation = wireConversation(options, access.access, {
     academicSummary: academic.academicSummaryService,
     policySearch: policy.policySearchService,
     scheduleOptions: academic.scheduleOptionsService,
@@ -158,7 +167,7 @@ export function createContainer(options: ContainerOptions): AppDependencies {
       planRevalidation: plans.planRevalidation,
       planViews: plans.planViews,
       ...cases,
-      conversationStore,
+      ...conversation,
       policySearch: policy.policySearch,
     },
     sessionResolver: access.sessionResolver,

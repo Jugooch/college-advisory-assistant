@@ -9,6 +9,7 @@ import { registerAcademicSummaryRoutes } from './modules/academic-summary/academ
 import { registerCaseActionsRoutes } from './modules/case-actions/case-actions.routes';
 import { registerCaseQueueRoutes } from './modules/case-queue/case-queue.routes';
 import { registerCasesRoutes } from './modules/cases/cases.routes';
+import { registerConversationRoutes } from './modules/conversation/conversation.routes';
 import { registerConversationStoreRoutes } from './modules/conversation-store/conversation-store.routes';
 import { registerCourseChecksRoutes } from './modules/course-checks/course-checks.routes';
 import { registerHealthRoutes } from './modules/health/health.routes';
@@ -58,6 +59,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
       registerCaseQueueRoutes(scope, controllers.caseQueue);
       registerCaseActionsRoutes(scope, controllers.caseActions);
       registerConversationStoreRoutes(scope, controllers.conversationStore);
+      registerConversationRoutes(scope, controllers.conversation);
       registerPolicySearchRoutes(scope, controllers.policySearch);
     },
   });

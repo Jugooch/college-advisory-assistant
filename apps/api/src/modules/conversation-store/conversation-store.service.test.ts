@@ -10,7 +10,7 @@
  * @requirement AC45
  * @requirement AC46
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { MAX_TRANSCRIPT_TURNS } from '@caa/api-contract';
 import type { StoredConversationTurn } from '@caa/db';
@@ -58,7 +58,33 @@ function turn(sequence: number, role: TurnRole = TurnRole.Student): StoredConver
   };
 }
 
+/**
+ * Records the order of the two reads a transcript makes.
+ *
+ * @param repository - The repository to wrap.
+ * @param calls - Receives the name of each read, in order.
+ * @returns The wrapped repository.
+ */
+function recordCalls<T extends { listRecent: unknown; findLastSequence: unknown }>(
+  repository: T,
+  calls: string[],
+): T {
+  const wrap = (name: 'listRecent' | 'findLastSequence') => {
+    const original = repository[name] as (...args: unknown[]) => unknown;
+    return vi.fn((...args: unknown[]) => {
+      calls.push(name);
+      return original.apply(repository, args);
+    });
+  };
+  return {
+    ...repository,
+    listRecent: wrap('listRecent'),
+    findLastSequence: wrap('findLastSequence'),
+  };
+}
+
 function setup(options: { isAvailable?: boolean; turns?: readonly StoredConversationTurn[] } = {}) {
+  const calls: string[] = [];
   const store: InMemoryStore = {
     identities: [],
     students: [ownStudent, otherStudent],
@@ -73,7 +99,7 @@ function setup(options: { isAvailable?: boolean; turns?: readonly StoredConversa
   const logger = createRecordingLogger();
   const service = createConversationStoreService({
     access: createAccessService({ ...repositories, now: () => NOW }),
-    conversations: createInMemoryConversationRepository(store),
+    conversations: recordCalls(createInMemoryConversationRepository(store), calls),
     now: () => NOW,
     isAvailable: options.isAvailable ?? true,
   });
@@ -81,15 +107,24 @@ function setup(options: { isAvailable?: boolean; turns?: readonly StoredConversa
     service.getConversation(actor, { studentId, ...query }, { logger });
   const clear = (actor: Actor, studentId = ownStudent.id) =>
     service.clearConversation(actor, { studentId, ...query }, { logger });
-  return { store, logger, get, clear };
+  return { store, logger, get, clear, calls };
 }
 
 describe('ConversationStoreService.getConversation', () => {
+  it('reads the turns before the last sequence, so the sequence covers every turn read', async () => {
+    const { get, calls } = setup({ turns: [turn(1)] });
+
+    await get(studentActor);
+
+    expect(calls).toEqual(['listRecent', 'findLastSequence']);
+  });
+
   it('returns an available, empty transcript when nothing is stored', async () => {
     expect(await setup().get(studentActor)).toEqual({
       available: true,
       unavailableReason: null,
       turns: [],
+      lastSequence: 0,
     });
   });
 
@@ -109,6 +144,16 @@ describe('ConversationStoreService.getConversation', () => {
     expect(result.turns).toHaveLength(MAX_TRANSCRIPT_TURNS);
     expect(result.turns[0]?.sequence).toBe(21);
     expect(result.turns.at(-1)?.sequence).toBe(120);
+  });
+
+  it('returns the last sequence after a clear, with no turns', async () => {
+    const { get, clear } = setup({ turns: [turn(1), turn(2, TurnRole.Assistant)] });
+
+    await clear(studentActor);
+    const result = await get(studentActor);
+
+    expect(result.turns).toEqual([]);
+    expect(result.lastSequence).toBe(2);
   });
 
   it('logs a count and opaque IDs, never turn text', async () => {

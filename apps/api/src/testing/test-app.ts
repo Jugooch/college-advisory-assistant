@@ -5,8 +5,10 @@
  */
 import type { FastifyInstance } from 'fastify';
 
+import type { ConversationModel } from '@caa/assistant';
+
 import { buildApp } from '../app';
-import { loadApiEnv } from '../config/env';
+import { type ConversationModelMode, loadApiEnv } from '../config/env';
 import { createContainer, type Repositories } from '../container';
 import type { DevTokenIdentity } from '../modules/session/session.service';
 import type { LogDestination } from '../shared/logger';
@@ -25,6 +27,14 @@ export interface TestAppOptions {
   readonly repositoryOverrides?: Partial<Repositories>;
   /** `SCHEDULE_SOLVER_WORK_CAP`; the documented default when omitted. */
   readonly solverWorkCap?: number;
+  /** Model injected through `ContainerOptions.conversationModel`; absent means chat is off. */
+  readonly conversationModel?: ConversationModel;
+  /** `CONVERSATION_MODEL`; the wiring's choice when no model is injected. */
+  readonly conversationMode?: ConversationModelMode;
+  /** `CONVERSATION_RATE_LIMIT`. */
+  readonly conversationRateLimit?: number;
+  /** `CONVERSATION_HISTORY_TURNS`. */
+  readonly conversationHistoryTurns?: number;
 }
 
 /**
@@ -47,13 +57,29 @@ export function buildTestApp(options: TestAppOptions): FastifyInstance {
     ...(options.solverWorkCap === undefined
       ? {}
       : { SCHEDULE_SOLVER_WORK_CAP: String(options.solverWorkCap) }),
+    ...(options.conversationMode === undefined
+      ? {}
+      : { CONVERSATION_MODEL: options.conversationMode }),
+    ...(options.conversationRateLimit === undefined
+      ? {}
+      : { CONVERSATION_RATE_LIMIT: String(options.conversationRateLimit) }),
+    ...(options.conversationHistoryTurns === undefined
+      ? {}
+      : { CONVERSATION_HISTORY_TURNS: String(options.conversationHistoryTurns) }),
   });
   const repositories: Repositories = {
     ...createInMemoryRepositories(options.store),
     ...options.repositoryOverrides,
   };
   return buildApp({
-    dependencies: createContainer({ env, repositories, now: options.now }),
+    dependencies: createContainer({
+      env,
+      repositories,
+      now: options.now,
+      ...(options.conversationModel === undefined
+        ? {}
+        : { conversationModel: options.conversationModel }),
+    }),
     logger: options.logStream === undefined ? false : { stream: options.logStream },
   });
 }

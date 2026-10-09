@@ -9,6 +9,8 @@ import type {
   AppendTurnsRequest,
   AppendTurnsResult,
   ConversationRepository,
+  ConversationSequenceReader,
+  NewConversationTurn,
   StoredConversationTurn,
 } from '@caa/db';
 import {
@@ -31,6 +33,103 @@ export interface InMemoryConversationStore {
   conversations?: readonly Conversation[];
   conversationTurns?: readonly StoredConversationTurn[];
   studentTurnLog?: readonly InMemoryStudentTurnLogEntry[];
+  /** Last sequence by conversation id. Clearing keeps it, as `last_sequence` does in PostgreSQL. */
+  lastSequences?: Readonly<Record<string, number>>;
+}
+
+/**
+ * Reads a conversation's last sequence: the larger of the kept value, which a clear leaves
+ * alone, and the newest stored turn.
+ *
+ * @param store - Backing data.
+ * @param conversationId - The conversation.
+ * @returns The last sequence, 0 for a conversation that never had a turn.
+ */
+function lastSequenceOf(
+  store: InMemoryConversationStore,
+  conversationId: Conversation['id'],
+): number {
+  const stored = (store.conversationTurns ?? [])
+    .filter((turn) => turn.conversationId === conversationId)
+    .map((turn) => turn.sequence);
+  return Math.max(store.lastSequences?.[conversationId] ?? 0, ...stored);
+}
+
+/** Who a conversation must belong to. */
+interface Owner {
+  readonly tenantId: string;
+  readonly studentId: string;
+  readonly conversationId: string;
+}
+
+/**
+ * Tells whether the conversation belongs to the tenant and student.
+ *
+ * @param store - Backing data.
+ * @param owner - Tenant, student and conversation.
+ * @returns `true` when it does.
+ */
+function isOwnedBy(store: InMemoryConversationStore, owner: Owner): boolean {
+  return (store.conversations ?? []).some(
+    (entry) =>
+      entry.id === owner.conversationId &&
+      entry.tenantId === owner.tenantId &&
+      entry.studentId === owner.studentId,
+  );
+}
+
+/** Where a new turn lands. */
+interface Placement {
+  readonly conversationId: Conversation['id'];
+  readonly sequence: number;
+  readonly idNumber: number;
+}
+
+/**
+ * Turns a new turn into a stored one.
+ *
+ * @param turn - The turn to append.
+ * @param placement - Its conversation, sequence and id number.
+ * @returns The stored turn.
+ */
+function toStored(turn: NewConversationTurn, placement: Placement): StoredConversationTurn {
+  const common = {
+    id: ConversationTurnIdSchema.parse(syntheticId('conversationTurn', placement.idNumber)),
+    conversationId: placement.conversationId,
+    sequence: placement.sequence,
+    role: turn.role,
+    text: turn.text,
+    createdAt: turn.createdAt,
+  };
+  return turn.role === TurnRole.Assistant
+    ? {
+        ...common,
+        blockRefs: [...turn.blockRefs],
+        modelStatus: turn.modelStatus,
+        metadata: turn.metadata,
+      }
+    : { ...common, blockRefs: null, modelStatus: null, metadata: null };
+}
+
+/**
+ * Applies retention to the conversation's turns, as PostgreSQL does on append: turns older than
+ * `retainSince` go, then only the newest `retainCount` stay.
+ *
+ * @param all - Every stored turn.
+ * @param request - The append request carrying the bounds.
+ * @returns The turns left.
+ */
+function retain(
+  all: readonly StoredConversationTurn[],
+  request: AppendTurnsRequest,
+): StoredConversationTurn[] {
+  const mine = all
+    .filter((turn) => turn.conversationId === request.conversationId)
+    .filter((turn) => Date.parse(turn.createdAt) >= Date.parse(request.retainSince))
+    .sort((left, right) => right.sequence - left.sequence)
+    .slice(0, request.retainCount);
+  const keep = new Set(mine.map((turn) => turn.id));
+  return all.filter((turn) => turn.conversationId !== request.conversationId || keep.has(turn.id));
 }
 
 /**
@@ -41,42 +140,22 @@ export interface InMemoryConversationStore {
  * @returns The append result.
  */
 function append(store: InMemoryConversationStore, request: AppendTurnsRequest): AppendTurnsResult {
-  const turns = (store.conversationTurns ?? []).filter(
-    (turn) => turn.conversationId === request.conversationId,
-  );
-  const isOwned = (store.conversations ?? []).some(
-    (entry) =>
-      entry.id === request.conversationId &&
-      entry.tenantId === request.tenantId &&
-      entry.studentId === request.studentId,
-  );
-  if (!isOwned) {
+  if (!isOwnedBy(store, request)) {
     return { status: 'CONVERSATION_NOT_FOUND' };
   }
-  const last = Math.max(0, ...turns.map((turn) => turn.sequence));
+  const last = lastSequenceOf(store, request.conversationId);
   if (last !== request.expectedSequence) {
     return { status: 'SEQUENCE_CONFLICT' };
   }
-  const base = (store.conversationTurns ?? []).length;
-  const stored = request.turns.map((turn, index): StoredConversationTurn => {
-    const common = {
-      id: ConversationTurnIdSchema.parse(syntheticId('conversationTurn', base + index + 1)),
-      conversationId: request.conversationId,
-      sequence: last + index + 1,
-      role: turn.role,
-      text: turn.text,
-      createdAt: turn.createdAt,
-    };
-    return turn.role === TurnRole.Assistant
-      ? {
-          ...common,
-          blockRefs: [...turn.blockRefs],
-          modelStatus: turn.modelStatus,
-          metadata: turn.metadata,
-        }
-      : { ...common, blockRefs: null, modelStatus: null, metadata: null };
-  });
-  store.conversationTurns = [...(store.conversationTurns ?? []), ...stored];
+  const base = Math.max(
+    (store.conversationTurns ?? []).length,
+    Object.values(store.lastSequences ?? {}).reduce((sum, value) => sum + value, 0),
+  );
+  const stored = request.turns.map((turn, index) =>
+    toStored(turn, { ...request, sequence: last + index + 1, idNumber: base + index + 1 }),
+  );
+  store.conversationTurns = retain([...(store.conversationTurns ?? []), ...stored], request);
+  store.lastSequences = { ...store.lastSequences, [request.conversationId]: last + stored.length };
   store.studentTurnLog = [
     ...(store.studentTurnLog ?? []),
     ...request.turns
@@ -91,21 +170,31 @@ function append(store: InMemoryConversationStore, request: AppendTurnsRequest): 
 }
 
 /**
+ * Deletes a conversation's turns and keeps its last sequence, as PostgreSQL does.
+ *
+ * @param store - Backing data.
+ * @param conversationId - The conversation to clear.
+ */
+function clearTurns(store: InMemoryConversationStore, conversationId: Conversation['id']): void {
+  store.lastSequences = {
+    ...store.lastSequences,
+    [conversationId]: lastSequenceOf(store, conversationId),
+  };
+  store.conversationTurns = (store.conversationTurns ?? []).filter(
+    (turn) => turn.conversationId !== conversationId,
+  );
+}
+
+/**
  * Creates the conversation repository over an in-memory store.
  *
  * @param store - Backing data. Read on every call.
- * @returns A {@link ConversationRepository}.
+ * @returns A {@link ConversationRepository} that also reads the last sequence.
  */
 export function createInMemoryConversationRepository(
   store: InMemoryConversationStore,
-): ConversationRepository {
-  const owned = (owner: { tenantId: string; studentId: string; conversationId: string }) =>
-    (store.conversations ?? []).some(
-      (entry) =>
-        entry.id === owner.conversationId &&
-        entry.tenantId === owner.tenantId &&
-        entry.studentId === owner.studentId,
-    );
+): ConversationRepository & ConversationSequenceReader {
+  const owned = (owner: Owner) => isOwnedBy(store, owner);
   const turnsOf = (conversationId: string) =>
     (store.conversationTurns ?? []).filter((turn) => turn.conversationId === conversationId);
 
@@ -137,6 +226,13 @@ export function createInMemoryConversationRepository(
               .reverse()
           : [],
       ),
+    // NOTE: like PostgreSQL's `last_sequence`, this survives a clear and retention.
+    findLastSequence: ({ tenantId, studentId, conversationId }) =>
+      Promise.resolve(
+        owned({ tenantId, studentId, conversationId })
+          ? lastSequenceOf(store, conversationId)
+          : null,
+      ),
     appendTurns: (request) => Promise.resolve(append(store, request)),
     countStudentTurnsSince: ({ tenantId, studentId, since }) =>
       Promise.resolve(
@@ -147,13 +243,9 @@ export function createInMemoryConversationRepository(
             Date.parse(entry.createdAt) >= Date.parse(since),
         ).length,
       ),
-    clear: ({ tenantId, studentId, conversationId }) => {
+    clear: (owner) => {
       // SAFETY: only the turns go; the log keeps counting toward the rate limit.
-      if (owned({ tenantId, studentId, conversationId })) {
-        store.conversationTurns = (store.conversationTurns ?? []).filter(
-          (turn) => turn.conversationId !== conversationId,
-        );
-      }
+      if (owned(owner)) clearTurns(store, owner.conversationId);
       return Promise.resolve();
     },
   };
