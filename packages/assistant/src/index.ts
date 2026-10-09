@@ -11,6 +11,7 @@ export * from './prompts/untrusted-data.prompt';
 export * from './templates/intro.template';
 export * from './templates/notice.template';
 export * from './templates/referral.template';
+export * from './templates/stored-template-block.template';
 export * from './tools/all-tools.tool';
 export * from './tools/draft-case-context.tool';
 export * from './tools/get-academic-summary.tool';

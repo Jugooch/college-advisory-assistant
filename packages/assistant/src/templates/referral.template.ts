@@ -20,6 +20,19 @@ export const REFERRAL_TEMPLATES: Record<SpecialistTopic, string> = {
     'If you are in immediate danger, call your local emergency number now. You can also call or text 988 (the Suicide and Crisis Lifeline in the United States) or contact your campus counseling center. This chat is not monitored live and is not an emergency service, and no one will contact you because of this message.',
 };
 
+/** Template id of the tier-1 crisis referral. */
+export const CRISIS_TEMPLATE_ID = 'referral.crisis';
+
+/** Template id recorded with each referral; the id never changes when its text does (the version does). */
+export const REFERRAL_TEMPLATE_IDS: Record<SpecialistTopic, string> = {
+  [SpecialistTopic.FinancialAid]: 'referral.financial-aid',
+  [SpecialistTopic.Immigration]: 'referral.immigration',
+  [SpecialistTopic.Athletics]: 'referral.athletics',
+  [SpecialistTopic.Accessibility]: 'referral.accessibility',
+  [SpecialistTopic.Appeals]: 'referral.appeals',
+  [SpecialistTopic.Crisis]: CRISIS_TEMPLATE_ID,
+};
+
 /** Template id recorded for the tier-2 crisis-support referral. */
 export const CRISIS_SUPPORT_TEMPLATE_ID = 'referral.crisis-support';
 
