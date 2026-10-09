@@ -89,6 +89,18 @@ export interface ConversationTurnStoreService {
   open(actor: Actor, target: TurnTarget, at: string): Promise<OpenedConversation>;
 
   /**
+   * Reads the conversation's stored last sequence without checking the caller's, for the
+   * responses that store nothing (chat off). A new conversation reads 0.
+   *
+   * @param actor - Authenticated actor from the session.
+   * @param target - The student, the term and the sequence the caller saw.
+   * @param at - The instant to create the conversation at.
+   * @returns The stored last sequence.
+   * @throws {NotFoundError} When the conversation isn't the actor's.
+   */
+  readLastSequence(actor: Actor, target: TurnTarget, at: string): Promise<number>;
+
+  /**
    * Appends the student's message and the answer, applying retention.
    *
    * @param actor - Authenticated actor from the session.
@@ -209,6 +221,21 @@ export function createConversationTurnStoreService(
         limit: MAX_TRANSCRIPT_TURNS,
       });
       return { conversation, lastSequence, recent };
+    },
+
+    async readLastSequence(actor, target, at) {
+      // SECURITY: tenant and student come from the session and path, never the body.
+      const conversation = await conversations.findOrCreate({
+        tenantId: actor.tenantId,
+        studentId: target.studentId,
+        termId: target.termId,
+        now: at,
+      });
+      return requireLastSequence(conversations, {
+        tenantId: actor.tenantId,
+        studentId: target.studentId,
+        conversationId: conversation.id,
+      });
     },
 
     append: (actor, turn) => appendTurn({ conversations, now }, actor, turn),
