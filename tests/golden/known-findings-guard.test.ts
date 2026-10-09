@@ -30,11 +30,13 @@ import { GOLDEN_HOLDOUT_CORPUS, GOLDEN_HOLDOUT_SCHEDULE_CORPUS } from './holdout
 
 const TESTS_ROOT = fileURLToPath(new URL('../', import.meta.url));
 const ACCEPTANCE_FOLDER = join(TESTS_ROOT, 'acceptance');
+const E2E_FOLDER = join(TESTS_ROOT, 'e2e');
 /**
  * Files that name the forbidden calls to describe the rule, not to use them: this guard and the
  * register's own test, which holds literal examples of the pattern.
  */
 const DESCRIBES_THE_RULE = [
+  'e2e/support/known-findings.ts',
   'golden/known-findings-guard.test.ts',
   'support/known-findings.test.ts',
 ];
@@ -47,6 +49,25 @@ const DESCRIBES_THE_RULE = [
  */
 function testFiles(folder: string): string[] {
   return sourceFiles(folder, (fileName) => fileName.endsWith('.test.ts'));
+}
+
+/**
+ * Lists the Playwright specs and helpers under a folder.
+ *
+ * @param folder - Absolute folder path.
+ * @returns Absolute file paths.
+ */
+function e2eFiles(folder: string): string[] {
+  return sourceFiles(folder, (fileName) => fileName.endsWith('.e2e.ts'));
+}
+
+/**
+ * Lists the e2e helper sources, which can also hard-code an expected failure.
+ *
+ * @returns Absolute file paths.
+ */
+function e2eHelperFiles(): string[] {
+  return sourceFiles(join(E2E_FOLDER, 'support'), (fileName) => fileName.endsWith('.ts'));
 }
 
 /**
@@ -64,6 +85,7 @@ function knownKeys(): ReadonlySet<string> {
     ...testFiles(ACCEPTANCE_FOLDER).flatMap((path) =>
       declaredAcceptanceKeys(readFileSync(path, 'utf8')),
     ),
+    ...e2eFiles(E2E_FOLDER).flatMap((path) => declaredAcceptanceKeys(readFileSync(path, 'utf8'))),
   ]);
 }
 
@@ -82,8 +104,8 @@ describe('known-findings register', () => {
     expect(unmatched).toEqual([]);
   });
 
-  it('leaves expected failures to the register: no test file hard-codes it.fails or test.fails', () => {
-    const hardCoded = testFiles(TESTS_ROOT)
+  it('leaves expected failures to the register: no test file hard-codes it.fails, test.fails or test.fail', () => {
+    const hardCoded = [...testFiles(TESTS_ROOT), ...e2eFiles(E2E_FOLDER), ...e2eHelperFiles()]
       .map((path) => ({
         path: relative(TESTS_ROOT, path).replaceAll('\\', '/'),
         source: readFileSync(path, 'utf8'),

@@ -11,24 +11,24 @@
  */
 import { it } from 'vitest';
 
-/**
- * Open findings by key, each with the `bug` issue that tracks it. A key is:
- * - a golden case ID, development or holdout, for example `GC-PF-004`;
- * - an acceptance test: `ACNN: <exact it title>`, for example
- *   `AC29: keeps CONDITIONAL end to end`.
- *
- * The fixing PR removes its entry, and nothing else in `tests/`.
- */
-export const KNOWN_FINDINGS: ReadonlyMap<string, number> = new Map<string, number>([]);
+import { findingMode } from './known-findings-register';
 
-/** A key of the register: a golden case ID, or an acceptance case and its exact test title. */
-export const FINDING_KEY = /^(G[CH]-[A-Z]+-\d{3}|AC\d{2}: \S.*)$/;
+export {
+  type ExpectedFailure,
+  FINDING_KEY,
+  type FindingMode,
+  findingMode,
+  KNOWN_FINDINGS,
+  type PlainTest,
+} from './known-findings-register';
 
 /**
  * An `acceptanceIt('ACNN', '<title>', …)` declaration: the case ID, then the title in single or
- * double quotes (Prettier picks double quotes when the title holds an apostrophe).
+ * double quotes (Prettier picks double quotes when the title holds an apostrophe). The Playwright
+ * helper `acceptanceTest` in `tests/e2e/support` declares keys the same way.
  */
-const ACCEPTANCE_DECLARATION = /acceptanceIt\(\s*'(AC\d{2})',\s*(['"])((?:\\.|(?!\2)[^\\\n])*)\2/g;
+const ACCEPTANCE_DECLARATION =
+  /(?:acceptanceIt|acceptanceTest)\(\s*'(AC\d{2})',\s*(['"])((?:\\.|(?!\2)[^\\\n])*)\2/g;
 
 /**
  * Lists the register keys that a test file declares through {@link acceptanceIt}.
@@ -43,40 +43,10 @@ export function declaredAcceptanceKeys(source: string): readonly string[] {
 }
 
 /**
- * A hard-coded expected failure in a test file, such as `it.fails(`, `test.fails(` or
- * `it.fails.each(`. Test files declare expected failures through the register instead.
+ * A hard-coded expected failure in a test file, such as `it.fails(`, `test.fails(`,
+ * Playwright's `test.fail(` or `it.fails.each(`. Test files declare expected failures through the register instead.
  */
-export const HARD_CODED_EXPECTED_FAILURE = /\b(?:it|test)\.fails\b/;
-
-/** A test that runs normally: its key isn't in the register. */
-export interface PlainTest {
-  readonly kind: 'test';
-}
-
-/** A test that runs as an expected failure while its finding is open. */
-export interface ExpectedFailure {
-  readonly kind: 'expected-failure';
-  /** The `bug` issue that tracks the finding. */
-  readonly issue: number;
-}
-
-/** How a test is registered: as a plain test, or as an expected failure of an open finding. */
-export type FindingMode = PlainTest | ExpectedFailure;
-
-/**
- * Looks up how a test runs.
- *
- * @param key - The test's register key.
- * @param register - The register; the shared {@link KNOWN_FINDINGS} unless a test passes its own.
- * @returns An expected failure with its issue while the key is listed, otherwise a plain test.
- */
-export function findingMode(
-  key: string,
-  register: ReadonlyMap<string, number> = KNOWN_FINDINGS,
-): FindingMode {
-  const issue = register.get(key);
-  return issue === undefined ? { kind: 'test' } : { kind: 'expected-failure', issue };
-}
+export const HARD_CODED_EXPECTED_FAILURE = /\b(?:it|test)\.fails?\b/;
 
 /**
  * Declares a test that runs as `it.fails` while its key is a known finding, and as `it`

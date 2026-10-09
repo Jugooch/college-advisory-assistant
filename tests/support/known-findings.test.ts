@@ -55,6 +55,12 @@ describe('declaredAcceptanceKeys', () => {
     ]);
   });
 
+  it('finds Playwright acceptanceTest declarations', () => {
+    expect(
+      declaredAcceptanceKeys("acceptanceTest('AC48', 'shows the plan', async () => {});"),
+    ).toEqual(['AC48: shows the plan']);
+  });
+
   it('ignores plain it calls', () => {
     expect(declaredAcceptanceKeys("it('keeps CONDITIONAL end to end', () => {});")).toEqual([]);
   });
@@ -64,6 +70,7 @@ describe('HARD_CODED_EXPECTED_FAILURE', () => {
   it.each([
     "it.fails('keeps CONDITIONAL', () => {});",
     "test.fails('keeps CONDITIONAL', () => {});",
+    "test.fail('keeps CONDITIONAL', async () => {});",
     "it.fails.each([1, 2])('case %s', () => {});",
     "test.fails.each([1, 2])('case %s', () => {});",
   ])('catches %s', (source) => {
