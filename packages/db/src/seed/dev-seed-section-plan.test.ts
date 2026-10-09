@@ -68,6 +68,8 @@ describe('buildDevSeedSectionPlan', () => {
       ['DEMO-IND 390 001', 'MOWE', '14:00', '15:15', 'DEMO-N', '2027-01-11..2027-03-05'],
       ['DEMO-IND 390 002', 'MOWEFR', '12:00', '12:50', 'DEMO-S', full],
       ['DEMO-IND 390 003', null, null, null, null, full],
+      ['DEMO-ENGL 101 003', 'TUTH', '11:00', '12:15', 'DEMO-N', full],
+      ['DEMO-PHYS 301 002', 'TUTH', '13:00', '14:15', 'DEMO-N', full],
     ]);
   });
 
@@ -87,24 +89,67 @@ describe('buildDevSeedSectionPlan', () => {
     ]);
   });
 
-  it('links DEMO-PHYS 301 001 to exactly one of labs L01 or L02', () => {
+  it('links DEMO-PHYS 301 001 to lab L01 or L02, and 002 to lab L02 only', () => {
     const idOf = (sourceSectionId: string) =>
       PLAN.snapshot.sections.find((section) => section.sourceSectionId === sourceSectionId)?.id;
+    const group = (groupId: string, primary: string, labs: string[]) => ({
+      id: groupId,
+      tenantId: PLAN.snapshot.tenantId,
+      primarySectionId: idOf(primary),
+      components: [
+        {
+          name: 'Lab',
+          courseId: SEED_CATALOG.phys301Lab.id,
+          permittedSectionIds: labs.map(idOf),
+        },
+      ],
+    });
 
     expect(PLAN.snapshot.linkedSectionGroups).toEqual([
-      {
-        id: 'e0000000-0001-4000-8000-01a0f755f200',
-        tenantId: PLAN.snapshot.tenantId,
-        primarySectionId: idOf('SYN-SEC-05'),
-        components: [
-          {
-            name: 'Lab',
-            courseId: SEED_CATALOG.phys301Lab.id,
-            permittedSectionIds: [idOf('SYN-SEC-06'), idOf('SYN-SEC-07')],
-          },
-        ],
-      },
+      group('e0000000-0001-4000-8000-01a0f755f200', 'SYN-SEC-05', ['SYN-SEC-06', 'SYN-SEC-07']),
+      group('e0000000-0003-4000-8000-01a0f755f200', 'SYN-SEC-12', ['SYN-SEC-07']),
     ]);
+  });
+
+  // AC48 (#626): the sections a student who rules out Fridays can take at the 12.00 minimum.
+  it('has a Friday-free combination of MATH, ENGL, PHYS (with lab) and IND reaching 12.00 credits', () => {
+    const bySource = (id: string): Section => {
+      const found = PLAN.snapshot.sections.find((section) => section.sourceSectionId === id);
+      if (!found) throw new Error(`${id} is not seeded`);
+      return found;
+    };
+    // MATH 102 002, ENGL 101 003, PHYS 301 002 + lab L02, IND 390 001 (selected at 2.00).
+    const chosen = ['SYN-SEC-02', 'SYN-SEC-11', 'SYN-SEC-12', 'SYN-SEC-07', 'SYN-SEC-08'].map(
+      bySource,
+    );
+    const meetings = chosen.map(onlyMeeting);
+    type Meeting = (typeof meetings)[number];
+    const isSameDays = (a: Meeting, b: Meeting): boolean =>
+      (a.weekdays ?? []).some((day) => (b.weekdays ?? []).includes(day));
+    const isSameDates = (a: Meeting, b: Meeting): boolean =>
+      a.startsOn <= b.endsOn && b.startsOn <= a.endsOn;
+    const isSameTimes = (a: Meeting, b: Meeting): boolean =>
+      (a.startTime ?? '') < (b.endTime ?? '') && (b.startTime ?? '') < (a.endTime ?? '');
+    const isClash = (a: Meeting, b: Meeting): boolean =>
+      isSameDays(a, b) && isSameDates(a, b) && isSameTimes(a, b);
+
+    for (const meeting of meetings) {
+      expect([meeting.weekdays, meeting.startTime, meeting.endTime]).not.toContain(null);
+    }
+    expect(meetings.flatMap((meeting) => meeting.weekdays ?? [])).not.toContain('FRIDAY');
+    const pairs = meetings.flatMap((a, i) => meetings.slice(i + 1).map((b) => isClash(a, b)));
+    expect(pairs).not.toContain(true);
+    // NOTE: the lab adds no credits (included in PHYS 301); IND 390 is chosen at 2.00 (200).
+    const { math102, engl101, phys301, phys301Lab, ind390 } = SEED_CATALOG;
+    expect(phys301Lab.creditsIncludedInCourseId).toBe(phys301.id);
+    expect(ind390.minCreditsHundredths).toBeLessThanOrEqual(200);
+    expect(ind390.maxCreditsHundredths).toBeGreaterThanOrEqual(200);
+    const total =
+      (math102.creditsHundredths ?? 0) +
+      (engl101.creditsHundredths ?? 0) +
+      (phys301.creditsHundredths ?? 0) +
+      200;
+    expect(total).toBe(1200);
   });
 
   it('configures 15 minutes each way between North and South, in a fixed version', () => {
