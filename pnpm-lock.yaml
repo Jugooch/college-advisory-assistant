@@ -259,6 +259,9 @@ importers:
 
   tests:
     dependencies:
+      '@caa/api-contract':
+        specifier: workspace:*
+        version: link:../packages/api-contract
       '@caa/assistant':
         specifier: workspace:*
         version: link:../packages/assistant

@@ -1,6 +1,6 @@
 /**
  * @file Fixtures for the AC47 chat slice: a Friday-free pair of DEMO-MATH 102 sections beside a
- * Friday one, a DEMO-PHYS 201 section that fits both, and the confirmed no-Fridays rule.
+ * Friday one, a DEMO-PHYS 201 section clear of all of them, and the confirmed no-Fridays rule.
  * @module @caa/tests/support/chat-slice-fixtures
  * @see docs/planning/14-first-vertical-slice.md
  * @see docs/standards/07-testing.md
@@ -34,11 +34,17 @@ export const MATH_TTH_LATE = buildSection(
   },
   73,
 );
-/** DEMO-PHYS 201 on Mon and Wed 09:00, compatible with both Tuesday and Thursday sections. */
+/** DEMO-PHYS 201 on Mon and Wed 13:00, clear of MATH_FRIDAY, so only the Friday rule removes it. */
 export const PHYS_MW = buildSection(
   {
     courseId: phys201.id,
-    meetings: [buildMeetingPattern({ weekdays: [Weekday.Monday, Weekday.Wednesday] })],
+    meetings: [
+      buildMeetingPattern({
+        weekdays: [Weekday.Monday, Weekday.Wednesday],
+        startTime: '13:00',
+        endTime: '13:50',
+      }),
+    ],
   },
   74,
 );

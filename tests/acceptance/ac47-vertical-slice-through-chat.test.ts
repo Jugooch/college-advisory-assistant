@@ -17,6 +17,8 @@
  */
 import { beforeAll, describe, expect } from 'vitest';
 
+import { type ConversationTurnResponse, ConversationTurnResponseSchema } from '@caa/api-contract';
+import { AssistantBlockKind } from '@caa/domain';
 import {
   buildConversation,
   buildPolicyDocument,
@@ -45,7 +47,12 @@ import {
 } from '../support/chat-slice-fixtures';
 import { acceptanceIt } from '../support/known-findings';
 import { dataOf, MATH_MWF, PHYS_TTH, saveDefaultOption } from '../support/plan-drafts-harness';
-import { publishSections, scheduleRequest } from '../support/schedule-options-harness';
+import {
+  findScheduleOptions,
+  optionSectionSets,
+  publishSections,
+  scheduleRequest,
+} from '../support/schedule-options-harness';
 
 const { math102, phys201 } = SYNTHETIC_COURSES;
 
@@ -61,20 +68,9 @@ let lastSequence = 0;
 /** Every student message sent, to prove none reaches the case. */
 const sentMessages: string[] = [];
 /** The step 1 turn, so its chips and its status are checked by separate tests. */
-let firstTurn: TurnData['turn'] | undefined;
+let firstTurn: ConversationTurnResponse['turn'] | undefined;
 /** The revision the student saved before asking the advisor, pinned by the case in step 6. */
 let savedRevisionId = '';
-
-/** The turn fields the steps read. */
-interface TurnData {
-  readonly turn: {
-    readonly sequence: number | null;
-    readonly intro: string;
-    readonly modelStatus: string;
-    readonly blocks: readonly Record<string, unknown>[];
-  };
-  readonly lastSequence: number;
-}
 
 /**
  * Sends one chat turn as the signed-in slice student.
@@ -83,7 +79,7 @@ interface TurnData {
  * @param plannerInputs - The planner form's confirmed state, when the form holds any.
  * @returns The turn from a 200 response.
  */
-async function say(message: string, plannerInputs?: object): Promise<TurnData> {
+async function say(message: string, plannerInputs?: object): Promise<ConversationTurnResponse> {
   sentMessages.push(message);
   const response = await postAs(app, {
     url: `/v1/students/${ACADEMIC_STUDENT_ID}/conversation/turns`,
@@ -96,8 +92,8 @@ async function say(message: string, plannerInputs?: object): Promise<TurnData> {
     },
   });
   expect(response.statusCode).toBe(200);
-  const data = dataOf(response) as unknown as TurnData;
-  lastSequence = data.lastSequence;
+  const data = ConversationTurnResponseSchema.parse(dataOf(response));
+  lastSequence = data.lastSequence ?? data.turn.sequence ?? lastSequence;
   return data;
 }
 
@@ -165,25 +161,27 @@ describe('AC47 the first vertical slice through chat (planning/14)', () => {
     'AC47',
     'step 2: confirming it as hard and asking again gives two verified options with evidence',
     async () => {
-      const inputs = scheduleRequest([math102.id, phys201.id], [HARD_NO_FRIDAYS]);
-      const { turn } = await say('Show me my next-term options', inputs);
-
+      const courses = [math102.id, phys201.id];
+      // NOTE: without the rule the Friday section fits beside PHYS_MW.
+      const open = await findScheduleOptions(app, scheduleRequest(courses));
+      expect(optionSectionSets(open)).toContainEqual([MATH_FRIDAY.id, PHYS_MW.id].sort());
+      const hard = scheduleRequest(courses, [HARD_NO_FRIDAYS]);
+      const { turn } = await say('Show me my next-term options', hard);
       expect(turn.sequence).toBe(4);
       expect(turn.modelStatus).toBe('ANSWERED');
       expect(turn.intro).toBe('Here are your schedule options. Each card shows its own checks.');
       expect(turn.blocks).toHaveLength(1);
-      const block = turn.blocks[0] as {
-        kind: string;
-        result: { outcome: string; options: readonly Record<string, unknown>[] };
-      };
-      expect(block.kind).toBe('SCHEDULE_OPTIONS');
+      const [block] = turn.blocks;
+      if (block?.kind !== AssistantBlockKind.ScheduleOptions) {
+        throw new Error(`expected SCHEDULE_OPTIONS, got ${String(block?.kind)}`);
+      }
       expect(block.result.outcome).toBe('OPTIONS_FOUND');
       expect(block.result.options).toMatchObject([
         { rank: 1, scheduleFeasibility: { state: 'PASS' }, aggregate: 'VALIDATED' },
         { rank: 2, scheduleFeasibility: { state: 'PASS' }, aggregate: 'VALIDATED' },
       ]);
       const sectionSets = block.result.options.map((option) =>
-        (option.bundles as readonly { sections: readonly { sectionId: string }[] }[])
+        option.bundles
           .flatMap((bundle) => bundle.sections.map((section) => section.sectionId))
           .sort(),
       );

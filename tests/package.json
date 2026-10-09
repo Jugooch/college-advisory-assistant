@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@caa/api-contract": "workspace:*",
     "@caa/assistant": "workspace:*",
     "@caa/db": "workspace:*",
     "@caa/domain": "workspace:*",
