@@ -12,7 +12,7 @@ import {
   AssistantBlockKind,
   type CaseReason,
   CaseStatus,
-  type DiscrepancySubject,
+  DiscrepancySubject,
   type PlanId,
 } from '@caa/domain';
 
@@ -58,6 +58,61 @@ export function isValidCaseDraft(
     createdAt: '2026-01-01T00:00:00.000Z',
     lastSequence: 1,
   }).success;
+}
+
+/**
+ * Whether a case with this reason must name a plan. Derived from the case schema: no plan is
+ * needed when some subject choice lets a plan-less draft pass.
+ *
+ * @param reason - The case reason.
+ * @returns True when a draft without a plan would be rejected.
+ */
+export function reasonNeedsPlan(reason: CaseReason): boolean {
+  const subjects: readonly (DiscrepancySubject | undefined)[] = [
+    undefined,
+    ...Object.values(DiscrepancySubject),
+  ];
+  return !subjects.some((subject) => isValidCaseDraft(reason, undefined, subject));
+}
+
+/**
+ * Checks a draft's reason and subject alone, as if a plan were attached when the reason needs
+ * one. Lets a malformed draft fail before any plan lookup.
+ *
+ * @param reason - The case reason.
+ * @param subject - The discrepancy subject the model named, if any.
+ * @returns True when a plan could complete the draft.
+ */
+export function isValidCaseShape(
+  reason: CaseReason,
+  subject: DiscrepancySubject | undefined,
+): boolean {
+  // SAFETY: a stand-in plan id; the shape check never reads or stores it.
+  const stand = reasonNeedsPlan(reason) ? (PLACEHOLDER_ID as PlanId) : undefined;
+  return isValidCaseDraft(reason, stand, subject);
+}
+
+/** A saved plan as far as selection needs it. */
+export interface PlanChoice {
+  readonly id: PlanId;
+  readonly termId: string;
+  readonly latestRevision: number;
+}
+
+/**
+ * Picks the student's current plan: the first listed (newest first) in the planner's term, or
+ * the first listed when no term is confirmed.
+ *
+ * @param plans - The student's plans, newest first.
+ * @param termId - The planner form's term, if any.
+ * @returns The current plan as a preview plan, or `null` when none matches.
+ */
+export function pickCurrentPlan(
+  plans: readonly PlanChoice[],
+  termId: string | undefined,
+): PreviewPlan | null {
+  const current = plans.find((summary) => termId === undefined || summary.termId === termId);
+  return current === undefined ? null : { planId: current.id, revision: current.latestRevision };
 }
 
 /**
