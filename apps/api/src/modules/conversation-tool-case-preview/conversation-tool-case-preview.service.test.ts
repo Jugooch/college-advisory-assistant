@@ -7,14 +7,22 @@
 import { describe, expect, it } from 'vitest';
 
 import { ToolName } from '@caa/assistant';
-import { AssistantBlockKind, CaseReason, ErrorCode, NoticeCode } from '@caa/domain';
+import {
+  AssistantBlockKind,
+  CaseReason,
+  DiscrepancySubject,
+  ErrorCode,
+  NoticeCode,
+} from '@caa/domain';
 
 import {
   otherPlanId,
   ownPlan,
   ownStudent,
   setupTools,
+  studentActor,
 } from '../../testing/conversation-tools-harness';
+import { scheduleRequest } from '../../testing/schedule-options-harness';
 
 describe('draft_case_context', () => {
   it('previews a plan review with an empty note and creates nothing', async () => {
@@ -80,6 +88,54 @@ describe('draft_case_context', () => {
       text: 'More information is needed before a schedule can be built. Use the planning form to add the missing choices.',
     });
     expect(outcome.projection).toEqual({ plannerInputNeeded: true });
+  });
+
+  it("picks the plan for the planner form's term", async () => {
+    const { run, listPlans } = setupTools();
+    const { plans } = await listPlans(studentActor, ownStudent.id);
+    const other = plans.map((p) => ({ ...p, id: otherPlanId, termId: 'term-other' as never }));
+    listPlans.mockResolvedValueOnce({ plans: [...other, ...plans] });
+
+    const outcome = await run(
+      ToolName.DraftCaseContext,
+      { reason: CaseReason.PlanReview },
+      { plannerInputs: { ...scheduleRequest(), termId: ownPlan.termId } },
+    );
+
+    expect(outcome.block).toMatchObject({ planId: ownPlan.id });
+  });
+
+  it('gives the fixed notice when the only plan is in another term', async () => {
+    const outcome = await setupTools().run(
+      ToolName.DraftCaseContext,
+      { reason: CaseReason.PlanReview },
+      { plannerInputs: { ...scheduleRequest(), termId: 'term-other' as never } },
+    );
+
+    expect(outcome.block).toBeNull();
+    expect(outcome.notice).toMatchObject({ code: NoticeCode.PlannerInputNeeded });
+  });
+
+  it('resolves the current plan for a needs-verification draft without a plan id', async () => {
+    const outcome = await setupTools().run(ToolName.DraftCaseContext, {
+      reason: CaseReason.NeedsVerification,
+    });
+
+    expect(outcome.block).toMatchObject({
+      reason: CaseReason.NeedsVerification,
+      planId: ownPlan.id,
+    });
+  });
+
+  it('does not look up a plan for a source discrepancy without a plan id', async () => {
+    const { run, listPlans } = setupTools();
+
+    await run(ToolName.DraftCaseContext, {
+      reason: CaseReason.SourceDiscrepancy,
+      discrepancySubject: DiscrepancySubject.CourseAttempt,
+    });
+
+    expect(listPlans).not.toHaveBeenCalled();
   });
 
   it("gives NOT_FOUND for another student's plan", async () => {
