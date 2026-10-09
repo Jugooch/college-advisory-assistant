@@ -1,7 +1,7 @@
 /**
  * @file Approved policy hits as structured fields: title, excerpt as plain text, revision,
  * effective interval, source label, approval time, and a conflict notice.
- * @module @caa/web/features/policy-help/components/policy-hit-list
+ * @module @caa/web/shared/components/policy-hit-list
  * @requirement FR-16
  * @requirement NFR-02
  * @see docs/adr/0015-conversation-orchestration-and-policy-corpus.md

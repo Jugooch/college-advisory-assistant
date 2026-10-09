@@ -6,9 +6,11 @@
 import Link from 'next/link';
 import type { ReactElement } from 'react';
 
-/** The student screens. */
-export type StudentScreen =
-  'overview' | 'course-checks' | 'next-term-planner' | 'my-plans' | 'help-and-cases';
+import {
+  STUDENT_SCREENS,
+  type StudentScreen,
+  studentScreenHref,
+} from '@/shared/utils/student-screens';
 
 /** Props for {@link StudentNav}. */
 export interface StudentNavProps {
@@ -18,19 +20,6 @@ export interface StudentNavProps {
   readonly current: StudentScreen | null;
 }
 
-/** Each screen's path and link text, in navigation order. */
-const SCREENS: readonly {
-  readonly screen: StudentScreen;
-  readonly path: string;
-  readonly label: string;
-}[] = [
-  { screen: 'overview', path: '/overview', label: 'Overview' },
-  { screen: 'course-checks', path: '/course-checks', label: 'Course checks' },
-  { screen: 'next-term-planner', path: '/next-term-planner', label: 'Plan next term' },
-  { screen: 'my-plans', path: '/my-plans', label: 'My plans' },
-  { screen: 'help-and-cases', path: '/help-and-cases', label: 'Help and cases' },
-];
-
 /**
  * Renders the student navigation landmark.
  *
@@ -38,13 +27,15 @@ const SCREENS: readonly {
  * @returns The nav element.
  */
 export function StudentNav({ studentId, current }: StudentNavProps): ReactElement {
-  const query = new URLSearchParams({ studentId }).toString();
   return (
     <nav aria-label="Student">
       <ul className="nav-list">
-        {SCREENS.map(({ screen, path, label }) => (
+        {STUDENT_SCREENS.map(({ screen, label }) => (
           <li key={screen}>
-            <Link href={`${path}?${query}`} aria-current={screen === current ? 'page' : undefined}>
+            <Link
+              href={studentScreenHref(screen, studentId)}
+              aria-current={screen === current ? 'page' : undefined}
+            >
               {label}
             </Link>
           </li>

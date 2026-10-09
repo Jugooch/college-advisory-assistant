@@ -12,7 +12,7 @@ import { indexCourses } from '@/shared/utils/course-display';
 import { PlannerStep } from './planner-fields';
 import { planScheduleRequest } from './planner-plan';
 import { readPlannerQuery } from './planner-query';
-import { isSearchRequested, planPlannerView } from './planner-view';
+import { confirmedRequest, planPlannerView } from './planner-view';
 
 const VALID = readPlannerQuery({
   studentId: syntheticId('student', 1),
@@ -29,12 +29,12 @@ describe('planPlannerView', () => {
   });
 
   it('shows the review, not a search, on the review step', () => {
-    expect(isSearchRequested(PlannerStep.Review, GOOD)).toBe(false);
+    expect(confirmedRequest(PlannerStep.Review, GOOD)).toBeNull();
     expect(planPlannerView(PlannerStep.Review, GOOD, null).kind).toBe('review');
   });
 
   it('sends the student back to the form with the issues when the values are invalid', () => {
-    expect(isSearchRequested(PlannerStep.Search, BAD)).toBe(false);
+    expect(confirmedRequest(PlannerStep.Search, BAD)).toBeNull();
     expect(planPlannerView(PlannerStep.Search, BAD, null)).toEqual({
       kind: 'form',
       issues: BAD.issues,
@@ -42,7 +42,14 @@ describe('planPlannerView', () => {
   });
 
   it('searches only on the confirm step with a valid request', () => {
-    expect(isSearchRequested(PlannerStep.Search, GOOD)).toBe(true);
+    expect(confirmedRequest(PlannerStep.Search, GOOD)).toBe(GOOD.request);
+  });
+
+  it('shares the request with chat only once it is confirmed', () => {
+    expect(confirmedRequest(PlannerStep.Search, GOOD)).toBe(GOOD.request);
+    expect(confirmedRequest(PlannerStep.Review, GOOD)).toBeNull();
+    expect(confirmedRequest(PlannerStep.Edit, GOOD)).toBeNull();
+    expect(confirmedRequest(PlannerStep.Search, BAD)).toBeNull();
   });
 
   it('keeps the confirmed constraints when the search fails', () => {
