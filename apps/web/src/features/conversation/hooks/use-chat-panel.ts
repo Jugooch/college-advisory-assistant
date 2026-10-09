@@ -35,6 +35,7 @@ export interface ChatPanelState {
   readonly setProblem: (problem: ChatProblem | null) => void;
   readonly announcement: string;
   readonly isPending: boolean;
+  readonly pendingText: string | null;
   readonly inputRef: RefObject<HTMLInputElement | null>;
   readonly submit: (event: SubmitEvent<HTMLFormElement>) => void;
   /** Empties the transcript after a clear, announces it, and returns focus to the input. */

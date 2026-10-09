@@ -258,6 +258,22 @@ td {
   border: 1px solid var(--color-neutral);
 }
 
+.chat-transcript-region {
+  max-height: min(28rem, 50vh);
+  overflow-y: auto;
+}
+
+/* The skip link is only useful when the chat is stacked under the form. */
+.chat-skip-link {
+  display: none;
+}
+
+@media (max-width: 60rem) {
+  .chat-skip-link {
+    display: block;
+  }
+}
+
 .chat-transcript,
 .chat-blocks,
 .chat-refs {
