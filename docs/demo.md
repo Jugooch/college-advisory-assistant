@@ -42,18 +42,19 @@ _Point out:_ a PASS is always "passed as of" its pinned inputs, never an open-en
 
 **2. Course checks.** Open **Course checks**, tick DEMO-MATH 102 and press **Check these courses**. The **Prerequisite** row reads **Passed as of ...**: the repeat of MATH 101 counts the later B, not the D. Ignore the overall and credit-load lines. One course alone is below the 12.00-credit minimum.
 
-**3. Plan next term with the chat.** Open **Plan next term**. Choose **Term** 2027SP, tick DEMO-MATH 102, DEMO-ENGL 101, DEMO-PHYS 301 and DEMO-IND 390, enter 3 under **Credits for DEMO-IND 390**, then press **Review constraints**. The **Ask the assistant** panel appears with four starter questions. A starter only fills the box, and you still press **Send**. The starters show only while the chat is empty, so type the later questions yourself.
+**3. Plan next term with the chat.** Open **Plan next term**, choose **Term** 2027SP and press **Review constraints**. The **Ask the assistant** panel appears with four starter questions. A starter only fills the message box, and you still press **Send**. The starters show only while the chat is empty, so type the later questions yourself.
 
-- **I'd like no Fridays**: a constraint chip with **Dismiss** and **Confirm**. Nothing applies until you press **Confirm**, which fills an **Unavailable time** block on the form.
-- Press **Review constraints**, then **Confirm and find schedules**. The options show their own checks. DEMO-PHYS 301 is **Conditional**, because DEMO-PHYS 201 is still in progress.
-- **Show me my options**: the same options as cards in the chat.
-- **What is the policy on dropping a course?**: approved policy documents only.
+- Send **I'd like no Fridays**. A chip under **Suggested limits** reads "Not available on Friday, all day." and starts as **Preferred**. Nothing applies until you press **Confirm**, which ticks **Friday** in **Unavailable time 1** on the form.
+- Under **Courses to schedule**, tick DEMO-MATH 102, DEMO-PHYS 301, DEMO-ENGL 101 and DEMO-IND 390, and enter `2.00` under **Credits for DEMO-IND 390** (12.00 credits, the policy minimum). Press **Review constraints**. **Review your constraints** lists the Friday limit. Press **Confirm and find schedules**. The options appear, each with its own checks and a **Save as draft** button. The overall state is **Conditional** because DEMO-PHYS 201 is still in progress.
+- Send **Show me my options**. **Option 1** appears as a card in the chat, with **Checks, shown separately** and **Courses and sections**. It has no Friday section, and it says "No preference is missed by this option."
+- Send **What is the policy on dropping a course?**. Approved policy excerpts appear, each with its revision, effective date and source.
+- Send **Can I get financial aid for this term?**. A referral says "Financial aid questions need the financial aid office." and "This app cannot make that determination".
 
 _Point out:_ every fact in the chat (options, credits, checks, policy) renders from a verified block. The demo model only picks tools and a fixed intro line.
 
-**4. Save a draft.** On an option, press **Save as draft**, then **Open My plans**. The 2027SP draft reads **Up to date**.
+**4. Save a draft.** Press **Save as draft** on the first option. It says "Draft saved. This is a plan, not a registration." **Open My plans** shows the 2027SP draft as **Up to date**.
 
-**5. Ask an advisor.** Send **Ask my advisor to review my plan** in the chat and follow **Continue to the request form**, or use **Ask an advisor** on My plans. Write a note and press **Send to my advisor**. The confirmation reads **Case opened. Waiting for an advisor.** **Open Help and cases** lists it under **Your cases**.
+**5. Ask an advisor.** Go back to **Plan next term** and send **Ask my advisor to review my plan**. A preview says "Nothing has been sent." and "Your chat is not shared." Follow **Continue to the request form**. **Ask an advisor** opens with **Review my plan** selected. Fill in **Your note for your advisor** and press **Send to my advisor**. It says **Case opened.** **Open Help and cases** lists the case under **Your cases** as **Waiting for an advisor**, without the chat transcript.
 
 **6. Crisis referral.** Back on Plan next term, send `I feel suicidal`. A fixed crisis referral appears, and the model isn't called. Reload the page: the referral is still there.
 _Point out:_ safety text comes from fixed templates and survives a reload.
@@ -67,16 +68,16 @@ The DEMO-MATH 102 **Prerequisite** is **Not met**: the grade earned is below the
 The **Prerequisite** reads **Needs verification**: the only matching credit is a pending transfer.
 _Point out:_ UNKNOWN is never PASS. Missing data is shown as unknown, with a next step.
 
-**9. Stale plan.** Sign in with `dev-token-student-stale` and open **My plans**. The 2027SP draft reads **Out of date**, and its advisor case reads **Waiting for an advisor**. Open the draft: "Your course record changed after this draft was saved." The plan is history, not a current check.
+**9. Stale plan.** Sign in with `dev-token-student-stale` and open **My plans**. The 2027SP draft reads **Out of date**, and its advisor case reads **Open case, waiting for an advisor**. Open the draft: "Your course record changed after this draft was saved." The plan is history, not a current check.
 
 ## Advisor script (about 3 minutes)
 
 1. Sign in with `dev-token-advisor` and press **Open the review queue**. **Review queue** lists **Plan review** and **Problem reported with the record**, oldest first, plus any case you opened in the student script.
-2. Open the **Plan review** case. Under **Plan attached to this case**, **Is this saved plan still up to date?** reads **Out of date**.
-3. Press **Claim this case**. Under **Your review**, choose **I reviewed this**, write a **Note for the student**, and press **Resolve this case**.
+2. Open **Review “Plan review”, opened ...** for the stale persona's case (its note reads "Please check my plan before I register."). The page starts with "No one has claimed this case yet." Under **Plan attached to this case**, **Is this saved plan still up to date?** reads **Out of date**.
+3. Press **Claim this case**. It says "You claimed this case. It is now in your review." Under **Your review**, choose **I reviewed this**, write a **Note for the student**, and press **Resolve this case**.
    _Point out:_ resolving is advice only. It changes no record and grants no waiver or registration.
-4. Sign in with `dev-token-student-stale` and open **Help and cases**. The case reads **Reviewed by an advisor**, with the note.
-5. Sign in with `dev-token-advisor-2`. Its queue is empty: this advisor has no assigned students.
+4. Sign in with `dev-token-student-stale` and open **Help and cases**. The case reads **Reviewed by an advisor**, with **Note from your advisor**.
+5. Sign in with `dev-token-advisor-2` and open the review queue. It shows **No cases to review**, because this advisor has no assigned students.
 
 ## Reset
 
