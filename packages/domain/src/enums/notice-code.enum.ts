@@ -18,6 +18,10 @@ export const NoticeCode = {
   RateLimited: 'RATE_LIMITED',
   Disabled: 'DISABLED',
   PolicyConflict: 'POLICY_CONFLICT',
+  /** A source the answer depends on is older than its freshness limit. */
+  StaleSource: 'STALE_SOURCE',
+  /** A source the answer depends on could not be read at all. */
+  SourceUnavailable: 'SOURCE_UNAVAILABLE',
 } as const;
 
 /** Union of every {@link NoticeCode} value. */
