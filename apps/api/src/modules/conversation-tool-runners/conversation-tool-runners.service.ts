@@ -17,6 +17,7 @@ import { type ScheduleOptionsRequest, ScheduleOptionsRequestSchema } from '@caa/
 import {
   DraftCaseContextArgsSchema,
   GetValidationEvidenceArgsSchema,
+  PLANNER_INPUT_TEMPLATE_ID,
   ProposeConstraintsArgsSchema,
   renderNotice,
   SearchApprovedPolicyArgsSchema,
@@ -55,7 +56,6 @@ import {
   buildNotice,
   failedResult,
   INVALID_ARGUMENTS,
-  PLANNER_INPUT_TEMPLATE_ID,
   succeededResult,
   type ToolResult,
 } from '../conversation-tools/conversation-tools.logic';
