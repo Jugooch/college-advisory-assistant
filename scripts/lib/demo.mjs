@@ -7,9 +7,7 @@
  * @requirement NFR-05
  * @see docs/adr/0016-browser-end-to-end-tests-and-local-demo.md
  */
-
-/** Hosts the demo may reset and seed. Anything else is treated as someone else's database. */
-const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1']);
+import { assertResetAllowed } from '@caa/db';
 
 /** Synthetic identity provider the demo tokens sign in against. */
 const ISSUER = 'https://idp.synthetic.example';
@@ -116,37 +114,23 @@ export function buildDevAuthTokens() {
 /**
  * Decides whether the demo may run, before anything connects or writes.
  *
- * SECURITY: the demo wipes the database it is pointed at, so only a local, non-production one is
- * allowed. This mirrors `assertResetAllowed` in `packages/db/src/seed/reset-command.ts`, which
- * `db:reset` still runs itself; keep the two in step. The host is read from the URL, and a URL that can name another target through query
- * parameters (`host`, `hostaddr`, `port`) is refused outright.
+ * SECURITY: the demo wipes the database it is pointed at, so it runs the same guard as `db:reset`
+ * (`assertResetAllowed` from `@caa/db`): non-production, a local host, and no query parameter that
+ * can name another target. Any refusal is re-thrown as a {@link DemoRefusedError} carrying the guard's own message.
  *
  * @param {Record<string, string | undefined>} env - Process environment.
  * @returns {{ databaseUrl: string, host: string, port: number }} The accepted database target.
  * @throws {DemoRefusedError} When `NODE_ENV` is production, or the database is not local.
  */
 export function assertDemoAllowed(env) {
-  // TODO(#614): replace this copy with the shared guard once @caa/db exports it.
-  if (env.NODE_ENV === 'production') {
-    throw new DemoRefusedError('NODE_ENV is production');
-  }
   const databaseUrl = env.DATABASE_URL?.trim() || DEFAULT_DATABASE_URL;
-  let url;
   try {
-    url = new URL(databaseUrl);
-  } catch {
-    throw new DemoRefusedError('DATABASE_URL is not a valid URL, so its host cannot be checked');
+    assertResetAllowed({ ...env, DATABASE_URL: databaseUrl });
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : 'the environment is not valid';
+    throw new DemoRefusedError(reason);
   }
-  if (url.protocol !== 'postgres:' && url.protocol !== 'postgresql:') {
-    throw new DemoRefusedError('DATABASE_URL is not a postgres URL');
-  }
-  const keys = [...url.searchParams.keys()].map((key) => key.toLowerCase());
-  if (keys.some((key) => key === 'host' || key === 'hostaddr' || key === 'port')) {
-    throw new DemoRefusedError('DATABASE_URL sets host, hostaddr or port as a query parameter');
-  }
-  if (!LOCAL_HOSTS.has(url.hostname)) {
-    throw new DemoRefusedError('DATABASE_URL host is not localhost or 127.0.0.1');
-  }
+  const url = new URL(databaseUrl);
   return { databaseUrl, host: url.hostname, port: url.port === '' ? 5432 : Number(url.port) };
 }
 
