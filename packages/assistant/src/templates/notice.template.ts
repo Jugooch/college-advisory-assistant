@@ -7,7 +7,17 @@
 import { NoticeCode } from '@caa/domain';
 
 /** Version consumers record with each rendered text block; bump it when any template text changes. */
-export const TEMPLATE_VERSION = '2026-10-08.3';
+export const TEMPLATE_VERSION = '2026-10-08.4';
+
+/** Texts for source-freshness notices, keyed by string literal until the codes join NoticeCode. */
+// NOTE: the keys join NoticeCode in the follow-up domain PR (#562); this map then becomes plain entries
+// TODO(#562): fold these entries into NOTICE_TEMPLATES once NoticeCode has STALE_SOURCE and SOURCE_UNAVAILABLE.
+export const SOURCE_NOTICE_TEMPLATES = {
+  STALE_SOURCE:
+    'The information for this answer is out of date and could not be confirmed, so nothing is shown as current. Use the planner and My plans for your saved work, and ask your advisor.',
+  SOURCE_UNAVAILABLE:
+    'The information for this answer could not be reached right now, so nothing is shown as current. Use the planner and My plans for your saved work, and ask your advisor.',
+} as const satisfies Record<'STALE_SOURCE' | 'SOURCE_UNAVAILABLE', string>;
 
 /** Fixed text for each notice. No template states eligibility, credits, grades or dates. */
 export const NOTICE_TEMPLATES: Record<NoticeCode, string> = {
@@ -30,6 +40,7 @@ export const NOTICE_TEMPLATES: Record<NoticeCode, string> = {
     'The assistant is turned off for your institution. You can still use the planning form and your saved plans.',
   [NoticeCode.PolicyConflict]:
     'The approved policy documents disagree on this point, so no answer is shown. Please ask your advisor.',
+  ...SOURCE_NOTICE_TEMPLATES,
 };
 
 /**
