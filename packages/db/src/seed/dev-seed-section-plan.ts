@@ -87,7 +87,8 @@ const { north, south } = SEED_CAMPUSES;
 // scenarios, never from engine output.
 /** The seeded sections. */
 const SECTION_SPECS: readonly SectionSpec[] = [
-  // Vertical slice: MATH 102 and ENGL 101 give exactly two feasible pairs.
+  // Vertical slice: with sections 001 and 002 only, MATH 102 and ENGL 101 give exactly two
+  // feasible pairs; ENGL 101 003 (below) adds two more (it clashes with neither MATH section).
   { slot: 1, courseId: math102.id, code: '001', campus: north, meets: [MWF, '09:00', '09:50'] },
   { slot: 2, courseId: math102.id, code: '002', campus: north, meets: [TU_TH, '09:30', '10:45'] },
   { slot: 3, courseId: engl101.id, code: '001', campus: north, meets: [MWF, '09:00', '09:50'] },
@@ -122,7 +123,42 @@ const SECTION_SPECS: readonly SectionSpec[] = [
   { slot: 9, courseId: ind390.id, code: '002', campus: south, meets: [MWF, '12:00', '12:50'] },
   // Unknown: the registrar hasn't announced this section's days, times, or room.
   { slot: 10, courseId: ind390.id, code: '003', campus: north, meets: null },
+  // No Fridays (AC48, #626): with MATH 102 002 (TuTh 09:30) these two TuTh sections, lab L02
+  // (MW, second half) and IND 390 001 (MW, first half) make a Friday-free 12.00-credit option.
+  { slot: 11, courseId: engl101.id, code: '003', campus: north, meets: [TU_TH, '11:00', '12:15'] },
+  { slot: 12, courseId: phys301.id, code: '002', campus: north, meets: [TU_TH, '13:00', '14:15'] },
 ];
+
+/** Slots of the labs PHYS 301 001 accepts, and of the one lab PHYS 301 002 accepts (L02, MW). */
+const LAB_SLOTS_PHYS_001 = [6, 7];
+const LAB_SLOTS_PHYS_002 = [7];
+
+/**
+ * Builds the two PHYS 301 linked-section groups for one snapshot.
+ *
+ * @param now - The run time the IDs derive from.
+ * @param offset - Added to every section slot (the revision's offset, or 0).
+ * @param groupSlots - ID slots of the two groups.
+ * @returns The groups: 001 with labs L01 or L02, 002 with lab L02 only.
+ */
+function toLinkedGroups(now: Date, offset: number, groupSlots: readonly [number, number]) {
+  const group = (groupSlot: number, primarySlot: number, labSlots: readonly number[]) => ({
+    id: seedRevisionId('e0000000', groupSlot, now),
+    tenantId: SEED_TENANT_ID,
+    primarySectionId: seedRevisionId('d0000000', primarySlot + offset, now),
+    components: [
+      {
+        name: 'Lab',
+        courseId: phys301Lab.id,
+        permittedSectionIds: labSlots.map((slot) => seedRevisionId('d0000000', slot + offset, now)),
+      },
+    ],
+  });
+  return [
+    group(groupSlots[0], 5, LAB_SLOTS_PHYS_001),
+    group(groupSlots[1], 12, LAB_SLOTS_PHYS_002),
+  ];
+}
 
 /**
  * Builds one section from its spec.
@@ -195,22 +231,7 @@ export function buildWithdrawnSectionSnapshot(now: Date): SectionSnapshot {
     sections: SECTION_SPECS.filter((spec) => spec.slot !== WITHDRAWN_SECTION_SLOT).map((spec) =>
       toSection(spec, { now, slotOffset: offset }, PLANNING_TERM),
     ),
-    linkedSectionGroups: [
-      {
-        id: seedRevisionId('e0000000', 2, now),
-        tenantId: SEED_TENANT_ID,
-        primarySectionId: seedRevisionId('d0000000', 5 + offset, now),
-        components: [
-          {
-            name: 'Lab',
-            courseId: phys301Lab.id,
-            permittedSectionIds: [6, 7].map((slot) =>
-              seedRevisionId('d0000000', slot + offset, now),
-            ),
-          },
-        ],
-      },
-    ],
+    linkedSectionGroups: toLinkedGroups(now, offset, [2, 4]),
   });
 }
 
@@ -242,20 +263,7 @@ export function buildDevSeedSectionPlan(now: Date): DevSeedSectionPlan {
     // under the 24-hour limit for published section structure (planning/09).
     sourceEffectiveAt: seedRecordTimes(now).currentRecordEffectiveAt,
     sections: SECTION_SPECS.map((spec) => toSection(spec, { now, slotOffset: 0 }, PLANNING_TERM)),
-    linkedSectionGroups: [
-      {
-        id: seedRevisionId('e0000000', 1, now),
-        tenantId: SEED_TENANT_ID,
-        primarySectionId: seedRevisionId('d0000000', 5, now),
-        components: [
-          {
-            name: 'Lab',
-            courseId: phys301Lab.id,
-            permittedSectionIds: [6, 7].map((slot) => seedRevisionId('d0000000', slot, now)),
-          },
-        ],
-      },
-    ],
+    linkedSectionGroups: toLinkedGroups(now, 0, [1, 3]),
   });
   return {
     campuses: Object.values(SEED_CAMPUSES),

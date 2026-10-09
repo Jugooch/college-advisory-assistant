@@ -41,7 +41,7 @@ describe('buildStudentRevision', () => {
 });
 
 describe('buildWithdrawnSectionSnapshot', () => {
-  it('drops exactly MATH 102 002 and keeps the other nine sections', () => {
+  it('drops exactly MATH 102 002 and keeps the other eleven sections', () => {
     const seeded = buildDevSeedSectionPlan(SEED_RUN).snapshot;
 
     const revised = buildWithdrawnSectionSnapshot(REVISION_RUN);
