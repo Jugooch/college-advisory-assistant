@@ -11,7 +11,7 @@
  * @see docs/adr/0015-conversation-orchestration-and-policy-corpus.md (section 4, Amendment 1)
  */
 import type { AssistantBlock } from '@caa/api-contract';
-import { AssistantBlockKind, type ErrorCode, type NoticeCode } from '@caa/domain';
+import { AssistantBlockKind, ErrorCode, NoticeCode } from '@caa/domain';
 
 /** A JSON-serializable value: the shape of a minimized tool projection. */
 export type JsonValue =
@@ -28,6 +28,12 @@ export type ToolErrorCode = ErrorCode | typeof INVALID_ARGUMENTS | typeof UNKNOW
 
 /** Template ID of the notice shown when a tool fails. */
 export const TOOL_FAILED_TEMPLATE_ID = 'notice.tool-failed';
+
+/** Template ID of the notice shown when a source is out of date. */
+export const STALE_SOURCE_TEMPLATE_ID = 'notice.stale-source';
+
+/** Template ID of the notice shown when a source can't be reached. */
+export const SOURCE_UNAVAILABLE_TEMPLATE_ID = 'notice.source-unavailable';
 
 /** Template ID of the notice shown when the planner form can't be used. */
 export const PLANNER_INPUT_TEMPLATE_ID = 'notice.planner-input-needed';
@@ -82,4 +88,25 @@ export function buildNotice(code: NoticeCode, template: NoticeTemplate): Assista
  */
 export function failedResult(errorCode: ToolErrorCode, notice: AssistantBlock | null): ToolResult {
   return { projection: { error: errorCode }, block: null, notice, errorCode };
+}
+
+/**
+ * Picks the fixed notice for a failure code. Stale and unavailable sources keep their own
+ * notices; everything else is the generic tool failure.
+ *
+ * @param code - Why the tool failed.
+ * @returns The notice code and the ID of its template.
+ */
+export function failureNotice(code: ToolErrorCode): {
+  readonly noticeCode: NoticeCode;
+  readonly templateId: string;
+} {
+  // SAFETY: a stale or unreachable source is never reported as a generic failure.
+  if (code === ErrorCode.StaleSource) {
+    return { noticeCode: NoticeCode.StaleSource, templateId: STALE_SOURCE_TEMPLATE_ID };
+  }
+  if (code === ErrorCode.SourceUnavailable) {
+    return { noticeCode: NoticeCode.SourceUnavailable, templateId: SOURCE_UNAVAILABLE_TEMPLATE_ID };
+  }
+  return { noticeCode: NoticeCode.ToolFailed, templateId: TOOL_FAILED_TEMPLATE_ID };
 }

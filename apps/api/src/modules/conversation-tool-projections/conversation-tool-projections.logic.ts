@@ -106,6 +106,8 @@ export function projectScheduleOptions(result: ScheduleOptionsResponse): JsonVal
  * @returns The model projection.
  */
 export function projectPlanEvidence(plan: PlanRevisionView): JsonValue {
+  // SAFETY: the stored outcome travels only beside its freshness, so a stale or unknown
+  // revision never reads as current (planning/09 Freshness policies, ADR-0013 section 3).
   return {
     revision: plan.revision,
     outcome: plan.result?.outcome ?? null,
