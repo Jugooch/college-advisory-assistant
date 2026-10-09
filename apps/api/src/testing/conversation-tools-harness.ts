@@ -52,6 +52,7 @@ export const toolContext = { logger: createRecordingLogger() };
 export interface ToolsSetupOptions {
   readonly missingRecord?: boolean;
   readonly staleRecord?: boolean;
+  readonly noSavedPlan?: boolean;
 }
 
 /** What a test supplies besides the tool name and arguments. */
@@ -72,9 +73,10 @@ export interface ToolsHarness extends ReturnType<typeof buildFakes> {
 /**
  * Builds the recording fakes of the services other than the summary.
  *
+ * @param noPlan - Whether the student has no saved plan.
  * @returns The fakes; plans resolve only for the student's own plan.
  */
-function buildFakes() {
+function buildFakes(noPlan: boolean) {
   const search = vi.fn(() =>
     Promise.resolve({
       hits: [buildPolicyHit({ title: 'Late registration', excerpt: 'Closes on day five.' })],
@@ -95,7 +97,25 @@ function buildFakes() {
         ? Promise.resolve(buildPlanRevisionView({ planId: ownPlan.id }))
         : Promise.reject(new NotFoundError()),
   );
-  return { search, findOptions, getPlan, getRevision };
+  const listPlans = vi.fn((_actor: Actor, studentId: StudentId) =>
+    Promise.resolve({
+      plans:
+        studentId === ownStudent.id && !noPlan
+          ? [
+              {
+                id: ownPlan.id,
+                termId: ownPlan.termId,
+                latestRevision: ownPlan.latest.revision,
+                createdAt: ownPlan.createdAt,
+                outcome: ownPlan.latest.outcome,
+                freshness: ownPlan.latest.freshness,
+                openCaseStatus: null,
+              },
+            ]
+          : [],
+    }),
+  );
+  return { search, findOptions, getPlan, getRevision, listPlans };
 }
 
 /**
@@ -129,14 +149,16 @@ export function setupTools(options: ToolsSetupOptions = {}): ToolsHarness {
     (actor: Actor, studentId: StudentId, context: typeof toolContext) =>
       summary.getAcademicSummary(actor, studentId, context),
   );
-  const { search, findOptions, getPlan, getRevision } = buildFakes();
+  const { search, findOptions, getPlan, getRevision, listPlans } = buildFakes(
+    options.noSavedPlan === true,
+  );
   const service = createConversationToolsService({
     access: createAccessService({ ...repositories, now: () => new Date(TEST_NOW) }),
     runners: createConversationToolRunnersService({
       academicSummary: { getAcademicSummary },
       policySearch: { search },
       scheduleOptions: { findOptions },
-      planViews: { getPlan, getRevision },
+      planViews: { getPlan, getRevision, listPlans },
     }),
   });
   const run = (name: string, args: unknown, inputs: RunInputs = {}) =>
@@ -149,5 +171,5 @@ export function setupTools(options: ToolsSetupOptions = {}): ToolsHarness {
       },
       toolContext,
     );
-  return { run, search, findOptions, getPlan, getRevision, getAcademicSummary };
+  return { run, search, findOptions, getPlan, getRevision, listPlans, getAcademicSummary };
 }

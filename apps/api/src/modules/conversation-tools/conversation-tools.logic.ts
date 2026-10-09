@@ -110,3 +110,17 @@ export function failureNotice(code: ToolErrorCode): {
   }
   return { noticeCode: NoticeCode.ToolFailed, templateId: TOOL_FAILED_TEMPLATE_ID };
 }
+
+/**
+ * Builds a successful result with one block and no notice.
+ *
+ * @param projection - The minimized result for the model.
+ * @param block - The verified block for the student.
+ * @returns The result.
+ */
+export function succeededResult(
+  projection: ToolResult['projection'],
+  block: NonNullable<ToolResult['block']>,
+): ToolResult {
+  return { projection, block, notice: null, errorCode: null };
+}
