@@ -227,8 +227,8 @@ async function askPolicyQuestion(page: Page): Promise<void> {
     .filter({ has: page.getByText('Revision', { exact: true }) });
   await expect(hit.first()).toBeVisible();
   await expect(hit.first().getByRole('heading').first()).toBeVisible();
-  await expect(hit.first().getByText('Effective', { exact: true })).toBeVisible();
-  await expect(hit.first().getByText('Source', { exact: true })).toBeVisible();
+  await expect(hit.first().getByText('Effective', { exact: true }).first()).toBeVisible();
+  await expect(hit.first().getByText('Source', { exact: true }).first()).toBeVisible();
   await expectNoAxeViolations(page);
 }
 
