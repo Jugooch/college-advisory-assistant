@@ -222,6 +222,7 @@ describe('ChatPanel recovery', () => {
           buildStudentTurnView({ sequence: 1 }),
           buildStoredAssistantTurnView({ sequence: 2 }),
         ],
+        lastSequence: undefined,
       }),
     });
 
