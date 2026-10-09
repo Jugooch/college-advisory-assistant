@@ -218,14 +218,22 @@ describe('AC51 the demo personas show their situations', () => {
       });
 
       expect(response.statusCode).toBe(200);
-      expect(response.body).toMatchObject({
-        data: {
-          outcome: 'NO_FEASIBLE_PLAN',
-          conflictSet: {
-            items: [{ kind: 'CREDIT_LOAD', state: 'FAIL', reasonCode: 'CREDIT_BELOW_MINIMUM' }],
-          },
-        },
-      });
+      expect(response.body).toMatchObject({ data: { outcome: 'NO_FEASIBLE_PLAN' } });
+
+      // ADR-0010 section 1: the conflict set holds every distinct FAIL, so other
+      // failures (such as overlapping meetings) may appear beside the credit one.
+      const body = response.body as {
+        data: { conflictSet: { items: Record<string, unknown>[] } };
+      };
+      const items = body.data.conflictSet.items;
+      const creditFailures = items.filter(
+        (item) => item.kind === 'CREDIT_LOAD' && item.reasonCode === 'CREDIT_BELOW_MINIMUM',
+      );
+
+      expect(creditFailures).toHaveLength(1);
+      expect(creditFailures[0]).toMatchObject({ state: 'FAIL' });
+      expect(items.every((item) => item.state === 'FAIL')).toBe(true);
+      expect(new Set(items.map((item) => JSON.stringify(item))).size).toBe(items.length);
     },
   );
 
