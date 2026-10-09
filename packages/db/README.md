@@ -22,6 +22,7 @@ Expected results are derived by hand from planning/08 and planning/13, not from 
 | Half-term (AC07)  | PHYS 301 L02 (second half) and IND 390 001 (first half), both MW 14:00-15:15                           | Date ranges are disjoint, so no conflict.                                                                                     |
 | Travel (AC08)     | PHYS 301 001 ends 11:50 on North; IND 390 002 starts 12:00 on South; transition table says 15 minutes  | Only 10 minutes between them, so the pair is infeasible.                                                                      |
 | Unknown           | IND 390 003 has no days, times, or room                                                                | Time conflicts are UNKNOWN, never PASS; the section is not treated as conflict-free.                                          |
+| No Fridays (AC48) | ENGL 101 003 TuTh 11:00-12:15 and PHYS 301 002 TuTh 13:00-14:15 (lab L02 only), North                  | MATH 102 002 + ENGL 101 003 + PHYS 301 002 + L02 + IND 390 001 (2.00) is Friday-free and reaches 12.00 credits.               |
 
 ## Demo: save a draft, make its source stale, create an advisor case
 
