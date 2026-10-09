@@ -7,7 +7,7 @@
 import { NoticeCode } from '@caa/domain';
 
 /** Version consumers record with each rendered text block; bump it when any template text changes. */
-export const TEMPLATE_VERSION = '2026-10-08.3';
+export const TEMPLATE_VERSION = '2026-10-08.4';
 
 /** Fixed text for each notice. No template states eligibility, credits, grades or dates. */
 export const NOTICE_TEMPLATES: Record<NoticeCode, string> = {
@@ -30,6 +30,10 @@ export const NOTICE_TEMPLATES: Record<NoticeCode, string> = {
     'The assistant is turned off for your institution. You can still use the planning form and your saved plans.',
   [NoticeCode.PolicyConflict]:
     'The approved policy documents disagree on this point, so no answer is shown. Please ask your advisor.',
+  [NoticeCode.StaleSource]:
+    'The information for this answer is out of date and could not be confirmed, so nothing is shown as current. Use the planner and My plans for your saved work, and ask your advisor.',
+  [NoticeCode.SourceUnavailable]:
+    'The information for this answer could not be reached right now, so nothing is shown as current. Use the planner and My plans for your saved work, and ask your advisor.',
 };
 
 /**
