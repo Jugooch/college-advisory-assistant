@@ -8,7 +8,7 @@
 import { z } from 'zod';
 
 import { type SeedDatabase, type SeedLogger, SeedRefusedError } from './dev-seed-command';
-import type { ReviseTarget } from './dev-seed-revision-plan';
+import type { ReviseRequest } from './dev-seed-revision-plan';
 import { type ReviseResult, reviseSliceSources } from './revise-slice-sources';
 
 /** Environment variables the command reads. */
@@ -21,7 +21,7 @@ const ReviseEnvSchema = z.object({
 export class ReviseUsageError extends Error {
   /** Creates the error. */
   constructor() {
-    super('Usage: db:seed:revise [--student | --sections]');
+    super('Usage: db:seed:revise [--student [<sourceStudentId>] | --sections]');
     this.name = 'ReviseUsageError';
   }
 }
@@ -38,21 +38,35 @@ export interface DevReviseDependencies {
 }
 
 /**
- * Reads the flag that picks the revision.
+ * Reads the flags that pick the revision.
  *
  * @param argv - Arguments after the script name; a leading `--` is ignored.
- * @returns `sections` for `--sections`; `student` for `--student` or no flag.
- * @throws {ReviseUsageError} On any other argument, or both flags.
+ * @returns `sections` for `--sections`; `student` for `--student` or no flag, with the source
+ *   student ID when `--student` is followed by one.
+ * @throws {ReviseUsageError} On any other argument, both flags, or a value on `--sections`.
  */
-export function parseReviseTarget(argv: readonly string[]): ReviseTarget {
+export function parseReviseRequest(argv: readonly string[]): ReviseRequest {
   // NOTE: pnpm forwards the literal `--` of `pnpm run script -- --flag` to the script.
   const args = argv[0] === '--' ? argv.slice(1) : argv;
-  const flags = new Set(args);
-  const isKnown = args.every((arg) => arg === '--student' || arg === '--sections');
-  if (!isKnown || flags.size > 1) {
+  if (args.length === 0) {
+    return { target: 'student' };
+  }
+  const [flag, value, ...rest] = args;
+  if (rest.length > 0) {
     throw new ReviseUsageError();
   }
-  return flags.has('--sections') ? 'sections' : 'student';
+  if (flag === '--sections' && value === undefined) {
+    return { target: 'sections' };
+  }
+  if (flag === '--student') {
+    if (value === undefined) {
+      return { target: 'student' };
+    }
+    if (!value.startsWith('--') && value.length > 0) {
+      return { target: 'student', sourceStudentId: value };
+    }
+  }
+  throw new ReviseUsageError();
 }
 
 /**
@@ -62,6 +76,7 @@ export function parseReviseTarget(argv: readonly string[]): ReviseTarget {
  * @returns What the run did.
  * @throws {SeedRefusedError} When `NODE_ENV` is `production`; nothing is opened or written.
  * @throws {ReviseUsageError} On a bad argument; nothing is opened.
+ * @throws {ReviseUnknownStudentError} When the student is not in the seed; nothing is written.
  * @throws {z.ZodError} When `DATABASE_URL` is missing or `NODE_ENV` is unknown.
  */
 export async function runDevRevise(dependencies: DevReviseDependencies): Promise<ReviseResult> {
@@ -69,11 +84,11 @@ export async function runDevRevise(dependencies: DevReviseDependencies): Promise
   if (dependencies.env.NODE_ENV === 'production') {
     throw new SeedRefusedError();
   }
-  const target = parseReviseTarget(dependencies.argv);
+  const request = parseReviseRequest(dependencies.argv);
   const env = ReviseEnvSchema.parse(dependencies.env);
   const database = dependencies.openDatabase(env.DATABASE_URL);
   try {
-    const result = await reviseSliceSources(database.db, target, dependencies.now);
+    const result = await reviseSliceSources(database.db, request, dependencies.now);
     dependencies.logger.info({ ...result }, 'dev source revision applied');
     return result;
   } finally {

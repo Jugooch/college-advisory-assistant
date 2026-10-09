@@ -3,7 +3,7 @@
  * @file Tests for the chat panel's recovery paths: unstored replies, conflicts, failures and clearing.
  */
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { type ConversationResponse, ScheduleOptionsRequestSchema } from '@caa/api-contract';
 import { ModelStatus } from '@caa/domain';
@@ -75,6 +75,11 @@ function sendMessage(text: string): void {
   fireEvent.change(input, { target: { value: text } });
   fireEvent.click(screen.getByRole('button', { name: 'Send' }));
 }
+
+beforeAll(() => {
+  // jsdom has no layout, so it lacks scrollIntoView, which the transcript calls.
+  Element.prototype.scrollIntoView = vi.fn();
+});
 
 describe('ChatPanel recovery', () => {
   afterEach(() => {

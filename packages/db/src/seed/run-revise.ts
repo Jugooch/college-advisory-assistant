@@ -1,6 +1,7 @@
 /**
  * @file Entry point for `pnpm --filter @caa/db db:seed:revise`. Publishes a newer synthetic
- *   source revision for the slice student so a saved draft becomes stale.
+ *   source revision for a seeded student (the slice student unless one is named) so a saved draft
+ *   becomes stale.
  * @module @caa/db/seed/run-revise
  * @requirement FR-11
  */
