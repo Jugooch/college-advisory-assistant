@@ -90,6 +90,7 @@ describe('ConversationStoreService.getConversation', () => {
       available: true,
       unavailableReason: null,
       turns: [],
+      lastSequence: 0,
     });
   });
 
@@ -109,6 +110,17 @@ describe('ConversationStoreService.getConversation', () => {
     expect(result.turns).toHaveLength(MAX_TRANSCRIPT_TURNS);
     expect(result.turns[0]?.sequence).toBe(21);
     expect(result.turns.at(-1)?.sequence).toBe(120);
+  });
+
+  it('returns the last sequence after a clear, with no turns', async () => {
+    const { get, clear, store } = setup({ turns: [turn(1), turn(2, TurnRole.Assistant)] });
+
+    await clear(studentActor);
+    const result = await get(studentActor);
+
+    expect(result.turns).toEqual([]);
+    expect(result.lastSequence).toBe(2);
+    expect(store.lastSequences).toBeDefined();
   });
 
   it('logs a count and opaque IDs, never turn text', async () => {

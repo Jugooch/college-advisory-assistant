@@ -1,7 +1,6 @@
 /**
- * @file Pure rules of a conversation turn: the model's history window, the turn's status and
- * intro, the stale-sequence check, the stored turns, and the response. Nothing here reads a
- * clock, a store, or a service.
+ * @file Pure rules of a conversation turn: the turn's status and intro, the stored turns, and
+ * the response. Nothing here reads a clock, a store, or a service.
  * @module @caa/api/modules/conversation/conversation.logic
  * @requirement FR-01
  * @requirement FR-02
@@ -15,26 +14,11 @@
  * @see docs/adr/0015-conversation-orchestration-and-policy-corpus.md (sections 2, 3 and 7, Amendment 1)
  */
 import type { AssistantBlock, AssistantTurnView } from '@caa/api-contract';
-import type { NewConversationTurn, StoredConversationTurn } from '@caa/db';
-import {
-  type AssistantTurnMetadata,
-  AssistantTurnMetadataSchema,
-  ModelStatus,
-  NoticeCode,
-  TurnRole,
-} from '@caa/domain';
+import type { NewConversationTurn } from '@caa/db';
+import { type AssistantTurnMetadata, ModelStatus, NoticeCode, TurnRole } from '@caa/domain';
 
 import { toBlockRef } from '../conversation-blocks/conversation-blocks.logic';
 import { LoopEnd } from '../conversation-loop/conversation-loop.logic';
-
-/** Student turns are counted over this rolling window (ADR-0015 section 1). */
-export const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
-
-/** Stored turns older than this are deleted on each append (ADR-0015 section 7). */
-export const RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
-
-/** Only this many newest turns are kept (ADR-0015 section 7). */
-export const RETENTION_COUNT = 100;
 
 /** How a turn ended, before it is stored or returned. */
 export interface TurnDecision {
@@ -106,11 +90,6 @@ export function buildTurnView(
   return { sequence, intro: decision.intro, modelStatus: decision.status, blocks };
 }
 
-/** A message in the model's history: a student message or a server-written intro. */
-export type HistoryMessage =
-  | { readonly role: 'user'; readonly text: string }
-  | { readonly role: 'assistant'; readonly text: string; readonly toolCalls: readonly never[] };
-
 /** A model-written reply resolved by the assistant package to a fixed sentence, or guarded. */
 export interface ResolvedIntro {
   readonly text: string;
@@ -170,65 +149,4 @@ export function decideCrisisTurn(crisisReason: string): TurnDecision {
 export function noticeForLoopEnd(end: LoopEnd): NoticeCode | null {
   if (end === LoopEnd.BudgetExhausted) return NoticeCode.BudgetExhausted;
   return end === LoopEnd.ModelUnavailable ? NoticeCode.ModelUnavailable : null;
-}
-
-/**
- * Tells whether the caller saw the newest stored turn. With nothing stored (new or cleared)
- * this can't be told here, so the locked check at append is the final guard.
- *
- * @param recent - The newest stored turns, oldest first.
- * @param expectedSequence - The sequence the caller saw.
- * @returns `false` only when a stored turn proves the caller is stale.
- */
-export function isSequenceCurrent(
-  recent: readonly Pick<StoredConversationTurn, 'sequence'>[],
-  expectedSequence: number,
-): boolean {
-  const newest = recent.at(-1);
-  return newest === undefined || newest.sequence === expectedSequence;
-}
-
-/**
- * Tells whether a stored assistant turn is a tier-1 crisis answer. A turn whose metadata can't
- * be read counts as one, so it is left out of the history rather than guessed at.
- *
- * @param turn - A stored assistant turn.
- * @param crisisReason - The guard reason recorded for tier-1 crisis language.
- * @returns `true` when the turn must not be replayed to the model.
- */
-function isCrisisAnswer(turn: StoredConversationTurn, crisisReason: string): boolean {
-  const metadata = AssistantTurnMetadataSchema.safeParse(turn.metadata);
-  return !metadata.success || metadata.data.guardReasons.includes(crisisReason);
-}
-
-/**
- * Builds the model's history: the student's messages and the server's intros, never model
- * text, tool results or blocks, and never a tier-1 crisis exchange.
- *
- * @param stored - The newest stored turns, oldest first.
- * @param limit - Most turns to send (`CONVERSATION_HISTORY_TURNS`).
- * @param crisisReason - The guard reason recorded for tier-1 crisis language.
- * @returns Messages starting with a student message.
- */
-export function buildHistory(
-  stored: readonly StoredConversationTurn[],
-  limit: number,
-  crisisReason: string,
-): readonly HistoryMessage[] {
-  const omitted = new Set<number>();
-  for (const turn of stored) {
-    if (turn.role === TurnRole.Assistant && isCrisisAnswer(turn, crisisReason)) {
-      // NOTE: turns are appended in pairs, so the question is the turn before the answer.
-      omitted.add(turn.sequence).add(turn.sequence - 1);
-    }
-  }
-  const eligible = stored.filter((turn) => !omitted.has(turn.sequence));
-  // NOTE: slice(-0) would keep everything, so the start index is computed.
-  const kept = eligible.slice(Math.max(eligible.length - Math.max(limit, 0), 0));
-  const first = kept.findIndex((turn) => turn.role === TurnRole.Student);
-  return (first < 0 ? [] : kept.slice(first)).map((turn): HistoryMessage =>
-    turn.role === TurnRole.Student
-      ? { role: 'user', text: turn.text }
-      : { role: 'assistant', text: turn.text, toolCalls: [] },
-  );
 }

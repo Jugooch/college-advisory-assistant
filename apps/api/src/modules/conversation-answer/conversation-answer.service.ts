@@ -17,7 +17,6 @@ import { type Actor, type ModelStatus, type NoticeCode, type StudentId } from '@
 
 import type { RequestContext } from '../../shared/request-context';
 import {
-  buildHistory,
   decideCrisisTurn,
   decideLoopTurn,
   noticeForLoopEnd,
@@ -25,6 +24,7 @@ import {
 } from '../conversation/conversation.logic';
 import { orderBlocks } from '../conversation-blocks/conversation-blocks.logic';
 import { fixedNotice } from '../conversation-blocks/conversation-blocks.mapper';
+import { buildHistory } from '../conversation-history/conversation-history.logic';
 import type { ConversationLoopService } from '../conversation-loop/conversation-loop.service';
 
 /** Dependencies of the answer service. */
@@ -75,6 +75,7 @@ export interface ConversationAnswerService {
    * @param input - The student's message, the stored history and the detector blocks.
    * @param context - Request-scoped values.
    * @returns The outcome; a model failure is a status, never an error.
+   * @throws {Error} When chat is off; callers check `isEnabled` first.
    */
   answer(input: ModelTurnInput, context: RequestContext): Promise<TurnOutcome>;
 }

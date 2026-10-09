@@ -1,5 +1,6 @@
 /**
- * @file Tests of the model choice: off, demo, Claude, the test seam, and the production refusals.
+ * @file Tests of the model choice: off, demo, Claude, and the test seam. The production refusals
+ * are tested with the configuration in `config/env.test.ts`.
  * @requirement FR-01
  * @requirement NFR-05
  */
@@ -8,7 +9,11 @@ import { describe, expect, it } from 'vitest';
 import { createScriptedModel } from '@caa/assistant';
 
 import { loadApiEnv } from '../config/env';
-import { chooseConversationModel, DEMO_MODEL_ID, INJECTED_MODEL_ID } from './conversation.wiring';
+import {
+  chooseConversationModel,
+  DEMO_MODEL_ID,
+  INJECTED_MODEL_ID,
+} from './conversation-model.adapter';
 
 const BASE = {
   APP_VERSION: 'test',
@@ -46,22 +51,5 @@ describe('chooseConversationModel', () => {
       model,
       modelId: INJECTED_MODEL_ID,
     });
-  });
-
-  it('refuses demo in production, and Claude without a key or approval', () => {
-    const production = { ...env({}), NODE_ENV: 'production' as const };
-
-    expect(() =>
-      chooseConversationModel({ ...production, CONVERSATION_MODEL: 'demo' }, undefined),
-    ).toThrow(/production/);
-    expect(() =>
-      chooseConversationModel({ ...env({}), CONVERSATION_MODEL: 'claude' }, undefined),
-    ).toThrow(/ANTHROPIC_API_KEY/);
-    expect(() =>
-      chooseConversationModel(
-        { ...production, CONVERSATION_MODEL: 'claude', ANTHROPIC_API_KEY: 'k' },
-        undefined,
-      ),
-    ).toThrow(/APPROVAL_REF/);
   });
 });

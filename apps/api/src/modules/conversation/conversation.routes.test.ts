@@ -1,6 +1,6 @@
 /**
- * @file HTTP-level tests for `POST /v1/students/:studentId/conversation/turns` with the scripted model:
- * each answered status, a model that misbehaves, identity smuggled into tool calls, and the budget.
+ * @file HTTP-level tests for `POST /v1/students/:studentId/conversation/turns` with the scripted
+ * model: each answered status, a model that misbehaves, identity smuggled into tool calls, and the budget.
  * @requirement FR-01
  * @requirement FR-02
  * @requirement FR-10

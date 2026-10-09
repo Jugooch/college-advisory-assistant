@@ -1,7 +1,7 @@
 /**
  * @file Runs one conversation turn for the signed-in student. The message detectors run first
- * and always add their fixed blocks; then the kill switch, the rate limit and the stale-sequence
- * check, all before any model call; then the answer; then both turns are stored with block
+ * and always add their fixed blocks; then the kill switch, the stale-sequence check and the
+ * rate limit, all before any model call; then the answer; then both turns are stored with block
  * references only. The answer is always a result with a `modelStatus`, never an error, so the
  * planner keeps working without a model.
  * @module @caa/api/modules/conversation/conversation.service
@@ -29,7 +29,10 @@ import type {
   ConversationBlocksService,
   DetectedBlocks,
 } from '../conversation-blocks/conversation-blocks.service';
-import type { ConversationTurnStoreService } from '../conversation-turn-store/conversation-turn-store.service';
+import type {
+  ConversationTurnStoreService,
+  OpenedConversation,
+} from '../conversation-turn-store/conversation-turn-store.service';
 import { buildTurnView, type TurnOutcome } from './conversation.logic';
 
 /** Dependencies of the conversation turn service. */
@@ -55,8 +58,9 @@ export interface ConversationService {
    * @param context - Request-scoped values.
    * @returns The assistant's turn: an intro, verified blocks and a `modelStatus`.
    * @throws {NotFoundError} When the actor isn't the student.
-   * @throws {RevisionConflictError} When `expectedSequence` is not the latest turn. A stale
-   * caller is refused before any model call when a stored turn proves it, and otherwise at append.
+   * @throws {RevisionConflictError} When `expectedSequence` is not the conversation's last
+   * sequence. A stale caller is refused before the rate limit and any model call, and again at
+   * append when another request won.
    */
   postTurn(
     actor: Actor,
@@ -71,6 +75,45 @@ interface TurnScope {
   readonly detected: DetectedBlocks;
   /** The injected clock's instant, ISO 8601 with offset. */
   readonly at: string;
+  /** The conversation, its last sequence and its newest turns. */
+  readonly opened: OpenedConversation;
+}
+
+/** What the response to a turn is built from. */
+interface TurnDone {
+  readonly actor: Actor;
+  readonly context: RequestContext;
+  readonly startedMs: number;
+  /** Returns the current time. */
+  readonly now: () => Date;
+  readonly outcome: TurnOutcome;
+  /** The stored answer's sequence, or `null` when nothing was stored. */
+  readonly sequence: number | null;
+  /** The conversation's last sequence, when the turn got as far as reading it. */
+  readonly lastSequence: number | undefined;
+}
+
+/**
+ * Logs the turn and builds its response.
+ *
+ * @param done - The outcome and what the log needs.
+ * @returns The response body.
+ */
+function finish(done: TurnDone) {
+  const { actor, context, startedMs, now, outcome, sequence, lastSequence } = done;
+  // SECURITY: IDs, status, tool names, guard reasons and timing only; never text (FR-14).
+  context.logger.info(
+    {
+      tenantId: actor.tenantId,
+      modelStatus: outcome.decision.status,
+      toolNames: outcome.toolNames,
+      guardReasons: outcome.decision.reasons,
+      durationMs: now().getTime() - startedMs,
+    },
+    'conversation turn',
+  );
+  const turn = buildTurnView(outcome.decision, outcome.blocks, sequence);
+  return lastSequence === undefined ? { turn } : { turn, lastSequence };
 }
 
 /**
@@ -85,7 +128,7 @@ export function createConversationService(
   const { access, store, blocks, answers, now } = dependencies;
 
   const answerStored = async (actor: Actor, request: TurnRequest, scope: TurnScope) => {
-    const { conversation, recent } = await store.open(actor, request, scope.at);
+    const { conversation, recent } = scope.opened;
     const { detected } = scope;
     const outcome = detected.isCrisisUnambiguous
       ? answers.crisis(detected.blocks)
@@ -115,31 +158,23 @@ export function createConversationService(
       // SAFETY: the detectors run first, on the message alone, and their blocks are shown at
       // every status, including RATE_LIMITED and DISABLED (Amendment 1).
       const detected = await blocks.detect(actor, { message: request.message, at }, context);
-      const respond = (outcome: TurnOutcome, sequence: number | null) => {
-        // SECURITY: IDs, status, tool names, guard reasons and timing only; never text (FR-14).
-        context.logger.info(
-          {
-            tenantId: actor.tenantId,
-            modelStatus: outcome.decision.status,
-            toolNames: outcome.toolNames,
-            guardReasons: outcome.decision.reasons,
-            durationMs: now().getTime() - startedMs,
-          },
-          'conversation turn',
-        );
-        return { turn: buildTurnView(outcome.decision, outcome.blocks, sequence) };
-      };
+      const respond = (outcome: TurnOutcome, sequence: number | null, lastSequence?: number) =>
+        finish({ actor, context, startedMs, now, outcome, sequence, lastSequence });
       // SAFETY: off is the kill switch; nothing is stored and no model is called.
       if (!answers.isEnabled) {
         const off = answers.unstored(detected.blocks, ModelStatus.Disabled, NoticeCode.Disabled);
         return respond(off, null);
       }
+      // SECURITY: a stale caller is refused first, so it costs neither a rate-limit slot nor a
+      // model call, and the response carries the sequence to retry with.
+      const opened = await store.open(actor, request, at);
       if (await store.isOverRateLimit(actor, request.studentId)) {
         const code = NoticeCode.RateLimited;
-        return respond(answers.unstored(detected.blocks, ModelStatus.RateLimited, code), null);
+        const limited = answers.unstored(detected.blocks, ModelStatus.RateLimited, code);
+        return respond(limited, null, opened.lastSequence);
       }
-      const stored = await answerStored(actor, request, { context, detected, at });
-      return respond(stored.outcome, stored.sequence);
+      const stored = await answerStored(actor, request, { context, detected, at, opened });
+      return respond(stored.outcome, stored.sequence, stored.sequence);
     },
   };
 }

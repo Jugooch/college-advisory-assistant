@@ -14,7 +14,11 @@ import {
   type ConversationResponse,
   MAX_TRANSCRIPT_TURNS,
 } from '@caa/api-contract';
-import type { ConversationRepository } from '@caa/db';
+import type {
+  ConversationRepository,
+  ConversationSequenceReader,
+  FindLastSequenceRequest,
+} from '@caa/db';
 import { type Actor, NoticeCode, type StudentId } from '@caa/domain';
 
 import { NotFoundError } from '../../shared/domain-errors';
@@ -25,7 +29,7 @@ import { toTranscriptTurns } from './conversation-store.logic';
 /** Dependencies of the conversation store service. */
 export interface ConversationStoreServiceDependencies {
   readonly access: Pick<AccessService, 'canConverse'>;
-  readonly conversations: ConversationRepository;
+  readonly conversations: ConversationRepository & ConversationSequenceReader;
   /** Returns the current time. */
   readonly now: () => Date;
   /** True unless `CONVERSATION_MODEL=off`. */
@@ -46,7 +50,8 @@ export interface ConversationStoreService {
    * @param actor - Authenticated actor from the session.
    * @param target - The student from the path and the term from the query.
    * @param context - Request-scoped values.
-   * @returns The transcript; empty when nothing is stored.
+   * @returns The transcript, empty when nothing is stored, and the conversation's last
+   * sequence, which a client sends as `expectedSequence` and which a clear leaves alone.
    * @throws {NotFoundError} When the actor isn't the student.
    */
   getConversation(
@@ -68,6 +73,46 @@ export interface ConversationStoreService {
     target: ConversationTarget,
     context: RequestContext,
   ): Promise<void>;
+}
+
+/**
+ * Reads the conversation's last sequence.
+ *
+ * @param conversations - The sequence reader.
+ * @param request - Tenant and student from the session and path, and the conversation.
+ * @returns The last sequence.
+ * @throws {NotFoundError} When the conversation isn't the owner's.
+ */
+async function requireLastSequence(
+  conversations: ConversationSequenceReader,
+  request: FindLastSequenceRequest,
+): Promise<number> {
+  const lastSequence = await conversations.findLastSequence(request);
+  if (lastSequence === null) throw new NotFoundError();
+  return lastSequence;
+}
+
+/**
+ * Warns about stored turns that could not be read.
+ *
+ * @param context - Request-scoped values.
+ * @param read - The tenant and conversation read, and the sequences of the turns left out.
+ */
+function logUnreadable(
+  context: RequestContext,
+  read: {
+    readonly tenantId: string;
+    readonly conversationId: string;
+    readonly unreadableSequences: readonly number[];
+  },
+): void {
+  const { tenantId, conversationId, unreadableSequences } = read;
+  if (unreadableSequences.length === 0) return;
+  // SECURITY: IDs and sequence numbers only; no turn text (FR-14).
+  context.logger.warn(
+    { tenantId, conversationId, unreadableSequences },
+    'stored conversation turns could not be read',
+  );
 }
 
 /**
@@ -100,6 +145,11 @@ export function createConversationStoreService(
   return {
     async getConversation(actor, target, context) {
       const conversation = await open(actor, target, context);
+      const lastSequence = await requireLastSequence(conversations, {
+        tenantId: actor.tenantId,
+        studentId: target.studentId,
+        conversationId: conversation.id,
+      });
       const stored = await conversations.listRecent({
         tenantId: actor.tenantId,
         studentId: target.studentId,
@@ -107,13 +157,11 @@ export function createConversationStoreService(
         limit: MAX_TRANSCRIPT_TURNS,
       });
       const { turns, unreadableSequences } = toTranscriptTurns(stored);
-      if (unreadableSequences.length > 0) {
-        // SECURITY: IDs and sequence numbers only; no turn text (FR-14).
-        context.logger.warn(
-          { tenantId: actor.tenantId, conversationId: conversation.id, unreadableSequences },
-          'stored conversation turns could not be read',
-        );
-      }
+      logUnreadable(context, {
+        tenantId: actor.tenantId,
+        conversationId: conversation.id,
+        unreadableSequences,
+      });
       context.logger.info(
         { tenantId: actor.tenantId, conversationId: conversation.id, turnCount: turns.length },
         'conversation read',
@@ -122,6 +170,7 @@ export function createConversationStoreService(
         available: isAvailable,
         unavailableReason: isAvailable ? null : NoticeCode.Disabled,
         turns,
+        lastSequence,
       };
     },
 

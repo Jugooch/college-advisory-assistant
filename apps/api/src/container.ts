@@ -13,6 +13,7 @@ import {
   type CampusRepository,
   type CampusTransitionRepository,
   type ConversationRepository,
+  type ConversationSequenceReader,
   type CourseCatalogRepository,
   createAcademicPolicyRepository,
   createAdvisingCaseRepository,
@@ -109,7 +110,7 @@ export interface Repositories {
   readonly campuses: CampusRepository;
   readonly plans: PlanRepository;
   readonly cases: AdvisingCaseRepository;
-  readonly conversations: ConversationRepository;
+  readonly conversations: ConversationRepository & ConversationSequenceReader;
   readonly policyDocuments: PolicyDocumentRepository;
 }
 

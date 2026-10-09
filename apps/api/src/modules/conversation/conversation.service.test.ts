@@ -13,7 +13,9 @@
  * @requirement AC47
  */
 import { describe, expect, it } from 'vitest';
+import { z } from 'zod';
 
+import { ConversationResponseSchema } from '@caa/api-contract';
 import {
   finalStep,
   INTRO_TEXTS,
@@ -53,7 +55,7 @@ describe('POST /v1/students/:studentId/conversation/turns', () => {
       url: `/v1/students/${STUDENTS.own.id}/conversation?termId=${TURN_TERM_ID}`,
       headers: bearer(TOKENS.student),
     });
-    const limited = await post('three', { expectedSequence: 0 });
+    const limited = await post('three');
 
     expect(cleared.statusCode).toBe(204);
     expect(limited.turn?.turn).toMatchObject({
@@ -172,23 +174,55 @@ describe('POST /v1/students/:studentId/conversation/turns', () => {
     expect(store.studentTurnLog).toHaveLength(2);
   });
 
-  it('keeps the last sequence through a clear, so only the real last sequence succeeds', async () => {
-    const { post, app, store, conversation } = setupTurnApp({
+  it('keeps the last sequence through a clear, and GET shows it', async () => {
+    const { post, app, store, conversation, model } = setupTurnApp({
       steps: [finalStep(IntroId.AskForDetail), finalStep(IntroId.AskForDetail)],
     });
-    await post('one');
+    const sent = await post('one');
+    const url = `/v1/students/${STUDENTS.own.id}/conversation?termId=${TURN_TERM_ID}`;
+    const headers = bearer(TOKENS.student);
 
+    await app.inject({ method: 'DELETE', url, headers });
+    const read = await app.inject({ method: 'GET', url, headers });
+    const staleAfterClear = await post('two', { expectedSequence: 0 });
+    const afterClear = await post('two', { expectedSequence: 2 });
+
+    expect(sent.turn?.lastSequence).toBe(2);
+    expect(
+      ConversationResponseSchema.parse(z.object({ data: z.unknown() }).parse(read.json()).data),
+    ).toMatchObject({ turns: [], lastSequence: 2 });
+    expect(staleAfterClear.status).toBe(409);
+    expect(model?.requests).toHaveLength(2);
+    expect(afterClear.turn).toMatchObject({ lastSequence: 4, turn: { sequence: 4 } });
+    expect(store.lastSequences?.[conversation.id]).toBe(4);
+  });
+
+  it('refuses a stale sequence on a cleared conversation with no model call', async () => {
+    const { post, app, model } = setupTurnApp({ steps: [finalStep(IntroId.AskForDetail)] });
+    await post('one');
     await app.inject({
       method: 'DELETE',
       url: `/v1/students/${STUDENTS.own.id}/conversation?termId=${TURN_TERM_ID}`,
       headers: bearer(TOKENS.student),
     });
-    const staleAfterClear = await post('two', { expectedSequence: 0 });
-    const afterClear = await post('two', { expectedSequence: 2 });
 
-    expect(store.lastSequences?.[conversation.id]).toBe(4);
-    expect(staleAfterClear.status).toBe(409);
-    expect(afterClear.turn?.turn.sequence).toBe(4);
+    const stale = await post('two', { expectedSequence: 0 });
+
+    expect(stale.status).toBe(409);
+    expect(model?.requests).toHaveLength(1);
+    expect(model?.remaining()).toBe(0);
+  });
+
+  it('returns the last sequence on a rate-limited turn so the client can retry', async () => {
+    const { post } = setupTurnApp({ steps: [finalStep(IntroId.AskForDetail)], rateLimit: 1 });
+    await post('one');
+
+    const limited = await post('two');
+
+    expect(limited.turn).toMatchObject({
+      turn: { modelStatus: ModelStatus.RateLimited },
+      lastSequence: 2,
+    });
   });
 
   describe('retention', () => {

@@ -64,12 +64,14 @@ describe('POST /v1/students/:studentId/conversation/turns', () => {
     expect(model?.remaining()).toBe(1);
   });
 
-  it('answers a race on a new conversation with REVISION_CONFLICT at append', async () => {
-    const { postRaw } = setupTurnApp({ steps: [finalStep(IntroId.AskForDetail)] });
+  it('refuses a stale sequence on a new conversation before the model is called', async () => {
+    const { postRaw, model, store } = setupTurnApp({ steps: [finalStep(IntroId.AskForDetail)] });
 
     const response = await postRaw('hello', { expectedSequence: 7 });
 
     expect(response.statusCode).toBe(409);
     expect(readError(response.json()).code).toBe(ErrorCode.RevisionConflict);
+    expect(model?.requests).toEqual([]);
+    expect(store.studentTurnLog).toEqual([]);
   });
 });

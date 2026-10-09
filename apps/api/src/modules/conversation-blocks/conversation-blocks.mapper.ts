@@ -1,6 +1,7 @@
 /**
  * @file Builds the fixed blocks of a conversation turn from the assistant's templates: the
- * blocks the message detectors add (rendered from the planned slots) and the notice that explains a non-answer status.
+ * blocks the message detectors add (rendered from the planned slots) and the notice that
+ * explains a non-answer status.
  * @module @caa/api/modules/conversation-blocks/conversation-blocks.mapper
  * @requirement FR-10
  * @requirement AC46
@@ -67,7 +68,7 @@ interface ReferralContent {
   readonly text: string;
 }
 
-const referral = (
+const toReferralBlock = (
   content: ReferralContent,
   found: ReferralPolicy | undefined,
   fallbackAsOf: string,
@@ -100,14 +101,18 @@ export function detectorBlocks(
           templateId: CRISIS_TEMPLATE_ID,
           text: renderReferral(SpecialistTopic.Crisis),
         };
-        return referral(content, referrals.get(SpecialistTopic.Crisis), asOf);
+        return toReferralBlock(content, referrals.get(SpecialistTopic.Crisis), asOf);
       }
       case 'CRISIS_SUPPORT':
-        return referral(CRISIS_SUPPORT_REFERRAL, referrals.get(SpecialistTopic.Crisis), asOf);
+        return toReferralBlock(
+          CRISIS_SUPPORT_REFERRAL,
+          referrals.get(SpecialistTopic.Crisis),
+          asOf,
+        );
       case 'REFERRAL': {
         const templateId = `referral.${entry.topic.toLowerCase().replaceAll('_', '-')}`;
         const content = { topic: entry.topic, templateId, text: renderReferral(entry.topic) };
-        return referral(content, referrals.get(entry.topic), asOf);
+        return toReferralBlock(content, referrals.get(entry.topic), asOf);
       }
       case 'NOTICE':
         return fixedNotice(entry.code);

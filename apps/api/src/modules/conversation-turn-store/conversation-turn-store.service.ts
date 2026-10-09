@@ -9,24 +9,28 @@
  * @see docs/adr/0015-conversation-orchestration-and-policy-corpus.md (sections 2 and 7)
  */
 import { MAX_TRANSCRIPT_TURNS } from '@caa/api-contract';
-import type { ConversationRepository, StoredConversationTurn } from '@caa/db';
+import type {
+  ConversationRepository,
+  ConversationSequenceReader,
+  FindLastSequenceRequest,
+  StoredConversationTurn,
+} from '@caa/db';
 import type { Actor, Conversation, StudentId, TermId } from '@caa/domain';
 
 import { NotFoundError, RevisionConflictError } from '../../shared/domain-errors';
+import { buildTurnsToStore, type TurnOutcome } from '../conversation/conversation.logic';
+import { buildMetadata } from '../conversation/conversation.mapper';
+import { policyRevisionsOf } from '../conversation-blocks/conversation-blocks.logic';
 import {
-  buildTurnsToStore,
   isSequenceCurrent,
   RATE_LIMIT_WINDOW_MS,
   RETENTION_COUNT,
   RETENTION_MS,
-  type TurnOutcome,
-} from '../conversation/conversation.logic';
-import { buildMetadata } from '../conversation/conversation.mapper';
-import { policyRevisionsOf } from '../conversation-blocks/conversation-blocks.logic';
+} from './conversation-turn-store.logic';
 
 /** Dependencies of the turn store service. */
 export interface ConversationTurnStoreServiceDependencies {
-  readonly conversations: ConversationRepository;
+  readonly conversations: ConversationRepository & ConversationSequenceReader;
   /** Returns the current time; the rate window and retention are judged at it. */
   readonly now: () => Date;
   /** `CONVERSATION_RATE_LIMIT`: student turns per rolling 10 minutes. */
@@ -40,9 +44,11 @@ export interface TurnTarget {
   readonly expectedSequence: number;
 }
 
-/** The conversation and its newest turns. */
+/** The conversation, its last sequence, and its newest turns. */
 export interface OpenedConversation {
   readonly conversation: Conversation;
+  /** The stored last sequence, which a clear and retention leave alone. */
+  readonly lastSequence: number;
   readonly recent: readonly StoredConversationTurn[];
 }
 
@@ -68,14 +74,16 @@ export interface ConversationTurnStoreService {
   isOverRateLimit(actor: Actor, studentId: StudentId): Promise<boolean>;
 
   /**
-   * Finds or creates the conversation, reads its newest turns, and refuses a caller whose
-   * `expectedSequence` is behind a stored turn. This runs before any model call.
+   * Finds or creates the conversation, refuses a caller whose `expectedSequence` is not its
+   * stored last sequence, and reads its newest turns. This runs before the rate limit and any
+   * model call, for a new or cleared conversation too.
    *
    * @param actor - Authenticated actor from the session.
    * @param target - The student, the term and the sequence the caller saw.
    * @param at - The instant to create the conversation at.
-   * @returns The conversation and its newest turns, oldest first.
-   * @throws {RevisionConflictError} When a stored turn proves the caller is stale.
+   * @returns The conversation, its last sequence and its newest turns, oldest first.
+   * @throws {RevisionConflictError} When the caller is stale.
+   * @throws {NotFoundError} When the conversation isn't the actor's.
    */
   open(actor: Actor, target: TurnTarget, at: string): Promise<OpenedConversation>;
 
@@ -89,6 +97,66 @@ export interface ConversationTurnStoreService {
    * @throws {NotFoundError} When the conversation isn't the actor's.
    */
   append(actor: Actor, turn: TurnToAppend): Promise<number>;
+}
+
+/**
+ * Reads the conversation's last sequence.
+ *
+ * @param conversations - The sequence reader.
+ * @param request - Tenant and student from the session and path, and the conversation.
+ * @returns The last sequence.
+ * @throws {NotFoundError} When the conversation isn't the owner's.
+ */
+async function requireLastSequence(
+  conversations: ConversationSequenceReader,
+  request: FindLastSequenceRequest,
+): Promise<number> {
+  const lastSequence = await conversations.findLastSequence(request);
+  if (lastSequence === null) throw new NotFoundError();
+  return lastSequence;
+}
+
+/**
+ * Appends the student's message and the answer, applying retention.
+ *
+ * @param dependencies - The repository and the clock.
+ * @param actor - Authenticated actor from the session.
+ * @param turn - The target, the message, the outcome and the time.
+ * @returns The stored answer's sequence.
+ * @throws {RevisionConflictError} When another request appended first.
+ * @throws {NotFoundError} When the conversation isn't the actor's.
+ */
+async function appendTurn(
+  dependencies: Pick<ConversationTurnStoreServiceDependencies, 'conversations' | 'now'>,
+  actor: Actor,
+  turn: TurnToAppend,
+): Promise<number> {
+  const { conversations, now } = dependencies;
+  const { target, conversation, message, outcome, at } = turn;
+  const metadata = buildMetadata(
+    outcome.modelId,
+    outcome.decision.reasons,
+    policyRevisionsOf(outcome.blocks),
+  );
+  const stored = await conversations.appendTurns({
+    tenantId: actor.tenantId,
+    studentId: target.studentId,
+    conversationId: conversation.id,
+    expectedSequence: target.expectedSequence,
+    turns: buildTurnsToStore({
+      message,
+      decision: outcome.decision,
+      blocks: outcome.blocks,
+      metadata,
+      at,
+    }),
+    retainSince: new Date(now().getTime() - RETENTION_MS).toISOString(),
+    retainCount: RETENTION_COUNT,
+  });
+  if (stored.status === 'SEQUENCE_CONFLICT') throw new RevisionConflictError();
+  const answer = stored.status === 'APPENDED' ? stored.turns.at(-1) : undefined;
+  if (answer === undefined) throw new NotFoundError();
+  return answer.sequence;
 }
 
 /**
@@ -122,44 +190,26 @@ export function createConversationTurnStoreService(
         termId: target.termId,
         now: at,
       });
+      const lastSequence = await requireLastSequence(conversations, {
+        tenantId: actor.tenantId,
+        studentId: target.studentId,
+        conversationId: conversation.id,
+      });
+      // SECURITY: a stale caller is refused here, before the rate limit and the model, even on
+      // a new or cleared conversation, so a wrong sequence can neither burn model calls nor
+      // dodge the limit (which counts stored turns).
+      if (!isSequenceCurrent(lastSequence, target.expectedSequence)) {
+        throw new RevisionConflictError();
+      }
       const recent = await conversations.listRecent({
         tenantId: actor.tenantId,
         studentId: target.studentId,
         conversationId: conversation.id,
         limit: MAX_TRANSCRIPT_TURNS,
       });
-      // SECURITY: a stale caller is refused here, before the model runs, so a wrong sequence
-      // can neither burn model calls nor dodge the rate limit (which counts stored turns).
-      if (!isSequenceCurrent(recent, target.expectedSequence)) throw new RevisionConflictError();
-      return { conversation, recent };
+      return { conversation, lastSequence, recent };
     },
 
-    async append(actor, turn) {
-      const { target, conversation, message, outcome, at } = turn;
-      const metadata = buildMetadata(
-        outcome.modelId,
-        outcome.decision.reasons,
-        policyRevisionsOf(outcome.blocks),
-      );
-      const stored = await conversations.appendTurns({
-        tenantId: actor.tenantId,
-        studentId: target.studentId,
-        conversationId: conversation.id,
-        expectedSequence: target.expectedSequence,
-        turns: buildTurnsToStore({
-          message,
-          decision: outcome.decision,
-          blocks: outcome.blocks,
-          metadata,
-          at,
-        }),
-        retainSince: new Date(now().getTime() - RETENTION_MS).toISOString(),
-        retainCount: RETENTION_COUNT,
-      });
-      if (stored.status === 'SEQUENCE_CONFLICT') throw new RevisionConflictError();
-      const answer = stored.status === 'APPENDED' ? stored.turns.at(-1) : undefined;
-      if (answer === undefined) throw new NotFoundError();
-      return answer.sequence;
-    },
+    append: (actor, turn) => appendTurn({ conversations, now }, actor, turn),
   };
 }
