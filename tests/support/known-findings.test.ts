@@ -7,12 +7,8 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import {
-  declaredAcceptanceKeys,
-  FINDING_KEY,
-  findingMode,
-  HARD_CODED_EXPECTED_FAILURE,
-} from './known-findings';
+import { FINDING_KEY, findingMode } from './known-findings';
+import { declaredAcceptanceKeys, HARD_CODED_EXPECTED_FAILURE } from './known-findings-declarations';
 
 const REGISTER: ReadonlyMap<string, number> = new Map([
   ['GC-PF-004', 183],

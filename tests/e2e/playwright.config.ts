@@ -11,6 +11,8 @@ import { fileURLToPath } from 'node:url';
 
 import { defineConfig, devices } from '@playwright/test';
 
+import { devAuthTokensJson } from './support/personas';
+
 /** The repository root, where `pnpm --filter` finds the workspaces. */
 const REPOSITORY_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 
@@ -19,26 +21,6 @@ const WEB_URL = 'http://localhost:3000';
 
 /** The database used when `DATABASE_URL` isn't set; matches `infra/docker-compose.yml`. */
 const DEFAULT_DATABASE_URL = 'postgres://caa:caa@localhost:5432/caa';
-
-/**
- * The synthetic dev identities, copied from `DEV_AUTH_TOKENS` in `infra/env.example`. Tokens are
- * opaque and carry no secret; the API only honors them when `AUTH_MODE=dev`.
- */
-const DEV_AUTH_TOKENS = JSON.stringify({
-  'dev-token-admin': { issuer: 'https://idp.synthetic.example', subject: 'synthetic-admin-001' },
-  'dev-token-advisor': {
-    issuer: 'https://idp.synthetic.example',
-    subject: 'synthetic-advisor-001',
-  },
-  'dev-token-advisor-2': {
-    issuer: 'https://idp.synthetic.example',
-    subject: 'synthetic-advisor-002',
-  },
-  'dev-token-student': {
-    issuer: 'https://idp.synthetic.example',
-    subject: 'synthetic-student-001',
-  },
-});
 
 export default defineConfig({
   testDir: '.',
@@ -67,7 +49,7 @@ export default defineConfig({
         API_PORT: '4000',
         AUTH_MODE: 'dev',
         CONVERSATION_MODEL: 'demo',
-        DEV_AUTH_TOKENS,
+        DEV_AUTH_TOKENS: devAuthTokensJson(),
       },
     },
     {

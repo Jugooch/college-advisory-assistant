@@ -19,12 +19,11 @@ import {
   GOLDEN_DEVELOPMENT_SCHEDULE_CORPUS,
 } from '@caa/test-kit';
 
+import { FINDING_KEY, KNOWN_FINDINGS } from '../support/known-findings';
 import {
   declaredAcceptanceKeys,
-  FINDING_KEY,
   HARD_CODED_EXPECTED_FAILURE,
-  KNOWN_FINDINGS,
-} from '../support/known-findings';
+} from '../support/known-findings-declarations';
 import { sourceFiles } from '../support/source-files';
 import { GOLDEN_HOLDOUT_CORPUS, GOLDEN_HOLDOUT_SCHEDULE_CORPUS } from './holdout/holdout-corpus';
 
@@ -52,7 +51,7 @@ function testFiles(folder: string): string[] {
 }
 
 /**
- * Lists the Playwright specs and helpers under a folder.
+ * Lists the Playwright specs under a folder.
  *
  * @param folder - Absolute folder path.
  * @returns Absolute file paths.

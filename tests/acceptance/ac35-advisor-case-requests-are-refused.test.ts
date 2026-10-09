@@ -31,7 +31,7 @@ import {
   saveRevision,
   UNKNOWN_REVISION_ID,
 } from '../support/cases-harness';
-import { acceptanceIt } from '../support/known-findings';
+import { acceptanceIt } from '../support/known-findings-declarations';
 
 const world: CasesWorld = createAcademicWorld();
 

@@ -30,7 +30,7 @@ import {
   resetAcademicWorld,
 } from '../support/academic-endpoints-harness';
 import { type AcceptanceResponse, summarizeError } from '../support/api-harness';
-import { acceptanceIt } from '../support/known-findings';
+import { acceptanceIt } from '../support/known-findings-declarations';
 
 const MATH102_ONLY = { courseIds: [SYNTHETIC_COURSES.math102.id] };
 const UNAVAILABLE = { statusCode: 503, bodyKeys: ['error'], code: 'SOURCE_UNAVAILABLE' };

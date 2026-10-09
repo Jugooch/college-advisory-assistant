@@ -32,7 +32,7 @@ import {
   resetChatWorld,
   turnOf,
 } from '../support/conversation-harness';
-import { acceptanceIt } from '../support/known-findings';
+import { acceptanceIt } from '../support/known-findings-declarations';
 import { BOTH_COURSES, resetPlanWorld, saveDefaultOption } from '../support/plan-drafts-harness';
 import { findScheduleOptions, publishSections } from '../support/schedule-options-harness';
 

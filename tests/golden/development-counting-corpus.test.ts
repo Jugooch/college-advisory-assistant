@@ -12,7 +12,7 @@ import { CountingState } from '@caa/domain';
 import { GOLDEN_DEVELOPMENT_COUNTING_CORPUS } from '@caa/test-kit';
 
 import { findCountingMismatches } from '../support/golden-counting-runner';
-import { itForFinding } from '../support/known-findings';
+import { itForFinding } from '../support/known-findings-declarations';
 
 describe('golden corpus, development attempt-counting cases', () => {
   for (const golden of GOLDEN_DEVELOPMENT_COUNTING_CORPUS) {

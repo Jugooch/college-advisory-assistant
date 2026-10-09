@@ -45,7 +45,7 @@ import {
   MATH_TTH_LATE,
   PHYS_MW,
 } from '../support/chat-slice-fixtures';
-import { acceptanceIt } from '../support/known-findings';
+import { acceptanceIt } from '../support/known-findings-declarations';
 import { dataOf, MATH_MWF, PHYS_TTH, saveDefaultOption } from '../support/plan-drafts-harness';
 import {
   findScheduleOptions,

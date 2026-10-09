@@ -9,7 +9,7 @@
 import { beforeEach, describe, expect } from 'vitest';
 
 import { buildAcademicApp, createAcademicWorld } from '../support/academic-endpoints-harness';
-import { acceptanceIt } from '../support/known-findings';
+import { acceptanceIt } from '../support/known-findings-declarations';
 import {
   dataOf,
   latestFreshness,

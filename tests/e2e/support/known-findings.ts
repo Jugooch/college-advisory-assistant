@@ -8,7 +8,7 @@
  */
 import { type Page, test } from '@playwright/test';
 
-import { findingMode } from '../../support/known-findings-register';
+import { findingMode } from '../../support/known-findings';
 
 /**
  * Declares one acceptance e2e test under the register key `<caseId>: <title>`. Pass both

@@ -14,9 +14,13 @@ export interface AxeViolationNode {
 
 /** The part of an axe violation the message uses. */
 export interface AxeViolation {
+  /** The axe rule id, for example `image-alt`. */
   readonly id: string;
+  /** How serious axe rates the violation; absent or null when axe gives none. */
   readonly impact?: string | null;
+  /** One-line description of what the rule requires. */
   readonly help: string;
+  /** The elements that break the rule. */
   readonly nodes: readonly AxeViolationNode[];
 }
 
