@@ -26,6 +26,7 @@ import {
 import {
   type Actor,
   AssistantBlockKind,
+  CaseReason,
   NoticeCode,
   ScheduleConstraintSetSchema,
   type StudentId,
@@ -64,7 +65,7 @@ export interface ToolRunnersDependencies {
   readonly academicSummary: Pick<AcademicSummaryService, 'getAcademicSummary'>;
   readonly policySearch: Pick<PolicySearchService, 'search'>;
   readonly scheduleOptions: Pick<ScheduleOptionsService, 'findOptions'>;
-  readonly planViews: Pick<PlanViewsService, 'getPlan' | 'getRevision'>;
+  readonly planViews: Pick<PlanViewsService, 'getPlan' | 'getRevision' | 'listPlans'>;
 }
 
 /** What a runner gets once access is settled. The student is the session's, never the model's. */
@@ -114,6 +115,25 @@ function succeeded(
   block: NonNullable<ToolResult['block']>,
 ): ToolResult {
   return { projection, block, notice: null, errorCode: null };
+}
+
+/**
+ * Builds the fixed planner-input-needed result: no block, and the template notice.
+ *
+ * @returns The result.
+ */
+function plannerInputNeeded(): ToolResult {
+  const text = renderNotice(NoticeCode.PlannerInputNeeded);
+  return {
+    projection: { plannerInputNeeded: true },
+    block: null,
+    notice: buildNotice(NoticeCode.PlannerInputNeeded, {
+      id: PLANNER_INPUT_TEMPLATE_ID,
+      version: TEMPLATE_VERSION,
+      text,
+    }),
+    errorCode: null,
+  };
 }
 
 /**
@@ -184,19 +204,7 @@ function requestPlanRunner(deps: ToolRunnersDependencies): ToolRunner {
   return async ({ actor, studentId, plannerInputs, context }) => {
     // SECURITY: only the form's confirmed state is used; the model supplies no inputs.
     const inputs = ScheduleOptionsRequestSchema.safeParse(plannerInputs);
-    if (!inputs.success) {
-      const text = renderNotice(NoticeCode.PlannerInputNeeded);
-      return {
-        projection: { plannerInputNeeded: true },
-        block: null,
-        notice: buildNotice(NoticeCode.PlannerInputNeeded, {
-          id: PLANNER_INPUT_TEMPLATE_ID,
-          version: TEMPLATE_VERSION,
-          text,
-        }),
-        errorCode: null,
-      };
-    }
+    if (!inputs.success) return plannerInputNeeded();
     const result = await deps.scheduleOptions.findOptions(
       actor,
       { ...inputs.data, studentId },
@@ -235,23 +243,34 @@ function evidenceRunner(deps: ToolRunnersDependencies): ToolRunner {
  * @returns The runner.
  */
 function draftCaseRunner(deps: ToolRunnersDependencies): ToolRunner {
-  return withArgs(DraftCaseContextArgsSchema, async ({ actor, studentId, args, context }) => {
-    const { reason, planId, discrepancySubject } = args;
-    if (!isValidCaseDraft(reason, planId, discrepancySubject)) {
-      return failedResult(INVALID_ARGUMENTS, null);
-    }
-    let plan: PreviewPlan | null = null;
-    if (planId !== undefined) {
-      // SECURITY: the plan is read under the session's student; another student's is NOT_FOUND.
-      const view = await deps.planViews.getPlan(actor, { studentId, planId }, context);
-      plan = { planId, revision: view.latest.revision };
-    }
-    // SAFETY: a preview only. Nothing is created; the student submits through the case flow.
-    return succeeded(
-      projectCasePreview(reason, plan !== null),
-      buildCasePreviewBlock(reason, plan, discrepancySubject),
-    );
-  });
+  return withArgs(
+    DraftCaseContextArgsSchema,
+    async ({ actor, studentId, plannerInputs, args, context }) => {
+      const { reason, planId, discrepancySubject } = args;
+      let plan: PreviewPlan | null = null;
+      if (planId === undefined && reason !== CaseReason.SourceDiscrepancy) {
+        // SECURITY: the model never holds a plan id, so the session student's own latest saved
+        // plan is resolved here, under the session's tenant and student.
+        const { plans } = await deps.planViews.listPlans(actor, studentId, context);
+        const termId = plannerInputs?.termId;
+        const current = plans.find((summary) => termId === undefined || summary.termId === termId);
+        if (current === undefined) return plannerInputNeeded();
+        plan = { planId: current.id, revision: current.latestRevision };
+      } else if (planId !== undefined) {
+        // SECURITY: the plan is read under the session's student; another student's is NOT_FOUND.
+        const view = await deps.planViews.getPlan(actor, { studentId, planId }, context);
+        plan = { planId, revision: view.latest.revision };
+      }
+      if (!isValidCaseDraft(reason, plan?.planId, discrepancySubject)) {
+        return failedResult(INVALID_ARGUMENTS, null);
+      }
+      // SAFETY: a preview only. Nothing is created; the student submits through the case flow.
+      return succeeded(
+        projectCasePreview(reason, plan !== null),
+        buildCasePreviewBlock(reason, plan, discrepancySubject),
+      );
+    },
+  );
 }
 
 /** One runner per tool, each reading through an existing service. */
