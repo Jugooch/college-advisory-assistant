@@ -36,10 +36,13 @@ const INPUTS = ScheduleOptionsRequestSchema.parse({
  * @returns The mocks.
  */
 function renderPanel({
-  initial = buildConversationResponse({ turns: [] }),
+  initial = buildConversationResponse({ turns: [], lastSequence: 0 }),
   send = { kind: 'replied', turn: buildAssistantTurnView() },
   clear = { kind: 'cleared' },
-  reload = { kind: 'loaded', conversation: buildConversationResponse({ turns: [] }) },
+  reload = {
+    kind: 'loaded',
+    conversation: buildConversationResponse({ turns: [], lastSequence: 0 }),
+  },
 }: {
   initial?: ConversationResponse;
   send?: SendTurnResult;
@@ -114,6 +117,7 @@ describe('ChatPanel recovery', () => {
   it('reloads the transcript on a conflict and keeps the message', async () => {
     const reloaded = buildConversationResponse({
       turns: [buildStudentTurnView({ text: 'Earlier question' }), buildStoredAssistantTurnView()],
+      lastSequence: 2,
     });
     renderPanel({
       send: { kind: 'conflict' },
@@ -147,7 +151,9 @@ describe('ChatPanel recovery', () => {
   });
 
   it('asks before clearing, then clears and refocuses the input', async () => {
-    const { clearAction } = renderPanel({ initial: buildConversationResponse() });
+    const { clearAction } = renderPanel({
+      initial: buildConversationResponse({ lastSequence: 2 }),
+    });
 
     fireEvent.click(screen.getByRole('button', { name: 'Clear conversation' }));
     const group = screen.getByRole('group');
@@ -216,6 +222,7 @@ describe('ChatPanel recovery', () => {
           buildStudentTurnView({ sequence: 1 }),
           buildStoredAssistantTurnView({ sequence: 2 }),
         ],
+        lastSequence: undefined,
       }),
     });
 
@@ -228,7 +235,9 @@ describe('ChatPanel recovery', () => {
   });
 
   it('keeps the conversation when the student declines, returning focus to the control', () => {
-    const { clearAction } = renderPanel({ initial: buildConversationResponse() });
+    const { clearAction } = renderPanel({
+      initial: buildConversationResponse({ lastSequence: 2 }),
+    });
 
     fireEvent.click(screen.getByRole('button', { name: 'Clear conversation' }));
     fireEvent.click(screen.getByRole('button', { name: 'Keep it' }));
@@ -268,7 +277,7 @@ describe('ChatPanel recovery', () => {
 
   it('keeps the transcript and refocuses the control when clearing fails', async () => {
     renderPanel({
-      initial: buildConversationResponse(),
+      initial: buildConversationResponse({ lastSequence: 2 }),
       clear: { kind: 'failed', code: 'INTERNAL_ERROR', message: 'Clear broke.', requestId: null },
     });
 

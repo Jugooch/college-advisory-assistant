@@ -30,7 +30,9 @@ const TERM = { termId: TermIdSchema.parse(TERM_ID) };
 
 describe('conversation calls', () => {
   beforeEach(() => {
-    fetchMock.mockResolvedValue(Response.json({ data: buildConversationResponse() }));
+    fetchMock.mockResolvedValue(
+      Response.json({ data: buildConversationResponse({ lastSequence: 2 }) }),
+    );
   });
 
   afterEach(() => {
@@ -49,7 +51,10 @@ describe('conversation calls', () => {
   it('posts the turn body as JSON', async () => {
     fetchMock.mockResolvedValue(
       Response.json({
-        data: { turn: { sequence: 2, intro: 'Hi.', modelStatus: 'ANSWERED', blocks: [] } },
+        data: {
+          turn: { sequence: 2, intro: 'Hi.', modelStatus: 'ANSWERED', blocks: [] },
+          lastSequence: 2,
+        },
       }),
     );
 
