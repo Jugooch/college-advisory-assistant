@@ -3,10 +3,9 @@
  * student. Through `POST /v1/students/:studentId/conversation/turns` with the scripted model:
  * the intro is always a fixed server sentence, the model's choice only when its reply is exactly
  * a valid intro id for the turn's blocks, and otherwise the default intro with the turn GUARDED;
- * cards are exactly this turn's tool results; a case preview's note starts empty; a stale or
- * unreachable source shows its fixed notice; CONDITIONAL and UNKNOWN reach the student unchanged.
- * Every expected sentence is written out literally from the intro and notice templates, never
- * computed by production logic.
+ * cards are exactly this turn's tool results; and a case preview's note starts empty. Every
+ * expected sentence is written out literally from the intro templates, never computed by
+ * production logic.
  * @requirement FR-10
  * @requirement NFR-05
  * @see docs/planning/13-test-and-evaluation-strategy.md
@@ -15,7 +14,6 @@
 import { beforeEach, describe, expect } from 'vitest';
 
 import { finalStep, MisbehavingStep, scriptedToolCall, toolCallStep } from '@caa/assistant';
-import {} from '@caa/domain';
 import { SYNTHETIC_COURSES } from '@caa/test-kit';
 
 import { buildAcademicApp, createAcademicWorld } from '../support/academic-endpoints-harness';

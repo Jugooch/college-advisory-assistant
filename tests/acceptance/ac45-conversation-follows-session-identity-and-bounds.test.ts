@@ -1,12 +1,9 @@
 /**
- * @file Acceptance AC45 (planning/13, ADR-0015 sections 2, 4 and 7): the conversation follows the
- * session's identity and stays bounded. Through the conversation endpoints with the scripted
- * model: identity fields in a tool call fail the tool's schema and another student's plan is the
- * `NOT_FOUND` of a missing one; everyone but the student gets 404; a body carrying prior turns is
- * 400; only the configured number of recent turns reaches the model, with no tool results or
- * blocks; turns beyond 100 or 30 days are deleted on the next append; the rate limit survives a
- * clear; a stale `expectedSequence` is 409 with no model call; `lastSequence` is returned; and no
- * message text is logged. Limits and statuses are written out literally from the planning/13 row.
+ * @file Acceptance AC45 (planning/13, ADR-0015 sections 2 and 4): the conversation follows the
+ * session's identity. Through the conversation endpoints with the scripted model: identity fields
+ * in a tool call fail the tool's schema and another student's plan is the `NOT_FOUND` of a missing
+ * one; everyone but the student gets 404; and a body carrying prior turns, a tenant, a user or a
+ * role is 400. Statuses are written out literally from the planning/13 row.
  * @requirement FR-01
  * @requirement FR-02
  * @requirement NFR-05
@@ -16,7 +13,6 @@
 import { beforeEach, describe, expect } from 'vitest';
 
 import { finalStep, MisbehavingStep, scriptedToolCall, toolCallStep } from '@caa/assistant';
-import type {} from '@caa/db';
 import { syntheticId } from '@caa/test-kit';
 
 import {
@@ -26,6 +22,7 @@ import {
   MISSING_STUDENT_ID,
 } from '../support/academic-endpoints-harness';
 import { summarizeError } from '../support/api-harness';
+import { ASK_FOR_DETAIL } from '../support/chat-schedule-fixtures';
 import {
   CHAT_TERM_ID,
   clearTranscript,
@@ -46,8 +43,6 @@ const DENIED: readonly AcademicActor[] = [
   'unassignedAdvisor',
   'tenantBAdmin',
 ];
-const ASK_FOR_DETAIL =
-  'Could you tell me a little more about what you would like to plan or look up?';
 const UNKNOWN_PLAN_ID = '80000000-0000-4000-8000-0000000003e7';
 
 const world = createAcademicWorld();

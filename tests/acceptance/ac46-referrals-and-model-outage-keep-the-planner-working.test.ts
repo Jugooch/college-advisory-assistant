@@ -5,9 +5,7 @@
  * ignoring a prerequisite and a wrong grade each get their fixed template whatever the model
  * says; tier-1 crisis language makes no model call and shows only the crisis referral, and every
  * phrase on the tier-1 list does so; tier-2 distress shows the support card first and still
- * answers; a stale source shows its notice; model outage, timeout, budget, chat off and the rate
- * limit each return 200 with the matching `modelStatus` and a pointer to the form, and the planner,
- * schedule options, drafts and cases still work. Every template text is written out literally.
+ * answers. Every template text is written out literally.
  * @requirement FR-10
  * @requirement FR-14
  * @requirement NFR-05
@@ -19,8 +17,6 @@ import { beforeEach, describe, expect } from 'vitest';
 import { finalStep, scriptedToolCall, toolCallStep } from '@caa/assistant';
 
 import { buildAcademicApp, createAcademicWorld } from '../support/academic-endpoints-harness';
-import type {} from '../support/api-harness';
-import {} from '../support/cases-harness';
 import {
   CRISIS_REFERRAL,
   CRISIS_SUPPORT,
@@ -39,7 +35,6 @@ import {
 import { TIER_1_PHRASES } from '../support/crisis-phrases';
 import { acceptanceIt } from '../support/known-findings';
 import { BOTH_COURSES, resetPlanWorld } from '../support/plan-drafts-harness';
-import {} from '../support/schedule-options-harness';
 
 const world = createAcademicWorld();
 const slot = createModelSlot();

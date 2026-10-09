@@ -1,8 +1,8 @@
 /**
- * @file Acceptance AC44 (planning/13, ADR-0015 section 3): a stale or unreachable source shows its fixed
- * notice, and UNKNOWN and CONDITIONAL checks reach the student unchanged, never as PASS. Through
- * `POST /v1/students/:studentId/conversation/turns` with the scripted model; expected sentences
- * are written out literally from the notice templates.
+ * @file Acceptance AC44 (planning/13, ADR-0015 section 3): a stale or unreachable source shows
+ * its fixed notice, and UNKNOWN and CONDITIONAL checks reach the student unchanged, never as
+ * PASS. Through `POST /v1/students/:studentId/conversation/turns` with the scripted model;
+ * expected sentences are written out literally from the notice templates.
  * @requirement FR-10
  * @requirement NFR-05
  * @see docs/planning/13-test-and-evaluation-strategy.md
@@ -11,7 +11,6 @@
 import { beforeEach, describe, expect } from 'vitest';
 
 import { finalStep, scriptedToolCall, toolCallStep } from '@caa/assistant';
-import {} from '@caa/domain';
 import { buildAcademicPolicy, inProgressAttempt, SYNTHETIC_COURSES } from '@caa/test-kit';
 
 import { buildAcademicApp, createAcademicWorld } from '../support/academic-endpoints-harness';

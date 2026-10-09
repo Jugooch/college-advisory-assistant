@@ -13,11 +13,10 @@
 import { beforeEach, describe, expect } from 'vitest';
 
 import { finalStep, scriptedToolCall, toolCallStep } from '@caa/assistant';
-import type {} from '@caa/db';
-import {} from '@caa/test-kit';
 
 import { buildAcademicApp, createAcademicWorld } from '../support/academic-endpoints-harness';
 import { summarizeError } from '../support/api-harness';
+import { ASK_FOR_DETAIL } from '../support/chat-schedule-fixtures';
 import {
   clearTranscript,
   createModelSlot,
@@ -30,9 +29,6 @@ import {
 import { seedPairs, storedSequences } from '../support/conversation-seeding';
 import { acceptanceIt } from '../support/known-findings';
 import { BOTH_COURSES, resetPlanWorld } from '../support/plan-drafts-harness';
-
-const ASK_FOR_DETAIL =
-  'Could you tell me a little more about what you would like to plan or look up?';
 
 const world = createAcademicWorld();
 const slot = createModelSlot();

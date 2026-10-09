@@ -6,20 +6,32 @@
  * @see docs/adr/0015-conversation-orchestration-and-policy-corpus.md
  */
 
-/** Closing sentence of every referral: the app does not decide the question, from the referral templates. */
+/**
+ * Closing sentence of every referral: the app does not decide the question, from the referral
+ * templates.
+ */
 export const NOT_DETERMINED =
   'This app cannot make that determination, and a schedule that fits your degree says nothing about it. Please ask the office listed below.';
 /** Tier-1 crisis referral text, the only content of a tier-1 turn, from the referral templates. */
 export const CRISIS_REFERRAL =
   'If you are in immediate danger, call your local emergency number now. You can also call or text 988 (the Suicide and Crisis Lifeline in the United States) or contact your campus counseling center. This chat is not monitored live and is not an emergency service, and no one will contact you because of this message.';
-/** Crisis-support card text shown before the answer on a tier-2 turn, from the referral templates. */
+/**
+ * Crisis-support card text shown before the answer on a tier-2 turn, from the referral
+ * templates.
+ */
 export const CRISIS_SUPPORT =
   'If any part of your message is about your safety or how you are feeling, support is available. If you are in immediate danger, call your local emergency number now. You can also call or text 988 (the Suicide and Crisis Lifeline in the United States) or contact your campus counseling center. This chat is not monitored live and is not an emergency service, and no one will contact you because of this message.';
-/** Fixed intro shown when the model text is rejected or absent, written out literally from ADR-0015. */
+/**
+ * Fixed intro shown when the model text is rejected or absent, written out literally from
+ * ADR-0015.
+ */
 export const DEFAULT_INTRO = 'Please see the note below.';
 /** Fixed intro of a turn that shows schedule options, written out literally from ADR-0015. */
 export const SCHEDULE_INTRO = 'Here are your schedule options. Each card shows its own checks.';
-/** Pointer to the planning form shown when the model is unavailable, written out literally from ADR-0015. */
+/**
+ * Pointer to the planning form shown when the model is unavailable, written out literally from
+ * ADR-0015.
+ */
 export const FORM_POINTER = 'You can still use the planning form and your saved plans.';
 
 /** The messages that make a fixed referral or notice, with the block it must produce. */

@@ -1,6 +1,6 @@
 /**
- * @file Acceptance AC46 (planning/13, ADR-0015 section 2): a stale source shows its notice, and model
- * outage, timeout, budget, chat off and the rate limit each return 200 with the matching
+ * @file Acceptance AC46 (planning/13, ADR-0015 section 2): a stale source shows its notice, and
+ * model outage, timeout, budget, chat off and the rate limit each return 200 with the matching
  * `modelStatus` and a pointer to the form, while the planner, schedule options, drafts and cases
  * still work. Every notice text is written out literally.
  * @requirement FR-10
