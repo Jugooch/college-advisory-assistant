@@ -24,6 +24,13 @@ describe('root scripts workspace imports (ADR-0016 Amendment 1)', () => {
     expect(await lintWithRules(TEST, CONTRACT, RULES)).toEqual([]);
   });
 
+  it('lets a script and a script test import the @caa/db root entry (the reset guard)', async () => {
+    const code = "import { assertResetAllowed } from '@caa/db';";
+
+    expect(await lintWithRules(SCRIPT, code, RULES)).toEqual([]);
+    expect(await lintWithRules(TEST, code, RULES)).toEqual([]);
+  });
+
   it('lets a script test import @caa/db/testing', async () => {
     expect(await lintWithRules(TEST, DB_TESTING, RULES)).toEqual([]);
   });
@@ -37,7 +44,7 @@ describe('root scripts workspace imports (ADR-0016 Amendment 1)', () => {
   it.each([
     "import { x } from '@caa/engine';",
     "import { x } from '@caa/domain';",
-    "import { x } from '@caa/db';",
+    "import { x } from '@caa/db/src/index';",
     "import { x } from '@caa/api/testing';",
     "import { x } from '@caa/api-contract/src/index';",
     "import { x } from '../packages/api-contract/src/index.ts';",
