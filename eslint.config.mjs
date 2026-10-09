@@ -16,6 +16,7 @@ import {
   SDK_ADAPTER_FILES,
   SDK_RESTRICTION,
 } from './config/eslint/layer-boundaries.mjs';
+import { scriptsRules } from './config/eslint/scripts.mjs';
 import { webRules } from './config/eslint/web.mjs';
 import { wiringRules } from './config/eslint/wiring.mjs';
 
@@ -179,4 +180,7 @@ export default tseslint.config(
       'no-restricted-imports': ['error', { patterns: [SDK_RESTRICTION] }],
     },
   },
+
+  // ---- Root scripts: only the ADR-0016 Amendment 1 workspace imports ----
+  ...scriptsRules,
 );
