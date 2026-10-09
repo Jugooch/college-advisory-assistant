@@ -38,8 +38,8 @@ export function itemsFromTurns(turns: readonly ConversationTurnView[]): readonly
 }
 
 /**
- * Reads the sequence the next turn must send as `expectedSequence`. The server's `lastSequence`
- * wins because it survives a clear; without it, the last visible turn is the best available.
+ * Reads the sequence the next turn must send as `expectedSequence`: the server's
+ * `lastSequence`, which survives a clear.
  *
  * @param conversation - The conversation as the API returned it.
  * @returns `lastSequence`, the server's latest sequence.
