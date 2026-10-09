@@ -87,3 +87,63 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+
+  e2e:
+    name: E2E
+    runs-on: ubuntu-latest
+    # Browser tests (ADR-0016 §3). Not part of `pnpm verify`. Throwaway database; the credentials
+    # exist only inside this job. No secrets: the stack runs with dev auth and the demo model.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: caa
+          POSTGRES_PASSWORD: caa
+          POSTGRES_DB: caa
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U caa -d caa"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://caa:caa@localhost:5432/caa
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Read the pinned Playwright version
+        id: playwright
+        run: echo "version=$(pnpm --filter @caa/tests exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+      - name: Cache Playwright browsers
+        id: browsers
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - name: Install Chromium and system packages
+        run: pnpm --filter @caa/tests exec playwright install --with-deps chromium
+        if: steps.browsers.outputs.cache-hit != 'true'
+      - name: Install system packages only (browser cached)
+        run: pnpm --filter @caa/tests exec playwright install-deps chromium
+        if: steps.browsers.outputs.cache-hit == 'true'
+      - run: pnpm --filter @caa/db db:migrate
+      - run: pnpm --filter @caa/db db:seed
+      - run: pnpm e2e
+      - name: Upload report and traces
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: playwright-report
+          path: |
+            tests/e2e/playwright-report/
+            tests/e2e/test-results/
+            tests/playwright-report/
+            tests/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
