@@ -11,6 +11,7 @@
  */
 export { AcademicSeedReferenceError } from './seed/academic-plan-references';
 export type { DevSeedAcademicPlan } from './seed/dev-seed-academic-plan';
+export { buildDemoSeedPlan } from './seed/dev-seed-demo-plan';
 export { buildDevSeedPlan, DEV_SEED_ISSUER, type DevSeedPlan } from './seed/dev-seed-plan';
 export type { SeedCounts } from './seed/seed-dev-data';
 export { openTestDatabase, type TestDatabase } from './testing/integration-fixtures';

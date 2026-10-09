@@ -11,6 +11,10 @@ describe('@caa/db/testing', () => {
     expect(typeof testing.openTestDatabase).toBe('function');
   });
 
+  it('exposes the demo seed plan builder', () => {
+    expect(typeof testing.buildDemoSeedPlan).toBe('function');
+  });
+
   it('exposes the dev seed plan builder so a test can derive its own plan', () => {
     const plan = testing.buildDevSeedPlan(new Date('2026-10-01T12:00:00.000Z'));
 
