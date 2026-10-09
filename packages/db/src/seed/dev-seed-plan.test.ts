@@ -15,9 +15,12 @@ import {
 } from '@caa/domain';
 
 import { SEED_CATALOG, SEED_RULESET_VERSION } from './dev-seed-academic-catalog';
+import { buildDemoSeedPlan } from './dev-seed-demo-plan';
 import { buildDevSeedPlan, DEV_SEED_ISSUER } from './dev-seed-plan';
 
 const DEV_SEED_PLAN = buildDevSeedPlan(new Date('2026-10-01T12:00:00.000Z'));
+
+const DEMO_SEED_PLAN = buildDemoSeedPlan(new Date('2026-10-01T12:00:00.000Z'));
 
 const EnvExampleTokensSchema = z.record(
   z.string(),
@@ -32,6 +35,12 @@ function readExampleDevTokens(): z.infer<typeof EnvExampleTokensSchema> {
   const line = envExample.split('\n').find((entry) => entry.startsWith('DEV_AUTH_TOKENS='));
   const json = line?.slice('DEV_AUTH_TOKENS='.length).replace(/^'|'$/g, '') ?? '{}';
   return EnvExampleTokensSchema.parse(JSON.parse(json));
+}
+
+function hasDemoIdentity(token: { issuer: string; subject: string }): boolean {
+  return DEMO_SEED_PLAN.identities.some(
+    (identity) => identity.issuer === token.issuer && identity.subject === token.subject,
+  );
 }
 
 describe('buildDevSeedPlan', () => {
@@ -55,17 +64,17 @@ describe('buildDevSeedPlan', () => {
     expect(identities.every((identity) => identity.status === IdentityStatus.Active)).toBe(true);
   });
 
-  it('has an identity for every example dev token in infra/env.example', () => {
+  it('has a demo-plan identity for every example dev token in infra/env.example', () => {
     const tokens = Object.values(readExampleDevTokens());
 
-    const seeded = tokens.map((token) =>
-      DEV_SEED_PLAN.identities.some(
-        (identity) => identity.issuer === token.issuer && identity.subject === token.subject,
-      ),
-    );
-
     expect(tokens.length).toBeGreaterThan(0);
-    expect(seeded.every(Boolean)).toBe(true);
+    expect(tokens.filter((token) => !hasDemoIdentity(token))).toEqual([]);
+  });
+
+  it('rejects a token that has no identity in the demo seed plan', () => {
+    const unknown = { issuer: DEV_SEED_ISSUER, subject: 'synthetic-student-999' };
+
+    expect(hasDemoIdentity(unknown)).toBe(false);
   });
 
   it('links the student identity to exactly one student in its own tenant', () => {
