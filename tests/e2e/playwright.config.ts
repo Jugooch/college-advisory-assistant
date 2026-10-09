@@ -51,6 +51,7 @@ export default defineConfig({
         API_PORT: '4000',
         AUTH_MODE: 'dev',
         CONVERSATION_MODEL: 'demo',
+        ACTIVE_RULESET_VERSION: 'demo-2026.1',
         DEV_AUTH_TOKENS: devAuthTokensJson(),
       },
     },
