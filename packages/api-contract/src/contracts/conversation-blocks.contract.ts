@@ -104,6 +104,47 @@ const CasePreviewBlockSchema = z
   )
   .readonly();
 
+/** A fixed notice block. */
+export const NoticeBlockSchema = z
+  .strictObject({
+    kind: z.literal(AssistantBlockKind.Notice),
+    code: NoticeCodeSchema,
+    ...TEMPLATE_FIELDS,
+  })
+  .readonly();
+
+/** A referral block, with the approved policy document when one applies. */
+export const ReferralBlockSchema = z
+  .strictObject({
+    kind: z.literal(AssistantBlockKind.Referral),
+    topic: SpecialistTopicSchema,
+    ...TEMPLATE_FIELDS,
+    /** The approved referral document the text points to, or `null` when none applies. */
+    policy: PolicyHitSchema.nullable(),
+    /** The instant the policy was judged at, ISO 8601 with offset. */
+    asOf: z.iso.datetime({ offset: true }),
+  })
+  // SAFETY: an expired or not-yet-effective referral document must never show as current
+  // guidance, so the policy must apply at asOf, as for POLICY_RESULTS (ADR-0015 §6, AC42).
+  .refine(
+    (block) => {
+      if (block.policy === null) return true;
+      const at = Date.parse(block.asOf);
+      return (
+        Date.parse(block.policy.effectiveFrom) <= at &&
+        (block.policy.effectiveTo === null || at < Date.parse(block.policy.effectiveTo))
+      );
+    },
+    { message: 'policy must apply at asOf', path: ['policy'] },
+  )
+  // SAFETY: the attached document must be the approved one for the referral's topic, or the
+  // student is sent to the wrong source (ADR-0015 §5, planning/09 source authority).
+  .refine((block) => block.policy === null || block.policy.topic === block.topic, {
+    message: 'policy topic must match the referral topic',
+    path: ['policy', 'topic'],
+  })
+  .readonly();
+
 /**
  * Schema for a live block, discriminated by `kind`. Data blocks reuse the existing verified
  * schemas, so each renders from structured, validated fields and never from model text
@@ -159,43 +200,8 @@ export const AssistantBlockSchema = z.discriminatedUnion('kind', [
     })
     .readonly(),
   CasePreviewBlockSchema,
-  z
-    .strictObject({
-      kind: z.literal(AssistantBlockKind.Notice),
-      code: NoticeCodeSchema,
-      ...TEMPLATE_FIELDS,
-    })
-    .readonly(),
-  z
-    .strictObject({
-      kind: z.literal(AssistantBlockKind.Referral),
-      topic: SpecialistTopicSchema,
-      ...TEMPLATE_FIELDS,
-      /** The approved referral document the text points to, or `null` when none applies. */
-      policy: PolicyHitSchema.nullable(),
-      /** The instant the policy was judged at, ISO 8601 with offset. */
-      asOf: z.iso.datetime({ offset: true }),
-    })
-    // SAFETY: an expired or not-yet-effective referral document must never show as current
-    // guidance, so the policy must apply at asOf, as for POLICY_RESULTS (ADR-0015 §6, AC42).
-    .refine(
-      (block) => {
-        if (block.policy === null) return true;
-        const at = Date.parse(block.asOf);
-        return (
-          Date.parse(block.policy.effectiveFrom) <= at &&
-          (block.policy.effectiveTo === null || at < Date.parse(block.policy.effectiveTo))
-        );
-      },
-      { message: 'policy must apply at asOf', path: ['policy'] },
-    )
-    // SAFETY: the attached document must be the approved one for the referral's topic, or the
-    // student is sent to the wrong source (ADR-0015 §5, planning/09 source authority).
-    .refine((block) => block.policy === null || block.policy.topic === block.topic, {
-      message: 'policy topic must match the referral topic',
-      path: ['policy', 'topic'],
-    })
-    .readonly(),
+  NoticeBlockSchema,
+  ReferralBlockSchema,
 ]);
 
 /** A validated live assistant block. */
