@@ -15,6 +15,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
+    "demo": "node scripts/demo.mjs",
     "e2e": "pnpm --filter @caa/tests e2e",
     "test:coverage": "vitest run --coverage",
     "check:ownership": "node scripts/check-ownership.mjs",
