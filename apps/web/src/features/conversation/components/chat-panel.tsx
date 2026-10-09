@@ -14,9 +14,13 @@ import type { ConversationResponse, ScheduleOptionsRequest } from '@caa/api-cont
 
 import { useChatPanel } from '../hooks/use-chat-panel';
 import type { ClearResult, ReloadResult, SendTurnResult } from '../utils/conversation-state';
-import { NOT_REGISTRATION_NOTE, UNAVAILABLE_MESSAGE } from '../utils/conversation-wording';
-import { ChatItemView } from './chat-item-view';
+import {
+  CHAT_HEADING_ID,
+  NOT_REGISTRATION_NOTE,
+  UNAVAILABLE_MESSAGE,
+} from '../utils/conversation-wording';
 import { ChatMessageForm } from './chat-message-form';
+import { ChatTranscriptRegion } from './chat-transcript-region';
 import { ClearConversation } from './clear-conversation';
 
 /** Props for {@link ChatPanel}. */
@@ -47,19 +51,21 @@ export function ChatPanel({ clearAction, ...input }: ChatPanelProps): ReactEleme
   const { studentId, termId } = input;
   const { items, isAvailable } = chat.transcript;
   return (
-    <section className="chat-panel" aria-labelledby="chat-heading">
-      <h2 id="chat-heading">Ask the assistant</h2>
+    <section className="chat-panel" aria-labelledby={CHAT_HEADING_ID}>
+      <h2 id={CHAT_HEADING_ID} tabIndex={-1}>
+        Ask the assistant
+      </h2>
       <p>{NOT_REGISTRATION_NOTE}</p>
       {isAvailable ? (
         <>
-          {items.length === 0 ? (
+          {items.length === 0 && chat.pendingText === null ? (
             <p>No messages yet.</p>
           ) : (
-            <ol className="chat-transcript" aria-label="Conversation">
-              {items.map((item) => (
-                <ChatItemView key={item.key} item={item} studentId={studentId} />
-              ))}
-            </ol>
+            <ChatTranscriptRegion
+              items={items}
+              studentId={studentId}
+              pendingText={chat.pendingText}
+            />
           )}
           <ChatMessageForm
             message={chat.message}

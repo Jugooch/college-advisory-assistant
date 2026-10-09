@@ -131,7 +131,9 @@ describe('ChatPanel', () => {
     await waitFor(() => {
       expect(screen.getByText('Here you go.')).toBeTruthy();
     });
-    expect(screen.getByText('Assistant')).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.getByText('Assistant')).toBeTruthy();
+    });
     expect(screen.getByText('Hello')).toBeTruthy();
     const live = screen.getByRole('status');
     expect(live.getAttribute('aria-live')).toBe('polite');

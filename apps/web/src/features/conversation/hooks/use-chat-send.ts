@@ -33,6 +33,8 @@ export interface ChatSend {
   readonly message: string;
   readonly setMessage: (message: string) => void;
   readonly isPending: boolean;
+  /** The message being sent, or null when no turn is pending. */
+  readonly pendingText: string | null;
   readonly submit: (event: SubmitEvent<HTMLFormElement>) => void;
 }
 
@@ -45,6 +47,7 @@ export interface ChatSend {
 export function useChatSend(input: ChatSendInput): ChatSend {
   const { studentId, termId, plannerInputs, sendAction, transcript, feedback, reload } = input;
   const [message, setMessage] = useState('');
+  const [sentText, setSentText] = useState('');
   const [isPending, startTransition] = useTransition();
 
   const show = async (result: SendTurnResult, text: string): Promise<void> => {
@@ -67,6 +70,7 @@ export function useChatSend(input: ChatSendInput): ChatSend {
     }
     feedback.setProblem(null);
     feedback.setAnnouncement('');
+    setSentText(text);
     startTransition(async () => {
       const request = buildTurnRequest({
         termId,
@@ -77,5 +81,5 @@ export function useChatSend(input: ChatSendInput): ChatSend {
       await show(await sendAction(studentId, request), text);
     });
   };
-  return { message, setMessage, isPending, submit };
+  return { message, setMessage, isPending, pendingText: isPending ? sentText : null, submit };
 }
