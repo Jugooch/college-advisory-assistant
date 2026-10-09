@@ -219,6 +219,20 @@ const STRUCTURE_RULES = [
     expected: 't06-<slug>.eval.test.ts',
   },
   {
+    scope: /^tests\/e2e\/support\//,
+    allow: (name) => /^[a-z0-9-]+(\.test)?\.ts$/.test(name),
+    expected: 'support/<name>.ts (ADR-0016 §1)',
+  },
+  {
+    scope: /^tests\/e2e\//,
+    allow: (name) =>
+      /^ac\d{2}-[a-z0-9-]+\.e2e\.ts$/.test(name) ||
+      name === 'smoke.e2e.ts' ||
+      name === 'playwright.config.ts',
+    expected:
+      'acNN-<slug>.e2e.ts | smoke.e2e.ts | playwright.config.ts | support/*.ts (ADR-0016 §1)',
+  },
+  {
     scope: /^(apps|packages)\/[^/]+\/src\/.+\/index\.ts$/,
     allow: () => false,
     expected: 'no nested index.ts barrels; only <package>/src/index.ts',
