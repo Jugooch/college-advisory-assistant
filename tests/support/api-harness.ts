@@ -18,6 +18,7 @@ import {
   type StudentRepository,
   type UserIdentityRepository,
 } from '@caa/api/testing';
+import type { ConversationModel } from '@caa/assistant';
 import type { StudentUserLinkRepository } from '@caa/db';
 import type { AdvisorAssignment, Student, UserIdentity } from '@caa/domain';
 
@@ -62,12 +63,10 @@ export interface AcceptanceOptions {
   readonly now?: Date;
   /** `ACTIVE_RULESET_VERSION`; defaults to {@link ACCEPTANCE_RULESET_VERSION}. */
   readonly rulesetVersion?: string;
-  /**
-   * The conversation model the API calls. NOTE: typed loosely and not yet passed on, because
-   * `ContainerOptions.conversationModel` arrives with #513; once it does, type this as
-   * `ConversationModel` and hand it to `createContainer`.
-   */
-  readonly conversationModel?: unknown;
+  /** The conversation model the API calls; it replaces the one `conversationMode` selects. */
+  readonly conversationModel?: ConversationModel;
+  /** `CONVERSATION_MODEL`; defaults to off. Ignored when `conversationModel` is given. */
+  readonly conversationMode?: 'off' | 'demo';
 }
 
 /** The API app, not yet listening. */
@@ -224,6 +223,9 @@ export function buildAcceptanceApp(
     ACADEMIC_SOURCE_MAX_AGE_MS: String(ACCEPTANCE_SOURCE_MAX_AGE_MS),
     AUDIT_RECORD_MAX_SKEW_MS: String(ACCEPTANCE_AUDIT_SKEW_MS),
     SCHEDULE_SOLVER_WORK_CAP: String(options.solverWorkCap ?? ACCEPTANCE_SOLVER_WORK_CAP),
+    ...(options.conversationMode === undefined
+      ? {}
+      : { CONVERSATION_MODEL: options.conversationMode }),
   });
   const repositories: Repositories = {
     userIdentities: createIdentities(world),
@@ -239,7 +241,14 @@ export function buildAcceptanceApp(
     ...createConversationRepositories(world),
   };
   return buildApp({
-    dependencies: createContainer({ env, repositories, now: () => options.now ?? ACCEPTANCE_NOW }),
+    dependencies: createContainer({
+      env,
+      repositories,
+      now: () => options.now ?? ACCEPTANCE_NOW,
+      ...(options.conversationModel === undefined
+        ? {}
+        : { conversationModel: options.conversationModel }),
+    }),
     logger: false,
   });
 }

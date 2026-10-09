@@ -259,6 +259,9 @@ importers:
 
   tests:
     dependencies:
+      '@caa/assistant':
+        specifier: workspace:*
+        version: link:../packages/assistant
       '@caa/db':
         specifier: workspace:*
         version: link:../packages/db
@@ -278,6 +281,9 @@ importers:
       '@caa/worker':
         specifier: workspace:*
         version: link:../apps/worker
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
 
 packages:
 
