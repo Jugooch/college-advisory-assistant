@@ -192,7 +192,7 @@ async function confirmSearch(page: Page): Promise<void> {
 }
 
 /**
- * Step: ask for options and see verified cards with no Friday section.
+ * Step: ask for options and see verified cards that name any missed Friday preference.
  *
  * @param page - The browser page.
  */
@@ -205,7 +205,11 @@ async function askForOptions(page: Page): Promise<void> {
   await expect(option).toBeVisible();
   await expect(option.getByRole('heading', { name: 'Checks, shown separately' })).toBeVisible();
   await expect(option.getByRole('heading', { name: 'Courses and sections' })).toBeVisible();
-  await expect(option.getByText('Friday')).toHaveCount(0);
+  // PHYS 301 only meets on MWF, so no option can avoid Friday; the card must say the preference is missed.
+  await expect(
+    option.getByRole('heading', { name: 'Preferences this option misses' }),
+  ).toBeVisible();
+  await expect(option.getByText('No preference is missed by this option.')).toHaveCount(0);
   await expectNoAxeViolations(page);
 }
 
@@ -322,7 +326,7 @@ acceptanceTest(
       confirmNoFridaysChip(page));
     await test.step('choose a course and confirm the search so chat has inputs', () =>
       confirmSearch(page));
-    await test.step('ask for options and see verified cards with no Friday section', () =>
+    await test.step('ask for options and see verified cards that name a missed Friday preference', () =>
       askForOptions(page));
     await test.step('ask a policy question and see a cited excerpt', () => askPolicyQuestion(page));
     await test.step('ask about financial aid and see the referral with no determination', () =>
