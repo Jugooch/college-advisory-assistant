@@ -25,7 +25,9 @@ The authoritative ownership map is `.github/ownership.json`. A hook blocks agent
 ```bash
 pnpm install          # install everything
 pnpm dev              # web on :3000, api on :4000, worker
-pnpm verify           # everything CI runs: format, lint, conventions, typecheck, tests+coverage, build
+pnpm demo             # reset the local db, seed synthetic personas, start the stack (docs/demo.md)
+pnpm verify           # what CI runs except the E2E job: format, lint, conventions, typecheck, tests+coverage, build
+pnpm e2e              # Playwright browser tests (Chromium) against a migrated, seeded local db
 pnpm lint             # ESLint (size limits, naming, comments, layer boundaries)
 pnpm check:conventions  # file placement/role suffixes and comment tags
 pnpm test             # Vitest across all workspaces
