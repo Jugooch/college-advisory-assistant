@@ -238,3 +238,72 @@ td {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* Planner form and chat sit side by side on wide screens and stack on narrow ones. */
+.planner-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 2rem;
+  align-items: start;
+}
+
+@media (max-width: 60rem) {
+  .planner-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.chat-panel {
+  padding: 1rem;
+  border: 1px solid var(--color-neutral);
+}
+
+.chat-transcript,
+.chat-blocks,
+.chat-refs {
+  margin: 1rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chat-turn {
+  margin: 0.75rem 0;
+  padding: 0.5rem 0.75rem;
+  border-left: 0.25rem solid var(--color-neutral);
+}
+
+/* The two speakers differ by label and border style, not by color alone. */
+.chat-turn--assistant {
+  border-left-style: dashed;
+}
+
+.chat-turn-label {
+  margin: 0;
+  font-weight: bold;
+}
+
+.chat-text {
+  margin: 0.25rem 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.chat-block {
+  margin: 0.5rem 0;
+}
+
+.chat-panel input[type='text'] {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0.25rem 0 0.5rem;
+}
+
+.chat-clear {
+  margin-top: 0.5rem;
+}
+
+.chat-live {
+  min-height: 1.5rem;
+  font-style: italic;
+}

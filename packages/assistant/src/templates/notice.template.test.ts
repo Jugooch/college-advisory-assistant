@@ -18,9 +18,10 @@ describe('notice templates', () => {
     for (const code of Object.values(NoticeCode)) {
       expect(renderNotice(code).length).toBeGreaterThan(0);
     }
-    expect(Object.keys(NOTICE_TEMPLATES)).toHaveLength(
-      Object.values(NoticeCode).length + Object.keys(SOURCE_NOTICE_TEMPLATES).length,
-    );
+    const expectedKeys = [
+      ...new Set([...Object.values(NoticeCode), ...Object.keys(SOURCE_NOTICE_TEMPLATES)]),
+    ].sort();
+    expect(Object.keys(NOTICE_TEMPLATES).sort()).toEqual(expectedKeys);
   });
 
   it('hypothetical notice says scenarios are unsupported and the record is unchanged', () => {

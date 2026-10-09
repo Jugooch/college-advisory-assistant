@@ -11,8 +11,9 @@ import type { ReactElement } from 'react';
 import type { ApiError, PolicySearchResponse } from '@caa/api-contract';
 import type { SpecialistTopic } from '@caa/domain';
 
+import { PolicyHitList } from '@/shared/components/policy-hit-list';
+
 import { ASK_ADVISING_OFFICE, describeTopic } from '../utils/topic-wording';
-import { PolicyHitList } from './policy-hit-list';
 
 /** One topic with the API's answer for it. */
 export interface WhereToAskEntry {

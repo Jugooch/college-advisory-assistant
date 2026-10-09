@@ -9,28 +9,28 @@
 import type { Metadata } from 'next';
 import type { ReactElement } from 'react';
 
-import { ApiError } from '@caa/api-contract';
-
 import { getAcademicSummary } from '@/api/academic-summary.api';
+import { getConversation } from '@/api/conversation.api';
 import { getPlannableTerms } from '@/api/plannable-terms.api';
 import { findScheduleOptions } from '@/api/schedule-options.api';
-import { PlannerScreen } from '@/features/next-term-planner/components/planner-screen';
+import { clearConversationAction } from '@/features/conversation/actions/clear-conversation.action';
+import { reloadConversationAction } from '@/features/conversation/actions/reload-conversation.action';
+import { sendTurnAction } from '@/features/conversation/actions/send-turn.action';
+import { ChatSection } from '@/features/conversation/components/chat-section';
+import { readChatTerm } from '@/features/conversation/utils/chat-term';
+import { LoadNotices } from '@/features/next-term-planner/components/load-notices';
+import { PlannerColumn } from '@/features/next-term-planner/components/planner-column';
 import { planScheduleRequest } from '@/features/next-term-planner/utils/planner-plan';
 import {
   readPlannerQuery,
   type SearchParams,
 } from '@/features/next-term-planner/utils/planner-query';
-import {
-  isSearchRequested,
-  planPlannerView,
-} from '@/features/next-term-planner/utils/planner-view';
+import { confirmedRequest, planPlannerView } from '@/features/next-term-planner/utils/planner-view';
 import { savePlanDraftAction } from '@/features/plan-drafts/actions/save-plan-draft.action';
 import { bindOptionDraftControl } from '@/features/plan-drafts/components/option-draft-control';
 import { ScheduleResults } from '@/features/schedule-options/components/schedule-results';
-import { StudentLookupForm } from '@/features/session/components/student-lookup-form';
+import { StudentLookupScreen } from '@/features/session/components/student-lookup-screen';
 import { StudentNav } from '@/features/student-navigation/components/student-nav';
-import { ApiErrorNotice } from '@/shared/components/api-error-notice';
-import { planCandidateCourses } from '@/shared/utils/candidate-courses';
 import { summaryCourses } from '@/shared/utils/course-display';
 import { keepApiError } from '@/shared/utils/keep-api-error';
 
@@ -39,6 +39,13 @@ export const metadata: Metadata = { title: 'Plan next term' };
 
 /** Render on every request: results are for the student's current pinned data. */
 export const dynamic = 'force-dynamic';
+
+/** The chat panel's three server actions. */
+const CHAT_ACTIONS = {
+  sendAction: sendTurnAction,
+  reloadAction: reloadConversationAction,
+  clearAction: clearConversationAction,
+};
 
 /**
  * Renders the planner step the query asks for.
@@ -53,57 +60,55 @@ export default async function NextTermPlannerPage({
 }): Promise<ReactElement> {
   const { student, step, values } = readPlannerQuery(await searchParams);
   if (student.kind !== 'valid') {
-    return (
-      <>
-        <h1>Plan next term</h1>
-        <StudentLookupForm idError={student.kind === 'invalid' ? 'invalid' : null} />
-      </>
-    );
+    return <StudentLookupScreen title="Plan next term" isIdInvalid={student.kind === 'invalid'} />;
   }
+  const studentId = student.studentId;
   // The summary comes first: its catalog entries give each variable-credit course's range.
-  const summary = await keepApiError(getAcademicSummary(student.studentId));
-  const terms = await keepApiError(getPlannableTerms(student.studentId));
-  const isSummaryFailed = summary instanceof ApiError;
+  const summary = await keepApiError(getAcademicSummary(studentId));
+  const terms = await keepApiError(getPlannableTerms(studentId));
+  const termId = readChatTerm(values.termId);
+  const chat = termId === null ? null : await keepApiError(getConversation(studentId, { termId }));
   const courses = summaryCourses(summary);
   const plan = planScheduleRequest(values, courses);
-  const outcome =
-    isSearchRequested(step, plan) && plan.request !== null
-      ? await keepApiError(findScheduleOptions(student.studentId, plan.request))
-      : null;
-  const view = planPlannerView(step, plan, outcome);
+  const request = confirmedRequest(step, plan);
+  const found =
+    request === null ? null : await keepApiError(findScheduleOptions(studentId, request));
+  const view = planPlannerView(step, plan, found);
   return (
     <>
-      <StudentNav studentId={student.studentId} current="next-term-planner" />
+      <StudentNav studentId={studentId} current="next-term-planner" />
       <h1>Plan next term</h1>
       <p>Set up a search for next term. Nothing here registers you or changes your record.</p>
-      {isSummaryFailed ? (
-        <ApiErrorNotice error={summary} headingId="summary-error-heading" />
-      ) : null}
-      {terms instanceof ApiError ? (
-        <ApiErrorNotice error={terms} headingId="terms-error-heading" />
-      ) : null}
-      {view.kind === 'searched' && plan.request !== null ? (
+      <LoadNotices summary={summary} terms={terms} />
+      {view.kind === 'searched' && request !== null ? (
         <ScheduleResults
           result={view.result}
           courses={courses}
           renderSaveDraft={bindOptionDraftControl({
             saveAction: savePlanDraftAction,
-            studentId: student.studentId,
-            request: plan.request,
+            studentId: studentId,
+            request,
             result: view.result,
           })}
         />
       ) : null}
-      <PlannerScreen
-        studentId={student.studentId}
-        view={view}
-        values={values}
-        candidates={planCandidateCourses(summary, values.courseIds)}
-        isCandidateListUnavailable={isSummaryFailed}
-        courses={courses}
-        terms={terms instanceof ApiError ? null : terms.terms}
-        credits={{ inputs: values.creditInputs, errors: plan.creditErrors }}
-      />
+      <div className="planner-layout">
+        <PlannerColumn
+          studentId={studentId}
+          view={view}
+          values={values}
+          plan={plan}
+          summary={summary}
+          terms={terms}
+        />
+        <ChatSection
+          studentId={studentId}
+          termId={values.termId}
+          conversation={chat}
+          plannerInputs={request}
+          {...CHAT_ACTIONS}
+        />
+      </div>
     </>
   );
 }
