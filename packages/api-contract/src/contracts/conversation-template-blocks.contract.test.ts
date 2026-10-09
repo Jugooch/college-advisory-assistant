@@ -46,8 +46,12 @@ describe('templateBlocks on a stored assistant turn', () => {
     ...extra,
   });
   const accepts = (t: unknown): boolean =>
-    ConversationResponseSchema.safeParse({ available: true, unavailableReason: null, turns: [t] })
-      .success;
+    ConversationResponseSchema.safeParse({
+      available: true,
+      unavailableReason: null,
+      turns: [t],
+      lastSequence: 10,
+    }).success;
 
   it('accepts a crisis referral ref with a matching block', () => {
     expect(accepts(turn({ templateBlocks: [{ refIndex: 0, block: REFERRAL }] }))).toBe(true);
