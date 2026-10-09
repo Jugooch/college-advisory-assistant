@@ -58,12 +58,16 @@ async function openStudentScreen(page: Page, label: string): Promise<void> {
 }
 
 /**
- * Waits until Help and cases has loaded the student's cases. The page heading also shows on the
- * loading screen, so the wait is for a link only the loaded page has.
+ * Waits until Help and cases has loaded the student's cases. The loading screen shows the same
+ * heading, and the Overview links to the same page, so the wait needs the heading and a link only
+ * the loaded page has.
  *
  * @param page - The browser page.
  */
 async function waitForCaseList(page: Page): Promise<void> {
+  await expect(page.getByRole('heading', { level: 1, name: 'Help and cases' })).toBeVisible({
+    timeout: SLOW_STEP_MS,
+  });
   await expect(page.getByRole('link', { name: 'Report a problem with my record' })).toBeVisible({
     timeout: SLOW_STEP_MS,
   });
